@@ -2673,7 +2673,9 @@ const document = __scopedDoc('app-melody');
         {gapM:1.0,  phMax:5, dyad:0.2,  roll:0.28, shim:0.16, len:1.15, reg:0,  vb:44},
         {gapM:1.25, phMax:4, dyad:0.16, roll:0.24, shim:0.4,  len:1.05, reg:2,  vb:42},
         {gapM:1.45, phMax:3, dyad:0.2,  roll:0.34, shim:0.06, len:1.6,  reg:-4, vb:40},
-        {gapM:1.15, phMax:4, dyad:0.35, roll:0.45, shim:0.2,  len:1.25, reg:0,  vb:44}
+        {gapM:1.15, phMax:4, dyad:0.35, roll:0.45, shim:0.2,  len:1.25, reg:0,  vb:44},
+        {gapM:2.2,  phMax:2, dyad:0.1,  roll:0.15, shim:0.3,  len:2.0,  reg:-2, vb:36},   // 성긴 명상형: 넓은 여백·긴 음·여린 세기
+        {gapM:0.8,  phMax:6, dyad:0.25, roll:0.3,  shim:0.1,  len:0.9,  reg:1,  vb:46}    // 흐르는 밀집형: 촘촘한 프레이즈·짧은 음
       ];
       var chF=CHARS[Math.floor(fr()*CHARS.length)];
       var gapM=chF.gapM*(0.85+fr()*0.3);
@@ -2719,8 +2721,15 @@ const document = __scopedDoc('app-melody');
       var chHomes=[]; var homeSet0=[1,4,5,8,0];
       for(var ci0=0;ci0<chN;ci0++) chHomes.push(homeSet0[Math.floor(fr()*homeSet0.length)]);
       chHomes[chN-1]=chHomes[0];
-      // 3) 거시 아크: 도입 0 → 정점 1(62% 지점) → 소멸 0
-      function arcAt(pos){ return pos<0.62 ? pos/0.62 : Math.max(0,1-(pos-0.62)/0.38); }
+      // 3) 거시 아크: 생성마다 모양·정점이 달라져 곡 전체 인상이 바뀜(아치/하강/상승/고원)
+      var arcPeak=0.35+fr()*0.4;         // 정점 위치 35~75%
+      var arcMode=Math.floor(fr()*4);    // 0=아치 1=하강 2=상승 3=고원
+      function arcAt(pos){
+        if(arcMode===1) return Math.max(0,1-pos*0.9);                                   // 하강: 높게 시작해 가라앉음
+        if(arcMode===2) return Math.min(1,pos*1.05);                                    // 상승: 낮게 시작해 오름
+        if(arcMode===3) return Math.max(0.35,1-Math.abs(pos-arcPeak)*1.2);              // 고원: 정점 부근 평평
+        return pos<arcPeak ? pos/arcPeak : Math.max(0,1-(pos-arcPeak)/(1-arcPeak));     // 아치: 가변 정점
+      }
       var pendResp=null;   // 콜 앤 리스폰스: 모티프 제시 뒤 응답 예약
       function clampD(d){ return Math.max(-3,Math.min(12,d)); }
       var tF=0.6+fr()*1.2;                          // 첫 숨(자연 소리가 먼저 들림)
@@ -2763,6 +2772,10 @@ const document = __scopedDoc('app-melody');
         var rubShape=fr()<0.35?0:fr()<0.62?1:2;
         for(var kF=0;kF<nF && tF<totalF-1.5;kF++){
           var dF=phraseDegs?phraseDegs[kF]:pickDeg(prevDeg);
+          if(prevDeg!=null && kF>0){   // 프레이즈 안 도약 제한: 6도(5도수)↑ 벌어지면 당김 — 큰 도약은 새 프레이즈 첫 음에만 허용
+            var _lp=dF-prevDeg;
+            if(Math.abs(_lp)>5) dF=clampD(prevDeg+(_lp>0?1:-1)*(3+Math.floor(fr()*2)));   // 3~4도(5도 부근)로 축소
+          }
           var degF=degToSemi(dF+secDegOff+octDrift, SCALE);
           // 페달로 아직 울리는 음들과의 근접 단2도(12반음 이내, 피치클래스 차 1·11) 회피
           // — 다시 뽑기 → 스케일 한 도 아래 → 한 도 위 순서로 시도, 옥타브 이상 벌어진 겹침은 허용(워시에서 부드러움)
@@ -2820,6 +2833,10 @@ const document = __scopedDoc('app-melody');
           if(famF==='synth'){ durF=Math.min(durF*1.8, totalF-1-tF); }   // 패드: 길게 겹치며 부유
           var mT=tF+(kF===0?0.13:0);   // 프레이즈 첫 멜로디 음은 롤 끝에
           var melMidi=center+dgF;
+          if(prevMel!=null){   // 멜로디 도약이 한 옥타브(12반음)를 넘으면 옥타브를 접어 당김 — 음정 클래스는 유지, 튀는 점프 제거
+            while(melMidi-prevMel>12) melMidi-=12;
+            while(prevMel-melMidi>12) melMidi+=12;
+          }
           outF.push({t:+mT.toFixed(3),dur:+durF.toFixed(3),midi:melMidi,vel:velF,sustain:true});
           prevMel=melMidi;
           // 신스: 위 완전5도 스택 20% — 열린 공기감(조성 안·비마찰일 때만)
@@ -2861,7 +2878,7 @@ const document = __scopedDoc('app-melody');
             tF += (0.5+fr()*1.7)*rubM + (stretched?1.5+fr()*1.0:0);   // 뻗은 음 뒤엔 여백을 더
           }
         }
-        tF += (3.0+fr()*6.0)*spreadF*gapM*(1.3-0.55*arcV);   // 숨도 아크를 따름: 도입·소멸은 넓고 정점은 촘촘
+        tF += Math.min(barLen, (3.0+fr()*6.0)*spreadF*gapM*(1.3-0.55*arcV));   // 숨도 아크를 따름 — 단, 한 마디를 넘지 않게(빈 구간 ≤1마디)
       }
       // 종지: 으뜸음(60%) 또는 5음, 길고 여리게
       // 미해결 종지: 카덴차 없이 2·6·9도(가끔 5음) 위에서 부유하며 사라짐 — 닫지 않고 열어 둠
@@ -2871,20 +2888,29 @@ const document = __scopedDoc('app-melody');
       if(famP){
         var endBass=center-24+degToSemi(fr()<0.5?4:5,SCALE);   // 저역도 5·6도 — 으뜸 회귀 없음
         outF.push({t:+endT.toFixed(3),dur:+endDur.toFixed(3),midi:endBass,vel:38,sustain:true,phrase:true});
+        var endTop=center+degToSemi(endDegF+secDegOff,SCALE);
+        if(prevMel!=null){ while(endTop-prevMel>12)endTop-=12; while(prevMel-endTop>12)endTop+=12; }   // 종지 상단음 옥타브 폴딩
         outF.push({t:+(endT+0.16).toFixed(3),dur:+(endDur*0.9).toFixed(3),
-          midi:center+degToSemi(endDegF+secDegOff,SCALE),vel:42,sustain:true});
+          midi:endTop,vel:42,sustain:true});
       } else {
         // 현·관: 마지막 숨/활 하나로 여리게 사라짐
+        var endMel=center+degToSemi(endDegF+secDegOff,SCALE);
+        if(prevMel!=null){ while(endMel-prevMel>12)endMel-=12; while(prevMel-endMel>12)endMel+=12; }   // 종지음도 옥타브 폴딩
         outF.push({t:+endT.toFixed(3),dur:+endDur.toFixed(3),
-          midi:center+degToSemi(endDegF+secDegOff,SCALE),vel:40,sustain:true,phrase:true});
+          midi:endMel,vel:40,sustain:true,phrase:true});
       }
       outF.sort(function(a,b){return a.t-b.t||a.midi-b.midi;});
       // ── 악기군 후처리 ──
       if(famF==='strings'){
-        // 레가토: 활이 다음 음까지 이어짐(0.35박 겹침), 프레이즈 끝 긴 활은 유지
+        // 레가토: 다음 음으로 겹쳐 이어 legato 유발. 같은 음은 겹치면 다음 음이 꺼지므로 살짝 떼어 재당김.
         for(var si2=0;si2<outF.length-1;si2++){
           var gN=outF[si2+1].t-outF[si2].t;
-          if(gN>0.01 && gN<=2.0) outF[si2].dur=Math.min(6, totalF-1-outF[si2].t, gN+0.35);
+          if(gN<=0.01) continue;
+          if(outF[si2].midi===outF[si2+1].midi){
+            outF[si2].dur=Math.max(0.2, gN-0.06);   // 같은 음: 재당김 위한 짧은 틈(겹치면 뒤 음이 꺼짐)
+          } else if(gN<=2.0){
+            outF[si2].dur=Math.min(6, totalF-1-outF[si2].t, gN+Math.min(0.28, gN*0.6));   // 다른 음: 짧은 겹침(짧은 음은 덜 겹침)
+          }
         }
         // 더블스톱: 긴 활(2.5박 이상)의 15%에 아래 완전5도 — 조성 안이고 갈리지 않을 때만
         var dsAdd=[];
@@ -2915,10 +2941,16 @@ const document = __scopedDoc('app-melody');
         outF.sort(function(a,b){return a.t-b.t||a.midi-b.midi;});
       }
       if(famF==='winds'){
-        // 엄격한 단선율: 다음 음 시작 0.08박 전에 반드시 떼기(한 호흡 한 줄)
+        // 슬러(레가토): 프레이즈 안에서는 다음 음으로 살짝 겹쳐 매끄럽게 이어짐(legato 유발).
+        // 같은 음만 짧게 떼어 텅잉하고, 프레이즈 사이 큰 간격(>2박)은 원래 길이로 두어 호흡.
         for(var wi2=0;wi2<outF.length-1;wi2++){
           var gW=outF[wi2+1].t-outF[wi2].t;
-          if(gW>0.01) outF[wi2].dur=Math.min(outF[wi2].dur, Math.max(0.3, gW-0.08));
+          if(gW<=0.01) continue;
+          if(outF[wi2].midi===outF[wi2+1].midi){
+            outF[wi2].dur=Math.max(0.25, gW-0.05);   // 같은 음: 짧은 텅잉 간격
+          } else if(gW<=2.0){
+            outF[wi2].dur=Math.min(totalF-1-outF[wi2].t, gW+0.1);   // 슬러: 0.1박 겹침
+          }
         }
         // 꾸밈음: 20% 음 앞에 짧은 이웃음(위/아래 스케일 음) — 플루트 관용구
         var grAdd=[];
@@ -2932,14 +2964,25 @@ const document = __scopedDoc('app-melody');
               var gT=nW.t-0.18;
               var prevW=outF[wi3-1];
               if(gT>prevW.t+0.05){
-                if(prevW.t+prevW.dur>gT-0.05) prevW.dur=Math.max(0.2, gT-0.05-prevW.t);
-                grAdd.push({t:+gT.toFixed(3),dur:0.14,midi:nW.midi+gOff,vel:Math.max(26,nW.vel-12),sustain:true});
+                if(prevW.midi!==(nW.midi+gOff)) prevW.dur=Math.max(0.2, gT-prevW.t+0.06);   // 앞 음 → 꾸밈음 슬러(같은 음이면 겹치지 않음)
+                else prevW.dur=Math.max(0.2, gT-0.05-prevW.t);
+                grAdd.push({t:+gT.toFixed(3),dur:+((nW.t-gT)+0.08).toFixed(3),midi:nW.midi+gOff,vel:Math.max(20,Math.round(nW.vel*0.5)),sustain:true});   // 꾸밈음 → 본음 슬러(겹쳐 이어짐), 볼륨 절반으로 가볍게
               }
             }
           }
         }
         outF=outF.concat(grAdd);
         outF.sort(function(a,b){return a.t-b.t||a.midi-b.midi;});
+      }
+      // 최종 안전망: 같은 음이 시간상 겹치면 뒤 음 note-on이 앞 음 note-off로 꺼지므로, 앞 음을 뒤 음 직전에서 끊음
+      outF.sort(function(a,b){return a.t-b.t||a.midi-b.midi;});
+      for(var qi=0;qi<outF.length;qi++){
+        for(var qj=qi+1;qj<outF.length;qj++){
+          if(outF[qj].t>=outF[qi].t+outF[qi].dur-1e-6) break;   // 시간순 — 더 겹칠 음 없음
+          if(outF[qj].midi===outF[qi].midi && outF[qj].t>outF[qi].t+1e-6){
+            outF[qi].dur=Math.max(0.05, outF[qj].t-outF[qi].t-0.02);
+          }
+        }
       }
       return outF;
     }
@@ -2965,7 +3008,14 @@ const document = __scopedDoc('app-melody');
     var motifRhythm=buildRhythm(meter,groupSteps,genre,motifRnd);
     if(!motifRhythm.length) motifRhythm=[{pos:0,dur:barLen,accent:1}];
     // 동기 윤곽(스케일 도): 기억에 남는 씨앗
-    var motifShapes=[[0,1,2,1],[0,2,1,0],[0,1,0,2],[2,1,0,1],[0,2,4,2],[0,1,2,4],[2,0,1,3]];
+    var motifShapes=[
+      [0,1,2,1],[0,2,1,0],[0,1,0,2],[2,1,0,1],[0,2,4,2],[0,1,2,4],[2,0,1,3],   // 기존 7종(근음 주변 순차)
+      [0,2,4],[0,2,4,5],[0,1,2,3,4],                                            // 상행형(오르는 개시)
+      [4,2,1,0],[5,3,2,0],[4,3,2,1,0],                                          // 하행형(높이 시작해 착지)
+      [0,3,5,3,0],[1,3,4,2],[4,5,4,2],                                          // 아치·5도 시작(밝은 개시)
+      [4,2,0,2],[3,1,0,2],                                                      // 골짜기형(내렸다 오름)
+      [0,3,1,4,2],[2,4,1,3,0]                                                   // 지그재그(도약감 있는 윤곽)
+    ];
     var motifContour=motifShapes[Math.floor(motifRnd()*motifShapes.length)];
 
     // ── 챈트 훅(캐치프레이즈): 2~3음 조각 + 쉼 → 매 마디 똑같이 반복(각인) ──
@@ -4322,7 +4372,7 @@ function soApplyBlueprint(bp){
     +(gSub?' · 장르 '+gSub+' 대체':'')+') 불러옴';
   autoRemake();
 }
-window.__soMelodyDebug=()=>({notes:state.notes.map(n=>({t:n.t,midi:n.midi,dur:n.dur})),
+window.__soMelodyDebug=()=>({notes:state.notes.map(n=>({t:n.t,midi:n.midi,dur:n.dur,vel:n.vel})),
   sections:state.sections.map(s=>({role:s.role,bars:s.bars,soStartBar:s.soStartBar,chordEvents:s.chordEvents||[]})),
   timeline:buildChordTimeline(),barLen:ME.meterBarLen(state.meter)});
 /* ── 통합 MIDI 내보내기: 밴드 트랙 + 멜로디를 마디 정렬 한 파일로, 통합 설명서 동반 ── */
