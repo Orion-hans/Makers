@@ -1337,6 +1337,62 @@ input[type=range]{accent-color:var(--teal)}
 }
 
 /* ===== MEDITATION BUILDER 스타일 끝 ===== */
+
+/* 폭·정렬 통일 */
+#app-melody .wrap, #app-band .wrap, #app-beat .wrap, #app-play .wrap{
+  max-width:1040px !important; margin-left:auto !important; margin-right:auto !important;
+}
+/* Band: 2단 → 1단 (미디어쿼리 grid 무력화) */
+#app-band .panels{ display:block !important; }
+#app-band .panels > .panel{ width:auto !important; }
+/* 박스 크기·테두리·간격 통일 (Band·Beat 패널 / Play 폴드) */
+#app-band .panel, #app-beat .panel{
+  padding:16px 18px !important; border-radius:11px !important; margin-bottom:14px !important;
+  border:1px solid var(--so-line) !important; background:var(--so-panel) !important;
+}
+#app-play details.opt-fold, #app-play .comp-sec, #app-play .song-head{
+  border:1px solid var(--so-line) !important; border-radius:11px !important;
+  background:var(--so-panel) !important; margin-bottom:14px !important; padding:6px 16px !important;
+}
+#app-play .song-head{ padding:12px 16px !important; }
+/* 섹션 헤더 통일: Band/Beat .plabel 스타일(12.5px·700·대문자·자간·teal)로 Play 상위 헤더 맞춤 */
+#app-band .plabel, #app-beat .plabel,
+#app-play #genreFold > summary, #app-play #instFold > summary, #app-play .song-head .catname{
+  font-size:12.5px !important; font-weight:700 !important; text-transform:uppercase !important;
+  letter-spacing:.13em !important; color:var(--so-accent) !important; line-height:1.4 !important;
+}
+/* 번호 배지 통일(연한 회색 모노 느낌) */
+#app-band .plabel .n, #app-beat .plabel .n,
+#app-play #genreFold > summary .sum-label > span:first-child,
+#app-play #instFold > summary > span:first-child,
+#app-play .song-head .catname > span:first-child{
+  font-weight:400 !important; opacity:.55 !important; color:var(--so-sub) !important; margin-right:5px !important; letter-spacing:.05em !important;
+}
+/* 글자체 통일: 모든 앱 텍스트를 한 폰트로 (Archivo·Poppins·모노체 혼용 제거). 이모지는 폰트 무관하게 렌더됨 */
+#so-tabs, #so-tabs *,
+#app-melody, #app-melody *, #app-band, #app-band *, #app-beat, #app-beat *,
+#app-play, #app-play *, #app-med, #app-med *{
+  font-family:'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+/* ── 타입 스케일 통일: 제목 크게 · 필드라벨 작게 · 내용 라벨보다 크게 ── */
+#app-band h1, #app-beat h1, #app-play h1, #app-melody .logo{ font-size:30px !important; font-weight:800 !important; letter-spacing:-.01em !important; }
+#app-melody label, #app-band label, #app-beat label, #app-play label{ font-size:11px !important; letter-spacing:.01em !important; }
+#app-melody :where(select, input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea),
+#app-band  :where(select, input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea),
+#app-beat  :where(select, input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea),
+#app-play  :where(select, input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea){ font-size:14px !important; }
+/* ── 연결 바 버튼·토글 통일 (Play는 클래스 없음, Band/Beat는 so-iconbtn이나 크기 제각각) ── */
+.so-connect-bar button{
+  font-size:12.5px !important; padding:6px 11px !important; height:auto !important; min-width:0 !important; width:auto !important;
+  border-radius:8px !important; border:1px solid var(--so-line) !important;
+  background:var(--so-panel2) !important; color:var(--so-ink) !important;
+  line-height:1.25 !important; font-weight:500 !important; cursor:pointer !important;
+  display:inline-flex !important; align-items:center !important; gap:4px !important; white-space:nowrap !important;
+}
+.so-connect-bar button:hover{ border-color:var(--so-accent) !important; color:var(--so-accent) !important; }
+.so-connect-bar > label{ display:inline-flex !important; align-items:center !important; gap:4px !important; font-size:12.5px !important; color:var(--so-ink) !important; }
+.so-connect-bar > span:first-child{ font-size:12.5px !important; }
+
 </style>
 </head>
 <body>
@@ -1461,7 +1517,7 @@ input[type=range]{accent-color:var(--teal)}
       <div class="stage-empty" id="rollEmpty"><div class="big">멜로디를 만들면 여기 악보가 그려져요</div></div>
     </div>
     <div class="transport">
-      <button class="tp-btn" id="tpPlay">▶ 재생</button>
+      <button class="tp-btn" id="tpPlay">▶ 전체 재생</button>
       <button class="tp-btn ghost" id="tpAcc" title="미리듣기 전용 — MIDI/WAV에는 멜로디만 담깁니다">🎹 코드 반주 <b id="tpAccSt">OFF</b></button>
       <div class="seg instseg" id="instSeg">
         <button data-inst="piano" class="on">🎹 피아노</button>
@@ -1475,9 +1531,9 @@ input[type=range]{accent-color:var(--teal)}
 </div>
 
 <div class="dock">
-  <button class="d-play" id="dockPlay">▶ 재생</button>
+  <button class="d-play" id="dockPlay">▶ 전체 재생</button>
   <button class="d-acc" id="dockAcc">🎹 코드 <b>OFF</b></button>
-  <button class="d-mid" id="dockMidi">🎼 MIDI</button>
+  <button class="d-mid" id="dockMidi">💾 전체 MIDI</button>
   <button class="d-wav" id="dockWav">🔊 WAV</button>
 </div>
 
@@ -1537,7 +1593,7 @@ input[type=range]{accent-color:var(--teal)}
       <span class="mini" style="margin-left:2px;">⏱</span>
       <input type="number" id="fitMin" min="0" max="60" value="3" style="width:40px;" inputmode="numeric"><span class="mini">분</span>
       <input type="number" id="fitSec" min="0" max="59" value="0" style="width:40px;" inputmode="numeric"><span class="mini">초</span>
-      <button class="sm primary" id="fitBtn" style="padding:5px 9px;font-size:12px;flex:0 0 auto;">구성</button>
+      <button class="sm primary" id="fitBtn" style="padding:5px 9px;font-size:12px;flex:0 0 auto;">⏱ 맞추기</button>
       <span class="mini" id="fitOut" style="letter-spacing:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
     </div>
     <div class="btnrow" style="margin-top:10px;align-items:center;">
@@ -1606,7 +1662,7 @@ input[type=range]{accent-color:var(--teal)}
     <div class="plabel ptoggle"><span class="n">04</span> 내보내기 & 저장 <span class="chev">▾</span></div>
     <div class="pbody">
     <div class="btnrow">
-      <button class="sm primary" id="exAll">🎼 전체 MIDI + 송시트</button>
+      <button class="sm primary" id="exAll">💾 전체 MIDI + 시트</button>
       <button class="sm" data-inst="piano">피아노</button>
       <button class="sm" data-inst="bass">베이스</button>
       <button class="sm" data-inst="guitar">기타</button>
@@ -1628,8 +1684,8 @@ input[type=range]{accent-color:var(--teal)}
   </div><!-- /scroll -->
 
   <div class="transport" id="transport">
-    <button class="primary" id="play"><span class="dot"></span>재생</button>
-    <button id="exportMidi">💾 미디</button><span id="pstat" style="font-size:11px;color:#8a8a96;align-self:center;margin-left:4px;"></span>
+    <button class="primary" id="play"><span class="dot"></span>전체 재생</button>
+    <button id="exportMidi">💾 전체 MIDI</button><span id="pstat" style="font-size:11px;color:#8a8a96;align-self:center;margin-left:4px;"></span>
     <div class="insts" id="insts"></div>
     <span class="meta">길이 <b id="lenTag">—</b></span>
   </div>
@@ -1677,10 +1733,10 @@ input[type=range]{accent-color:var(--teal)}
       <div class="field"><label>&nbsp;</label><button id="resetTop" style="width:100%;white-space:nowrap;">↺ 전체 초기화</button></div>
     </div>
     <div id="timedBar" style="display:flex;flex-wrap:nowrap;align-items:center;gap:8px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line,#333);border-radius:10px;overflow-x:auto;">
-      <span style="font-weight:600;white-space:nowrap;">⏱ 목표 시간</span>
+      <span style="font-weight:600;white-space:nowrap;">⏱ 목표 길이</span>
       <input id="tgtMin" type="number" min="0" max="180" placeholder="분" style="width:56px;"> :
       <input id="tgtSecIn" type="number" min="0" max="59" placeholder="초" style="width:56px;">
-      <button class="sm primary" id="fitTime">적용</button>
+      <button class="sm primary" id="fitTime">⏱ 맞추기</button>
       <button class="sm" id="clearTime">해제</button>
       <span class="mini" id="lenTag" style="white-space:nowrap;"></span>
     </div>
@@ -1745,7 +1801,7 @@ input[type=range]{accent-color:var(--teal)}
   </div>
 
   <div class="panel collapsed" id="panel3">
-    <div class="plabel ptoggle"><span class="n">03</span> 다듬기 — 구간별 구조·비트·전환 <span class="chev">▾</span></div>
+    <div class="plabel ptoggle"><span class="n">02</span> 다듬기 — 구간별 구조·비트·전환 <span class="chev">▾</span></div>
     <div class="pbody">
     <p class="tip" style="margin:0 0 12px;">흐름(리본)에서 구간을 탭해 그 구간의 비트·코드·분위기를 편집해요.</p>
 
@@ -1759,7 +1815,7 @@ input[type=range]{accent-color:var(--teal)}
   </div>
 
   <div class="panel collapsed" id="panel4">
-    <div class="plabel ptoggle"><span class="n">04</span> MIDI 내보내기 — 로직으로 <span class="chev">▾</span></div>
+    <div class="plabel ptoggle"><span class="n">03</span> MIDI 내보내기 — 로직으로 <span class="chev">▾</span></div>
     <div class="pbody">
     <div class="btnrow">
       <button class="sm primary" id="exAll">전체 트랙</button>
@@ -1775,7 +1831,7 @@ input[type=range]{accent-color:var(--teal)}
   </div>
 
   <div class="panel collapsed" id="panel5">
-    <div class="plabel ptoggle"><span class="n">05</span> 프로젝트 저장 / 불러오기 <span class="chev">▾</span></div>
+    <div class="plabel ptoggle"><span class="n">04</span> 프로젝트 저장 / 불러오기 <span class="chev">▾</span></div>
     <div class="pbody">
     <div class="btnrow">
       <button class="sm primary" id="saveLocal">브라우저에 저장</button>
@@ -1791,7 +1847,7 @@ input[type=range]{accent-color:var(--teal)}
 
   <div class="transport" id="transport">
     <button class="primary" id="play"><span class="dot"></span>전체 재생</button>
-    <button id="exMidi">♪ 미디 추출</button>
+    <button id="exMidi">💾 전체 MIDI</button>
     <div class="insts" id="insts"></div>
     <span class="meta" id="posWrap" style="display:none;">⏱ <b id="posTag">0:00</b> / <span id="totTag">0:00</span></span>
     <span class="meta">길이 <b id="lenTag">—</b></span>
@@ -1832,7 +1888,7 @@ input[type=range]{accent-color:var(--teal)}
   <div id="guidePanel" class="guide-panel" style="display:none"></div>
 
   <details class="opt-fold genre-fold" id="genreFold" open>
-    <summary><span class="sum-label">🎼 장르 — <span id="genreSum">기악독주곡 · 에이올리안</span></span></summary>
+    <summary><span class="sum-label"><span style="opacity:.5;font-weight:400;margin-right:4px;">01</span>장르 — <span id="genreSum">기악독주곡 · 에이올리안</span></span></summary>
     <div class="genre-line"><span class="catname genre-lab">장르</span><div class="chips" id="genres"></div>
       <div class="field"><label for="tonic">으뜸음(키)</label><select id="tonic" class="slim-sel"></select></div>
       <div class="field"><label for="keymode">조성</label><select id="keymode" class="kmsel slim-sel"><option value="major">장조</option><option value="minor">단조</option><option value="modal" title="모달·선법">선법</option></select></div>
@@ -1846,8 +1902,8 @@ input[type=range]{accent-color:var(--teal)}
   </details>
 
 
-  <details class="opt-fold">
-    <summary>🎹 악기 · 음색 · 세부 조정</summary>
+  <details class="opt-fold" id="instFold">
+    <summary><span style="opacity:.5;font-weight:400;margin-right:3px;">02</span>🎹 악기 · 음색 · 세부 조정</summary>
     <div class="preset-row"><button type="button" id="presetSolo">🎍 선율악기 + 피아노 반주</button><button type="button" id="presetBand">🎹 풀 밴드</button></div>
     <div class="inst-grid" id="instGrid"></div>
     <div class="fold-div"></div>
@@ -1869,12 +1925,12 @@ input[type=range]{accent-color:var(--teal)}
       <button type="button" id="scoreBtn" class="tb-ghost">📄 악보</button>
       <button type="button" id="themeMidiBtn" class="build-midi" style="display:none">💾 MIDI</button>
     </div>
-    <div class="struct-row make-row"><span class="build-lab">길이</span><span class="dur-in"><input type="number" id="durMin" min="0" max="20" placeholder="분" inputmode="numeric">:<input type="number" id="durSec" min="0" max="59" placeholder="초" inputmode="numeric"></span><button type="button" id="applyDur" class="apply-dur">⏱ 적용</button><button type="button" id="durReset" class="dur-reset" title="분·초 비우기(자동)">↺</button><span id="applyDurMsg" class="dur-hint"></span></div>
+    <div class="struct-row make-row"><span class="build-lab">목표 길이</span><span class="dur-in"><input type="number" id="durMin" min="0" max="20" placeholder="분" inputmode="numeric">:<input type="number" id="durSec" min="0" max="59" placeholder="초" inputmode="numeric"></span><button type="button" id="applyDur" class="apply-dur">⏱ 맞추기</button><button type="button" id="durReset" class="dur-reset" title="분·초 비우기(자동)">↺</button><span id="applyDurMsg" class="dur-hint"></span></div>
     <div class="struct-row build-row"><span class="build-lab">구조</span><select id="structSel"></select><span class="build-lab">빌드업</span><select id="buildupSel"><option value="genre">장르 기본</option><option value="modern">모던 팝 (훅 선행)</option><option value="edmdrop">EDM 드롭</option><option value="breakdown">브레이크다운 대비</option><option value="gentle">완만 (앰비언트)</option><option value="flat">평탄</option></select><span class="build-lab" id="vocLab">보컬</span><select id="vocSel"><option value="female">여성</option><option value="male">남성</option><option value="duet">듀엣 (남·여)</option></select></div>
     <div class="struct-row build-row na-row" id="naGroup"><span class="build-lab">전조</span><select id="modSel" class="mod-narrow"><option value="auto">자동</option><option value="0">없음</option><option value="2">온음↑</option><option value="1">반음↑</option><option value="-1">반음↓</option></select><span class="na-cluster"><label class="na-main" title="아르페지오 변환 — 출력(재생·MIDI)에 적용"><input type="checkbox" id="pianoNA"> 아르페지오 변환</label><span class="na-subs"><label class="na-sub"><input type="checkbox" id="naDrums"> 🥁 드럼</label><label class="na-sub">색 <select id="naLevel"><option value="1">은은</option><option value="2" selected>따뜻</option><option value="3">풍부</option></select></label></span></span></div>
     <div id="themeMsg" class="theme-msg">테마를 생성하고 ▶ 로 들어보세요</div>
     <div id="scoreView" class="score-view" style="display:none"></div>
-    <div class="song-head"><span class="catname" style="margin:0">곡 구조</span><div class="song-btns"><button type="button" id="playSong" style="display:none">▶ 곡 전체 재생</button><button type="button" id="harmonyBtn" style="display:none">🔍 화성 분석</button><label class="skel-tog" id="skelTog" style="display:none" title="멜로디를 '가이드(교체·뮤트)'로 표시 — 로직에서 네 멜로디를 얹는 용도"><input type="checkbox" id="skeletonMode"> 🦴 뼈대</label><button type="button" id="songMidi" style="display:none">💾 곡 MIDI</button><button type="button" id="setupSheet" style="display:none">📄 셋업 시트</button></div></div>
+    <div class="song-head"><span class="catname" style="margin:0"><span style="opacity:.5;font-weight:400;margin-right:3px;">03</span>곡 구조</span><div class="song-btns"><button type="button" id="playSong" style="display:none">▶ 전체 재생</button><button type="button" id="harmonyBtn" style="display:none">🔍 화성 분석</button><label class="skel-tog" id="skelTog" style="display:none" title="멜로디를 '가이드(교체·뮤트)'로 표시 — 로직에서 네 멜로디를 얹는 용도"><input type="checkbox" id="skeletonMode"> 🦴 뼈대</label><button type="button" id="songMidi" style="display:none">💾 전체 MIDI</button><button type="button" id="setupSheet" style="display:none">📄 셋업 시트</button></div></div>
     <div id="songView"></div>
     <div id="harmonyPanel" class="harmony-panel" style="display:none"></div>
     <details class="opt-fold mel-fold">
@@ -1907,7 +1963,7 @@ input[type=range]{accent-color:var(--teal)}
 </div>
 <div class="pc-transport" id="pcTransport">
   <button type="button" class="t-play" id="pcPlay"><span class="pc-dot"></span>전체 재생</button>
-  <button type="button" class="t-midi" id="pcMidi" title="곡 MIDI 추출 (+ 레시피 TXT)">💾 MIDI</button>
+  <button type="button" class="t-midi" id="pcMidi" title="곡 MIDI 추출 (+ 레시피 TXT)">💾 전체 MIDI</button>
   <div class="pc-insts" id="pcInsts"></div>
   <span class="pc-tmeta" id="pcMeta"></span>
 </div>
@@ -2279,6 +2335,58 @@ function __scopedDoc(rootId){
 
 // 앱 간 공유 허브 — 곡 설계도(blueprint) 등 의도적으로 열어둔 연동 통로
 window.SO_HUB = { blueprint: null };
+/* ── 모티브 시스템: 가져온 멜로디의 훅에서 모티브를 뽑아 인트로·간주·아웃트로에 협화로 배치(엔진 미변경, 브릿지 레벨 추가 트랙) ── */
+window.SO_motive = function(appKey){
+  const H=window.SO_HUB||{}; const mel=H.importedMelody, bp=H.blueprint;
+  if(appKey && H.motiveOff && H.motiveOff[appKey]) return [];   // 앱별 모티브 끄기
+  if(H.motiveOff===true) return [];   // (구버전 전역 호환)
+  if(!mel||!mel.length||!bp||!bp.sections||!bp.sections.length) return [];
+  const PCN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const meterQ=(function(m){ m=String(m||'4/4').split('/'); const n=+m[0]||4,d=+m[1]||4; return n*(4/d); })(bp.meter);
+  const noteToPc=(s)=>{ s=String(s).trim().replace('♭','b').replace('♯','#'); const base={C:0,D:2,E:4,F:5,G:7,A:9,B:11}[s[0]&&s[0].toUpperCase()]; if(base==null)return null; let pc=base; if(s[1]==='#')pc++; else if(s[1]==='b')pc--; return ((pc%12)+12)%12; };
+  const chordPcs=(sym)=>{ const m=String(sym||'C').match(/^([A-Ga-g][#b♭♯]?)(.*)$/); if(!m)return[0,4,7]; const root=noteToPc(m[1]); if(root==null)return[0,4,7]; const q=(m[2]||'').replace('♭','b').replace('♯','#'); let iv=[0,4,7];
+    if(/dim|°/.test(q))iv=[0,3,6]; else if(/aug|\+/.test(q))iv=[0,4,8]; else if(/sus2/.test(q))iv=[0,2,7]; else if(/sus4|sus/.test(q))iv=[0,5,7]; else if(/^(m|min|-)(?!aj)/.test(q))iv=[0,3,7];
+    if(/maj7|M7|Δ/.test(q))iv=iv.concat(11); else if(/7/.test(q))iv=iv.concat(10); if(/6(?![0-9])/.test(q))iv=iv.concat(9);
+    return iv.map(i=>(((root+i)%12)+12)%12); };
+  const snapToChord=(midi,pcs)=>{ let best=midi,bd=99; for(let o=-2;o<=2;o++){ for(const pc of pcs){ let cand=Math.round(midi/12)*12+pc+o*12; const d=Math.abs(cand-midi); if(d<bd){bd=d;best=cand;} } } return best; };
+  // 1) 모티브 씨앗 추출: 훅(없으면 벌스, 없으면 첫 구간)의 앞 2마디 — 상대시간·길이·음정윤곽
+  let startBar=1; const secs=bp.sections.map(s=>{ const o={role:s.role,startBar,bars:s.bars||(s.chords?s.chords.length:4),chords:(s.chords||['C']).slice()}; startBar+=o.bars; return o; });
+  const pickSec=secs.find(s=>s.role==='hook')||secs.find(s=>s.role==='verse')||secs[0];
+  const seedStartBeat=(pickSec.startBar-1)*meterQ, seedEndBeat=seedStartBeat+Math.min(2,pickSec.bars)*meterQ;
+  const seedNotes=mel.filter(n=>n.t>=seedStartBeat-1e-6&&n.t<seedEndBeat-1e-6).sort((a,b)=>a.t-b.t);
+  if(seedNotes.length<2) return [];
+  const base0=seedNotes[0].midi;
+  const seed=seedNotes.slice(0,8).map(n=>({rel:n.t-seedStartBeat, dur:Math.min(n.dur,meterQ), iv:n.midi-base0}));   // 최대 8음 모티브
+  const avgMidi=Math.round(mel.reduce((a,n)=>a+n.midi,0)/mel.length);
+  // 2) 배치: 인트로·간주(브릿지·브레이크)·아웃트로 구간마다 씨앗을 그 구간 코드에 스냅
+  const TARGET={intro:1,bridge:1,break:1,interlude:1,outro:1};
+  const out=[];
+  secs.forEach(s=>{ if(!TARGET[s.role]) return;
+    const reps=Math.max(1,Math.floor(s.bars/2));   // 2마디마다 반복
+    for(let rp=0; rp<reps; rp++){
+      const winStartBar=s.startBar+rp*2; const winStartBeat=(winStartBar-1)*meterQ;
+      const firstChord=s.chords[(rp*2)%s.chords.length]||'C';
+      let anchor=snapToChord(avgMidi-2, chordPcs(firstChord));   // 앵커: 멜로디 평균 음역 약간 아래(반주처럼)
+      const simplify=(s.role==='intro'||s.role==='outro');   // 인트로·아웃트로는 여리게(윤곽은 유지)
+      let prevMidi=null;
+      seed.forEach((sn,i)=>{
+        const relBeat=sn.rel, t=winStartBeat+relBeat;
+        const barIn=Math.floor(relBeat/meterQ); const chord=s.chords[((rp*2+barIn)%s.chords.length)]||firstChord; const pcs=chordPcs(chord);
+        let midi;
+        if(prevMidi==null){ midi=snapToChord(anchor,pcs); }
+        else { const seedStep=sn.iv-seed[i-1].iv;   // 씨앗 방향 보존: 올라가면 위 코드톤, 내려가면 아래 코드톤
+          if(seedStep>0){ midi=null; for(let m=prevMidi+1;m<=prevMidi+13;m++){ if(pcs.indexOf(((m%12)+12)%12)>=0){midi=m;break;} } if(midi==null)midi=snapToChord(prevMidi+3,pcs); }
+          else if(seedStep<0){ midi=null; for(let m=prevMidi-1;m>=prevMidi-13;m--){ if(pcs.indexOf(((m%12)+12)%12)>=0){midi=m;break;} } if(midi==null)midi=snapToChord(prevMidi-3,pcs); }
+          else { midi=snapToChord(prevMidi,pcs); } }
+        prevMidi=midi;
+        out.push({t:+t.toFixed(3), dur:+Math.max(0.25,sn.dur*(simplify?1.4:1)).toFixed(3), midi, vel:simplify?58:74});
+      });
+    }
+  });
+  out.sort((a,b)=>a.t-b.t);
+  return out;
+};
+
 // 탭 전환 (앱 연동 코드에서도 호출 가능)
 window.__soSwitchTab = (appId) => {
   document.querySelectorAll('#so-tabs button[data-app]').forEach(x=>x.classList.toggle('on', x.dataset.app===appId));
@@ -2287,6 +2395,11 @@ window.__soSwitchTab = (appId) => {
 document.getElementById('so-tabs').addEventListener('click', (e)=>{
   const b = e.target.closest('button[data-app]'); if(!b) return;
   window.__soSwitchTab(b.dataset.app);
+});
+// 새 곡을 처음부터 생성하면 지난 멜로디 앵커·모티브를 비움(수신부는 이 버튼을 누르지 않으므로 안전)
+[['app-band','styleRand'],['app-beat','gen'],['app-play','buildSongBtn']].forEach(([app,id])=>{
+  const el=document.querySelector('#'+app+' #'+id);
+  if(el) el.addEventListener('click',()=>{ if(window.SO_HUB){ window.SO_HUB.importedMelody=null; if(window.SO_HUB.melSrc){window.SO_HUB.melSrc[app.replace('app-','')]=undefined;} } }, true);
 });
 // 밴드·비트: 흩어진 초기화 버튼을 가이드 버튼 바로 옆으로 이동(플레이처럼 제목 줄에 묶음). DOM 이동이라 핸들러 유지.
 (function(){
@@ -2302,6 +2415,43 @@ document.getElementById('so-tabs').addEventListener('click', (e)=>{
   moveReset('app-band','reset','↺ 초기화');
   moveReset('app-beat','resetTop','↺ 초기화');
 })();
+// 🔗 연결 바: 흩어진 연결 버튼(받기·보내기·토글)을 장르 아래 라벨 붙은 한 줄로 모음(세 앱 통일). 브릿지 버튼은 앱 스크립트 이후 생기므로 load 뒤 구성.
+function soSetupConnectBars(){
+  const CB={
+    'app-melody':{anchor:'.card-body .row',items:[['soFromBand','🎵 받기'],['soMelToBand','🎸 밴드'],['soMelToBeat','🥁 비트'],['soMelToPlay','🎹 플레이']]},
+    'app-band':{anchor:'#panel1 .grid3',items:[['soBandFrom','🎵 받기'],['soToMelody','🎼 멜로디'],['soToBeat','🥁 비트'],['soToPlay','🎹 플레이'],['soBandMelSrcW',null],['soBandMotiveW',null]]},
+    'app-beat':{anchor:'.grid-top',items:[['soBeatFromBand','🎵 받기'],['soBeatToMelody','🎼 멜로디'],['soBeatToBand','🎸 밴드'],['soBeatToPlay','🎹 플레이'],['soBeatMelSrcW',null],['soBeatMotiveW',null]]},
+    'app-play':{anchor:'.genre-line',items:[['soPlayFrom','🎵 받기'],['soPlayToMelody','🎼 멜로디'],['soPlayToBand','🎸 밴드'],['soPlayToBeat','🥁 비트'],['soPlayMelSrcW',null],['soPlayMotiveW',null]]}
+  };
+  Object.keys(CB).forEach(app=>{ const cfg=CB[app]; const root=document.getElementById(app); if(!root) return;
+    if(root.querySelector('.so-connect-bar')) return;   // 중복 방지
+    const present=cfg.items.filter(it=>root.querySelector('#'+it[0]));
+    if(!present.length) return;   // 아직 버튼 없음 → 나중에 재시도
+    const bar=document.createElement('div'); bar.className='so-connect-bar';
+    bar.style.cssText='display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:7px 10px;margin:8px 0;border:1px solid rgba(140,160,200,.28);border-radius:9px;background:rgba(140,160,200,.06);';
+    const lab=document.createElement('span'); lab.textContent='🔗 연결'; lab.style.cssText='font-size:12px;font-weight:700;opacity:.72;margin-right:3px;';
+    bar.appendChild(lab);
+    cfg.items.forEach(it=>{ const el=root.querySelector('#'+it[0]); if(!el) return;
+      if(it[1]){ const btn=(el.tagName==='BUTTON')?el:el.querySelector('button'); if(btn) btn.textContent=it[1]; }
+      el.style.margin='0'; el.style.marginLeft=''; bar.appendChild(el); });
+    const anchor=root.querySelector(cfg.anchor);
+    if(anchor) anchor.insertAdjacentElement('afterend', bar); else root.insertAdjacentElement('afterbegin', bar);
+  });
+}
+window.addEventListener('load', ()=>{ soSetupConnectBars(); setTimeout(soSetupConnectBars, 200); setTimeout(soSetupConnectBars, 800); soUnifyStructOrder(); setTimeout(soUnifyStructOrder,300); });
+// 구조 순서 통일: 밴드는 곡 구조(panel2)가 연주(panel3) 아래 → 위로 올려 세 앱 모두 [장르→연결→구조→세부]
+function soUnifyStructOrder(){
+  const root=document.getElementById('app-band'); if(!root) return;
+  if(root.dataset.soStructMoved) return;
+  const struct=root.querySelector('#panel2'), perf=root.querySelector('#panel3');
+  if(!struct||!perf) return;
+  if(perf.compareDocumentPosition(struct) & Node.DOCUMENT_POSITION_FOLLOWING){   // 구조가 연주보다 뒤면 앞으로
+    perf.insertAdjacentElement('beforebegin', struct);
+    const sn=struct.querySelector('.plabel .n'), pn=perf.querySelector('.plabel .n');
+    if(sn&&pn){ const a=sn.textContent; sn.textContent=pn.textContent; pn.textContent=a; }   // 번호 02↔03 스왑
+  }
+  root.dataset.soStructMoved='1';
+}
 </script>
 
 <script>
@@ -3637,31 +3787,51 @@ function renderScoreVex(host,mel,tnc,mode){ const VF=Vex.Flow;
     svgEl.style.width='100%'; svgEl.style.height='auto'; svgEl.removeAttribute('height'); }
 }
 
-/* ── 장르 그리드 ── */
+/* ── 장르 그리드: 앱별 그룹(밴드/비트/플레이/멜로디 단독). 겹치는 장르는 각 앱에 표시, 값에 대상앱 인코딩 ── */
+var GENRE_BPM={   // 장르별 기본 템포(비-free). free 장르(ambient·cinematic·freesolo)는 별도로 46 유지.
+  pop:112, kpop:118, citypop:108, komuro:128, royalroad:130, ukpop:120, disco:120, motown:104, poppunk:170, billie:120, hooksong:100, hookpop:104, running:172,
+  edm:128, house:124, melodichouse:122, deephouse:120, dnb:174, trap:140, lofi:82,
+  hiphop:90, rnb:72, neosoul:76, funk:108, gospel:78,
+  rock:132, animerock:150, metal:150,
+  ballad:68, jballad:72, kballad:70, worship:72,
+  epic:88, animeost:96, disney:100, saguk:72,
+  jazz:120, bossa:132, latin:104, afrobeat:112, reggae:78,
+  folk:100, celtic:112, country:100, waltz:150,
+  ambient:64, cinematic:72
+};
+function applyGenreBpm(){ var g=state.genre; if((ME.GENRES[g]||{}).free && !GENRE_BPM[g]) return;   // free는 시간주도(46 유지), 단 맵에 값 있으면 적용
+  var bpm=GENRE_BPM[g]; if(bpm){ state.bpm=bpm; var bi=$('bpm'); if(bi) bi.value=bpm; } }
+function updateMelTarget(app){   // 선택 장르의 대상 앱 전송 버튼 강조(어디로 보낼지 안내)
+  try{ const map={band:'soMelToBand',beat:'soMelToBeat',play:'soMelToPlay'};
+    ['soMelToBand','soMelToBeat','soMelToPlay'].forEach(id=>{ const b=$(id); if(b){ b.style.outline=''; b.style.boxShadow=''; } });
+    const tid=map[app]; if(tid){ const b=$(tid); if(b){ b.style.outline='2px solid #6cc'; b.style.boxShadow='0 0 8px rgba(110,200,200,.5)'; } }
+  }catch(e){}
+}
 function fillGenres(){
   const sel=$('genre');
-  const FAMILIES=[
-    ['앰비언트',['freesolo','ambient']],
-    ['팝·댄스',['pop','kpop','hookpop','komuro','royalroad','ukpop','citypop','disco','motown','poppunk','billie','hooksong','running']],
-    ['일렉트로닉',['edm','house','melodichouse','deephouse','dnb','trap','lofi']],
-    ['힙합·R&B·소울',['hiphop','rnb','neosoul','funk','gospel']],
-    ['록·메탈',['rock','animerock','metal']],
-    ['발라드·서정',['ballad','jballad','kballad','worship']],
-    ['오케스트라·OST',['cinematic','epic','animeost','disney','saguk']],
-    ['재즈·라틴·월드',['jazz','bossa','latin','afrobeat','reggae']],
-    ['포크·컨트리·전통양식',['folk','celtic','country','waltz']]
+  const APPG=[
+    ['band','🎸 밴드', ['ballad','jballad','komuro','royalroad','ukpop','animerock','billie','worship','celtic','funk','neosoul','gospel','poppunk','country','kpop','motown','epic','animeost','disney','saguk','citypop']],
+    ['beat','🥁 비트', ['edm','melodichouse','deephouse','trap','lofi','running','hooksong','hookpop','house','dnb','afrobeat','hiphop','kpop','country','citypop']],
+    ['play','🎹 플레이', ['pop','ballad','jazz','neosoul','bossa','rock','edm','lofi','folk','celtic','cinematic','waltz','latin','epic','disco','reggae','kballad']],
+    ['solo','✍ 멜로디 단독', ['freesolo','ambient','metal','rnb']]
   ];
-  const listed=new Set();
-  FAMILIES.forEach(([fname,keys])=>{
+  const seen=new Set();
+  APPG.forEach(([app,fname,keys])=>{
     const og=document.createElement('optgroup'); og.label=fname;
-    keys.forEach(k=>{ if(!ME.GENRES[k])return; listed.add(k);
-      const o=document.createElement('option'); o.value=k; o.textContent=ME.GENRES[k].label; og.appendChild(o); });
+    keys.forEach(k=>{ if(!ME.GENRES[k])return; seen.add(k);
+      const o=document.createElement('option'); o.value=app+'|'+k; o.textContent=ME.GENRES[k].label; og.appendChild(o); });
     if(og.children.length) sel.appendChild(og);
   });
-  Object.keys(ME.GENRES).forEach(k=>{ if(listed.has(k))return;
-    const o=document.createElement('option'); o.value=k; o.textContent=ME.GENRES[k].label; sel.appendChild(o); });
-  sel.value=state.genre;
-  sel.onchange=()=>{ state.genre=sel.value; applyGenreTempoRule(); updateHint(); autoRemake(); };
+  // 어느 앱에도 없는 나머지 → 멜로디 단독에 추가
+  const rest=Object.keys(ME.GENRES).filter(k=>!seen.has(k));
+  if(rest.length){ const og=document.createElement('optgroup'); og.label='✍ 멜로디 단독 (기타)';
+    rest.forEach(k=>{ const o=document.createElement('option'); o.value='solo|'+k; o.textContent=ME.GENRES[k].label; og.appendChild(o); });
+    sel.appendChild(og); }
+  // 현재 장르에 맞는 옵션 선택
+  const cur=[...sel.options].find(o=>o.value.split('|')[1]===state.genre); if(cur) sel.value=cur.value;
+  sel.onchange=()=>{ const parts=sel.value.split('|'); const app=parts.length>1?parts[0]:'solo'; const g=parts.length>1?parts[1]:parts[0];
+    state.genre=g; window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.melTarget=app;
+    applyGenreTempoRule(); applyGenreBpm(); buildGenreStructure(); updateHint(); updateMelTarget(app); autoRemake(); };   // 장르 선택 → 기본 템포 + 그 장르 구조 자동
   applyGenreTempoRule();
 }
 function applyGenreTempoRule(){
@@ -3932,6 +4102,48 @@ $('presetEDM').onclick=()=>{ setMode('multi'); state.sections=[
   {role:'outro',chords:defaultChordsFor('outro'),bars:4}
 ]; renderSecs(); autoRemake(); };
 $('clearSecs').onclick=()=>{ state.sections=[]; renderSecs(); };
+/* 장르별 곡 구조: 장르에 맞는 구간 폼을 자동 생성(다른 앱처럼 장르→구조) */
+function genreForm(g){ g=g||state.genre||'pop';
+  if(['ambient','cinematic','freesolo'].indexOf(g)>=0) return null;   // 시간 기반 장르: 구조 대신 길이
+  var EDM=['edm','house','deephouse','melodichouse','dnb','trap','running','afrobeat','disco','hooksong','hookpop'];
+  var HIP=['hiphop','lofi'];
+  var BAL=['ballad','jballad','kballad','rnb','neosoul','worship','gospel','bossa','jazz','celtic','folk','country','waltz','saguk','citypop','marusa'];
+  if(EDM.indexOf(g)>=0) return [['intro',4],['verse',8],['prechorus',8],['drop',16],['verse',8],['prechorus',8],['drop',16],['outro',4]];
+  if(HIP.indexOf(g)>=0) return [['intro',2],['verse',8],['hook',8],['verse',8],['hook',8],['bridge',4],['hook',8],['outro',2]];
+  if(BAL.indexOf(g)>=0) return [['intro',2],['verse',8],['prechorus',4],['hook',8],['verse',8],['prechorus',4],['hook',8],['bridge',4],['hook',8],['outro',4]];
+  return [['intro',2],['verse',8],['prechorus',4],['hook',8],['posthook',4],['verse',8],['prechorus',4],['hook',8],['bridge',4],['hook',8],['outro',4]];   // 팝 기본
+}
+function buildGenreStructure(){ var f=genreForm(state.genre);
+  if(!f){ setMode('single'); return false; }   // 시간기반 장르(앰비언트·프리솔로·시네마틱): 구조 대신 단일/시간 모드
+  setMode('multi'); state.sections=f.map(function(x){ return {role:x[0], chords:defaultChordsFor(x[0]), bars:x[1]}; }); renderSecs(); return true; }
+function fitStructureToTime(targetSec){   // 목표 길이(초)에 맞춰 본문 구간 마디를 조정 — 인트로·아웃트로는 고정(그 위에 더해짐), 본문만 스케일. 정확히가 아니라 비슷하게(2마디 단위).
+  if(state.mode!=='multi' || !state.sections.length) return false;
+  var barLen=ME.METERS[state.meter||'4/4'].barLen;
+  var secPerBar=barLen*(60/Math.max(40,state.bpm||96));
+  var isEnd=function(r){ return r==='intro'||r==='outro'; };
+  var bodyIdx=[]; var fixedBars=0, bodyBars=0;
+  state.sections.forEach(function(s,i){ if(isEnd(s.role)){ fixedBars+=s.bars; } else { bodyIdx.push(i); bodyBars+=s.bars; } });
+  if(!bodyBars) return false;
+  var targetBars=targetSec/secPerBar;
+  var targetBody=Math.max(bodyIdx.length*2, targetBars-fixedBars);   // 인트로·아웃트로 뺀 본문 목표 마디
+  var factor=targetBody/bodyBars;
+  bodyIdx.forEach(function(i){ var s=state.sections[i]; var nb=Math.round(s.bars*factor/2)*2; s.bars=Math.max(2,nb); });   // 2마디 단위 반올림
+  renderSecs(); autoRemake();
+  return true;
+}
+(function(){ var host=$('presetEDM')||$('presetPop'); if(!host) return;
+  var b=document.createElement('button'); b.className='chip'; b.id='presetGenre'; b.textContent='🎼 이 장르 구조 채우기';
+  b.title='선택한 장르에 맞는 곡 구조를 자동으로 채웁니다(팝·EDM·발라드·힙합 폼)';
+  host.insertAdjacentElement('afterend', b);
+  b.onclick=function(){ if(buildGenreStructure()) autoRemake(); else alert('이 장르는 시간 기반(앰비언트·시네마틱·프리솔로)이라 구조 대신 길이로 곡을 만듭니다'); }; })();
+(function(){ var host=$('presetGenre'); if(!host) return;   // ⏱ 목표 길이 맞추기(멀티 구조): 본문 마디를 목표 시간에 근사
+  var wrap=document.createElement('span'); wrap.id='fitTimeWrap'; wrap.style.cssText='display:inline-flex;align-items:center;gap:3px;margin-left:8px;font-size:12px;vertical-align:middle;';
+  wrap.innerHTML='<span class="sub">목표 길이</span><input type="number" id="fitMin" value="3" min="0" max="30" step="1" style="width:44px"><span class="sub">분</span><input type="number" id="fitSec" value="0" min="0" max="59" step="1" style="width:44px"><span class="sub">초</span>';
+  var btn=document.createElement('button'); btn.className='chip'; btn.id='fitStructBtn'; btn.textContent='⏱ 맞추기';
+  btn.title='목표 길이에 맞게 본문 구간 마디를 조정합니다. 인트로·아웃트로는 그대로 위에 더해지고, 정확히가 아니라 비슷한 길이로 맞춥니다.';
+  host.insertAdjacentElement('afterend', wrap); wrap.insertAdjacentElement('afterend', btn);
+  btn.onclick=function(){ var sec=(+$('fitMin').value||0)*60+(+$('fitSec').value||0); if(sec<10){ alert('목표 길이를 입력해 주세요(최소 10초)'); return; }
+    if(!fitStructureToTime(sec)){ alert('장르 구조(멀티)에서만 길이를 맞출 수 있어요 — 먼저 [🎼 이 장르 구조 채우기]를 눌러 주세요'); } }; })();
 $('emptyEnds').onchange=()=>{ state.emptyEnds=$('emptyEnds').checked; autoRemake(); };   // 인트로·아웃트로 멜로디 끄기(공간은 유지)
 $('bandAccomp').onchange=()=>{ state.bandAccomp=$('bandAccomp').checked;   // 넘어온 반주(밴드·비트·플레이) 미리듣기 켜기/끄기
   if(!(window.SO_HUB&&window.SO_HUB.bandTracks&&window.SO_HUB.bandTracks.length)){ if(state.bandAccomp) alert('먼저 비트·밴드·플레이에서 [🎼 멜로디로 →]로 곡을 보내 주세요'); }
@@ -3956,13 +4168,14 @@ function updateSub(){
      새 설정(박자·코드 등)에 맞춰 다시 그린다. 시드는 유지(같은 악상).
    - makeMelody(true): "멜로디 만들기" 버튼 — 새 시드로 완전히 새 멜로디 생성.
 */
-let _remakeTimer=null;
+let _remakeTimer=null; let _remakePending=false;
 function autoRemake(){
   // 아직 한 번도 안 만들었으면 미리보기 비움(자동 생성 안 함)
   if(!state.notes.length){ updateSub(); return; }
-  clearTimeout(_remakeTimer);
-  _remakeTimer=setTimeout(()=>makeMelody(false),120);   // 시드 유지 재생성
+  clearTimeout(_remakeTimer); _remakePending=true;
+  _remakeTimer=setTimeout(()=>{makeMelody(false);_remakePending=false;},120);   // 시드 유지 재생성
 }
+window.__soFlushMelody=function(){ try{ if(_remakePending){ clearTimeout(_remakeTimer); _remakePending=false; makeMelody(false); } }catch(e){} };   // 전송 직전: 대기 중 재생성 즉시 반영(낡은 멜로디 전송 방지)
 function makeMelody(fresh){
   state.bpm=Math.max(40,+$('bpm').value||96);
   if((ME.GENRES[state.genre]||{}).free && state.bpm>50){ state.bpm=50; $('bpm').value=50; }
@@ -4576,6 +4789,46 @@ window.addEventListener('so:blueprint',()=>soApplyBlueprint(window.SO_HUB&&windo
   b.title='밴드 탭에서 보낸 곡 설계도(구조·코드)를 구간에 채웁니다';
   host.insertAdjacentElement('afterend',b);
   b.onclick=()=>soApplyBlueprint(window.SO_HUB&&window.SO_HUB.blueprint);
+})();
+function soBuildBlueprintMelody(){   // 멜로디 먼저 워크플로: 구조·코드 + 🎵멜로디를 실어 내보냄(멜로디가 앵커)
+  if(window.__soFlushMelody) window.__soFlushMelody();   // 대기 중 재생성(디바운스) 즉시 반영 — 장르 선택 직후 보내도 최신 멜로디 전송
+  if(!state.sections||!state.sections.length){ alert('먼저 구조를 만들어 주세요 — [🎵 팝 구조 채우기] 등으로 구간을 채운 뒤 보내세요'); return null; }
+  let startBar=1;
+  const sections=state.sections.map(s=>{ const o={role:s.role, name:s.role, chords:(s.chords||['C']).slice(), bars:s.bars, startBar}; startBar+=s.bars; return o; });
+  const key=(typeof state.key==='string')?state.key:'C';
+  return { v:3, from:'melody', style:state.genre, key, mode:(state.keyMode==='minor'?'minor':'major'),
+    bpm:+state.bpm||96, meter:state.meter||'4/4', sections,
+    melody:(state.notes||[]).map(n=>({t:+(+n.t).toFixed(3),dur:+(+n.dur).toFixed(3),midi:n.midi,vel:n.vel||90})) };   // 멜로디 payload(절대 박 타이밍)
+}
+(function(){   // 🥁 비트로 (멜로디 유지) : 멜로디+구조·코드를 비트메이커로 — 멜로디는 보존, 프로덕션만 새로
+  const host=$('soFromBand')||$('pickMidi'); if(!host)return;
+  const b=document.createElement('button'); b.className='filebtn'; b.id='soMelToBeat'; b.textContent='🥁 비트로 (멜로디 유지)';
+  b.title='이 멜로디·구조·코드를 비트메이커로 보냅니다 — 멜로디는 그대로, 비트·프로덕션만 새로';
+  host.insertAdjacentElement('afterend',b);
+  b.onclick=()=>{ const bp=soBuildBlueprintMelody(); if(!bp)return;
+    if(!bp.melody.length){ if(!confirm('멜로디가 비어 있습니다. 구조·코드만 보낼까요?')) return; }
+    window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.blueprint=bp;
+    window.dispatchEvent(new CustomEvent('so:blueprint-beat')); if(window.__soSwitchTab)window.__soSwitchTab('app-beat'); };
+})();
+(function(){   // 🎸 밴드로 (멜로디 유지) : 멜로디+구조·코드를 밴드로 — 멜로디 보존, 편곡만 새로
+  const host=$('soMelToBeat')||$('soFromBand')||$('pickMidi'); if(!host)return;
+  const b=document.createElement('button'); b.className='filebtn'; b.id='soMelToBand'; b.textContent='🎸 밴드로 (멜로디 유지)';
+  b.title='이 멜로디·구조·코드를 밴드로 보냅니다 — 멜로디는 그대로, 편곡만 새로';
+  host.insertAdjacentElement('afterend',b);
+  b.onclick=()=>{ const bp=soBuildBlueprintMelody(); if(!bp)return;
+    if(!bp.melody.length){ if(!confirm('멜로디가 비어 있습니다. 구조·코드만 보낼까요?')) return; }
+    window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.blueprint=bp;
+    window.dispatchEvent(new CustomEvent('so:blueprint-band')); if(window.__soSwitchTab)window.__soSwitchTab('app-band'); };
+})();
+(function(){   // 🎹 플레이로 (멜로디 유지) : 멜로디+구조·코드를 플레이로 — 멜로디 보존, 편곡만 새로
+  const host=$('soMelToBand')||$('soMelToBeat')||$('pickMidi'); if(!host)return;
+  const b=document.createElement('button'); b.className='filebtn'; b.id='soMelToPlay'; b.textContent='🎹 플레이로 (멜로디 유지)';
+  b.title='이 멜로디·구조·코드를 플레이로 보냅니다 — 멜로디는 그대로, 편곡만 새로';
+  host.insertAdjacentElement('afterend',b);
+  b.onclick=()=>{ const bp=soBuildBlueprintMelody(); if(!bp)return;
+    if(!bp.melody.length){ if(!confirm('멜로디가 비어 있습니다. 구조·코드만 보낼까요?')) return; }
+    window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.blueprint=bp;
+    window.dispatchEvent(new CustomEvent('so:blueprint-play')); if(window.__soSwitchTab)window.__soSwitchTab('app-play'); };
 })();
 
 })();
@@ -7458,7 +7711,11 @@ function playWin(winS,winE,loop,secIdx){
       let ring2=qToSec(endQ2)-qToSec(n.t);ring2=Math.max(0.12,Math.min(2.2,ring2));
       pianoTone(at(n.t),ring2,n.midi,Math.round(n.vel*0.9));}));
     MODEL.tracks.guitar.forEach(n=>push(n,()=>guitarTone(n,at(n.t),ds(n))));
-    MODEL.tracks.melody.forEach(n=>push(n,()=>violin(at(n.t),ds(n),n.midi,n.vel,n.theme?'lead':'melody')));
+    {const __imp=(window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length)?window.SO_HUB.importedMelody:null;
+     const __useImp=__imp&&(!window.SO_HUB.melSrc||window.SO_HUB.melSrc.band!=='own');   // 멜로디 소스: 가져온(기본)/자체
+     if(__useImp) __imp.forEach(n=>push(n,()=>violin(at(n.t),ds(n),n.midi,n.vel,'melody')));
+     else MODEL.tracks.melody.forEach(n=>push(n,()=>violin(at(n.t),ds(n),n.midi,n.vel,n.theme?'lead':'melody')));}
+    if(window.SO_motive){ window.SO_motive('band').forEach(n=>push(n,()=>tone('melody',{wave:'triangle',midi:n.midi,t:at(n.t),dur:ds(n),vel:n.vel,lpf:2600,lvl:0.20,atk:0.005,rel:0.25}))); }   // 모티브 미리듣기(인트로·간주·아웃트로)
     MODEL.tracks.counter.forEach(n=>push(n,()=>tone('counter',{wave:'sawtooth',midi:n.midi,t:at(n.t),dur:ds(n),vel:n.vel,lpf:2400,lvl:0.42,atk:0.008,rel:0.14})));
     MODEL.tracks.drums.forEach(n=>push(n,()=>drum(n.type,at(n.t),n.vel)));
     MODEL.tracks.drone.forEach(n=>push(n,()=>drone(at(n.t),ds(n),n.midi,n.vel)));
@@ -7832,8 +8089,12 @@ function exportAll(){arrange();
     }
   }
   if(state.enabled.piano&&MODEL.tracks.piano2&&MODEL.tracks.piano2.length)tr.push(noteTrack(MODEL.tracks.piano2,8,0,false,ped64(),'[은은한 배경 오스티나토] 2nd Piano - Arp Theme (soft)',trackFX('piano')));   // 2nd 피아노(ch8) — 서스테인 페달(CC64) 동일 적용(코드마다 밟고 바뀌기 직전 뗌)
+  const __imp=(window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length)?window.SO_HUB.importedMelody:null;
+  const __impSel=__imp&&(!window.SO_HUB.melSrc||window.SO_HUB.melSrc.band!=='own');   // 선택된 멜로디 소스(가져온=기본)
   const vocal=state.enabled.melody?MODEL.tracks.melody.filter(n=>!n.theme):[];
-  if(vocal.length)tr.push(noteTrack(vocal,4,im('melody').p,false,exprEvents(vocal),im('melody').n,trackFX('melody')));
+  if(vocal.length){ const __vm=__imp&&__impSel;   // 가져온 쪽 선택이면 자체는 뮤트
+    const __vc=__vm?[{t:0,ctrl:7,val:0}].concat(exprEvents(vocal)||[]):exprEvents(vocal);
+    tr.push(noteTrack(vocal,4,im('melody').p,false,__vc,(__vm?'[뮤트] ':'')+im('melody').n,trackFX('melody'))); }
   const lead=state.enabled.lead?MODEL.tracks.melody.filter(n=>n.theme):[];
   if(lead.length)tr.push(noteTrack(lead,5,im('lead').p,false,exprEvents(lead),im('lead').n,trackFX('melody')));
   if(state.enabled.counter&&MODEL.tracks.counter.length)tr.push(noteTrack(MODEL.tracks.counter,7,im('counter').p,false,exprEvents(MODEL.tracks.counter),im('counter').n,trackFX('melody')));
@@ -7842,6 +8103,8 @@ function exportAll(){arrange();
   const fx=fxCueNotes();
   if(fx.length)tr.push(noteTrack(fx,3,102,false,null,'FX Cues - Riser/Impact/Sub (swap w/ samples)'));
   extraGuideTracks().forEach(nm=>tr.push(noteTrack([],8,null,false,null,nm)));   // 빈 가이드 트랙: 이름=악기+용도
+  if(__imp) tr.push(noteTrack(__imp,15,54,false,(__impSel?null:[{t:0,ctrl:7,val:0}]),(__impSel?'':'[뮤트] ')+'[가져온] 멜로디 — 보존됨 (Voice)',null));   // 멜로디 앵커: 넘어온 멜로디 그대로 실음(선택 안 되면 뮤트)
+  if(window.SO_motive){ const __mo=window.SO_motive('band'); if(__mo.length) tr.push(noteTrack(__mo,14,11,false,null,'[모티브] 인트로·간주·아웃트로 (멜로디 훅 기반) — Vibraphone',null)); }   // 멜로디 훅 모티브: 전환 구간에 협화로 배치
   dl(tr,`band_${state.style}_${MODEL.bpm}bpm.mid`);
   downloadTxt(songSheet(),`band_${state.style}_${MODEL.bpm}bpm_송시트.txt`);
   downloadTxt(logicGuide(),`band_${state.style}_${MODEL.bpm}bpm_로직가이드.txt`);}
@@ -8789,9 +9052,10 @@ function soBuildBlueprint(){
   const PCN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
   const kv=$('key').value, key=/^[0-9]+$/.test(kv)?PCN[((+kv)%12+12)%12]:kv;   // 밴드 키는 숫자(0=C) — 음이름으로 변환
   const mv=$('mode').value;
-  return {v:2,from:'band',style:state.style,key,
+  return {v:3,from:'band',style:state.style,key,
     mode:(mv==='major'||mv==='minor')?mv:null,   // '스타일 기본'이면 멜로디 쪽 설정 유지
-    bpm:+$('bpm').value,meter:$('meter').value,sections};
+    bpm:+$('bpm').value,meter:$('meter').value,sections,
+    melody:(window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length)?window.SO_HUB.importedMelody.slice():[]};   // 멜로디 앵커 전달(다중 홉 보존)
 }
 (function(){
   const host=$('exportMidi'); if(!host)return;
@@ -8814,9 +9078,61 @@ function soBuildBlueprint(){
     window.dispatchEvent(new CustomEvent('so:blueprint-beat'));
     window.__soSwitchTab('app-beat'); };
 })();
+(function(){   // 밴드 → 플레이 (구조·코드·멜로디 앵커)
+  const host=$('soToBeat')||$('soToMelody')||$('exportMidi'); if(!host)return;
+  const b=document.createElement('button'); b.id='soToPlay'; b.className='so-iconbtn'; b.textContent='🎹';
+  b.title='현재 곡의 조·템포·박자·구조·코드(+멜로디)를 플레이로 보냅니다';
+  host.insertAdjacentElement('afterend',b);
+  b.onclick=()=>{ window.SO_HUB.blueprint=soBuildBlueprint();
+    window.dispatchEvent(new CustomEvent('so:blueprint-play'));
+    window.__soSwitchTab('app-play'); };
+})();
 let __soCap=null;   // dl 캡처: 통합 내보내기용 — 캡처 중엔 다운로드 없이 바이트만 수집
 const __soOrigDl=dl;
 dl=function(tracks,name){ if(__soCap){ __soCap.tracks=tracks; __soCap.name=name; return; } __soOrigDl(tracks,name); };
+function soApplyBlueprintBand(bp){   // 받는 쪽: 구조·코드로 편곡 재생성 + 멜로디 앵커 보존
+  if(!bp||!Array.isArray(bp.sections)||!bp.sections.length){alert('멜로디·비트·플레이에서 [→ 밴드]로 곡을 보낸 뒤 눌러 주세요');return;}
+  const _PCN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const kpc=_PCN.indexOf(bp.key);
+  const R2T={intro:'Intro',verse:'Verse',prechorus:'PreChorus',buildup:'PreChorus',hook:'Chorus',posthook:'PostChorus',bridge:'Bridge',break:'Bridge',outro:'Outro'};
+  const sections=bp.sections.map(sc=>{ const bars=sc.bars||(sc.chords?sc.chords.length:4); const grid=[];
+    for(let b2=0;b2<bars;b2++) grid.push([ (sc.chords&&sc.chords.length)?sc.chords[b2%sc.chords.length]:'C' ]);
+    return {type:(R2T[sc.role]||'Verse'), meter:'inherit', groove:'inherit', grid}; });
+  const bandStyle=([...$('style').options].some(o=>o.value===bp.style))?bp.style:$('style').value;
+  const o={ style:bandStyle, key:(kpc>=0?String(kpc):$('key').value), bpm:bp.bpm, meter:bp.meter, sections, active:0 };
+  try{ applyState(o); }catch(e){ alert('밴드 적용 실패: '+e.message); return; }
+  window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.importedMelody=(bp.melody&&bp.melody.length)?bp.melody.slice():null;   // 멜로디 앵커 보존
+  if(window.SO_HUB.importedMelody){ state.enabled.melody=true; window.SO_HUB.melSrc=window.SO_HUB.melSrc||{}; if(!window.SO_HUB.melSrc.band)window.SO_HUB.melSrc.band='imported'; }   // 듀얼 추출 대비: 자체 멜로디도 생성
+  if(bp.mode&&$('mode')&&[...$('mode').options].some(op=>op.value===bp.mode))$('mode').value=bp.mode;
+  try{ if(typeof arrange==='function')arrange(); }catch(e){}
+  if(typeof flashMsg==='function') flashMsg('✓ 곡 적용: '+bp.sections.length+'구간'+(window.SO_HUB.importedMelody?' · 멜로디 '+window.SO_HUB.importedMelody.length+'음 보존':''));
+}
+window.addEventListener('so:blueprint-band',()=>soApplyBlueprintBand(window.SO_HUB&&window.SO_HUB.blueprint));
+(function(){   // 🎵 받기: 멜로디·비트·플레이에서 보낸 곡을 밴드로 (멜로디 보존)
+  const host=$('soToBeat')||$('soToMelody')||$('exportMidi'); if(!host)return;
+  const b=document.createElement('button'); b.id='soBandFrom'; b.className='so-iconbtn'; b.textContent='🎵';
+  b.title='멜로디·비트·플레이에서 보낸 곡(구조·코드·멜로디)을 밴드로 가져옵니다 — 멜로디는 보존';
+  host.insertAdjacentElement('afterend',b);
+  b.onclick=()=>soApplyBlueprintBand(window.SO_HUB&&window.SO_HUB.blueprint);
+})();
+(function(){   // 🎤 멜로디 소스 토글: 가져온 멜로디(체크) / 자체 멜로디 — 미리듣기·추출 뮤트 모두 이 값 따름
+  const host=$('soBandFrom')||$('soToBeat')||$('exportMidi'); if(!host)return;
+  const w=document.createElement('label'); w.id='soBandMelSrcW'; w.style.cssText='display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:12px;cursor:pointer;';
+  const c=document.createElement('input'); c.type='checkbox'; c.id='soBandMelSrc'; c.checked=true;
+  const t=document.createElement('span'); t.textContent='🎤 가져온 멜로디';
+  w.title='체크: 가져온 멜로디를 듣고 추출 시 자체 멜로디는 [뮤트] / 해제: 자체 멜로디를 듣고 가져온 쪽 [뮤트] — 둘 다 MIDI에 실립니다';
+  w.appendChild(c); w.appendChild(t); host.insertAdjacentElement('afterend',w);
+  c.onchange=()=>{ window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.melSrc=window.SO_HUB.melSrc||{}; window.SO_HUB.melSrc.band=c.checked?'imported':'own'; };
+})();
+(function(){   // 🎶 모티브 토글: 인트로·간주·아웃트로에 멜로디 훅 모티브 트랙 얹기(기본 켜짐)
+  const host=$('soBandMelSrcW')||$('soBandFrom')||$('exportMidi'); if(!host)return;
+  const w=document.createElement('label'); w.id='soBandMotiveW'; w.style.cssText='display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:12px;cursor:pointer;';
+  const c=document.createElement('input'); c.type='checkbox'; c.id='soBandMotive'; c.checked=true;
+  const t=document.createElement('span'); t.textContent='🎶 모티브';
+  w.title='켜짐: 가져온 멜로디의 훅에서 뽑은 모티브를 인트로·간주·아웃트로에 트랙으로 얹습니다(협화·윤곽 유지) / 끄면 그 트랙 제외';
+  w.appendChild(c); w.appendChild(t); host.insertAdjacentElement('afterend',w);
+  c.onchange=()=>{ window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.motiveOff=window.SO_HUB.motiveOff||{}; window.SO_HUB.motiveOff.band=!c.checked; };
+})();
 
 })();
 // ===== BAND COMPOSER 코드 끝 =====
@@ -11951,7 +12267,7 @@ function scheduleWindow(t0,winS,winE,fxFrom){fxFrom=fxFrom==null?winS:fxFrom;
     else if(curKit==='hooksong')supersaw('chords',at(n.t),ds(n),n.midi,n.vel,state.hookMode==='calm'?{voices:2,detune:2,lpf:2600,atk:0.005,rel:0.5,lvl:0.18,q:0.5,wave:'triangle'}:{voices:2,detune:4,lpf:3600,atk:0.003,rel:0.2,lvl:0.2,q:0.5,wave:'triangle'});
     else rhodes(at(n.t),ds(n),n.midi,n.vel);});
   sched(MODEL.tracks.pad,n=>supersaw('pad',at(n.t),ds(n),n.midi,n.vel,run?{voices:rSt.pad.voices,detune:rSt.pad.detune,lpf:rSt.pad.lpf,hpf:rSt.pad.hpf,shimmer:rSt.pad.shimmer,wave:rSt.pad.wave,atk:0.1,rel:0.4,lvl:0.26,q:0.6}:isHouse(curKit)?{voices:4,detune:9,lpf:1700,hpf:180,atk:1.0,rel:1.8,lvl:0.19,q:0.4,wave:'sawtooth'}:{voices:curKit==='edm'?6:4,detune:curKit==='edm'?14:8,lpf:1700,atk:0.1,rel:0.4,lvl:0.26,q:0.6}));  // 멜로딕하우스: 부드러운 아날로그 패드(어택 느리게·필터 따뜻하게)
-  sched(MODEL.tracks.lead,n=>{
+  sched(((window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length&&(!window.SO_HUB.melSrc||window.SO_HUB.melSrc.beat!=='own'))?window.SO_HUB.importedMelody:MODEL.tracks.lead),n=>{   // 멜로디 소스: 가져온(기본)/자체 리드
     supersaw('lead',at(n.t),ds(n),n.midi,n.vel,
     run?{voices:rSt.lead.voices,detune:rSt.lead.detune,lpf:rSt.lead.lpf,hpf:rSt.lead.hpf,shimmer:rSt.lead.shimmer,wave:rSt.lead.wave,atk:0.005,rel:0.12,lvl:0.3,q:0.8}
     :curKit==='country'?{voices:2,detune:6,lpf:3800,atk:0.02,rel:0.18,lvl:0.28,q:0.7}                 // 피들풍
@@ -11966,6 +12282,7 @@ function scheduleWindow(t0,winS,winE,fxFrom){fxFrom=fxFrom==null?winS:fxFrom;
     }
   });
   // 플럭/아르프 시퀀스 — 밝고 짧은 발음(스퀘어+빠른 필터 감쇠). 코드보다 위, 리드보다 얇게.
+  if(window.SO_motive){ window.SO_motive('beat').forEach(n=>rhodes(at(n.t),ds(n),n.midi,Math.round((n.vel||70)*0.9))); }   // 모티브 미리듣기(인트로·간주·아웃트로)
   sched(MODEL.tracks.piano||[],n=>piano(at(n.t),ds(n),n.midi,n.vel));  // 그랜드 피아노 모티프 (멜로딕 하우스)
   sched(MODEL.tracks.drone||[],n=>supersaw('pad',at(n.t),ds(n),n.midi,n.vel,{voices:3,detune:8,lpf:600,hpf:30,atk:2.0,rel:2.5,lvl:0.2,q:0.4,wave:'sawtooth'}));  // 앰비언트 드론: 낮고 어두운 지속 페달(느린 스웰)
   sched(MODEL.tracks.arpseq||[],n=>{
@@ -13131,9 +13448,14 @@ function exportAll(){arrange();EXPORT_PADQ=16;const P=gmProgs(),RN=recNames(),LP
     noteTrack(MODEL.tracks.bass,1,P.bass,false,bassNm,withSoftEdges('bass',null),bassIN),
     noteTrack(MODEL.tracks.chords,2,P.chords,false,nm('Chords','chords'),withSoftEdges('chords',null),iN('chords'))];
   if(MODEL.tracks.pad.length)tr.push(noteTrack(MODEL.tracks.pad,3,P.pad,false,nm('Pad','pad'),withSoftEdges('pad',padCC().concat(padExprCC())),iN('pad')));
-  if(MODEL.tracks.lead.length)tr.push(noteTrack(MODEL.tracks.lead,4,P.lead,false,nm('Lead','lead'),withSoftEdges('lead',leadExprCC()),iN('lead')));
+  const __imp=(window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length)?window.SO_HUB.importedMelody:null;
+  const __impSel=__imp&&(!window.SO_HUB.melSrc||window.SO_HUB.melSrc.beat!=='own');   // 선택된 멜로디 소스(가져온=기본)
+  if(MODEL.tracks.lead.length){ const __lm=__imp&&__impSel;   // 가져온 쪽 선택이면 자체 리드는 뮤트
+    tr.push(noteTrack(MODEL.tracks.lead,4,P.lead,false,(__lm?'[뮤트] ':'')+nm('Lead','lead'),(__lm?[{t:0,cc:7,val:0}]:[]).concat(withSoftEdges('lead',leadExprCC())||[]),iN('lead'))); }
   if(MODEL.tracks.gtr&&MODEL.tracks.gtr.length)tr.push(noteTrack(MODEL.tracks.gtr,5,P.gtr,false,nm('Guitar','gtr'),withSoftEdges('gtr',null),iN('gtr')));
   if(MODEL.tracks.str&&MODEL.tracks.str.length)tr.push(noteTrack(MODEL.tracks.str,6,P.str,false,nm('Strings','str'),withSoftEdges('str',null),iN('str')));
+  if(__imp) tr.push(noteTrack(__imp,15,54,false,(__impSel?'':'[뮤트] ')+'[가져온] 멜로디 — 보존됨 (Voice)',(__impSel?null:[{t:0,cc:7,val:0}]),'Imported Melody (preserved)'));   // 멜로디 앵커: 넘어온 멜로디 그대로 실음(선택 안 되면 뮤트)
+  if(window.SO_motive){ const __mo=window.SO_motive('beat'); if(__mo.length) tr.push(noteTrack(__mo,14,11,false,'[모티브] 인트로·간주·아웃트로 (멜로디 훅 기반) — Vibraphone',null,'Motive (melody-hook based)')); }   // 멜로디 훅 모티브
   if(MODEL.tracks.arpseq&&MODEL.tracks.arpseq.length){        // 플럭/아르프 시퀀스 레이어
     const mh=state.genre==='melodichouse';
     const arpName=mh?'[Alchemy] 모노 플럭 — '+feelFor('lead')+'  |  추천: Alchemy 검색 Pluck (장르 House) — LFO를 Cutoff에 연결  ||ALT: ES2 짧은 필터 플럭'
@@ -13780,6 +14102,7 @@ function soApplyBlueprintBeat(bp){
   state.sections=bp.sections.map((sc,i)=>newSection(TMAP[sc.type]||'Verse', sc.bars, i));
   if(typeof finalizeSections==='function')finalizeSections();
   state.sections.forEach((sec,i)=>{ sec.chords=bp.sections[i].chords.slice(); });   // finalize 뒤에 코드 부과 — harmonizeFlow는 이 경로에서 안 불려 유지됨
+  window.SO_HUB.importedMelody=(bp.melody&&bp.melody.length)?bp.melody.slice():null;   // 멜로디 앵커 보존(export·재전송에 그대로 실림)
   applyState({v:2,seed:state.seed,genre:g,key:String(kpc),bpm:bp.bpm,meter:bp.meter,swing:0,sections:state.sections,active:0});
   flashMsg('✓ 밴드 곡 적용: '+bp.sections.length+'구간 · '+PCN[kpc]+' · '+bp.bpm+'BPM'+(subbed?' · 장르 '+bp.style+'→'+g+' 대체':''));
 }
@@ -13803,7 +14126,7 @@ function soBuildBlueprintBeat(){   // 비트 곡의 구조·코드·조·템포�
     const chords=(sec.chords&&sec.chords.length)?sec.chords.slice():['C'];   // 섹션별 실제 코드(심볼)
     const s={name:(B_KO[sec.type]||sec.type),type:sec.type,role:(B_ROLE[sec.type]||'verse'),startBar,bars:sec.bars,chords};
     startBar+=sec.bars; return s; });
-  return {v:2,from:'beat',style:state.genre,key:PCN2[((km%12)+12)%12],mode,bpm:+$('bpm').value,meter:($('meter')?$('meter').value:'4/4'),sections};
+  return {v:3,from:'beat',style:state.genre,key:PCN2[((km%12)+12)%12],mode,bpm:+$('bpm').value,meter:($('meter')?$('meter').value:'4/4'),sections,melody:(window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length)?window.SO_HUB.importedMelody.slice():[]};
 }
 let __soBeatCap=null; const __soBeatOrigDl=(typeof dl==='function')?dl:null;   // 반주 트랙 캡처(다운로드 없이 바이트만)
 if(__soBeatOrigDl){ dl=function(tracks,name){ if(__soBeatCap){ __soBeatCap.tracks=tracks; __soBeatCap.name=name; return; } __soBeatOrigDl(tracks,name); }; }
@@ -13818,6 +14141,37 @@ if(__soBeatOrigDl){ dl=function(tracks,name){ if(__soBeatCap){ __soBeatCap.track
     if(__soBeatOrigDl){ try{ __soBeatCap={}; exportAll(); window.SO_HUB.bandTracks=__soBeatCap.tracks||null; window.SO_HUB.bandMidName=__soBeatCap.name||('beat_'+bp.style+'.mid'); window.SO_HUB.bandPadQ=16; }catch(e){ window.SO_HUB.bandTracks=null; } __soBeatCap=null; }   // 반주 트랙 캡처
     window.dispatchEvent(new CustomEvent('so:blueprint'));
     try{ if(typeof flashMsg==='function') flashMsg('🎼 멜로디메이커로 보냈어요 · '+bp.sections.length+'구간'+(window.SO_HUB.bandTracks?' · 반주 '+window.SO_HUB.bandTracks.length+'트랙':'')); }catch(e){} };
+})();
+(function(){   // 비트 → 밴드 / 비트 → 플레이 (구조·코드·멜로디 앵커)
+  const host=$('soBeatToMelody')||$('soBeatFromBand')||$('exMidi'); if(!host)return;
+  const bandB=document.createElement('button'); bandB.id='soBeatToBand'; bandB.className='so-iconbtn'; bandB.textContent='🎸';
+  bandB.title='이 비트 곡의 조·템포·구조·코드(+멜로디)를 밴드로 보냅니다';
+  host.insertAdjacentElement('afterend',bandB);
+  bandB.onclick=()=>{ const bp=soBuildBlueprintBeat(); if(!bp.sections.length){alert('먼저 곡을 만든 뒤 눌러 주세요');return;}
+    window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.blueprint=bp; window.dispatchEvent(new CustomEvent('so:blueprint-band')); window.__soSwitchTab('app-band'); };
+  const playB=document.createElement('button'); playB.id='soBeatToPlay'; playB.className='so-iconbtn'; playB.textContent='🎹';
+  playB.title='이 비트 곡의 조·템포·구조·코드(+멜로디)를 플레이로 보냅니다';
+  bandB.insertAdjacentElement('afterend',playB);
+  playB.onclick=()=>{ const bp=soBuildBlueprintBeat(); if(!bp.sections.length){alert('먼저 곡을 만든 뒤 눌러 주세요');return;}
+    window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.blueprint=bp; window.dispatchEvent(new CustomEvent('so:blueprint-play')); window.__soSwitchTab('app-play'); };
+})();
+(function(){   // 🎤 멜로디 소스 토글: 가져온 멜로디(체크) / 자체 리드 — 미리듣기·추출 뮤트 모두 이 값 따름
+  const host=$('soBeatToMelody')||$('soBeatFromBand')||$('exMidi'); if(!host)return;
+  const w=document.createElement('label'); w.id='soBeatMelSrcW'; w.style.cssText='display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:12px;cursor:pointer;';
+  const c=document.createElement('input'); c.type='checkbox'; c.id='soBeatMelSrc'; c.checked=true;
+  const t=document.createElement('span'); t.textContent='🎤 가져온 멜로디';
+  w.title='체크: 가져온 멜로디를 듣고 추출 시 자체 리드는 [뮤트] / 해제: 자체 리드를 듣고 가져온 쪽 [뮤트] — 둘 다 MIDI에 실립니다';
+  w.appendChild(c); w.appendChild(t); host.insertAdjacentElement('afterend',w);
+  c.onchange=()=>{ window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.melSrc=window.SO_HUB.melSrc||{}; window.SO_HUB.melSrc.beat=c.checked?'imported':'own'; };
+})();
+(function(){   // 🎶 모티브 토글(비트)
+  const host=$('soBeatMelSrcW')||$('soBeatToMelody')||$('exMidi'); if(!host)return;
+  const w=document.createElement('label'); w.id='soBeatMotiveW'; w.style.cssText='display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:12px;cursor:pointer;';
+  const c=document.createElement('input'); c.type='checkbox'; c.id='soBeatMotive'; c.checked=true;
+  const t=document.createElement('span'); t.textContent='🎶 모티브';
+  w.title='켜짐: 가져온 멜로디 훅 모티브를 인트로·간주·아웃트로에 트랙으로 얹습니다 / 끄면 제외';
+  w.appendChild(c); w.appendChild(t); host.insertAdjacentElement('afterend',w);
+  c.onchange=()=>{ window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.motiveOff=window.SO_HUB.motiveOff||{}; window.SO_HUB.motiveOff.beat=!c.checked; };
 })();
 window.__soBeatDebug=()=>({genre:state.genre,key:$('key').value,bpm:$('bpm').value,
   meter:$('meter')?$('meter').value:null,mode:$('mode')?$('mode').value:null,
@@ -14623,7 +14977,11 @@ const document = __scopedDoc('app-play');
   function renderGenres(){ setTimeout(updateGenreSum,0);
     const gi=GROUPS.findIndex(([gn,keys])=>keys.indexOf(gsel)>=0);
     let h='<select class="gsel" id="gselDrop">';
-    GROUPS.forEach(([gn,keys],i)=>{ h+=`<option value="${i}" title="${gn}"${i===gi?' selected':''}>${gn}</option>`; }); /* 좁은 박스에서 선택 항목은 …로 자연 말줄임, 목록 펼치면 전체 표시 */
+    const __ADV={'시네마틱 (무드)':1,'국악·콰탈·클래식':1,'교회 선법':1,'명상·월드':1,'집시·탱고':1};   // 고급으로 접을 그룹
+    const __basic=[], __adv=[];
+    GROUPS.forEach(([gn,keys],i)=>{ const opt=`<option value="${i}" title="${gn}"${i===gi?' selected':''}>${gn}</option>`; (__ADV[gn]?__adv:__basic).push(opt); });
+    h+='<optgroup label="기본">'+__basic.join('')+'</optgroup>';
+    h+='<optgroup label="🎓 고급">'+__adv.join('')+'</optgroup>';   /* 니치·밴드 겹침 장르는 고급으로 접음 */
     h+='</select>';
     $('genres').innerHTML=h;
     let hc=''; GROUPS[gi][1].forEach(k=>{ hc+=`<button class="gchip${k===gsel?' on':''}" data-g="${k}">${G[k].name}</button>`; });
@@ -17398,6 +17756,10 @@ const document = __scopedDoc('app-play');
     const rh=defaultRhythm(); const gv=GROOVE[gsel]||GROOVE.pop;
     const spb=60/(rh.bpm||gv.bpm), measure=spb*meterQuarters();
     let ev=[], tOff=0;
+    const __imp=(window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length)?window.SO_HUB.importedMelody:null;   // 멜로디 소스: 가져온(기본)/자체
+    const __useImp=__imp&&(!window.SO_HUB.melSrc||window.SO_HUB.melSrc.play!=='own');
+    const __mq=meterQuarters();
+    const __secBeatOff=(sec2)=>{ let off=0; for(const cs of (currentSong||[])){ if(cs===sec2) return off; off+=(((cs.prog&&cs.prog.steps)||[]).length*(cs.reps||1))*__mq; } return off; };   // 섹션의 절대 박 시작(부분 재생도 정합)
     const savedDrum=INST.drums.on, savedBass=INST.bass.on, savedVoiceAll=curVoicing;
     const baseTonic=tonic;
     songArr.forEach((sec,secIdx)=>{
@@ -17421,7 +17783,11 @@ const document = __scopedDoc('app-play');
         const climaxNext = lastRep && nextSec && (nextSec.intensity||0)>=0.95 && (nextSec.intensity||0) > (sec.intensity||0.85);
         if(climaxNext){ const brkAt=(steps.length-0.5)*secMeasure; ge.ev=ge.ev.filter(e=>e.t<brkAt); }
         ge.ev.forEach(e=>ev.push({t:tOff+e.t, play:e.play}));
-        if(INST.melody.on && sec.label!=='인트로'){ const mel=(sec.mels&&sec.mels[r])||((isThemeMode&&themeMelody)?themeMelody:genMelody(steps,{intensity:sec.intensity,rhythmSeed:currentMotif,instClass:instClass(INST.melody.gm),scale:sec.prog.scale,narrow:(gsel==='kids')})); mel.forEach(mn=>{ const gbar=r*steps.length+mn.bar, apos=totalBars>1?gbar/(totalBars-1):0.5; const arch=(1-archDepth)+1.4*archDepth*Math.sin(Math.PI*apos); const t=(mn.bar+mn.pos)*secMeasure; ev.push({t:tOff+t, play:(T)=>instVoice(mn.midi,T,Math.max(0.2,mn.dur*secSpb),0.052*(sec.intensity||1)*arch,melVoiceOf())}); }); } /* 주선율 볼륨 0.066→0.052(덜 튀게) */
+        if(__useImp && r===0){ const __bOff=__secBeatOff(sec), __bLen=totalBars*__mq;   // 가져온 멜로디: 이 섹션 절대 박 구간을 초로 변환해 주입
+          __imp.forEach(n=>{ if(n.t>=__bOff-1e-6&&n.t<__bOff+__bLen-1e-6){ const tt=tOff+(n.t-__bOff)*secSpb; ev.push({t:tt, play:(T)=>instVoice(n.midi,T,Math.max(0.2,(n.dur||0.5)*secSpb),0.052*(sec.intensity||1),melVoiceOf())}); } }); }
+        if(r===0 && window.SO_motive){ const __mo=window.SO_motive('play'); if(__mo.length){ const __bOff=__secBeatOff(sec), __bLen=totalBars*__mq;   // 모티브 미리듣기(인트로·간주·아웃트로)
+          __mo.forEach(n=>{ if(n.t>=__bOff-1e-6&&n.t<__bOff+__bLen-1e-6){ const tt=tOff+(n.t-__bOff)*secSpb; ev.push({t:tt, play:(T)=>instVoice(n.midi,T,Math.max(0.25,(n.dur||0.5)*secSpb),0.05,'winds')}); } }); } }
+        if(!__useImp && INST.melody.on && sec.label!=='인트로'){ const mel=(sec.mels&&sec.mels[r])||((isThemeMode&&themeMelody)?themeMelody:genMelody(steps,{intensity:sec.intensity,rhythmSeed:currentMotif,instClass:instClass(INST.melody.gm),scale:sec.prog.scale,narrow:(gsel==='kids')})); mel.forEach(mn=>{ const gbar=r*steps.length+mn.bar, apos=totalBars>1?gbar/(totalBars-1):0.5; const arch=(1-archDepth)+1.4*archDepth*Math.sin(Math.PI*apos); const t=(mn.bar+mn.pos)*secMeasure; ev.push({t:tOff+t, play:(T)=>instVoice(mn.midi,T,Math.max(0.2,mn.dur*secSpb),0.052*(sec.intensity||1)*arch,melVoiceOf())}); }); } /* 주선율 볼륨 0.066→0.052(덜 튀게) */
         if(introTheme){ const mel=sec.introMel||genMelody(steps,{intensity:0.6,rhythmSeed:currentMotif,instClass:'plucked',scale:sec.prog.scale,narrow:(gsel==='kids')}); mel.forEach(mn=>{ const t=(mn.bar+mn.pos)*secMeasure; ev.push({t:tOff+t, play:(T)=>instVoice(mn.midi,T,Math.max(0.24,mn.dur*secSpb),0.078,'piano')}); }); }
         if(counterOn && gsel==='gukvocal' && sec.label==='인트로'){ const cmI=(sec.mels&&sec.mels[r])||genMelody(steps,{intensity:0.62,scale:sec.prog.scale,rseed:9173+(((tonic%12)+12)%12)*31}); /* MIDI와 같은 시드 = 같은 모티프 */
           { const byBar={}; cmI.forEach(cn=>{ (byBar[cn.bar]=byBar[cn.bar]||[]).push(cn); });
@@ -18401,6 +18767,7 @@ const document = __scopedDoc('app-play');
       ev=coalesceNotes(ev);
       ev=crossDeclash(grp.key, ev); doneNotes[grp.key]={ch:grp.ch, iv:pairIv(ev)}; // 교차 트랙 반음 정리 + 완료 트랙 등록
       let bytes=[];
+      const __melMuted=(grp.key==='melody' && window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length && (!window.SO_HUB.melSrc||window.SO_HUB.melSrc.play!=='own'));   // 가져온 멜로디 선택 시 자체 멜로디 뮤트
       { const roleEn={melody:((INST&&INST.melody&&INST.melody.gm===54)?'Vocal Guide (replace with your vocal)':(skeletonMode?'Melody (GUIDE - replace or mute)':'Melody')),counter:'Counter Melody',piano:'Piano',piano2:'Piano 2 (Theme ostinato)',vocal2:'Vocal 2 - Female (duet)',orchcym:'Orchestral Cymbals (crash/suspended)',strings:'Strings',winds:(INST&&INST.winds&&INST.winds.gm===200?'Flute (section top)':'Winds'),bass:'Bass',pad:'Pad (ambient layer)',sub:'Sub Bass (L4+)',riser:'FX Riser (pre-drop)',horns:'French Horns',lowbrass:'Low Brass (Tbn/Tuba)',harp:(({46:'Harp',24:'Nylon Guitar (plucked)',104:'Sitar / Plucked'})[(INST&&INST.harp&&INST.harp.gm)||46]||'Harp'),brass:(INST&&INST.brass&&INST.brass.gm===61?'Horns (section mid)':'Brass (long tones)'),brass2:'Trombones (section low)',brass3:'Trumpets (section top)',winds2:'Oboe (section mid)',winds3:'Bassoon (section low)',choir:'Choir (Aahs)',timpani:'Timpani',cbass:'Contrabass (low str)'};
         const GMN={0:'Grand Piano',4:'E.Piano',6:'Harpsichord',11:'Vibraphone',23:'Bandoneon',54:'Voice',72:'Piccolo',41:'Viola',45:'Pizzicato Str',61:'Brass Sec',73:'Flute',75:'Pan Flute',40:'Violin',42:'Cello',46:'Harp',48:'String Ens',56:'Trumpet',65:'Alto Sax',68:'Oboe',71:'Clarinet',32:'Acoustic Bass',33:'Finger Bass',35:'Fretless Bass',89:'Warm Pad',38:'Synth Bass',119:'Reverse Cymbal',60:'French Horn',57:'Trombone',58:'Tuba',52:'Choir Aahs',47:'Timpani',43:'Contrabass',44:'Tremolo Strings',24:'Nylon Guitar',104:'Sitar',70:'Bassoon'};
         // 추천 악기(트랙명 앞) + 느낌(캐릭터). 실제 제품이 없어도 '어떤 느낌 악기'인지 알 수 있게.
@@ -18411,7 +18778,8 @@ const document = __scopedDoc('app-play');
           horns:'noble, broad, warm - long notes, no fast runs', lowbrass:'heavy, weighty - power at climax only', harp:'magical, flowing, delicate arpeggios', brass:'bold, broad, sustained', brass2:'low weight, glue', brass3:'bright, brilliant, fanfare', winds2:'singing, plaintive (oboe)', winds3:'dark, reedy low support', choir:'vast, sacred, sustained wall', timpani:'deep tuned hits - follows harmony', cbass:'the floor of the orchestra' };
         const soundFront=(grp.ch===9 && grp.role!=='orchcym')?'Drum Kit':(REC_SOUND[grp.key]||GMN[grp.gm]||('GM '+grp.gm));
         const roleTag=(grp.ch===9 && grp.role!=='orchcym')?'Drums / Perc':(roleEn[grp.key]||grp.key);
-        const nm=(grp.ch===9 && grp.role!=='orchcym')?roleTag:(soundFront.replace(/ \(sec\)$/,'')===roleTag.replace(/ \(section[^)]*\)$/,'')?roleTag:(soundFront+' | '+roleTag)); // 추천 악기가 맨 앞(중복이면 역할만)
+        let nm=(grp.ch===9 && grp.role!=='orchcym')?roleTag:(soundFront.replace(/ \(sec\)$/,'')===roleTag.replace(/ \(section[^)]*\)$/,'')?roleTag:(soundFront+' | '+roleTag)); // 추천 악기가 맨 앞(중복이면 역할만)
+        if(__melMuted) nm='[뮤트] '+nm;
         const nb=Array.from(new TextEncoder().encode(nm));
         bytes=bytes.concat([0,0xFF,0x03]).concat(vlq(nb.length)).concat(nb);
         // 트랙별 로직 추천(FF01 텍스트) — 이벤트 리스트/트랙에서 열람. ASCII만.
@@ -18447,6 +18815,7 @@ const document = __scopedDoc('app-play');
         const rb2=Array.from(new TextEncoder().encode(rec));
         bytes=bytes.concat([0,0xFF,0x01]).concat(vlq(rb2.length)).concat(rb2); }
       if(grp.ch!==9) bytes=bytes.concat([0,0xC0|grp.ch,grp.gm&0x7f]);
+      if(__melMuted) bytes=bytes.concat([0,0xB0|grp.ch,7,0]);   // 뮤트: 볼륨 0(페이더 올리면 들림)
       let last=0; ev.forEach(e=>{ bytes=bytes.concat(vlq(e.tick-last)); last=e.tick;
         if(e.cc!=null) bytes=bytes.concat([0xB0|grp.ch,e.cc&0x7f,e.val&0x7f]);
         else { const vv=(e.on && feltSoft && (grp.key==='piano'||grp.key==='melody'||grp.key==='counter'))?Math.round(Math.min(96,20+e.vel*0.64)):e.vel;
@@ -18459,6 +18828,24 @@ const document = __scopedDoc('app-play');
       mkGuide('GUIDE - Vocal Chop / Texture','Add rhythmic vocal chops or breathy texture in Chorus/Highlight (L4+). Trend: short pitched vocal samples as hook.');
       mkGuide('GUIDE - Impact + Sidechain','Place impact hit at drop (Highlight start marker). Sidechain pads/sub to kick for pump. Riser track leads into it.'); }
     curVoicing=savedV;
+    if(window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length){   // 멜로디 앵커: 넘어온 멜로디 그대로 실음(채널16)
+      const __impSel=(!window.SO_HUB.melSrc||window.SO_HUB.melSrc.play!=='own');   // 선택된 소스(가져온=기본)
+      const mel=window.SO_HUB.importedMelody.slice().sort((a,b)=>a.t-b.t); const evs=[];
+      mel.forEach(n=>{ const on=Math.round(n.t*TPQ), off=Math.round((n.t+Math.max(0.05,n.dur))*TPQ); evs.push({tk:on,on:1,m:n.midi,v:n.vel||90}); evs.push({tk:off,on:0,m:n.midi,v:0}); });
+      evs.sort((a,b)=>a.tk-b.tk||(a.on-b.on));
+      let mb=[]; const nm=Array.from(new TextEncoder().encode((__impSel?'':'[뮤트] ')+'[가져온] 멜로디 — 보존됨 (Voice)'));
+      mb=mb.concat([0,0xFF,0x03]).concat(vlq(nm.length)).concat(nm);
+      if(!__impSel) mb=mb.concat([0,0xBF,7,0]);   // 뮤트: 볼륨 0
+      let last=0; evs.forEach(e=>{ mb=mb.concat(vlq(e.tk-last)); last=e.tk; mb=mb.concat(e.on?[0x9F,e.m,e.v]:[0x8F,e.m,0]); });
+      mb=mb.concat([0,0xFF,0x2F,0x00]); trackBytes.push(trk(mb));
+    }
+    if(window.SO_motive){ const __mo=window.SO_motive('play'); if(__mo.length){   // 멜로디 훅 모티브: 인트로·간주·아웃트로(채널15, GM11 비브라폰)
+      const evs=[]; __mo.slice().sort((a,b)=>a.t-b.t).forEach(n=>{ const on=Math.round(n.t*TPQ), off=Math.round((n.t+Math.max(0.1,n.dur))*TPQ); evs.push({tk:on,on:1,m:n.midi,v:n.vel||70}); evs.push({tk:off,on:0,m:n.midi,v:0}); });
+      evs.sort((a,b)=>a.tk-b.tk||(a.on-b.on));
+      let mb=[]; const nm=Array.from(new TextEncoder().encode('[모티브] 인트로·간주·아웃트로 (멜로디 훅 기반) — Vibraphone'));
+      mb=mb.concat([0,0xFF,0x03]).concat(vlq(nm.length)).concat(nm); mb=mb.concat([0,0xCE,11]);   // ch15 프로그램=비브라폰
+      let last=0; evs.forEach(e=>{ mb=mb.concat(vlq(e.tk-last)); last=e.tk; mb=mb.concat(e.on?[0x9E,e.m,e.v]:[0x8E,e.m,0]); });
+      mb=mb.concat([0,0xFF,0x2F,0x00]); trackBytes.push(trk(mb)); } }
     const nTrk=trackBytes.length;
     let out=[0x4D,0x54,0x68,0x64,0,0,0,6,0,1,(nTrk>>8)&0xff,nTrk&0xff,(TPQ>>8)&0xff,TPQ&0xff];
     trackBytes.forEach(t=>{ out=out.concat(t); }); return out;
@@ -19089,8 +19476,9 @@ function soPlayBlueprint(){
   });
   if(!sections.length)return null;
   const rh=defaultRhythm(), gv=GROOVE[gsel]||GROOVE.pop;
-  return {v:2,from:'play',style:gsel,key:SO_PCN[((tonic%12)+12)%12],mode:(keyMode==='minor'?'minor':'major'),
-    bpm:Math.round(rh.bpm||gv.bpm||96),meter:currentSig||'4/4',sections};
+  return {v:3,from:'play',style:gsel,key:SO_PCN[((tonic%12)+12)%12],mode:(keyMode==='minor'?'minor':'major'),
+    bpm:Math.round(rh.bpm||gv.bpm||96),meter:currentSig||'4/4',sections,
+    melody:(window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length)?window.SO_HUB.importedMelody.slice():[]};   // 멜로디 앵커 전달(다중 홉 보존)
 }
 function soPlayTracks(){ const bytes=buildSongMIDI(); if(!bytes)return null;   // 곡 MIDI 파이프라인 재사용 — MTrk 청크로 분해
   const u=bytes; const tracks=[]; let p=14;
@@ -19100,15 +19488,53 @@ function soPlayTracks(){ const bytes=buildSongMIDI(); if(!bytes)return null;   /
   const host=$('songMidi'); if(!host)return;
   const mk=(id,txt,title,fn)=>{ const b=document.createElement('button'); b.type='button'; b.id=id; b.textContent=txt; b.title=title; host.insertAdjacentElement('afterend',b); b.onclick=fn; };
   mk('soPlayToBeat','🥁 비트로 →','이 곡의 조·템포·구조·코드를 비트메이커로 보냅니다',()=>{
-    const bp=soPlayBlueprint(); if(!bp){alert('먼저 [🎼 곡 만들기]로 곡을 만들어 주세요');return;}
+    let bp=soPlayBlueprint(); if(!bp){ const gb=$('buildSongBtn'); if(gb){ gb.click(); bp=soPlayBlueprint(); } if(!bp){ alert('먼저 장르를 고르고 곡을 만들어 주세요'); return; } }
     window.SO_HUB.blueprint=bp; window.dispatchEvent(new CustomEvent('so:blueprint-beat')); window.__soSwitchTab('app-beat'); });
   mk('soPlayToMelody','🎼 멜로디로 →','이 곡의 조·템포·구조·코드를 멜로디메이커로 보냅니다 (통합 MIDI 가능)',()=>{
-    const bp=soPlayBlueprint(); if(!bp){alert('먼저 [🎼 곡 만들기]로 곡을 만들어 주세요');return;}
+    let bp=soPlayBlueprint(); if(!bp){ const gb=$('buildSongBtn'); if(gb){ gb.click(); bp=soPlayBlueprint(); } if(!bp){ alert('먼저 장르를 고르고 곡을 만들어 주세요'); return; } }
     window.SO_HUB.blueprint=bp;
     const tr=soPlayTracks();
     if(tr){ window.SO_HUB.bandTracks=tr; window.SO_HUB.bandPadQ=0; window.SO_HUB.bandMidName='play_'+gsel+'.mid'; }   // 통합 내보내기 소스로 등록(플레이는 앞 여백 0)
     window.dispatchEvent(new CustomEvent('so:blueprint')); window.__soSwitchTab('app-melody'); });
+  mk('soPlayToBand','🎸 밴드로 →','이 곡의 조·템포·구조·코드(+멜로디)를 밴드로 보냅니다',()=>{
+    let bp=soPlayBlueprint(); if(!bp){ const gb=$('buildSongBtn'); if(gb){ gb.click(); bp=soPlayBlueprint(); } if(!bp){ alert('먼저 장르를 고르고 곡을 만들어 주세요'); return; } }
+    window.SO_HUB.blueprint=bp; window.dispatchEvent(new CustomEvent('so:blueprint-band')); window.__soSwitchTab('app-band'); });
+  mk('soPlayFrom','🎵 받기','멜로디·비트·밴드에서 보낸 곡(구조·코드·멜로디)을 플레이로 가져옵니다 — 멜로디는 보존',()=>soApplyBlueprintPlay(window.SO_HUB&&window.SO_HUB.blueprint));
+  (function(){ const w=document.createElement('label'); w.id='soPlayMelSrcW'; w.style.cssText='display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:12px;cursor:pointer;';
+    const c=document.createElement('input'); c.type='checkbox'; c.id='soPlayMelSrc'; c.checked=true;
+    const t=document.createElement('span'); t.textContent='🎤 가져온 멜로디';
+    w.title='체크: 가져온 멜로디를 듣고 추출 시 자체 멜로디는 [뮤트] / 해제: 자체 멜로디를 듣고 가져온 쪽 [뮤트] — 둘 다 MIDI에 실립니다';
+    w.appendChild(c); w.appendChild(t); host.insertAdjacentElement('afterend',w);
+    c.onchange=()=>{ window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.melSrc=window.SO_HUB.melSrc||{}; window.SO_HUB.melSrc.play=c.checked?'imported':'own'; }; })();
+  (function(){ const w=document.createElement('label'); w.id='soPlayMotiveW'; w.style.cssText='display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:12px;cursor:pointer;';
+    const c=document.createElement('input'); c.type='checkbox'; c.id='soPlayMotive'; c.checked=true;
+    const t=document.createElement('span'); t.textContent='🎶 모티브';
+    w.title='켜짐: 가져온 멜로디 훅 모티브를 인트로·간주·아웃트로에 트랙으로 얹습니다 / 끄면 제외';
+    w.appendChild(c); w.appendChild(t); host.insertAdjacentElement('afterend',w);
+    c.onchange=()=>{ window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.motiveOff=window.SO_HUB.motiveOff||{}; window.SO_HUB.motiveOff.play=!c.checked; }; })();
 })();
+function soApplyBlueprintPlay(bp){   // 받는 쪽: 구조·코드로 편곡 재생성 + 멜로디 앵커 보존
+  if(!bp||!Array.isArray(bp.sections)||!bp.sections.length){alert('멜로디·비트·밴드에서 [→ 플레이]로 곡을 보낸 뒤 눌러 주세요');return;}
+  const _PCN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const kpc=_PCN.indexOf(bp.key); if(kpc>=0) tonic=kpc;
+  if(bp.mode==='minor'||bp.mode==='major') keyMode=bp.mode;
+  if(bp.meter) currentSig=bp.meter;
+  if(bp.style){ try{ const groups=(typeof GROUPS!=='undefined')?GROUPS:[]; const all=groups.reduce((a,g)=>a.concat(g[1]),[]); if(all.indexOf(bp.style)>=0) gsel=bp.style; }catch(e){} }
+  const L2LABEL={intro:'인트로',verse:'벌스',prechorus:'프리코러스',buildup:'프리코러스',hook:'후렴',posthook:'포스트후렴',bridge:'브릿지',break:'간주',outro:'아웃트로'};
+  const STG={intro:2,verse:4,prechorus:4,buildup:4,hook:5,posthook:5,bridge:3,break:3,outro:1};
+  const symToStep=(sym)=>{ let pc=null; try{ pc=parseChord(String(sym)); }catch(e){} if(!pc) return ['I',0,'maj']; const off=(((pc[1]-tonic)%12)+12)%12; return [String(sym), off, pc[2]||'maj']; };
+  currentSong=bp.sections.map(sc=>{ const role=sc.role||'verse'; const steps=((sc.chords&&sc.chords.length)?sc.chords:['C']).map(symToStep);
+    const lbl=(L2LABEL[role]||sc.name||'벌스');
+    return { label:lbl, prog:{name:lbl, mode:keyMode, steps}, reps:1, drums:(role!=='intro'&&role!=='outro'),
+      density:(role==='hook'||role==='posthook')?'full':(role==='verse'?'medium':'sparse'),
+      intensity:(role==='hook'||role==='posthook')?0.95:(role==='verse'?0.82:0.6), stage:(STG[role]||3), keyShift:0 }; });
+  try{ if(bp.melody&&bp.melody.length&&typeof INST!=='undefined'&&INST.melody) INST.melody.on=true; }catch(e){}   // 듀얼 추출 대비: 자체 멜로디도 생성
+  try{ currentSong.forEach(sec=>bakeSec(sec)); }catch(e){}
+  window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.importedMelody=(bp.melody&&bp.melody.length)?bp.melody.slice():null;   // 멜로디 앵커 보존
+  try{ if(typeof renderSong==='function') renderSong(); }catch(e){}
+  try{ if(typeof flashMsg==='function') flashMsg('✓ 곡 적용: '+bp.sections.length+'구간'+(window.SO_HUB.importedMelody?' · 멜로디 '+window.SO_HUB.importedMelody.length+'음 보존':'')); }catch(e){}
+}
+window.addEventListener('so:blueprint-play',()=>soApplyBlueprintPlay(window.SO_HUB&&window.SO_HUB.blueprint));
 window.__soPlayDebug=()=>({has:!!currentSong,bp:soPlayBlueprint()});
 
 })();
