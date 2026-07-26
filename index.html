@@ -11439,9 +11439,13 @@ function arrange(){
         }
         if(g.pad&&newChord){let pl=48+((ch.bass%12)+12)%12;if(pl>59)pl-=12;   // 루트 저역
           const iv=QUAL[ch.q]||QUAL.maj;                                       // 패드는 텐션 없이 근음+3화음만 (충돌·튐 방지)
+          if(g.id==='retro'){                                                  // 시티팝: 패드는 근음+5도만(3음 제거) 저음역에 — EP의 7th/9th 텐션과 부딪히지 않게(완전5도는 어떤 텐션과도 협화), EP 아래를 넓게 받침
+            const p5r=pl+(iv[2]!=null?iv[2]:7);
+            [...new Set([pl,p5r])].forEach(n=>tr.pad.push({t:b0,dur:BQ*cb*0.98,midi:n,vel:Math.round(40*eScale+rnd()*3),pump:sec.pump}));
+          } else {
           const p5=pl+(iv[2]!=null?iv[2]:7);                                   // 5음(dim/aug도 코드 그대로)
           let p3=pl+12+(iv[1]!=null?iv[1]:4);if(p3>76)p3-=12;                  // 3음은 옥타브 위 오픈 보이싱
-          [...new Set([pl,p5,p3])].forEach(n=>tr.pad.push({t:b0,dur:BQ*cb*0.98,midi:n,vel:Math.round(52*eScale+rnd()*3),pump:sec.pump}));}
+          [...new Set([pl,p5,p3])].forEach(n=>tr.pad.push({t:b0,dur:BQ*cb*0.98,midi:n,vel:Math.round(52*eScale+rnd()*3),pump:sec.pump}));}}
         // ── 플럭/아르프 시퀀스 레이어 — EDM 고에너지(빌드·드롭)에 16분 아르페지오 텍스처를 코드 위에 얹는다. 코드 아르프 토글과 별개의 전용 레이어. ──
         // 짧은 어택·짧은 릴리즈의 플럭. 코드톤을 위로 훑어 올리며(up), 옥타브를 넘나들어 반짝임. 사이드체인 펌핑 대상.
         // ── 멜로딕 하우스 시그니처 LFO 플럭 — 벌스부터 상시(그루브 정체성). 8분 오프비트 플럭에 2마디 LFO 스웰(필터 열림/닫힘을 벨로시티·컷오프로 표현). ──
