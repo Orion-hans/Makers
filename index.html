@@ -6063,7 +6063,7 @@ const PERF_VARIANTS={
   epic:      [{}, {bass:'sustain'}, {comp:'block'}],           // 오케 어법 안에서만
   animeost:  [{}, {comp:'pad'}, {bass:'sustain'}],
   disney:    [{}, {comp:'arp'}, {comp:'pad'}],
-  saguk:     [{}, {comp:'arp'}]                                 // bare 미학 유지: 드론·발현 어법 안에서만
+  saguk:     [{}, {comp:'arp'}, {comp:'pad',gtr:'arp'}, {bass:'sustain',comp:'broken'}] // bare 미학 안 4변주: 오리엔탈/펠트 아르페지오/현 패드+나일론 발현/서스테인 저현+브로큰
 };
 /* 구간별 편곡 플랜: 코러스=곡 정체성(고정), 벌스=사이클마다 교대, 브릿지=대비 조합 */
 function buildPerfPlan(){
@@ -9435,9 +9435,9 @@ function songSheet(){
   L.push(`템포     : ${bpms.length>1?bpms.map(b=>b+'bpm').join(', '):bpms[0]+' bpm'}`);
   L.push(`전체 길이: ${mmss(total)} (${total.toFixed(1)}초, ${MODEL.sections.reduce((a,s,i)=>a+state.sections[i].grid.length,0)}마디)`);
   L.push(`구조     : ${state.sections.map(s=>s.type).join(' → ')}`);
-    if(BAND_VOCAL[state.style]){const vg=BAND_VOCAL[state.style]; L.push(''); L.push('──────── 🎤 보컬 가이드 ────────'); L.push('느낌: '+vg.feel); L.push('이펙트: '+vg.fx); L.push('자주 쓰는 조성: '+vg.key);}
+    if(BAND_VOCAL[state.style]){const vg=BAND_VOCAL[state.style]; L.push(''); L.push('■ 🎤 보컬 가이드'); L.push('느낌: '+vg.feel); L.push('이펙트: '+vg.fx); L.push('자주 쓰는 조성: '+vg.key);}
   L.push('');
-  L.push('──────── 구간별 코드 진행 ────────');
+  L.push('■ 구간별 코드 진행');
   const _tot={},_seen={};state.sections.forEach(sec=>{_tot[sec.type]=(_tot[sec.type]||0)+1;});
   state.sections.forEach((sec,i)=>{const ms=MODEL.sections[i],bars=sec.grid.length;
     _seen[sec.type]=(_seen[sec.type]||0)+1;
@@ -9454,7 +9454,7 @@ function songSheet(){
   L.push('※ MIDI 파일은 앞뒤 4마디 여백 포함 — 마커 "Edit space"~"Song End" 사이가 실제 곡');
   L.push('※ FX Cues 트랙(라이저·임팩트·서브 자리) + ADD- 빈 트랙(추가 악기 슬롯) 포함 — 로직가이드 참고');
   L.push('');
-  L.push('──────── 트랙별 셋업 — 트랙마다 [①가상악기 → ②FX → ③팬·볼륨 → ④믹싱 수치(EQ·컴프·리버브·주파수)] ────────');
+  L.push('■ 트랙별 셋업 — 트랙마다 [①가상악기 → ②FX → ③팬·볼륨 → ④믹싱 수치(EQ·컴프·리버브·주파수)]');
   L.push('  [넣는 법] 믹서(X) → 트랙 선택 → Audio FX 슬롯: EQ → Comp → [Sat] → Send(리버브/딜레이 Aux)');
   { const TB={
       piano:{fx:'Hall/Room Send 18% · CC64 서스테인 페달', pan:'중앙(살짝 스테레오) · -3dB', eq:'HPF 40Hz · 250Hz -2dB(머드) · 5kHz +1.5dB(어택)', comp:'2:1 · A15 R120 · GR 2~3dB', freq:'80Hz~6kHz (중심 200Hz~2kHz)'},
@@ -9487,7 +9487,7 @@ function songSheet(){
   L.push('  → 원샷은 트랜지언트라 마스터 리미터 전 피크 -6dBFS 넘지 않게 · FX Cues 트랙에 그 지점마다 큐로 찍혀 있음');
   L.push('');
   if(fxCueNotes().length){
-    L.push('──────── FX·텍스처 트랙 (마지막 — 계열·조절·볼륨이 악기와 다름) ────────');
+    L.push('■ FX·텍스처 트랙 (마지막 — 계열·조절·볼륨이 악기와 다름)');
     L.push('  ※ "FX Cues" 트랙 1개에 라이저·임팩트·서브가 구간 전환마다 찍혀 있습니다 — 로직에서 각 샘플/신스로 교체하세요.');
     L.push('  ※ 음정 악기가 아니라 전환·텍스처용입니다 — 대부분 악기보다 작게 깔고, 라이저·임팩트만 순간적으로 크게(트랜지언트). 레벨은 절대값이 아니라 귀로 맞추기 전 출발점.');
     L.push('');
@@ -9510,11 +9510,11 @@ function songSheet(){
     L.push('  ④ 주파수 대역: 초저역 30~80Hz');
     L.push('');
   }
-  L.push('──────── 공유 버스 만들기 (리버브·딜레이 — 한 번만) ────────');
+  L.push('■ 공유 버스 만들기 (리버브·딜레이 — 한 번만)');
   L.push('  1) 트랙 Sends → Bus 1 (Aux "Reverb") → ChromaVerb (Mix 100%) · 센드량은 위 트랙별 ② 값');
   L.push('  2) 딜레이 = Bus 2 (Stereo Delay, Sync) · 드럼 Room = Bus 3');
   L.push('');
-  L.push('──────── 마스터링 — 맨 마지막 (Stereo Out · LUFS 맞추기) ────────');
+  L.push('■ 마스터링 — 맨 마지막 (Stereo Out · LUFS 맞추기)');
   L.push('  1) Dynamics>Compressor(글루): 1.5:1 · Attack 30ms · Release Auto · Threshold를 GR 1~2dB 되게');
   L.push('  2) EQ>Channel EQ: HPF 30Hz · 하이셸프 +0.5~1dB');
   L.push('  3) Dynamics>Limiter: Output(실링) -1.0dB · Gain 올려 목표 -14 LUFS');
@@ -9678,7 +9678,7 @@ const GUIDE_APPLY={
   celtic:{voicing:'clean',drone:1,counter:1},
   country:{voicing:'clean',counter:1,humanize:1},
   countrypop:{voicing:'auto',arrDyn:1,counter:1},
-  saguk:{drone:1,breath:'med',introTheme:0,arc:'calm'},
+  saguk:{drone:1,breath:'med',introTheme:1,arrDyn:1,arc:'drop'}, // 사극 서사: 테마 북엔드 + 편곡 다이내믹 + 비움→폭발 아크
 };
 function applySpec(a,styleId){
   a=a||{};
@@ -13970,9 +13970,7 @@ function buildSongSheet(){
   const mmss=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
   const secBps=60/(bpms[0]||120), secAt=q=>{let acc=0;const tm=MODEL.tempoMap||[];for(const g of tm){const dur=(Math.min(q,g.endQ)-g.startQ);if(dur>0)acc+=dur*(60/g.bpm);if(q<=g.endQ)break;}return acc;};
   const L=[];
-  L.push('╔══════════════════════════════════════╗');
-  L.push('  SONG SHEET — '+gLabel);
-  L.push('╚══════════════════════════════════════╝');
+  L.push('■ 곡 정보 — '+gLabel);
   L.push('');
   L.push('조성(KEY)   : '+keyName);
   L.push('빠르기(TEMPO): '+tempoStr);
@@ -13992,7 +13990,7 @@ function buildSongSheet(){
   L.push('시작(INTRO)  : '+({stack:'쌓아 올리기',pickup:'픽업 스웰(+1마디)',impact:'임팩트 부머',fadein:'페이드인',bowlIn:'싱잉볼 여는 종(+2마디)',direct:'바로 시작'}[state.introStyle]||state.introStyle));
   L.push('종지(ENDING) : '+({finale:'피날레 원샷',finaleBoom:'부머 테일(+1마디)',finaleBowl:'싱잉볼 명상형(+2마디)',fade:'페이드아웃',handoff:'넘김(이어붙이기)',loop:'루프용'}[state.endStyle]||state.endStyle));
   L.push('');
-  L.push('─── 구조 (FORM) ───');
+  L.push('■ 구조 (FORM)');
   let barAcc=0;
   MODEL.sections.forEach((s,i)=>{
     const sec=state.sections[i];
@@ -14015,13 +14013,13 @@ function buildSongSheet(){
     { const dv=state.sections.filter(s=>s._density!=null).map(s=>s._density);
       if(dv.length&&(Math.max.apply(null,dv)-Math.min.apply(null,dv))>0.2){
         L.push('※ 밀도 아크: 곡이 길어 악기 밀도가 구간마다 채워지고 비워집니다 — 초반 벌스는 성기게(베이스 솎음·장식 억제), 클라이맥스로 갈수록 촘촘하게(코드 펄스·텐션 무브·경과음↑), 정점 뒤 이완. 골격(코드·베이스 진행)은 유지.'); L.push(''); } } }
-  L.push('─── 구간별 코드 (CHORDS) ───');
+  L.push('■ 구간별 코드 (CHORDS)');
   const seen=new Set();
   state.sections.forEach((sec,i)=>{const k=sec.type+':'+sec.chords.join('-');if(seen.has(k))return;seen.add(k);
     const vv=state.sections.filter((x,j)=>j<i&&x.type===sec.type).length?' (변형)':'';
     L.push('• '+sec.type+vv+' : '+sec.chords.join(' - ')+(sec.chordBars>1?'  ('+sec.chordBars+'마디/코드)':''));});
   L.push('');
-  L.push('─── 트랙 배치 순서 (TRACK ORDER) ───');
+  L.push('■ 트랙 배치 순서 (TRACK ORDER)');
   L.push('  로직에서 아래 순서로 트랙을 만드세요(저역·리듬 → 화성 → 상단 → 텍스처).');
   { const present=[];
     if(true)present.push('Drums'); present.push('Bass'); present.push('Chords');
@@ -14036,14 +14034,12 @@ function buildSongSheet(){
   L.push('');
   /* 공통 기본(모든 앱 공유) — Beat가 자체 섹션(FX·라우팅·사이드체인·마스터·음원)으로 다루는 부분은 제외, 빠진 용어·임포트·게인만 */
   if(typeof window!=='undefined' && window.SO_renderCommon){
-    L.push('╔══════════════════════════════════════╗');
-    L.push(' 공통 기본 (로직 프로 11 · 모든 장르 공통)');
-    L.push('╚══════════════════════════════════════╝');
+    L.push('■ 공통 기본 (로직 프로 11 · 모든 장르 공통)');
     window.SO_renderCommon({skip:{vinst:1,plugin:1,eqBasic:1,routing:1,sidechain:1,master:1}}).forEach(function(x){ L.push(x); });
     L.push('┈┈┈┈┈┈┈┈ 여기부터 비트 전용 ┈┈┈┈┈┈┈┈');
     L.push('');
   }
-  L.push('─── 트랙별 셋업 — 트랙마다 [①가상악기 → ②FX → ③팬·볼륨 → ④믹싱 수치(EQ·컴프·리버브·주파수)] ───');
+  L.push('■ 트랙별 셋업 — 트랙마다 [①가상악기 → ②FX → ③팬·볼륨 → ④믹싱 수치(EQ·컴프·리버브·주파수)]');
   L.push('  [넣는 법] 트랙 선택 → Instrument 슬롯(음원 삽입·트랙명으로 라이브러리 Y 검색) → Audio FX 슬롯(EQ→Comp→[Sat]) → Sends 슬롯(리버브/딜레이 Bus)');
   { const RN=recNames(),LP=logicPatches(),AP=altPatches(),BS=bassStyle(),MH=mixHints(),ss=synthSetFor(state.genre),fxs=fxLinesFor(state.genre);
     const FREQ={Drums:'킥 50~100Hz · 스네어 200Hz+5kHz · 하이햇 8kHz↑',Bass:'30~250Hz (중심 80Hz)',Chords:'150Hz~5kHz',Pad:'150Hz~8kHz (넓게)',Arp:'300Hz~10kHz',Piano:'80Hz~6kHz',Drone:'40~200Hz',Lead:'200Hz~10kHz',Guitar:'100Hz~8kHz',Strings:'200Hz~10kHz'};
@@ -14115,7 +14111,7 @@ function buildSongSheet(){
       }
     } }
   L.push('');
-  L.push('─── FX·텍스처 트랙 (마지막 트랙들 — 계열·조절·볼륨은 제각각) ───');
+  L.push('■ FX·텍스처 트랙 (마지막 트랙들 — 계열·조절·볼륨은 제각각)');
   L.push('  [핵심] 이 트랙들은 소리 크기가 다 다릅니다. 배경 노이즈는 아주 작게(있는 듯 없는 듯), 임팩트·서브는 순간 크게. 아래 볼륨은 페이더 시작점.');
   { const FXG={
       vinyl:{cat:'바이닐/포이 노이즈 (Vinyl Crackle 샘플 루프 · 또는 Vinyl 플러그인)', how:'곡 내내 루프 · LPF ~8kHz로 부드럽게 · 스테레오 살짝', vol:'-28 ~ -22 dB (배경, 있는 듯 없는 듯)', freq:'중저~중역 노이즈'},
@@ -14145,20 +14141,20 @@ function buildSongSheet(){
     L.push('  ※ 서브 대역(임팩트·서브드롭)은 모노로 · 저역이 겹치면 킥과 진흙탕이 되니 사이드체인이나 타이밍으로 자리를 비우세요.'); }
 
 
-  L.push('─── 공유 버스 만들기 (리버브·딜레이 — 한 번만) ───');
+  L.push('■ 공유 버스 만들기 (리버브·딜레이 — 한 번만)');
   L.push('  · 리버브: 트랙 Sends → Bus 1 (Aux) → ChromaVerb(Mix 100%) · 센드량은 위 트랙별 ②');
   L.push('  · 딜레이: Bus 2 → Stereo/Tape Delay(Sync 1/8~1/4, 하이컷) · 드럼 Room = Bus 3');
   L.push('  · 사이드체인: 대상 트랙 Compressor 우측상단 "Side Chain"에서 킥 선택');
   L.push('  · 핵심: 저역(킥·베이스)은 드라이 · 고역(패드·플럭)만 웨트 · 필터를 천천히 열고닫아 "숨쉬는" 질감');
   L.push('');
-  L.push('─── 마스터링 — 맨 마지막 (Stereo Out · LUFS 맞추기) ───');
+  L.push('■ 마스터링 — 맨 마지막 (Stereo Out · LUFS 맞추기)');
   L.push('  1) Dynamics>Compressor(글루): 1.5:1 · Attack 30ms · Release Auto · Threshold를 GR 1~2dB 되게');
   L.push('  2) EQ>Channel EQ: HPF 30Hz · 하이셸프 +0.5~1dB');
   L.push('  '+(['edm','trap','kpop','retro'].indexOf(state.genre)>=0?'3) Multipressor(멀티밴드)/새추 살짝 → 4) ':'3) ')+'Dynamics>Limiter: Output(실링) -1.0dB · Gain 올려 목표 -9~-10 LUFS(비트/클럽) 또는 -14(스트리밍)');
   L.push('  * LUFS 측정: Stereo Out에 Metering>Loudness Meter → Integrated 값 확인');
   L.push('  * 게인스테이징: 각 트랙 피크 -6~-8dBFS · 마스터 입력 -6 헤드룸(리미터 전)');
   L.push('  · 장르 캐릭터: '+mixHints().char);
-  L.push('─── 참고 (NOTES) ───');
+  L.push('■ 참고 (NOTES)');
   L.push('  ※ 빌드업 패드엔 CC74(필터 열림) 오토메이션이 이미 기록됨 — CC74에 반응하는 악기라야 실제로 열립니다.');
   L.push('  ※ 모든 멜로디 트랙 앞뒤에 CC11(Expression) 페이드가 기록됨 — 곡이 0에서 부드럽게 열리고 끝에서 부드럽게 닫힙니다.');
   L.push('     (드럼은 타악이라 벨로시티로 처리. CC11을 안 받는 음원이면 볼륨 오토메이션(A키)으로 대체하세요.)');
@@ -20386,6 +20382,26 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
   function genreMix(){ if(CINE.has(gsel))return GENRE_MIX.cine; if(GENRE_MIX[gsel])return GENRE_MIX[gsel]; if(LYRIC_G.has(gsel))return GENRE_MIX.lyric; return GENRE_MIX.pop; }
   function genreRevType(){ const r=genreMix().rev; const m=r.match(/^([^0-9(]*)/); return (m?m[1]:'Hall').trim().replace(/·$/,'').trim()||'Hall'; }
   function trackSetupBlocks(){ // 트랙별 [음원 · EQ · 컴프 · 센드] 수치. 활성 트랙만.
+  const SUB_INST={ // 장르별 트랙 대용 악기·연주법(로직 교체 안내) — 앱은 분위기·역할만, 실제 음원은 사용자가 교체
+   gugak:{
+    Melody:'대금 대용 → 로직에서 Alto/Bass Flute 또는 국악 대금 샘플로 교체. 레가토·시김새(굵은 비브라토)·숨 CC11. 5음(평조·계면조) 위 절제된 여백',
+    Strings:'드론 현(정악 지속저음) → Dark String Pad 계열. HPF 없이 낮게, 볼륨 오토메이션으로 밀물썰물 · 빈 5도 보이싱',
+    Counter:'해금 대용 → Solo Violin/Erhu 계열로 교체. 코가 있는 좁은 비브라토·포르타멘토, 대금 뒤에서 받침(-6dB)',
+    Harp:'가야금 대용 → Koto/Guzheng 또는 하프로 교체. 뜯는 발현(핑거)·성긴 아르페지오, 잔향 길게'},
+   quartal:{
+    Melody:'비브라폰 리드 → Vibraphone/Marimba 계열. 4도 트인 울림, 모터 느리게·롱 서스테인',
+    Piano:'펠트 피아노 → Felt/Soft Piano로 교체. 3도 비운 4·5도 스택 콤핑, 페달로 흐리게(부유감)',
+    Strings:'오픈 현 패드 → Warm String Pad. 3도 없는 4·5도 보이싱 지속, 아주 여리게(pp) 베드',
+    Harp:'비브라폰 아르페지오 → Vibraphone/Celesta. 4도 스택이 퍼지는 결, 페달 롱'},
+   gukvocal:{
+    Vocal:'보컬 가이드 → 실제 녹음으로 교체. 애절한 벌스(절제)→파워보컬 코러스(폭발). 후렴 첫 음은 챈트(반복음)로 각인, 마지막은 롱노트로 뻗기',
+    Melody:'첼로/알토 플루트 주선율 → Solo Cello(다크·표현적) 또는 Alto Flute. 노래를 받쳐 이끎, 활 레가토+CC11',
+    Counter:'해금 대용 → Solo Violin/Erhu. 노래 사이 빈 곳을 메우는 대선율, 살짝 뒤로',
+    Strings:'오케 현 섹션 → 코러스 옥타브 더블로 두껍게, 하이라이트에서 폭발',
+    Timpani:'오케 팀파니(피치드) → 후렴부터 근음·5도 강타, 정지 마디는 롤(롱노트+CC1 크레셴도)',
+    Horns:'금관 섹션 → 하이라이트에서 폭발(호른·트롬본·트럼펫). 후렴 다운비트 강타'}
+  };
+  const subInst=(key)=>{ const M=SUB_INST[gsel]; return (M&&M[key])||null; };
     const spaceMul=(LYRIC_G.has(gsel)||CINE.has(gsel)||['classic','quartal','newage'].indexOf(gsel)>=0)?1.3:1; // 앰비언트/오케=공간 넓게
     const rv=(base)=>Math.round(base*spaceMul*10)/10;
     const L=[];
@@ -20393,7 +20409,8 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
     const PANV={ Vocal:'정중앙 · 리드 기준 0dB', Melody:'정중앙 · 0dB (리드)', Piano:'중앙(살짝 스테레오) · -2dB', 'Piano 2':'살짝 L 또는 R · -7dB', Strings:'넓게 L·R 분산 · -4dB', Winds:'살짝 오프센터 · -3dB', Counter:'멜로디 반대쪽 · -5dB', Bass:'정중앙 모노 · 0dB (기반)', Drums:'킥·스네어 중앙, 하이햇 살짝 L/R · -2dB', Timpani:'중앙~살짝 · -3dB', 'Orch':'넓게 · -6dB', Pad:'매우 넓게(100%) · -8dB (배경)', Sub:'정중앙 모노 · -3dB', Riser:'넓게 · -6dB', Horns:'살짝 오프센터 · -3dB', LowBrass:'중앙 · -3dB', Harp:'살짝 오프센터 · -5dB', Choir:'넓게 · -5dB', Contrabass:'정중앙 모노 · -2dB' };
     const keyOf=h=>h.replace(/\s*ch\d+.*$/,'').replace(/\s*\(.*$/,'').trim();
     const blk=(head,lines)=>{ L.push(''); L.push('  ━━━━━ '+head+' ━━━━━'); const k=keyOf(head);
-      const instL=lines.find(x=>/^음원/.test(x)); const inst=instL?instL.replace(/^음원\(Instrument 슬롯\):\s*/,''):'';
+      const instL=lines.find(x=>/^음원/.test(x)); let inst=instL?instL.replace(/^음원\(Instrument 슬롯\):\s*/,''):'';
+  { const _si=subInst(k); if(_si) inst=_si; }  // 장르 대용 악기·연주법 우선
       const role=lines.filter(x=>/^(역할|파트|노트 맵|그루브|CC1\()/.test(x));
       const pan=lines.filter(x=>/^(자리|팬)/.test(x));
       const fx=lines.filter(x=>/^(센드|FX|사이드체인)/.test(x));
@@ -20493,6 +20510,11 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
         '자리: 정중앙 모노 · -8~-12dB (저역이라 조금만 올려도 크게 들림)',
         'EQ(Channel EQ): LPF 120Hz · 모노(Below 120Hz)',
         '컴프(Comp): 2:1 · GR 2dB · 킥 사이드체인 · 리버브 없음']);
+      if((gsel==='gugak'||gsel==='quartal') && INST.harp.on) blk('Harp ch12', [
+        '음원(Instrument 슬롯): '+(gsel==='gugak'?'가야금 대용 → Koto/Guzheng 또는 Concert Harp로 교체. 뜯는 발현(핑거)·성긴 아르페지오':'비브라폰 → Vibraphone/Celesta로 교체. 4도 스택이 퍼지는 결, 페달 롱'),
+        'EQ(Channel EQ): HPF 90Hz · 6kHz +1.5dB(발현 어택)',
+        '컴프(Comp): 2:1 · GR 2dB(여리게)',
+        '센드(Sends→Bus): Hall '+(gsel==='gugak'?'2.6':'2.2')+'s, 22% (잔향 길게 — 발현 여운)']);
       blk('Riser ch7  (드롭 직전)', [
         '음원(Instrument 슬롯): 리버스 스웰/화이트노이즈 Uplifter (라이저/노이즈 신스 계열)',
         '역할: 구간 끝 4~8마디 크레셴도 — 볼륨+피치+필터 함께 상승 → 드롭 순간 뚝 끊기',
@@ -23878,9 +23900,7 @@ function buildSongSheet(prog){
   if(LY.point!==false)  tracksLive.push('Point(Bowl·Tingsha·Handpan)');
 
   var L=[];
-  L.push('════════════════════════════════════════════');
   L.push('  Meditation Builder · 제작 가이드  (이 .mid와 한 세트)');
-  L.push('════════════════════════════════════════════');
   L.push('목적       : '+pn+(state.aes?(' · '+state.aes):''));
   L.push('선법/조성  : '+ks);
   L.push('길이       : '+fmtDur(piece.lengthSec/60));
@@ -23894,16 +23914,15 @@ function buildSongSheet(prog){
   L.push('');
   /* 공통 기본(모든 앱 공유) — 용어·MIDI 임포트·가상악기·플러그인·게인·EQ·라우팅·마스터. 사이드체인은 명상에 킥 없어 제외 */
   if(typeof window!=='undefined' && window.SO_renderCommon){
-    L.push('╔══════════════════════════════════════════╗');
-    L.push(' 공통 기본 (로직 프로 11 · 모든 장르 공통)');
-    L.push('╚══════════════════════════════════════════╝');
+    L.push('');
+    L.push('■ 공통 기본 (로직 프로 11 · 모든 장르 공통)');
     window.SO_renderCommon({skip:{sidechain:1}}).forEach(function(x){ L.push(x); });
     L.push('┈┈┈┈┈┈┈┈ 여기부터 명상 전용 ┈┈┈┈┈┈┈┈');
     L.push('');
   }
-  L.push('┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓');
-  L.push('┃           이 순서로 만드세요            ┃');
-  L.push('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛');
+  L.push('');
+
+  L.push('■ 이 순서로 만드세요');
   L.push('STEP 1 [핵심] .mid를 Logic에서 "열기(File > Open)"  ※ Import 아님');
   L.push('             → 트랙·트랙명·템포(60BPM)·조표·마커 자동 반영');
   L.push('');
@@ -23924,9 +23943,8 @@ function buildSongSheet(prog){
   L.push('             ※ 안 그려도 곡은 그대로 재생됩니다.');
   L.push('');
   L.push('');
-  L.push('╔══════════════════════════════════════════╗');
-  L.push(' ① 트랙별 음원 교체   [핵심 · STEP 2]');
-  L.push('╚══════════════════════════════════════════╝');
+  L.push('');
+  L.push('■ ① 트랙별 음원 교체   [핵심 · STEP 2]');
   L.push('임시음(GM) = 지금 파일에 든 자리잡기용 소리 → 화살표 뒤 음원으로 바꾸세요.');
   L.push('');
   midiTrackSpec().forEach(function(sp){
@@ -23938,35 +23956,30 @@ function buildSongSheet(prog){
   });
   L.push('◆ 싱잉볼·탐푸라·가믈란 등은 Logic 기본음원에 없음 → Hans 녹음 샘플을 Quick Sampler에 로드.');
   L.push('');
-  L.push('╔══════════════════════════════════════════╗');
-  L.push(' ② EQ · 컴프 · 리버브 · 믹스   [핵심 · STEP 3]');
-  L.push('╚══════════════════════════════════════════╝');
+  L.push('');
+  L.push('■ ② EQ · 컴프 · 리버브 · 믹스   [핵심 · STEP 3]');
   L.push('');
   try{ L.push(logicFxText()); }catch(e){ L.push('(이펙트 설정 생성 실패: 목적을 선택했는지 확인하세요)'); }
   L.push('');
-  L.push('╔══════════════════════════════════════════╗');
-  L.push(' ③ 마스터   [핵심 · STEP 4]');
-  L.push('╚══════════════════════════════════════════╝');
+  L.push('');
+  L.push('■ ③ 마스터   [핵심 · STEP 4]');
   L.push('· 멜로디는 여운형 — 어택 부드럽게 · 릴리스 길게');
   L.push('· 마스터 버스: −14 LUFS 목표 / 트루피크 −1 dBTP 리미터');
   L.push('');
-  L.push('╔══════════════════════════════════════════╗');
-  L.push(' ④ 빈 가이드 트랙 채우기   [선택 · STEP 5]');
-  L.push('╚══════════════════════════════════════════╝');
+  L.push('');
+  L.push('■ ④ 빈 가이드 트랙 채우기   [선택 · STEP 5]');
   L.push('아래 트랙들은 .mid에 이름만 있고 비어 있습니다 (그게 정상).');
   L.push('원하는 것만 골라 직접 만들어 얹으세요. 안 해도 곡은 완성돼요.');
   L.push('');
   MIDI_GUIDE_TRACKS.forEach(function(g){ L.push('▸ '+g.short); });
   L.push('');
-  L.push('╔══════════════════════════════════════════╗');
-  L.push(' ⑤ FX Cue — 밝기 연출 (원할 때만)   [선택 · STEP 6]');
-  L.push('╚══════════════════════════════════════════╝');
+  L.push('');
+  L.push('■ ⑤ FX Cue — 밝기 연출 (원할 때만)   [선택 · STEP 6]');
   L.push('맨 위 "FX Cue" 트랙엔 6단계마다 노트 하나씩 들어있어요(뮤트해 두세요).');
   L.push('리전 선택 → MIDI > Separate > "By Note Pitch" 하면');
   L.push('침잠·정착·전개·고조·만개·방하가 각각 리전으로 쪼개집니다.');
   L.push('밝기 변화를 넣고 싶을 때만, 그 구간에 맞춰 패드 트랙 필터(Cutoff)를 그리세요.');
   L.push('');
-  L.push('════════════════════════════════════════════');
   return L.join('\n');
 }
 
