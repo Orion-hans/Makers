@@ -685,6 +685,25 @@ button,select,.achip,.st,.seg,.ptoggle,.chk{touch-action:manipulation;}
 .reroll{background:none;border:1px solid var(--acc-dim);color:var(--acc);border-radius:999px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0;text-transform:none}
 .reroll:hover{background:rgba(70,224,200,.1)}
 @media(max-width:760px){.g-modal{margin:0;border-radius:0;min-height:100%}.g-head{border-radius:0}}
+/* ── 박자·템포·스윙 한 줄: 크기 동일 + 컴팩트(28px) ── */
+.grid-top #meter, .grid-top #bpm, .grid-top .rw{ height:28px !important; box-sizing:border-box; font-size:12.5px !important; }
+.grid-top #meter{ padding:3px 8px !important; }
+.grid-top #bpm{ padding:3px 8px !important; }
+.grid-top .rw{ display:flex; align-items:center; gap:6px;
+  border:1px solid var(--line,#26343f); border-radius:4px; background:var(--panel2,#1b2532); padding:0 8px; }
+.grid-top .rw input[type=range]{ flex:1; margin:0; height:14px; }
+.grid-top .field:nth-child(n+4) label{ font-size:11.5px; }
+.grid-top .field:nth-child(n+4){ gap:3px; }
+/* 터치 기기: 위 규칙(select/input min-height 42px)이 덮어써 높이가 어긋나므로 셋을 같은 값으로 고정 */
+@media (pointer:coarse){
+  .grid-top #meter, .grid-top #bpm, .grid-top .rw{
+    height:40px !important; min-height:40px !important; box-sizing:border-box !important;
+    padding-top:0 !important; padding-bottom:0 !important; }
+  .grid-top #meter{ font-size:14px !important; padding-left:8px !important; padding-right:8px !important; }
+  .grid-top #bpm{ font-size:16px !important; padding-left:8px !important; padding-right:8px !important; } /* 16px = iOS 확대 방지 */
+  .grid-top .rw{ padding-left:8px !important; padding-right:8px !important; }
+  .grid-top .field:nth-child(n+4) label{ font-size:12.5px; }
+}
 
 }
 
@@ -1397,6 +1416,11 @@ input[type=range]{accent-color:var(--teal)}
 .so-connect-bar button:hover{ border-color:var(--so-accent) !important; color:var(--so-accent) !important; }
 .so-connect-bar > label{ display:inline-flex !important; align-items:center !important; gap:4px !important; font-size:12.5px !important; color:var(--so-ink) !important; }
 .so-connect-bar > span:first-child{ font-size:12.5px !important; }
+/* ── 비트메이커 연결 바만 더 작게(요청) ── */
+#app-beat .so-connect-bar button{ font-size:11px !important; padding:4px 8px !important; border-radius:6px !important; gap:3px !important; }
+#app-beat .so-connect-bar > label{ font-size:11px !important; gap:3px !important; }
+#app-beat .so-connect-bar > span:first-child{ font-size:11px !important; }
+#app-beat .so-connect-bar{ gap:5px !important; }
 
 </style>
 </head>
@@ -1728,11 +1752,14 @@ input[type=range]{accent-color:var(--teal)}
   <div class="panel" id="panel1">
     <div class="plabel ptoggle"><span class="n">01</span> 만들기 — 컨셉·시간·구성 설정 후 생성 <span class="chev">▾</span></div>
     <div class="pbody">
-    <div class="grid grid-top">
+    <div class="grid grid-top" style="grid-template-columns:repeat(3,1fr);">
       <div class="field"><label>장르</label><select id="genre"></select></div>
       <div class="field"><label>조성 (Key)</label><select id="key"></select></div>
       <div class="field"><label>스케일 (조성감)</label><select id="mode"></select></div>
       <div class="field"><label>박자</label><select id="meter"></select></div>
+      <div class="field"><label>템포 BPM <span id="bpmApplied" class="mini" style="color:var(--acc,#46E0C8);opacity:0;transition:opacity .3s;">✓ 적용됨</span></label>
+        <input type="number" id="bpm" min="30" max="260" value="120" inputmode="numeric" step="1"><output id="bpmOut" style="display:none;">120</output></div>
+      <div class="field"><label>스윙 <output id="swingOut" class="mini">0</output> <span class="mini" style="color:var(--muted);font-weight:400;">· 자동</span></label><div class="rw"><input type="range" id="swing" min="0" max="100" value="0"></div></div>
     </div>
     <div id="vocalHint" class="mini" style="display:none;margin-top:8px;color:var(--acc,#46E0C8);line-height:1.45;"></div>
       <div id="runStyleRow" style="display:none;flex-wrap:wrap;gap:6px;margin-top:10px;"></div>
@@ -1743,17 +1770,14 @@ input[type=range]{accent-color:var(--teal)}
       <div id="hookCycleRow" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
     </div>
     <div id="runStyleHint" class="mini" style="display:none;margin-top:6px;"></div>
-    <div class="grid grid-bottom" style="margin-top:12px;">
-      <div class="field"><label>템포 BPM <span id="bpmApplied" class="mini" style="color:var(--acc,#46E0C8);opacity:0;transition:opacity .3s;">✓ 적용됨</span></label>
-        <input type="number" id="bpm" min="30" max="260" value="120" inputmode="numeric" step="1"><output id="bpmOut" style="display:none;">120</output></div>
-      <div class="field"><label>스윙 <output id="swingOut" class="mini">0</output> <span class="mini" style="color:var(--muted);font-weight:400;">· 자동</span></label><div class="rw"><input type="range" id="swing" min="0" max="100" value="0"></div></div>
-      <div class="field"><label>&nbsp;</label><button id="resetTop" style="width:100%;white-space:nowrap;">↺ 전체 초기화</button></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+      <button id="resetTop" style="white-space:nowrap;">↺ 전체 초기화</button>
     </div>
     <div id="timedBar" style="display:flex;flex-wrap:nowrap;align-items:center;gap:8px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line,#333);border-radius:10px;overflow-x:auto;">
-      <span style="font-weight:600;white-space:nowrap;">⏱ 목표 길이</span>
+      <span style="font-weight:600;white-space:nowrap;">목표 길이</span>
       <input id="tgtMin" type="number" min="0" max="180" placeholder="분" style="width:56px;"> :
       <input id="tgtSecIn" type="number" min="0" max="59" placeholder="초" style="width:56px;">
-      <button class="sm primary" id="fitTime">⏱ 맞추기</button>
+      <button class="sm primary" id="fitTime" title="목표 길이에 맞추기" aria-label="목표 길이에 맞추기">⏱</button>
       <button class="sm" id="clearTime">해제</button>
       <span class="mini" id="lenTag" style="white-space:nowrap;"></span>
     </div>
