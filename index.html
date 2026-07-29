@@ -4783,9 +4783,30 @@ const SOLO_STYLE = {           // 장르 → 왼손 패턴 · 장식 성향
   celtic:{lh:'bass5',  orn:'trill', dbl:0.2,  sw:0},   rock:{lh:'oct',     orn:'grace', dbl:0.4,  sw:0},
   metal:{lh:'oct',    orn:'grace', dbl:0.45, sw:0},   edm:{lh:'bass5',    orn:'grace', dbl:0.3,  sw:0},
   rnb:{lh:'blk',      orn:'turn',  dbl:0.25, sw:0.15},bossa:{lh:'blk',    orn:'turn',  dbl:0.2, sw:0.1},
-  ambient:{lh:'arp',orn:'run',   dbl:0.3,  sw:0},   freesolo:{lh:'arp', orn:'run', dbl:0.35, sw:0}
+  ambient:{lh:'arp',orn:'run',   dbl:0.3,  sw:0},   freesolo:{lh:'arp', orn:'run', dbl:0.35, sw:0},
+  latin:{lh:'tumbao', orn:'grace', dbl:0.25, sw:0},   rumba:{lh:'tumbao', orn:'grace', dbl:0.25, sw:0},
+  samba:{lh:'tumbao', orn:'grace', dbl:0.2,  sw:0},   afrobeat:{lh:'tumbao', orn:'grace', dbl:0.2, sw:0},
+  tango:{lh:'marc',   orn:'grace', dbl:0.3,  sw:0},   reggae:{lh:'offbeat', orn:'grace', dbl:0.2, sw:0},
+  gospel:{lh:'blk',   orn:'run',   dbl:0.3,  sw:0},   funk:{lh:'offbeat', orn:'grace', dbl:0.25, sw:0}
 };
-function soloStyleFor(g){ return SOLO_STYLE[g] || {lh:'bass5', orn:'grace', dbl:0.28, sw:0}; }
+/* 표에 없는 장르는 그 장르의 '성격 값'에서 편곡을 유도한다 —
+   기본값 하나로 뭉뚱그리지 않고, 분위기에 맞는 왼손·장식을 고른다.
+   syncopate(당김) · swing · longTail(길게 끎) · chroma(긴장) · density(촘촘함) 사용 */
+function deriveSoloStyle(g){
+  const G = (ME.GENRES && ME.GENRES[g]) || {};
+  const sync=+G.syncopate||0, sw=+G.swing||0, den=+G.density||0.7,
+        lng=+G.longTail||0.45, chr=+G.chroma||0.03, free=!!G.free;
+  let lh, orn;
+  if(free || lng>=0.68)        { lh='arp';     orn='run';   }   // 길게 끄는 장르 — 아르페지오로 공간을 채우고 스케일 런
+  else if(sw>0.05 || chr>=0.07){ lh='blk';     orn='turn';  }   // 스윙·텐션 — 블록 보이싱에 턴
+  else if(sync>=0.38)          { lh='offbeat'; orn='grace'; }   // 당김이 강함 — 뒷박 화음
+  else if(den>=0.82&&sync<=0.32){ lh='oct';    orn='grace'; }   // 촘촘하고 직진 — 옥타브로 밀어줌(디스코·록 계열)
+  else                         { lh='bass5';   orn='grace'; }   // 그 외 — 받쳐주는 베이스
+  return { lh:lh, orn:orn,
+    dbl: Math.max(0.15, Math.min(0.45, 0.2 + lng*0.3)),         // 길게 끄는 장르일수록 옥타브 더블 ↑
+    sw:  (sw>0.05?0.15:0), _derived:1 };
+}
+function soloStyleFor(g){ return SOLO_STYLE[g] || deriveSoloStyle(g); }
 
 function soloPianoArrange(notes){
   if(!notes || !notes.length) return notes;
@@ -4824,6 +4845,15 @@ function soloPianoArrange(notes){
         if(half<rest-0.01){ push(t+half, root, half*0.9, V+4); push(t+half, root+12, half*0.9, V-4); }
       } else if(st.lh==='arp'){                    // 4분 아르페지오(클래식·시네마틱) — 마디당 4음
         [ [0,root],[1,fifth],[2,root+12] ].forEach(([bt,m])=>{ if(bt<rest-0.01) push(t+bt, m, 0.95, V+(bt===0?8:0)); });   // 마디당 3음
+      } else if(st.lh==='tumbao'){                 // 툼바오(라틴·룸바·삼바) — 앞박을 비우고 &2·4에 실림
+        push(t, root, 0.45, V+2);                                        // 1박 짧게
+        if(1.5<rest-0.01) push(t+1.5, fifth, 0.9, V+10);                 // &2 — 라틴의 무게중심
+        if(3<rest-0.01)   push(t+3,   root,  0.9, V+6);                  // 4박
+      } else if(st.lh==='marc'){                   // 마르카토 인 콰트로(탱고) — 네 박 또렷하게
+        for(let bt=0; bt<4 && bt<rest-0.01; bt++) push(t+bt, bt%2===0?root:fifth, 0.42, V+(bt%2===0?10:2));
+      } else if(st.lh==='offbeat'){                // 오프비트(레게·펑크) — 뒷박에 화음
+        push(t, root, 0.4, V+8);
+        [1.5, 3.5].forEach(bt=>{ if(bt<rest-0.01) ct.slice(1,3).forEach(m=>push(t+bt, m, 0.35, V-2)); });
       } else {                                     // bass5(기본) — 1박 루트 + 3박 5도 (마디당 2음)
         push(t, root, half*0.95, V+10);
         if(half<rest-0.01) push(t+half, fifth, half*0.95, V);
@@ -4936,11 +4966,26 @@ function play(){
   const ac=audio();stopFlag=false;playing=true;
   const spb=60/state.bpm,t0=ac.currentTime+0.06;
   const master=ac.createGain();master.gain.value=0.85;master.connect(ac.destination);
-  state.notes.forEach(n=>{
-    const st=t0+n.t*spb;let du=n.dur*spb;
-    if(ME.GENRES[state.genre]&&ME.GENRES[state.genre].pedal)du+=Math.min(3.5,2.5*spb);   // 페달 여운
-    playNote(ac, master, state.instrument, n.midi, st, du, n.vel);
-  });
+  /* 룩어헤드 예약 — 한꺼번에 다 예약하면 음이 많을 때(독주 편곡·긴 시간은 1000음 이상)
+     오디오 노드가 수천 개 동시에 생겨 모바일에서 소리가 끊기거나 아예 안 난다. 앞으로 3초치만 계속 채운다. */
+  { const ped=!!(ME.GENRES[state.genre]&&ME.GENRES[state.genre].pedal);
+    const arr=state.notes.slice().sort((a,b)=>a.t-b.t);
+    let idx=0; const AHEAD=3.0;
+    const pump=()=>{
+      if(stopFlag){ if(schedTimer){clearInterval(schedTimer);schedTimer=null;} return; }
+      const until=ac.currentTime+AHEAD;
+      while(idx<arr.length){
+        const n=arr[idx], st=t0+n.t*spb;
+        if(st>until) break;
+        let du=n.dur*spb; if(ped)du+=Math.min(3.5,2.5*spb);   // 페달 여운
+        playNote(ac, master, state.instrument, n.midi, st, du, n.vel);
+        idx++;
+      }
+      if(idx>=arr.length && schedTimer){ clearInterval(schedTimer); schedTimer=null; }
+    };
+    if(schedTimer){clearInterval(schedTimer);schedTimer=null;}
+    pump(); schedTimer=setInterval(pump, 400);
+  }
   if(state.accomp) scheduleAccomp(ac, master, t0, spb);   // 코드 반주(토글)
   if(state.bandAccomp) scheduleBandAccomp(ac, master, t0, spb);   // 넘어온 반주(밴드/비트/플레이) 미리듣기(토글)
   playT0=t0;const total=totalSec();
@@ -4952,7 +4997,8 @@ function play(){
   };
   rafId=requestAnimationFrame(tick);
 }
-function stop(){stopFlag=true;playing=false;if(typeof updatePlayBtns==='function')setTimeout(updatePlayBtns,0);if(rafId)cancelAnimationFrame(rafId);if(actx){try{actx.close();}catch(e){}actx=null;}drawRoll();$('tpPos').textContent='0.0s';} try{window.SO_STOP=(window.SO_STOP||{});window.SO_STOP['app-melody']=function(){try{stop();}catch(e){}};}catch(e){} // 허브(번들) 탭 전환 시 호출 — 앱 간 재생 겹침 방지
+var schedTimer=null;
+function stop(){stopFlag=true;playing=false;if(schedTimer){clearInterval(schedTimer);schedTimer=null;}if(typeof updatePlayBtns==='function')setTimeout(updatePlayBtns,0);if(rafId)cancelAnimationFrame(rafId);if(actx){try{actx.close();}catch(e){}actx=null;}drawRoll();$('tpPos').textContent='0.0s';} try{window.SO_STOP=(window.SO_STOP||{});window.SO_STOP['app-melody']=function(){try{stop();}catch(e){}};}catch(e){} // 허브(번들) 탭 전환 시 호출 — 앱 간 재생 겹침 방지
 $('tpPlay').onclick=()=>{ if(playing){ stop(); } else { play(); } setTimeout(updatePlayBtns,0); };
 function updatePlayBtns(){
   const t=$('tpPlay');
