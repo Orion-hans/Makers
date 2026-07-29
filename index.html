@@ -4208,7 +4208,7 @@ function applyGenreTempoRule(){
   if(g.free){ bpmIn.max=50; if(state.bpm>50){ state.bpm=46; bpmIn.value=46; } }
   else { bpmIn.max=220; }
   // 시간(분) 필드: 앰비언트·프리 앰비언트에서만 — 이 장르들은 구조가 아니라 시간이 길이를 정한다
-  const durVis=(state.genre==='ambient'||g.free)?'':'none';
+  const durVis=(state.genre==='ambient'||g.free||state.soloPiano)?'':'none';   // 독주 루바토는 장르 무관 시간 설정
   $('durField').style.display=durVis;
   $('logicField').style.display=durVis;   // 로직 템포도 같은 조건 — 추출 틱을 이 템포 기준으로 재환산
   $('famField').style.display='';   // 악기군(피아노·현악·관악·신스)은 모든 장르에서 선택 가능
@@ -4217,12 +4217,14 @@ function applyGenreTempoRule(){
 $('logicBpm').onchange=()=>{ state.logicBpm=Math.max(40,Math.min(240,Math.round(+$('logicBpm').value||120))); $('logicBpm').value=state.logicBpm; };
 $('instFam').onchange=()=>{ state.instFam=$('instFam').value; $('sexField').style.display=(state.instFam==='vocal')?'':'none'; autoRemake(); };
 $('vocSex').onchange=()=>{ state.vocSex=$('vocSex').value; autoRemake(); };
-function durationDriven(){ const g=ME.GENRES[state.genre]||{}; return state.genre==='ambient'||!!g.free; }
+function durationDriven(){ const g=ME.GENRES[state.genre]||{}; return state.genre==='ambient'||!!g.free||!!state.soloPiano; }
 function onDurChange(){
   state.durMin=Math.max(0,Math.min(30,Math.floor(+$('durMin').value||0)));
   state.durSec=Math.max(0,Math.min(59,Math.floor(+$('durSec').value||0)));
   if(state.durMin*60+state.durSec<30){ state.durMin=0; state.durSec=30; }   // 총 30초 하한
   $('durMin').value=state.durMin; $('durSec').value=state.durSec;
+  // 구간 모드면 구조를 유지한 채 각 구간 마디를 목표 시간에 맞춰 늘리거나 줄인다
+  if(state.mode==='multi' && state.sections.length && fitStructureToTime(state.durMin*60+state.durSec)) return;
   autoRemake();
 }
 $('durMin').onchange=onDurChange; $('durSec').onchange=onDurChange;
@@ -4500,7 +4502,31 @@ function fitStructureToTime(targetSec){   // 목표 길이(초)에 맞춰 본문
   var targetBars=targetSec/secPerBar;
   var targetBody=Math.max(bodyIdx.length*2, targetBars-fixedBars);   // 인트로·아웃트로 뺀 본문 목표 마디
   var factor=targetBody/bodyBars;
-  bodyIdx.forEach(function(i){ var s=state.sections[i]; var nb=Math.round(s.bars*factor/2)*2; s.bars=Math.max(2,nb); });   // 2마디 단위 반올림
+  /* 구간 마디 스케일 규칙
+     ① 같은 역할(벌스·훅…)은 항상 같은 마디 — 곡 형태가 일그러지지 않게
+     ② 코드 한 바퀴(진행 길이) 단위로만 — 진행이 중간에 끊기지 않고 프레이즈 대구도 지켜짐
+     ③ 목표에 못 미치면 부족분이 큰 역할부터 한 바퀴씩 채움 */
+  var roles={}, order=[];
+  bodyIdx.forEach(function(i){
+    var sc=state.sections[i], r=sc.role||'body';
+    if(!roles[r]){ roles[r]={idx:[], cyc:Math.max(1,(sc.chords&&sc.chords.length)||4), base:sc.bars}; order.push(r); }
+    roles[r].idx.push(i);
+  });
+  order.forEach(function(r){
+    var g=roles[r];
+    g.ideal=g.base*factor;
+    g.bars=Math.max(g.cyc, Math.floor(g.ideal/g.cyc)*g.cyc);
+  });
+  var tot=order.reduce(function(a,r){ return a+roles[r].bars*roles[r].idx.length; },0), guard=0;
+  while(tot<targetBody-0.5 && guard++<400){
+    var pick=null;
+    order.forEach(function(r){ var g=roles[r]; if(!pick||(g.ideal-g.bars)>(pick.ideal-pick.bars)) pick=g; });
+    if(!pick) break;
+    var addBars=pick.cyc*pick.idx.length;
+    if(tot+addBars > targetBody + pick.cyc) break;
+    pick.bars+=pick.cyc; tot+=addBars;
+  }
+  order.forEach(function(r){ roles[r].idx.forEach(function(i){ state.sections[i].bars=roles[r].bars; }); });
   renderSecs(); autoRemake();
   return true;
 }
@@ -4603,6 +4629,7 @@ $('makeBtn').onclick=()=>makeMelody(true);
 { const _sp=$('soloPiano');
   if(_sp){ _sp.checked=!!state.soloPiano;
     _sp.onchange=e=>{ state.soloPiano=e.target.checked;
+      applyGenreTempoRule();                       // 시간 필드 즉시 표시/숨김
       if(state.notes && state.notes.length) makeMelody(false); }; } }
 
 function totalBeats(){ let m=0; state.notes.forEach(n=>{ if(n.t+n.dur>m)m=n.t+n.dur; }); return m||1; }
