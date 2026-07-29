@@ -4633,6 +4633,7 @@ function makeMelody(fresh){
    const _srcSecs = state.soloPiano ? state.sections.filter(s=>s.role!=='intro') : state.sections;
    const secs=_srcSecs.map(s=>({chords:s.chords,chordEvents:s.chordEvents,bars:s.bars,reps:Math.max(1,s.reps||1),mute:(state.emptyEnds&&(s.role==='intro'||s.role==='outro')),profile:ME.SECTION_ROLES[s.role].profile,role:s.role}));
       notes=ME.generateSections(secs,{key:state.key,keyMode:state.keyMode,octave:state.octave,instFam:state.instFam,vocSex:state.vocSex,vocRhythmHook:vocRhythmHookFor(state.genre),seed:state.seed,meter:state.meter,grouping:state.grouping,genre:state.genre});
+   try{ notes = repeatHooks(notes, _srcSecs); }catch(e){ console.error('후크 반복 오류', e); }   // 같은 역할 구간은 같은 선율로
       state._secLayout=notes._layout||null;
       meta=`${_srcSecs.length}구간 · ${state.key} · ${ME.GENRES[state.genre].label}`;
     }
@@ -4829,6 +4830,63 @@ function deriveSoloStyle(g){
     sw:  (sw>0.05?0.15:0), _derived:1 };
 }
 function soloStyleFor(g){ return SOLO_STYLE[g] || deriveSoloStyle(g); }
+
+/* ── 후크·모티브 반복 ──
+   구간별로 따로 생성하면 훅이 매번 달라져 '후크'로 들리지 않는다.
+   같은 역할(훅·벌스…)이 다시 나오면 첫 등장의 선율을 그대로 가져다 쓴다.
+   코드가 다르면 첫 음을 그 구간 코드톤에 맞춰 옮기고, 음계 밖 음은 안으로 당긴다. */
+function repeatHooks(notes, srcSecs){
+  if(!notes || !notes.length || !srcSecs || srcSecs.length<2) return notes;
+  const bar = ME.meterBarLen(state.meter);
+  const bounds=[]; let acc=0;
+  srcSecs.forEach(s=>{ const len=(s.bars||4)*Math.max(1,s.reps||1)*bar; bounds.push({role:s.role||'body', chords:s.chords||[], t0:acc, t1:acc+len}); acc+=len; });
+  const pcs = new Set(notes.map(n=>((n.midi%12)+12)%12));
+  const snap = (m)=>{ for(let k=0;k<=2;k++){ if(pcs.has((((m+k)%12)+12)%12)) return m+k; if(pcs.has((((m-k)%12)+12)%12)) return m-k; } return m; };
+  const first={};                                    // 역할별 첫 등장 템플릿
+  const cnt={}, seen={};                             // 역할별 등장 횟수 / 진행 카운터
+  bounds.forEach(b=>{ cnt[b.role||'body']=(cnt[b.role||'body']||0)+1; });
+  const out=[];
+  bounds.forEach(sec=>{
+    const inSec = notes.filter(n=>n.t>=sec.t0-1e-6 && n.t<sec.t1-1e-6).sort((a,b)=>a.t-b.t);
+    const key = sec.role;
+    if(!first[key]){
+      if(inSec.length>=3) first[key] = { t0:sec.t0, chords:(sec.chords||[]).join(','), notes:inSec.map(n=>({dt:n.t-sec.t0, midi:n.midi, dur:n.dur, vel:n.vel, phrase:n.phrase})) };
+      out.push.apply(out, inSec);
+      return;
+    }
+    const T = first[key];
+    // 코드가 같으면 그대로, 다르면 첫 음 간격만 맞춰 옮긴다
+    let shift = 0;
+    if(T.chords !== (sec.chords||[]).join(',') && inSec.length){
+      shift = inSec[0].midi - T.notes[0].midi;
+      shift = Math.round(shift/12)*12;               // 옥타브 단위로만 — 선율 성격 유지
+    }
+    /* 살짝 변주 — 마지막 등장은 뒷부분(약 30%)을 그 구간의 원래 생성분으로 바꾼다.
+       앞부분은 그대로라 후크는 알아듣고, 끝이 달라져 단조로움이 풀린다.
+       (마지막 후렴이 살짝 들리는 대중가요 관습과 같은 구조) */
+    seen[key]=(seen[key]||0)+1;
+    const isLast = (cnt[key]>=2) && (seen[key]===cnt[key]-1);   // 첫 등장은 위에서 반환되므로 카운터가 1 적다
+    const keepN  = (isLast && T.notes.length>=8) ? Math.floor(T.notes.length*0.7) : T.notes.length;
+    const cutT   = (keepN<T.notes.length) ? T.notes[keepN].dt : Infinity;
+    T.notes.slice(0,keepN).forEach(tn=>{
+      const t = sec.t0 + tn.dt;
+      if(t >= sec.t1 - 0.05) return;
+      out.push({ t:+t.toFixed(4), midi:snap(tn.midi+shift), dur:Math.min(tn.dur, sec.t1-t), vel:tn.vel, phrase:tn.phrase });
+    });
+    if(cutT!==Infinity){                             // 뒷부분은 원래 생성분(화성에 이미 맞음)
+      const tail=inSec.filter(n=>(n.t-sec.t0)>=cutT-1e-6);
+      if(tail.length) out.push.apply(out, tail);
+      else out.push.apply(out, T.notes.slice(keepN).map(tn=>{
+        const t=sec.t0+tn.dt;
+        return (t<sec.t1-0.05)?{t:+t.toFixed(4),midi:snap(tn.midi+shift),dur:Math.min(tn.dur,sec.t1-t),vel:tn.vel,phrase:tn.phrase}:null;
+      }).filter(Boolean));
+    }
+  });
+  // 구간 밖(경계 오차) 음은 살려 둔다
+  const covered = bounds.length?bounds[bounds.length-1].t1:0;
+  notes.forEach(n=>{ if(n.t>=covered-1e-6) out.push(n); });
+  return out.sort((a,b)=>a.t-b.t);
+}
 
 /* ── 연주가 어색해지는 음역을 쓰지 않는다 ──
    악기별 '편한 음역' 밖의 음은 음이름을 유지한 채 옥타브만 접어 넣는다.
