@@ -1470,7 +1470,7 @@ input[type=range]{accent-color:var(--teal)}
         <input type="number" id="bpm" value="96" min="40" max="220" style="width:64px"></div>
       <div class="field" id="durField" style="display:none"><label>시간(분·초)</label>
         <span style="display:flex;gap:4px;align-items:center">
-          <input type="number" id="durMin" value="10" min="0" max="30" step="1" style="width:52px"><span class="sub">분</span>
+          <input type="number" id="durMin" value="4" min="0" max="30" step="1" style="width:52px"><span class="sub">분</span>
           <input type="number" id="durSec" value="0" min="0" max="59" step="1" style="width:52px"><span class="sub">초</span>
         </span></div>
       <div class="field" id="logicField" style="display:none"><label>로직 템포</label>
@@ -3871,7 +3871,7 @@ const $ = id => document.getElementById(id);
 const state = { emptyEnds:false,
   accomp:false,   // 재생 시 코드 반주(드론+아르페지오) — 미리듣기 전용
   soloPiano:false, // 독주 루바토: 멜로디를 장르별 피아노 독주로 편곡(왼손 반주 + 오른손 장식)
-  mode:'single', genre:'freesolo', meter:'4/4', grouping:'균등', key:'C', keyMode:'minor', octave:0, bpm:96, durMin:10, durSec:0, logicBpm:120, instFam:'piano', vocSex:'female',
+  mode:'single', genre:'freesolo', meter:'4/4', grouping:'균등', key:'C', keyMode:'minor', octave:0, bpm:96, durMin:4, durSec:0, logicBpm:120, instFam:'piano', vocSex:'female',
   instrument:'piano',
   profile:'hook', seed:1,
   single:{ role:'hook', chords:['C','G','Am','F'], bars:16, reps:1 },
@@ -3975,15 +3975,21 @@ function vocRhythmHookFor(g){ g=(g||'').toLowerCase(); return /pop|komuro|funk|d
 // 우리 노트 {t(박),dur,midi,vel} → 악보용 {bar,pos(0~1),dur} 변환
 function notesToMel(){
   const barLen=ME.meterBarLen(state.meter);
+  /* 악보는 '멜로디 악보'다 — 독주 편곡의 왼손 베이스·장식음은 빼고 그린다.
+     (빼지 않으면 저역 베이스가 높은음자리표에 덧줄 8줄로 그려져 읽을 수 없다) */
+  const src=state.notes.filter(n=>!n._solo);
   // 같은 시점에 여러 음(옥타브 유니즌)이면 가장 낮은 음만 = 실제 멜로디 라인
   const byT={};
-  state.notes.forEach(n=>{ const k=n.t.toFixed(3); if(!byT[k]||n.midi<byT[k].midi) byT[k]=n; });
+  src.forEach(n=>{ const k=n.t.toFixed(3); if(!byT[k]||n.midi<byT[k].midi) byT[k]=n; });
   const picked=Object.values(byT);
   // 악보 가독성: 평균 음고가 높으면 옥타브 낮춰 오선 안으로
-  const avg=picked.reduce((s,n)=>s+n.midi,0)/Math.max(1,picked.length);
-  let shift=0;
-  while(avg+shift>74) shift-=12;
-  while(avg+shift<55) shift+=12;
+  /* 오선(높은음자리표 E4~F5) 안에 가장 많이 들어오는 옥타브를 고른다 —
+     평균만 보면 한쪽으로 치우쳐 덧줄이 잔뜩 생긴다. */
+  let shift=0, bestOut=Infinity;
+  for(const sh of [-24,-12,0,12,24]){
+    const out=picked.reduce((a,n)=>a+((n.midi+sh<57||n.midi+sh>81)?1:0),0);
+    if(out<bestOut){ bestOut=out; shift=sh; }
+  }
   return picked.map(n=>{
     const bar=Math.floor(n.t/barLen);
     const pos=(n.t - bar*barLen)/barLen;   // 마디 내 위치(0~1 비율)
@@ -4107,7 +4113,11 @@ function renderScoreVex(host,mel,tnc,mode,barChords,sections){ const VF=Vex.Flow
   // 구간 시작/끝(반복)·라벨 — Play 악보와 동일 규칙
   const secStart={}, secEnd={}, secLabel={};
   (sections||[]).forEach(sc=>{ secStart[sc.startBar]={reps:sc.reps}; secLabel[sc.startBar]=sc.label; if(sc.reps>=2) secEnd[sc.startBar+sc.bars-1]=sc.reps; });
-  const perLine=Math.max(1,Math.min(4,bars)), lines=Math.ceil(bars/perLine); // 1줄 4마디 고정
+  /* 한 줄 마디 수는 화면 폭에 맞춘다 — A4(794px) 악보를 좁은 화면으로 줄이면
+     4마디/줄에서는 음표가 5px 수준이 되어 음정이 안 보이고 리듬만 보인다. */
+  const _hw = (host && host.clientWidth) ? host.clientWidth : 800;
+  const _pl = _hw < 480 ? 2 : (_hw < 760 ? 3 : 4);
+  const perLine=Math.max(1,Math.min(_pl,bars)), lines=Math.ceil(bars/perLine);
   host.innerHTML='';
   // 1) 마디별 보이스 만들고 실제 최소폭 측정
   const M=[];
@@ -4121,7 +4131,12 @@ function renderScoreVex(host,mel,tnc,mode,barChords,sections){ const VF=Vex.Flow
   // 2) 가장 빡빡한 줄에 맞춰 scale 결정
   let maxLineReq=0; for(let li=0;li<lines;li++){ let s=0; M.forEach(x=>{if(x.li===li)s+=x.reqW;}); maxLineReq=Math.max(maxLineReq,s); }
   // A4 세로(210×297mm ≈ 794×1123px @96dpi) 페이지로 자동 분할
-  const A4W=794, A4H=1123, mgnX=30, mgnTop=54, mgnBot=44;
+  /* 가상 페이지 폭도 화면에 맞춘다 — A4(794) 고정이면 좁은 화면에서 0.44배로 줄어들어
+     음표가 5px가 된다. 폭을 줄이면 축소율이 1에 가까워져 음표가 그만큼 커진다. */
+  const A4W = _hw<480 ? 430 : (_hw<760 ? 640 : 794);
+  // 좁은 화면은 세로로 스크롤하므로 페이지를 길게 잡아 장수를 줄인다(A4 비율 1.41 → 2.1)
+  const A4H = Math.round(A4W * (_hw<760 ? 2.1 : 1123/794));
+  const mgnX = Math.round(A4W*0.038), mgnTop = Math.round(A4H*0.048), mgnBot = Math.round(A4H*0.039);
   const usableW=A4W-2*mgnX;
   const maxScale=perLine<=1?1.0:perLine===2?0.94:perLine===3?0.82:0.74;
   let scale=Math.min(maxScale,usableW/Math.max(1,maxLineReq)); scale=Math.max(0.42,scale);
@@ -4495,9 +4510,12 @@ function fitStructureToTime(targetSec){   // 목표 길이(초)에 맞춰 본문
   if(state.mode!=='multi' || !state.sections.length) return false;
   var barLen=ME.METERS[state.meter||'4/4'].barLen;
   var secPerBar=barLen*(60/Math.max(40,state.bpm||96));
+  /* 독주 루바토는 인트로를 만들지 않으므로 길이 계산에서도 빼야 시간이 맞는다 */
+  var skipIntro = !!state.soloPiano;
   var isEnd=function(r){ return r==='intro'||r==='outro'; };
   var bodyIdx=[]; var fixedBars=0, bodyBars=0;
-  state.sections.forEach(function(s,i){ if(isEnd(s.role)){ fixedBars+=s.bars; } else { bodyIdx.push(i); bodyBars+=s.bars; } });
+  state.sections.forEach(function(s,i){ if(skipIntro && s.role==='intro') return;   // 만들지 않는 구간은 계산에서 제외
+    if(isEnd(s.role)){ fixedBars+=s.bars; } else { bodyIdx.push(i); bodyBars+=s.bars; } });
   if(!bodyBars) return false;
   var targetBars=targetSec/secPerBar;
   var targetBody=Math.max(bodyIdx.length*2, targetBars-fixedBars);   // 인트로·아웃트로 뺀 본문 목표 마디
@@ -4610,10 +4628,13 @@ function makeMelody(fresh){
       meta=`${ME.SECTION_ROLES[s.role].label} · ${state.key} · ${genBars}마디${sReps>1?(' ×'+sReps):''} · ${ME.GENRES[state.genre].label}`;
     } else {
       if(!state.sections.length){ return; }
-      const secs=state.sections.map(s=>({chords:s.chords,chordEvents:s.chordEvents,bars:s.bars,reps:Math.max(1,s.reps||1),mute:(state.emptyEnds&&(s.role==='intro'||s.role==='outro')),profile:ME.SECTION_ROLES[s.role].profile,role:s.role}));
+      /* 독주 루바토: 인트로는 멜로디가 비어 있어 앞부분이 반주만 남는다.
+      토글이 켜져 있으면 인트로를 빼고 '멜로디가 시작되는 구간'부터 만든다. */
+   const _srcSecs = state.soloPiano ? state.sections.filter(s=>s.role!=='intro') : state.sections;
+   const secs=_srcSecs.map(s=>({chords:s.chords,chordEvents:s.chordEvents,bars:s.bars,reps:Math.max(1,s.reps||1),mute:(state.emptyEnds&&(s.role==='intro'||s.role==='outro')),profile:ME.SECTION_ROLES[s.role].profile,role:s.role}));
       notes=ME.generateSections(secs,{key:state.key,keyMode:state.keyMode,octave:state.octave,instFam:state.instFam,vocSex:state.vocSex,vocRhythmHook:vocRhythmHookFor(state.genre),seed:state.seed,meter:state.meter,grouping:state.grouping,genre:state.genre});
       state._secLayout=notes._layout||null;
-      meta=`${state.sections.length}구간 · ${state.key} · ${ME.GENRES[state.genre].label}`;
+      meta=`${_srcSecs.length}구간 · ${state.key} · ${ME.GENRES[state.genre].label}`;
     }
   }catch(e){ console.error(e); alert('생성 오류: '+e.message); return; }
   state.notes=notes;
@@ -4884,48 +4905,80 @@ function soloPianoArrange(notes){
     return pcs.map(p=>{ let m = base + (((p-root)%12)+12)%12; while(m<LOW)m+=12; while(m>top)m-=12; return m; })
               .sort((a,b)=>a-b);
   };
-  // 왼손은 '받쳐주는' 역할 — 마디당 1~3음. 멜로디보다 적고 여리게.
-  // 단선율 악기(관악·보컬)는 반주를 칠 수 없으므로 왼손을 아예 만들지 않는다.
-  if(!mono) tl.bars.forEach(sg=>{
-    const ct = lowOf(sg.root, sg.pcs); if(!ct.length) return;
-    const root=ct[0], third=ct[1]!=null?ct[1]:ct[0], fifth=ct[2]!=null?ct[2]:ct[0];
-    if(sg.t1-sg.t0<=0) return;
-    const push=(t,m,d,v)=>{ if(t>=endT-0.05||t<sg.t0-1e-6||t>=sg.t1-1e-6) return;
-      add.push({t:+t.toFixed(4), midi:m, dur:+Math.max(0.2,d).toFixed(4), vel:v, _solo:1, _lh:1}); };
-    const V = 44;                                  // 멜로디(보통 80~100)보다 확실히 아래
-    const half = barLen/2;
-    for(let t=sg.t0; t<sg.t1-0.01; t+=barLen){     // 마디 단위로만
-      const rest = Math.min(barLen, sg.t1-t);
-      if(st.lh==='waltz'){                         // 1박 베이스 + 2·3박 화음(3타)
-        push(t, root, barLen*0.9, V+10);
-        if(1<rest-0.01) ct.slice(1,3).forEach(m=>push(t+1, m, 0.8, V-8));   // 2박에만 화음(3타)
-      } else if(st.lh==='blk'){                    // 루트 + 블록화음 1회(재즈·소울)
-        push(t, root, rest*0.95, V+8);
-        ct.slice(1,3).forEach(m=>push(t+half, m+12, Math.min(1.2,rest-half), V-4));
-      } else if(st.lh==='oct'){                    // 1·3박 옥타브(록)
-        push(t, root, half*0.9, V+8); push(t, root+12, half*0.9, V);
-        if(half<rest-0.01){ push(t+half, root, half*0.9, V+4); push(t+half, root+12, half*0.9, V-4); }
-      } else if(st.lh==='arp'){                    // 4분 아르페지오(클래식·시네마틱) — 마디당 4음
-        [ [0,root],[1,fifth],[2,root+12] ].forEach(([bt,m])=>{ if(bt<rest-0.01) push(t+bt, m, 0.95, V+(bt===0?8:0)); });   // 마디당 3음
-      } else if(st.lh==='tumbao'){                 // 툼바오(라틴·룸바·삼바) — 앞박을 비우고 &2·4에 실림
-        push(t, root, 0.45, V+2);                                        // 1박 짧게
-        if(1.5<rest-0.01) push(t+1.5, fifth, 0.9, V+10);                 // &2 — 라틴의 무게중심
-        if(3<rest-0.01)   push(t+3,   root,  0.9, V+6);                  // 4박
-      } else if(st.lh==='marc'){                   // 마르카토 인 콰트로(탱고) — 네 박 또렷하게
-        for(let bt=0; bt<4 && bt<rest-0.01; bt++) push(t+bt, bt%2===0?root:fifth, 0.42, V+(bt%2===0?10:2));
-      } else if(st.lh==='offbeat'){                // 오프비트(레게·펑크) — 뒷박에 화음
-        push(t, root, 0.4, V+8);
-        [1.5, 3.5].forEach(bt=>{ if(bt<rest-0.01) ct.slice(1,3).forEach(m=>push(t+bt, m, 0.35, V-2)); });
-      } else {                                     // bass5(기본) — 1박 루트 + 3박 5도 (마디당 2음)
-        push(t, root, half*0.95, V+10);
-        if(half<rest-0.01) push(t+half, fifth, half*0.95, V);
+  const melSort = notes.slice().sort((a,b)=>a.t-b.t);   // 충돌 검사용(시간순)
+  /* 장식음은 반드시 이 곡의 음계 안에서 — 반음 고정으로 붙이면 틀린 음처럼 들린다.
+     멜로디가 실제로 쓴 음들을 음계로 삼는다(생성 단계에서 이미 조성에 맞춰져 있음). */
+  const melPcs = new Set(notes.map(n=>((n.midi%12)+12)%12));
+  const stepUp = (m)=>{ for(let k=1;k<=6;k++) if(melPcs.has((((m+k)%12)+12)%12)) return m+k; return m; };
+  const stepDn = (m)=>{ for(let k=1;k<=6;k++) if(melPcs.has((((m-k)%12)+12)%12)) return m-k; return m; };
+  /* 시간 주도 장르(앰비언트·시네마틱 등)는 멜로디가 코드 타임라인보다 훨씬 길다.
+     진행을 곡 끝까지 반복해 반주가 앞부분에만 붙는 문제를 막는다. */
+  let segs = tl.bars.slice();
+  if(segs.length){
+    const cyc0 = segs[0].t0, cyc1 = segs[segs.length-1].t1, cycLen = cyc1 - cyc0;
+    if(cycLen > 0 && cyc1 < endT - 0.01){
+      const reps = Math.ceil((endT - cyc1) / cycLen);
+      for(let r=1; r<=reps; r++)
+        segs = segs.concat(tl.bars.map(x=>({t0:x.t0+cycLen*r, t1:x.t1+cycLen*r, root:x.root, pcs:x.pcs})));
+    }
+  }
+
+  /* 왼손 = 아르페지오 반주.
+     코드를 덩어리로 쌓지 않고 한 음씩 풀어 흐르게 한다 —
+     ① 계속 흐르니 연주곡다운 질감이 생기고
+     ② 음이 짧게 지나가므로 스치는 불협이 거의 들리지 않는다.
+     강박은 근음으로 시작해 진행감(화성의 뿌리)을 세운다. */
+  const ARP = {
+    arp8:   {step:0.5,  seq:[0,2,3,2]},              // 근음-5도-옥타브-5도 (발라드·팝·포크)
+    arp16:  {step:0.25, seq:[0,1,2,3,2,1]},          // 근음-3-5-8-5-3 (시네마틱·클래식·앰비언트)
+    waltz:  {step:1,    seq:[0,2,1]},                // 1박 근음 · 2·3박 상성
+    tumbao: {step:0.5,  seq:[0,-1,2,-1,3,2,-1,2]},   // 라틴: 앞박 비우고 &2·4에 실림
+    marc:   {step:1,    seq:[0,2,1,2]},              // 탱고: 네 박 또렷
+    offbeat:{step:0.5,  seq:[0,-1,2,-1,1,-1,2,-1]},  // 레게·펑크: 뒷박
+    oct:    {step:0.5,  seq:[0,3,0,3]},              // 록: 옥타브 왕복
+    blk:    {step:0.5,  seq:[0,2,1,2]}               // 재즈·소울: 근음-5-3-5
+  };
+  if(!mono) segs.forEach(sg=>{
+    const base = lowOf(sg.root, sg.pcs); if(!base.length) return;
+    const r0=base[0], t3=base[1]!=null?base[1]:base[0], f5=base[2]!=null?base[2]:base[0];
+    const TONE=[r0, t3, f5, r0+12];                  // seq 인덱스가 가리키는 코드톤
+    const P = ARP[st.lh] || ARP.arp8;
+    const V = 48;
+    const clash=(t,m,d)=>{                            // 가까운 반음·멜로디 침범만 막는다
+      for(let q=0;q<melSort.length;q++){
+        const mm=melSort[q];
+        if(mm.t >= t+d) break;
+        if(mm.t+mm.dur <= t+0.02) continue;
+        if(m > mm.midi-6) return true;                // 멜로디 바로 아래까지 올라오지 않게
+        const dd=mm.midi-m, iv=Math.abs(dd)%12;
+        if(Math.abs(dd)<=12 && (iv===1||iv===11)) return true;
       }
+      return false;
+    };
+    const push=(t,m,d,v)=>{
+      if(t>=endT-0.05||t<sg.t0-1e-6||t>=sg.t1-1e-6) return;
+      if(m<26||m>68) return;
+      add.push({t:+t.toFixed(4), midi:m, dur:+Math.max(0.18,d).toFixed(4), vel:v, _solo:1, _lh:1});
+    };
+    let i=0;
+    for(let t=sg.t0; t<sg.t1-0.01; t+=P.step, i++){
+      const k=P.seq[i%P.seq.length];
+      if(k<0) continue;                               // 쉼
+      const isDown = Math.abs(t-sg.t0)<0.06 || Math.abs((t-sg.t0)%barLen)<0.06;
+      let m = isDown ? r0 : TONE[k];                  // 강박은 무조건 근음(진행감)
+      const dur = P.step*1.05;                        // 살짝 겹쳐 흐르게
+      const vel = isDown ? V+12 : (k===0? V+4 : V-4);
+      if(isDown){ push(t, m, dur, vel); continue; }   // 강박 근음은 충돌 검사 없이(뿌리)
+      if(!clash(t,m,dur)){ push(t, m, dur, vel); continue; }
+      // 부딪히면 다른 코드톤으로 대체 — 리듬은 유지
+      const alts=[f5, r0, r0+12, t3];
+      for(let a=0;a<alts.length;a++){ if(!clash(t,alts[a],dur)){ push(t, alts[a], dur, vel); break; } }
     }
   });
 
   // ── 오른손: 장식 ──
   const sorted = notes.slice().sort((a,b)=>a.t-b.t);
-  const scaleOf = (t)=>{ const sg=tl.bars.find(x=>t>=x.t0-1e-6 && t<x.t1-1e-6); return sg?sg.pcs.map(p=>((p%12)+12)%12):null; };
+  const scaleOf = (t)=>{ const sg=segs.find(x=>t>=x.t0-1e-6 && t<x.t1-1e-6); return sg?sg.pcs.map(p=>((p%12)+12)%12):null; };
   sorted.forEach((n,i)=>{
     const strong = Math.abs(n.t/barLen - Math.round(n.t/barLen)) < 0.02 || Math.abs((n.t%barLen)-Math.floor(barLen/2))<0.02;
     const pcs = scaleOf(n.t);
@@ -4937,20 +4990,22 @@ function soloPianoArrange(notes){
     if(rnd()>0.22) return;                     // 마디당 0.3~0.5회 수준 — 멜로디가 주인공
     const gt = Math.max(0, n.t-0.12);              // 루바토: 본음 앞으로 당겨 붙임
     if(st.orn==='grace'){                          // 앞꾸밈음: 위 2도에서 본음으로
-      add.push({t:gt, midi:n.midi+2, dur:0.11, vel:Math.max(28,n.vel-34), _solo:1});
+      add.push({t:gt, midi:stepUp(n.midi), dur:0.11, vel:Math.max(28,n.vel-34), _solo:1});
     } else if(st.orn==='turn'){                    // 턴: 위-본-아래-본
       const _off = mono ? -0.21 : 0;                          // 단선율 악기는 겹칠 수 없으니 본음 앞으로
-      [[0,2],[0.07,0],[0.14,-1]].forEach(([d,iv],k)=>{        // 3음으로 축소
+      const _turn=[stepUp(n.midi), n.midi, stepDn(n.midi)];   // 위–본–아래, 모두 음계 안
+      [0,0.07,0.14].forEach((d,k)=>{
         const _t=n.t+d+_off; if(_t<0) return;
-        if(n.dur>0.24+d) add.push({t:+_t.toFixed(4), midi:n.midi+iv, dur:0.06, vel:Math.max(26,n.vel-38+k*2), _solo:1});
+        if(n.dur>0.24+d) add.push({t:+_t.toFixed(4), midi:_turn[k], dur:0.06, vel:Math.max(26,n.vel-38+k*2), _solo:1});
       });
     } else if(st.orn==='trill'){                   // 트릴: 본음↔위2도 짧게 반복
       const _tOff = mono ? -0.21 : 0;                         // 단선율 악기는 본음 앞으로
+      const _up=stepUp(n.midi);
       for(let k=0;k<3;k++){ const _t=n.t+k*0.07+_tOff; if(_t<0) continue;
-        add.push({t:+_t.toFixed(4), midi:n.midi+(k%2?2:0), dur:0.06, vel:Math.max(26,n.vel-36), _solo:1}); }   // 3음
-    } else if(st.orn==='run' && pcs){              // 런: 스케일로 아래에서 본음까지 훑어 올림
-      const tn=((n.midi%12)+12)%12; let m=n.midi-7, seq=[];
-      for(let k=0;k<6 && m<n.midi;k++){ if(pcs.indexOf(((m%12)+12)%12)>=0) seq.push(m); m++; }
+        add.push({t:+_t.toFixed(4), midi:(k%2?_up:n.midi), dur:0.06, vel:Math.max(26,n.vel-36), _solo:1}); }   // 3음(본음↔음계 윗음)
+    } else if(st.orn==='run'){                     // 런: 음계로 아래에서 본음까지 훑어 올림
+      let m=n.midi-7, seq=[];
+      for(let k=0;k<8 && m<n.midi;k++){ if(melPcs.has((((m%12)+12)%12))) seq.push(m); m++; }
       seq.slice(-3).forEach((mm,k,arr)=>{      // 3음
         const d=0.055*(arr.length-k);
         add.push({t:+Math.max(0,n.t-d).toFixed(4), midi:mm, dur:0.05, vel:Math.max(26,n.vel-40+k*3), _solo:1});
@@ -4980,7 +5035,7 @@ function soloPianoArrange(notes){
   /* ── 현악 더블스톱: 활 하나로 두 줄을 함께 긋는 겹음.
         긴 음에만, 아래로 12반음 이내의 코드톤 하나만. (3중음·넓은 간격은 연주 불가) ── */
   if(dstop){
-    const scaleAt=(t)=>{ const sg=tl.bars.find(x=>t>=x.t0-1e-6 && t<x.t1-1e-6); return sg||null; };
+    const scaleAt=(t)=>{ const sg=segs.find(x=>t>=x.t0-1e-6 && t<x.t1-1e-6); return sg||null; };
     sorted.forEach(n=>{
       if(n.dur < 1.5) return;                 // 충분히 긴 음에서만
       if(rnd() > 0.3) return;                 // 드물게
@@ -4997,6 +5052,9 @@ function soloPianoArrange(notes){
   }
 
   // ── 상한: 반주·장식이 멜로디를 넘지 않게 (멜로디가 주인공) ──
+  /* 멜로디를 앞으로 — 반주·장식과 확실히 층을 나눈다(로직에서 그대로 살아 있게 벨로시티로 새김) */
+  notes.forEach(n=>{ n.vel = Math.min(120, Math.round((n.vel||80) * 1.12 + 6)); });
+
   const melN = notes.length;
   const thin = (arr, cap)=>{                       // 넘치면 고르게 솎아냄(구간 쏠림 방지)
     if(arr.length<=cap) return arr;
@@ -5005,8 +5063,8 @@ function soloPianoArrange(notes){
     return keep;
   };
   const lhAll = add.filter(x=>x._lh), ornAll = add.filter(x=>!x._lh);
-  const lh  = thin(lhAll.sort((a,b)=>a.t-b.t),  Math.round(melN*0.8));   // 왼손 ≤ 멜로디의 80%
-  const orn = thin(ornAll.sort((a,b)=>a.t-b.t), Math.round(melN*0.25));  // 장식 ≤ 멜로디의 25%
+  const lh  = thin(lhAll.sort((a,b)=>a.t-b.t),  Math.round(melN*2.2));   // 아르페지오는 음이 많은 게 정상 — 흐름이 끊기지 않게 넉넉히
+  const orn = thin(ornAll.sort((a,b)=>a.t-b.t), Math.round(melN*0.15));  // 장식 ≤ 멜로디의 15% — 선을 흐리지 않게
   return notes.concat(lh, orn).sort((a,b)=>a.t-b.t);
 }
 function scheduleAccomp(ac, master, t0, spb){
@@ -5069,7 +5127,7 @@ function play(){
      오디오 노드가 수천 개 동시에 생겨 모바일에서 소리가 끊기거나 아예 안 난다. 앞으로 3초치만 계속 채운다. */
   { const ped=!!(ME.GENRES[state.genre]&&ME.GENRES[state.genre].pedal);
     const arr=state.notes.slice().sort((a,b)=>a.t-b.t);
-    let idx=0; const AHEAD=3.0;
+    let idx=0; const AHEAD=5.0;   // 모바일은 타이머가 늦게 깨므로 여유를 크게
     const pump=()=>{
       if(stopFlag){ if(schedTimer){clearInterval(schedTimer);schedTimer=null;} return; }
       const until=ac.currentTime+AHEAD;
@@ -5083,7 +5141,7 @@ function play(){
       if(idx>=arr.length && schedTimer){ clearInterval(schedTimer); schedTimer=null; }
     };
     if(schedTimer){clearInterval(schedTimer);schedTimer=null;}
-    pump(); schedTimer=setInterval(pump, 400);
+    pump(); schedTimer=setInterval(pump, 300);
   }
   if(state.accomp) scheduleAccomp(ac, master, t0, spb);   // 코드 반주(토글)
   if(state.bandAccomp) scheduleBandAccomp(ac, master, t0, spb);   // 넘어온 반주(밴드/비트/플레이) 미리듣기(토글)
