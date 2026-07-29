@@ -4619,6 +4619,7 @@ function makeMelody(fresh){
   state.notes=notes;
   conformChordEvents(state.notes);   // 마디 내 코드 이벤트 정합(안전망) — 겨냥 생성 후 잔여 경과음 정리
   if(state.soloPiano){ try{ state.notes = soloPianoArrange(state.notes); }catch(e){ console.error('독주 편곡 오류', e); } }
+  try{ clampToRange(state.notes); }catch(e){ console.error('음역 정리 오류', e); }   // 악기별 편한 음역 밖은 옥타브를 접어 넣는다
   $('rollEmpty').style.display='none';
   renderPreview();
   const sec=fmtDur(totalSec());
@@ -4808,6 +4809,61 @@ function deriveSoloStyle(g){
 }
 function soloStyleFor(g){ return SOLO_STYLE[g] || deriveSoloStyle(g); }
 
+/* ── 연주가 어색해지는 음역을 쓰지 않는다 ──
+   악기별 '편한 음역' 밖의 음은 음이름을 유지한 채 옥타브만 접어 넣는다.
+   (잘라내면 선율이 끊기므로 옥타브 이동으로 처리) */
+const FAM_RANGE = {
+  piano:  [21,108],   // A0~C8 — 실제 건반 88건반 전체. 미디이므로 넓게 쓰고 다채롭게(도약만 아래에서 다듬음)
+  strings:[48, 88],   // C3~E6 — 첼로 저역 ~ 바이올린 실용 고역
+  winds:  [60, 91],   // C4~G6 — 플루트·목관 실용역
+  synth:  [24,100],
+  vocal:  [57, 79]    // 기본 여성 — 아래에서 성별로 덮어씀
+};
+const VOC_RANGE = { female:[57,79], male:[48,69], soprano:[60,81], alto:[53,74], tenor:[48,71] };
+function famRange(){
+  const f = state.instFam || 'piano';
+  if(f==='vocal') return VOC_RANGE[state.vocSex] || VOC_RANGE.female;
+  return FAM_RANGE[f] || FAM_RANGE.piano;
+}
+function clampToRange(notes){
+  /* 프리 앰비언트 계열(ambient·cinematic·freesolo)은 제약 없이 — 넓은 음역과 큰 도약이 그 장르의 표현이다. */
+  const _g = ME.GENRES[state.genre] || {};
+  if(state.genre==='ambient' || _g.free) return notes;
+  const R = famRange(), lo=R[0], hi=R[1];
+  if(hi-lo < 12) return notes;                  // 음역이 한 옥타브도 안 되면 건드리지 않음
+  notes.forEach(n=>{
+    let m=n.midi;
+    while(m < lo) m += 12;
+    while(m > hi) m -= 12;
+    if(m < lo) m += 12;                          // 양끝에 걸리면 안쪽으로
+    n.midi = m;
+  });
+  /* 옥타브를 접으면 이웃 음과 큰 도약이 생길 수 있다(노래로는 부를 수 없는 폭).
+     음역 안에서 옥타브를 되돌려 줄일 수 있으면 줄인다 — 멜로디 선만 대상. */
+  const mel = notes.filter(n=>!n._solo).sort((a,b)=>a.t-b.t);
+  for(let pass=0; pass<2; pass++){
+    for(let i=1;i<mel.length;i++){
+      const L = mel[i].midi - mel[i-1].midi;
+      if(Math.abs(L) <= 12) continue;
+      const alt = mel[i].midi + (L>0 ? -12 : 12);
+      if(alt>=lo && alt<=hi && Math.abs(alt-mel[i-1].midi) < Math.abs(L)) mel[i].midi = alt;
+    }
+  }
+  /* 옥타브를 접으면 이웃한 두 음이 같은 음이 될 수 있다.
+     앞 음이 뒷음과 겹쳐 있으면 뒷음이 꺼지므로(같은 음 노트오프) 앞 음을 잘라 떼어 놓는다. */
+  const srt = notes.slice().sort((a,b)=>a.t-b.t);
+  for(let i=0;i<srt.length-1;i++){
+    for(let j=i+1;j<srt.length;j++){
+      if(srt[j].t >= srt[i].t + srt[i].dur - 1e-6) break;      // 더 이상 겹치지 않음
+      if(srt[j].midi === srt[i].midi){
+        srt[i].dur = Math.max(0.05, +(srt[j].t - srt[i].t - 0.03).toFixed(4));
+        break;
+      }
+    }
+  }
+  return notes;
+}
+
 function soloPianoArrange(notes){
   if(!notes || !notes.length) return notes;
   const tl = buildChordTimeline(); if(!tl.bars.length) return notes;
@@ -4816,15 +4872,21 @@ function soloPianoArrange(notes){
   const rnd = (function(){ let x=((state.seed||1)*2654435761)>>>0; return ()=>{ x=(x*1103515245+12345)&0x7fffffff; return x/0x7fffffff; }; })();
   const add = [];
   const endT = notes.reduce((m,n)=>Math.max(m,n.t+n.dur),0);
+  const fam = state.instFam || 'piano';
+  const mono = (fam==='winds' || fam==='vocal' || fam==='strings');   // 독주 악기: 멜로디와 별개의 베이스 선율을 동시에 못 켠다
+  const dstop = (fam==='strings');                   // 현악만 더블스톱(겹음) 가능 — 12반음 이내
+  const LOW  = (fam==='strings') ? 48 : 36;          // 현악은 첼로 아래로 내려가지 않게
 
   // ── 왼손: 코드 구간마다 패턴 ──
-  const lowOf = (root,pcs)=>{                    // 코드톤을 저음역(36~60)으로
-    const base = 36 + ((root%12)+12)%12;
-    return pcs.map(p=>{ let m = base + (((p-root)%12)+12)%12; while(m<36)m+=12; while(m>60)m-=12; return m; })
+  const lowOf = (root,pcs)=>{                    // 코드톤을 저음역으로 (악기군별 하한 적용)
+    const base = LOW + ((root%12)+12)%12;
+    const top  = LOW + 24;
+    return pcs.map(p=>{ let m = base + (((p-root)%12)+12)%12; while(m<LOW)m+=12; while(m>top)m-=12; return m; })
               .sort((a,b)=>a-b);
   };
   // 왼손은 '받쳐주는' 역할 — 마디당 1~3음. 멜로디보다 적고 여리게.
-  tl.bars.forEach(sg=>{
+  // 단선율 악기(관악·보컬)는 반주를 칠 수 없으므로 왼손을 아예 만들지 않는다.
+  if(!mono) tl.bars.forEach(sg=>{
     const ct = lowOf(sg.root, sg.pcs); if(!ct.length) return;
     const root=ct[0], third=ct[1]!=null?ct[1]:ct[0], fifth=ct[2]!=null?ct[2]:ct[0];
     if(sg.t1-sg.t0<=0) return;
@@ -4868,7 +4930,7 @@ function soloPianoArrange(notes){
     const strong = Math.abs(n.t/barLen - Math.round(n.t/barLen)) < 0.02 || Math.abs((n.t%barLen)-Math.floor(barLen/2))<0.02;
     const pcs = scaleOf(n.t);
     // ① 옥타브 더블 — 길고 센 음
-    if(n.dur>=1.2 && n.vel>=92 && rnd()<st.dbl*0.5 && n.midi+12<=96)   // 클라이맥스급만 옥타브 더블
+    if(!mono && n.dur>=1.2 && n.vel>=92 && rnd()<st.dbl*0.5 && n.midi+12<=96)   // 클라이맥스급만 옥타브 더블(단선율 악기 제외)
       add.push({t:n.t, midi:n.midi+12, dur:+(n.dur*0.9).toFixed(4), vel:Math.max(30,n.vel-26), _solo:1});
     // ② 장식 — 긴 음·강박에서만(과밀 방지)
     if(!(n.dur>=0.9 && strong)) return;        // 더 긴 음에서만
@@ -4877,11 +4939,15 @@ function soloPianoArrange(notes){
     if(st.orn==='grace'){                          // 앞꾸밈음: 위 2도에서 본음으로
       add.push({t:gt, midi:n.midi+2, dur:0.11, vel:Math.max(28,n.vel-34), _solo:1});
     } else if(st.orn==='turn'){                    // 턴: 위-본-아래-본
+      const _off = mono ? -0.21 : 0;                          // 단선율 악기는 겹칠 수 없으니 본음 앞으로
       [[0,2],[0.07,0],[0.14,-1]].forEach(([d,iv],k)=>{        // 3음으로 축소
-        if(n.dur>0.24+d) add.push({t:+(n.t+d).toFixed(4), midi:n.midi+iv, dur:0.06, vel:Math.max(26,n.vel-38+k*2), _solo:1});
+        const _t=n.t+d+_off; if(_t<0) return;
+        if(n.dur>0.24+d) add.push({t:+_t.toFixed(4), midi:n.midi+iv, dur:0.06, vel:Math.max(26,n.vel-38+k*2), _solo:1});
       });
     } else if(st.orn==='trill'){                   // 트릴: 본음↔위2도 짧게 반복
-      for(let k=0;k<3;k++) add.push({t:+(n.t+k*0.07).toFixed(4), midi:n.midi+(k%2?2:0), dur:0.06, vel:Math.max(26,n.vel-36), _solo:1});   // 3음
+      const _tOff = mono ? -0.21 : 0;                         // 단선율 악기는 본음 앞으로
+      for(let k=0;k<3;k++){ const _t=n.t+k*0.07+_tOff; if(_t<0) continue;
+        add.push({t:+_t.toFixed(4), midi:n.midi+(k%2?2:0), dur:0.06, vel:Math.max(26,n.vel-36), _solo:1}); }   // 3음
     } else if(st.orn==='run' && pcs){              // 런: 스케일로 아래에서 본음까지 훑어 올림
       const tn=((n.midi%12)+12)%12; let m=n.midi-7, seq=[];
       for(let k=0;k<6 && m<n.midi;k++){ if(pcs.indexOf(((m%12)+12)%12)>=0) seq.push(m); m++; }
@@ -4897,6 +4963,39 @@ function soloPianoArrange(notes){
     const gap = sorted[i+1].t - (sorted[i].t + sorted[i].dur);
     if(gap >= 1) sorted[i].dur = +(sorted[i].dur * 1.12).toFixed(4);
   }
+  /* ── 레가토(관악·보컬·현악): 툭툭 끊기지 않게 프레이즈 안의 음을 다음 음까지 이어 붙인다.
+        숨 쉬는 자리(1박 이상 빈 곳)는 그대로 두어 프레이즈가 살아 있게 한다.
+        현악은 활로 긋는 악기라 같은 처리를 하되, 왼손 화음은 건드리지 않는다(멜로디 선만). ── */
+  if(mono){
+    for(let i=0;i<sorted.length-1;i++){
+      const cur=sorted[i], nx=sorted[i+1];
+      const gap = nx.t - (cur.t + cur.dur);
+      // 겹치면(음수) 잘라내고, 프레이즈 안 미세한 틈이면 이어 붙인다.
+      // 단선율 악기는 두 음이 동시에 날 수 없으므로 겹침 제거가 필수.
+      if(gap < 1){
+        cur.dur = Math.max(0.05, +(nx.t - cur.t - 0.005).toFixed(4));   // 다음 음 직전까지(5ms 여유)
+      }
+    }
+  }
+  /* ── 현악 더블스톱: 활 하나로 두 줄을 함께 긋는 겹음.
+        긴 음에만, 아래로 12반음 이내의 코드톤 하나만. (3중음·넓은 간격은 연주 불가) ── */
+  if(dstop){
+    const scaleAt=(t)=>{ const sg=tl.bars.find(x=>t>=x.t0-1e-6 && t<x.t1-1e-6); return sg||null; };
+    sorted.forEach(n=>{
+      if(n.dur < 1.5) return;                 // 충분히 긴 음에서만
+      if(rnd() > 0.3) return;                 // 드물게
+      const sg=scaleAt(n.t); if(!sg) return;
+      let best=null;
+      sg.pcs.forEach(pc=>{
+        for(let m=n.midi-3; m>=n.midi-12; m--){       // 3~12반음 아래(너무 가까우면 탁함)
+          if(((m%12)+12)%12 === ((pc%12)+12)%12){ if(best===null||m>best) best=m; break; }
+        }
+      });
+      if(best!=null && best>=52)               // 현악 최저현 아래로는 안 감
+        add.push({t:n.t, midi:best, dur:+(n.dur*0.85).toFixed(4), vel:Math.max(28,n.vel-30), _solo:1, _lh:1});
+    });
+  }
+
   // ── 상한: 반주·장식이 멜로디를 넘지 않게 (멜로디가 주인공) ──
   const melN = notes.length;
   const thin = (arr, cap)=>{                       // 넘치면 고르게 솎아냄(구간 쏠림 방지)
@@ -5030,8 +5129,8 @@ function buildMidi(){
   const evs=[];notes.forEach(n=>{evs.push({tick:Math.round(n.t*PPQ),t:0x90,m:n.midi,v:n.vel});evs.push({tick:Math.round((n.t+n.dur)*PPQ),t:0x80,m:n.midi,v:0});});
   // 페달 장르: CC64 서스테인 — 시작 프레스, 프레이즈 경계(무음 ≥1박)마다 리프트→재프레스, 끝에서 릴리즈
   const gG=ME.GENRES[state.genre]||{};
-  const famX=(gG.free?(state.instFam||'piano'):'piano');
-  if(gG.free && famX!=='piano'){
+  const famX=((gG.free||state.soloPiano)?(state.instFam||'piano'):'piano');   // 독주 편곡이면 선택한 악기군 그대로
+  if((gG.free||state.soloPiano) && famX!=='piano'){
     let lastEndB=0; notes.forEach(n=>{ if(n.t+n.dur>lastEndB)lastEndB=n.t+n.dur; });
     if(famX==='synth'){
       // 신스: 패드가 겹쳐 음별 CC11이 충돌하므로 전역 호흡 파형으로 — 16박 주기 코사인(48↔94)
@@ -5086,13 +5185,19 @@ function buildMidi(){
     // 파일 길이를 목표 시간에 정확히: 종단 CC11 페이드
     evs.push({tick:Math.round((state.durMin*60+state.durSec)/60*state.bpm*PPQ),t:0xB0,m:11,v:0});
   }
-  if(gG.pedal && famX==='piano'){
+  if((gG.pedal||state.soloPiano) && famX==='piano'){   // 독주 루바토는 페달이 핵심
     const firstTick=Math.max(0,Math.round(notes[0].t*PPQ)-10);
     let lastEnd=0; notes.forEach(n=>{ if(n.t+n.dur>lastEnd)lastEnd=n.t+n.dur; });
     evs.push({tick:firstTick,t:0xB0,m:64,v:127});
+    /* 프레이즈 경계 보강 — 엔진이 phrase 표시를 안 넘겨주는 경우가 있어,
+       코드가 바뀌는 자리(마디 시작)에서도 페달을 갈아준다. 안 갈면 화성이 뭉쳐 탁해진다. */
+    const _barLen=ME.meterBarLen(state.meter);
+    let _lastLift=-99;
     for(let i=1;i<notes.length;i++){
       const n=notes[i];
-      if(n.phrase){   // 프레이즈 시작마다 리프트→재프레스: 이전 울림을 갈아 탁함 방지
+      const onBar = Math.abs(n.t/_barLen - Math.round(n.t/_barLen)) < 0.02;
+      const farEnough = (n.t - _lastLift) >= _barLen*0.9;
+      if(n.phrase || (onBar && farEnough)){ if(!n.phrase) _lastLift=n.t;   // 프레이즈 시작·마디 첫박마다 리프트→재프레스
         const tk=Math.round(n.t*PPQ);
         evs.push({tick:Math.max(firstTick+1,tk-5),t:0xB0,m:64,v:0});
         evs.push({tick:tk+30,t:0xB0,m:64,v:127});
