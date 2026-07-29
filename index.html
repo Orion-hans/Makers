@@ -5328,6 +5328,10 @@ const STYLES=[
    {name:'Amazing · I–III7–vi7–I7–IV–iv–I–V7',r:['I','III7','vi7','I7','IV','iv','I','V7']}]},
  {id:'poppunk',name:'Pop Punk',tempo:[150,190],dur:[150,210],groove:'8drive',hint:'질주하는 팝 펑크 — 밝고 에너지 넘치는 청춘.',pool:[
    {name:'I–V–vi–IV',r:['I','V','vi','IV']},{name:'vi–IV–I–V',r:['vi','IV','I','V']},{name:'IV–V–vi–IV',r:['IV','V','vi','IV']}]},
+ {id:'kband',name:'K-Band Pop Rock',tempo:[92,148],dur:[190,250],groove:'8beat',hint:'기타·건반 중심 밴드 팝록 — 비운 벌스에서 터지는 코러스.',pool:[
+   {name:'앤섬 · I–V–vi–IV',r:['I','V','vi','IV']},{name:'4536 · IV–V–iii–vi',r:['IV','V','iii','vi']},
+   {name:'감성 6451 · vi–IV–V–I',r:['vi','IV','V','I']},{name:'상승 · I–iii–IV–V',r:['I','iii','IV','V']},
+   {name:'차용 애상 · I–V–IV–iv',r:['I','V','IV','iv']}]},
  {id:'country',name:'Americana',tempo:[96,132],dur:[180,240],groove:'8beat',hint:'소박하고 경쾌한 컨트리 — 정겨운 시골 정취.',pool:[
    {name:'I–IV–V',r:['I','IV','V','V']},{name:'I–V–vi–IV',r:['I','V','vi','IV']},{name:'I–IV–I–V',r:['I','IV','I','V']}]},
  {id:'countrypop',name:'Country Pop',tempo:[100,140],dur:[180,230],groove:'8beat',hint:'밝고 어쿠스틱한 컨트리 팝 — 따뜻하고 흥겨운.',pool:[
@@ -5398,7 +5402,7 @@ const STYLES=[
    {name:'몰아침 · i–iv–bII–V7',r:['i','iv','bII','V7']}]}
 ];
 const styleById=id=>STYLES.find(s=>s.id===id);
-const ROCK=['animerock','poppunk','ukpop','komuro'];
+const ROCK=['animerock','poppunk','ukpop','komuro','kband'];
 
 /* ===== 섹션 타입 / 박자 / 그루브 ===== */
 const STYPES={Intro:{ko:'인트로',energy:2},Verse:{ko:'벌스',energy:2},PreChorus:{ko:'프리코러스',energy:3},
@@ -5461,6 +5465,7 @@ const STYLE_MODE={
   royalroad:{base:'major',lock:false},marusa:{base:'major',lock:false},
   komuro:{base:'major',lock:false},   animerock:{base:'minor',lock:false},
   billie:{base:'major',lock:false},   ukpop:{base:'major',lock:false},
+  kband:{base:'major',lock:false},
   worship:{base:'major',lock:false},  celtic:{base:'major',lock:false},
   funk:{base:'major',lock:false},     neosoul:{base:'major',lock:false},
   jazz:{base:'major',lock:false},
@@ -5552,7 +5557,7 @@ function colorChords(){
   const st=state.style;
   const AMT={jazz:0.75,neosoul:0.7,rnb:0.65,citypop:0.6,gospel:0.6,jballad:0.5,marusa:0.5,royalroad:0.5,
     ballad:0.4,worship:0.4,animeost:0.35,disney:0.35,epic:0.25,saguk:0.3,celtic:0.25,kpop:0.35,
-    funk:0.45,poppunk:0.12,rock:0.15,animerock:0.15,komuro:0.3,billie:0.4,ukpop:0.35,countrypop:0.3};
+    funk:0.45,poppunk:0.12,rock:0.15,animerock:0.15,komuro:0.3,billie:0.4,ukpop:0.35,countrypop:0.3,kband:0.22};
   const amt=AMT[st]!=null?AMT[st]:0.35;
   const cr=mul32((((state.melSeed||1)*0x85EBCA6B)^0x3D3D)>>>0);cr();cr();cr();
   const majColor=['maj7','add9','six','sus4','maj9'],minColor=['min7','min9','sus2'],domColor=['dom7','dom9','sus4'];
@@ -5679,7 +5684,7 @@ const FORMS={
  doublehook:[['Intro',4],['Verse',8],['PreChorus',4],['Chorus',8],['PostChorus',4],['Verse',8],['Chorus',8],['PostChorus',4],['Chorus',8],['Outro',4]],
 };
 const FORM_BY_STYLE={rumba:'versechorus',jballad:'ballad',royalroad:'pop',marusa:'versechorus',komuro:'pop',animerock:'rock',
- billie:'minimal',ballad:'ballad',ukpop:'rock',worship:'worship',celtic:'folk',funk:'groove',neosoul:'groove',
+ billie:'minimal',ballad:'ballad',ukpop:'rock',kband:'rock',worship:'worship',celtic:'folk',funk:'groove',neosoul:'groove',
  gospel:'groove',poppunk:'rock',country:'pop',countrypop:'pop',motown:'versechorus',kpop:'postchorus',saguk:'folk',
  epic:'versechorus',animeost:'pop'};
 /* 스타일 기본값 적용: 구조 + 박자 + 템포 + 리듬 (randomize면 변주) */
@@ -5689,6 +5694,7 @@ const STYLE_GROOVES={
   royalroad:['8beat','ballad8','fourfloor'], marusa:['citypop16','funk16','neosoulswing'],
   komuro:['8beat','fourfloor','moderkpop'], animerock:['8drive','8beat','halftime'],
   billie:['trap','halftime','moderkpop','rubato'], ukpop:['8beat','ballad8','shuffle'],
+  kband:['8beat','8drive','ballad8','halftime'],
   worship:['ballad8','halftime','fourfloor','rubato'], celtic:['celtic68','ballad8','rubato'],
   funk:['funk16','fourfloor','afrobeat'], neosoul:['neosoulswing','shuffle','halftime'],
   gospel:['shuffle','fourfloor','halftime'], poppunk:['8drive','8beat','fourfloor'],
@@ -6018,6 +6024,7 @@ const PERF={
   animerock:{bass:'eighths', comp:'pad',    gtr:'power'},
   billie:   {bass:'sustain', comp:'pad',    gtr:'none'},      // Dark Pop, sparse
   ukpop:    {bass:'root5',   comp:'block',  gtr:'strum'},     // Britpop
+  kband:    {bass:'eighths', comp:'block',  gtr:'power'},    // K-Band Pop Rock
   worship:  {bass:'sustain', comp:'pad',    gtr:'arp'},
   celtic:   {bass:'root5',   comp:'arp',    gtr:'arp'},
   funk:     {bass:'funk16',  comp:'stab',   gtr:'chuck16'},
@@ -6050,6 +6057,7 @@ const PERF_VARIANTS={
   animerock: [{}, {comp:'block'}, {bass:'octave',comp:'stab'}],
   billie:    [{}, {comp:'syncop'}, {bass:'synco'}],
   ukpop:     [{}, {bass:'eighths',gtr:'power'}, {bass:'octave',comp:'stab'}],
+  kband:     [{}, {bass:'root5',gtr:'strum'}, {bass:'octave',comp:'stab'}],
   worship:   [{}, {comp:'broken'}, {bass:'root5',comp:'block',gtr:'strum'}],
   celtic:    [{}, {bass:'sustain'}, {comp:'broken'}],
   funk:      [{}, {comp:'syncop'}, {bass:'synco'}],
@@ -6794,8 +6802,8 @@ function arrange(){
   //    · 아티큘레이션: 장르별 음 길이(스타카토/레가토) — 같은 음표라도 완전히 다른 느낌
   if(!['epic','animeost','disney','animerock'].includes(state.style)){
     const ST=state.style;
-    const APPR={gospel:0.55,motown:0.5,country:0.5,countrypop:0.45,marusa:0.4,neosoul:0.45,royalroad:0.35,jballad:0.3,ukpop:0.3,celtic:0.3};
-    const PUSH={kpop:0.5,citypop:0.5,funk:0.45,poppunk:0.4,motown:0.35,komuro:0.4,ukpop:0.35,billie:0.3,neosoul:0.3};
+    const APPR={gospel:0.55,motown:0.5,country:0.5,countrypop:0.45,marusa:0.4,neosoul:0.45,royalroad:0.35,jballad:0.3,ukpop:0.3,celtic:0.3,kband:0.3};
+    const PUSH={kpop:0.5,citypop:0.5,funk:0.45,poppunk:0.4,motown:0.35,komuro:0.4,ukpop:0.35,billie:0.3,neosoul:0.3,kband:0.4};
     const ARTIC={funk:0.45,motown:0.5,poppunk:0.55,komuro:0.5,kpop:0.6,countrypop:0.6,country:0.6,celtic:0.65,
       ballad:0.97,jballad:0.97,worship:0.97,billie:0.9,saguk:0.98,gospel:0.8,neosoul:0.8,marusa:0.85,royalroad:0.85};
     const pApp=APPR[ST]||0, pPush=PUSH[ST]||0, art=ARTIC[ST];
@@ -6864,7 +6872,7 @@ function arrange(){
     // 핑거링/피킹 벨로시티 컨투어: 손가락 교대(약간의 강약 물결) vs 피크(고르고 단단) vs 슬랩(옥타브 팝 액센트)
     const TOUCH={funk:'slap',motown:'finger',neosoul:'finger',citypop:'finger',rnb:'finger',gospel:'finger',
       jazz:'finger',ballad:'finger',jballad:'finger',worship:'finger',countrypop:'pick',country:'pick',
-      poppunk:'pick',rock:'pick',animerock:'pick',komuro:'pick',ukpop:'pick',kpop:'synth',billie:'synth'};
+      poppunk:'pick',rock:'pick',animerock:'pick',komuro:'pick',ukpop:'pick',kband:'pick',kpop:'synth',billie:'synth'};
     const touch=TOUCH[ST];
     if(touch&&MODEL.tracks.bass){
       const bs3=MODEL.tracks.bass.filter(n=>!n.atmos&&!inProtB(n.t)&&!n.ghost).sort((a,b)=>a.t-b.t);
@@ -9052,6 +9060,17 @@ const GENRE_FX={
    melody:{inst:'Vocal', set:'또렷한 브릿팝 보컬', eq:'HPF 150Hz · 프레즌스 4kHz', dyn:'Compressor(2:1)', rev:'→ Aux1', dly:'1/8', more:''},
    counter:{inst:'Guitar Lead / Strings', set:'기타 리드', eq:'HPF 150Hz', dyn:'Compressor(3:1)', rev:'→ Aux1', dly:'', more:''}}},
 
+ kband:{
+  order:'드럼 → 베이스 → 일렉기타(클린/파워) → 피아노·신스 → 대선율 → 주선율/보컬',
+  bus:'마스터 Glue Comp(3:1) + 가벼운 새추레이션. 밴드 라이브감 -10 LUFS', aux:'Aux1: Room(1.0s). Aux2: Plate(1.6s)',
+  tracks:{
+   piano:{inst:'Piano / Warm Synth Pad', set:'벌스 8분 백킹 → 코러스 화음 지속', eq:'HPF 90Hz · 3kHz +1dB', dyn:'Compressor(2:1)', rev:'→ Aux2 Plate', dly:'', more:'건반이 이 스타일의 절반 — 끄지 말 것'},
+   bass:{inst:'Electric Bass (Pick)', set:'8분 피킹, 코러스에서 옥타브', eq:'HPF 40Hz · 700Hz +1dB', dyn:'Compressor(3:1)', rev:'없음', dly:'', more:''},
+   guitar:{inst:'Electric Guitar (Clean → Drive)', set:'벌스 클린 아르페지오 · 코러스 파워코드', eq:'HPF 120Hz · 3kHz +2dB', dyn:'Compressor(3:1)', rev:'→ Aux1 Room', dly:'1/8', more:'⚠ 벌스와 코러스 기타 톤을 반드시 나눌 것 — 낙차의 핵심'},
+   drums:{inst:'Drum Kit (라이브 룸)', set:'벌스 절제 → 코러스 풀 백비트', eq:'킥 60Hz · 스네어 2kHz', dyn:'Compressor(3:1)', rev:'→ Aux1 Room', dly:'', more:''},
+   melody:{inst:'Lead Vocal', set:'벌스 담백 → 코러스 벨팅', eq:'HPF 150Hz · 프레즌스 4kHz', dyn:'Compressor(4:1)', rev:'→ Aux2 Plate', dly:'1/8', more:'코러스 더블트랙'},
+   counter:{inst:'Harmony Vocal / Guitar Lead', set:'코러스 화음 보컬(멤버 교대 느낌)', eq:'HPF 180Hz', dyn:'Compressor(3:1)', rev:'→ Aux2', dly:'', more:''}}},
+
  worship:{
   order:'패드/드론 → 피아노 → 베이스 → 기타(앰비언트) → 드럼 → 대선율 → 주선율(리드보컬)',
   bus:'마스터 소프트 Comp(2:1). 벅차게 상승 -12 LUFS', aux:'Aux1: Hall(2.6s). Aux2: Plate(1.8s)',
@@ -9150,7 +9169,7 @@ const GENRE_FX={
 function styleFX(){const st=state.style;
  if(GENRE_FX[st])return GENRE_FX[st];
  const fallback={jballad:'ballad',royalroad:'ballad',worship:'gospel',motown:'funk',
-   marusa:'neosoul',komuro:'kpop',animerock:'epic',poppunk:'kpop',ukpop:'country',
+   marusa:'neosoul',komuro:'kpop',animerock:'epic',poppunk:'kpop',ukpop:'country',kband:'kpop',
    countrypop:'country',animeost:'epic',disney:'epic',saguk:'epic'};
  return GENRE_FX[fallback[st]||'ballad'];
 }
@@ -9399,6 +9418,7 @@ const BAND_VOCAL={
   animerock:{feel:'애니송 록 — 질주감, 강한 벨팅.', fx:'컴프 5:1, 딜레이 1/8, 홀 15%, 더블트랙', key:'단조'},
   billie:{feel:'어둡고 인티메이트한 속삭임 — 초근접, 거의 숨소리.', fx:'초근접 마이크, 드라이 8%, 서브 하모니, 디에서', key:'단조'},
   ukpop:{feel:'밝고 세련된 UK팝 — 담백하고 감각적.', fx:'컴프 4:1, 홀 15%, 딜레이 1/8', key:'장·단 혼용'},
+  kband:{feel:'감성 K-밴드 팝록 — 벌스는 담백하게, 코러스는 터지듯 벨팅. 멤버 교대 느낌으로 음색 대비.', fx:'컴프 4:1, 룸 12% + 플레이트 15%, 딜레이 1/8, 코러스 더블트랙', key:'장조 중심 (차용 iv로 애상)'},
   worship:{feel:'경건하고 벅찬 워십 — 진심 담아 크레셴도.', fx:'홀 리버브 28%, 딜레이 1/4, 다같이 하모니', key:'장조 (I-V-vi-IV)'},
   celtic:{feel:'청아하고 장식음 많은 켈트 — 자연스러운 멜리스마.', fx:'홀 25%, 자연스럽게, 리버브 딜레이', key:'도리안/믹솔리디안'},
   funk:{feel:'리드미컬·그루비한 펑크 — 외침 애드리브, 타이트하게.', fx:'드라이(리버브 8%), 컴프 4:1, 슬랩 딜레이 70ms', key:'도리안/믹솔리디안 (7·9th)'},
@@ -9610,7 +9630,7 @@ $('arrDyn').onchange=e=>{state.arrDyn=e.target.checked;if(MODEL){arrange();if(pl
 const GUIDE_FAM=[
   {label:'발라드 · 감성',items:['ballad','jballad','neosoul','gospel','worship']},
   {label:'J-Pop · 시티팝',items:['royalroad','marusa','komuro']},
-  {label:'록 · 밴드',items:['animerock','poppunk','ukpop']},
+  {label:'록 · 밴드',items:['animerock','poppunk','ukpop','kband']},
   {label:'팝 · 댄스',items:['kpop','billie','motown']},
   {label:'펑크 · 그루브',items:['funk']},
   {label:'재즈',items:['jazz']},
@@ -9634,6 +9654,7 @@ const GUIDE={
   animerock:{mark:'ff',accent:'hi',combo:[['대선율','core'],['모던 구조(콜드오픈)'],['편곡 다이내믹'],['보이싱 클린']],feel:'어둡고 강렬한 단조 앤섬. 콜드오픈으로 훅 먼저, 대선율이 기타 리프처럼 벌스를 채웁니다. 록이라 벌스를 비워도 <b>기타는 유지</b>돼 추진력이 안 죽습니다.',tip:'대선율을 디스토션 기타로 바꾸면 그대로 리드 리프.'},
   poppunk:{mark:'ff',accent:'hi',combo:[['대선율'],['편곡 다이내믹'],['모던 구조']],feel:'질주하는 파워코드 위 밝은 4코드. 편곡 대비로 벌스에 잠깐 숨을 주면 코러스가 더 터집니다.',tip:'스윙 0 유지. 곧게 달리는 8비트가 생명.'},
   ukpop:{mark:'mf',combo:[['차용화음','core'],['대선율'],['보이싱 자동']],feel:'믹솔리디안 bVII·차용 iv·add9의 잰글이 스타일에 배어 있음. 차용화음을 더 켜면 그 색이 짙어집니다.',tip:'add9 오픈코드는 12현 어쿠스틱/잰글 기타로.'},
+  kband:{mark:'mp→ff',accent:'hi',combo:[['편곡 다이내믹','core'],['대선율'],['차용화음'],['보이싱 자동']],feel:'대중적인 팝 진행 위에 밴드 사운드를 얹는 스타일. <b>벌스를 비우고 코러스에서 터뜨리는 낙차</b>가 정체성이라 편곡 다이내믹이 핵심입니다. 기타와 건반이 함께 가야 이 색이 납니다.',tip:'벌스는 클린 기타 아르페지오, 코러스는 파워코드. 건반(피아노·오르간)을 끄지 마세요.'},
   kpop:{mark:'mf→ff',accent:'hi',combo:[['구조 랜덤(포스트코러스)','core'],['차용화음','core'],['대선율'],['편곡 다이내믹']],feel:'이 앱에서 가장 \u2018요즘\u2019인 조합. 기본 구조가 포스트코러스라 코러스 뒤 훅이 붙고, 차용화음의 전조·단조 앤섬 색까지. 콜드오픈 훅→비운 벌스→터지는 코러스가 한 곡에.',tip:'네 기능을 다 켜도 무너지지 않게 설계됨. K-Pop이 이 조합의 쇼케이스.'},
   billie:{mark:'pp→mp',accent:'med',combo:[['보이싱 재즈'],['편곡 다이내믹','core'],['분위기'],['드론(약)','med']],feel:'단조·감화음 경과·확장화음의 어둡고 <b>성긴</b> 사운드. 편곡 다이내믹으로 최대한 비우고, 드론을 약하게 깔면 저역의 긴장이 생깁니다.',tip:'악기를 많이 끄고 여백을 크게 — \u2018덜어냄\u2019이 미학.'},
   motown:{mark:'mf',combo:[['보이싱 컬러'],['대선율'],['차용화음(I7)']],feel:'두왑 진행 + 또렷한 백비트. 차용화음의 I7(블루지 도미넌트)이 소울의 색을, 대선율이 혼 섹션 같은 답을.',tip:'대선율을 브라스로 바꾸면 모타운 혼 라인.'},
@@ -9671,6 +9692,7 @@ const GUIDE_APPLY={
   animerock:{voicing:'clean',counter:1,arrDyn:1,form:'coldopen',arc:'wave'},
   poppunk:{voicing:'auto',counter:1,arrDyn:1,form:'doublehook'},
   ukpop:{voicing:'auto',modalMix:1,counter:1},
+  kband:{voicing:'auto',arrDyn:1,counter:1,modalMix:1},
   kpop:{voicing:'auto',modalMix:1,counter:1,arrDyn:1,form:'postchorus',arc:'frontload'},
   billie:{voicing:'jazz',arrDyn:1,introTheme:0,drone:1,arc:'calm'},
   motown:{voicing:'lush',counter:1,modalMix:1},
@@ -9704,7 +9726,7 @@ function applySpec(a,styleId){
 function applyGuide(id){applySpec(GUIDE_APPLY[id],id);}
 /* 스타일 카테고리 */
 const CAT={ballad:['ballad','jballad','neosoul','gospel','worship'],jpop:['royalroad','marusa','komuro'],
-  rock:['animerock','poppunk','ukpop'],pop:['kpop','billie','motown'],funk:['funk'],folk:['celtic','country','countrypop'],oriental:['saguk'],orchestra:['epic','animeost']};
+  rock:['animerock','poppunk','ukpop','kband'],pop:['kpop','billie','motown'],funk:['funk'],folk:['celtic','country','countrypop'],oriental:['saguk'],orchestra:['epic','animeost']};
 /* 조합 레시피 풀 — 각 레시피가 어울리는 카테고리/스타일(fit) 태그를 가짐 */
 const RECIPES=[
   {ko:'🎯 훅 중심',feel:'코러스와 포스트코러스 훅을 겹치고 대선율로 이중 훅. 후렴이 계속 귀에 남는 요즘 팝 구성.',combo:[['훅 구조','core'],['대선율'],['편곡 다이내믹']],apply:{form:'doublehook',counter:1,arrDyn:1,voicing:'auto',arc:'frontload'},fit:['pop','jpop','rock','orchestra']},
@@ -10164,7 +10186,7 @@ const GENRE_CONFIG={
   deephouse:{introStyle:'fadein',endStyle:'fade',beatSwitch:'off',groove:'straight'},        // 딥하우스: 타이트한 정박·페이드(균일하게 흐름)
   global:{introStyle:'stack',endStyle:'handoff',beatSwitch:'groove',groove:'human'},        // 그루브가 정체성 — 그루브 전환·휴먼
   trap:{introStyle:'impact',endStyle:'fade',beatSwitch:'half',groove:'straight'},           // 임팩트 인트로·하프타임
-  lofi:{introStyle:'fadein',endStyle:'fade',beatSwitch:'off',groove:'dilla'},               // 페이드·딜라 드렁큰 그루브
+  lofi:{introStyle:'direct',endStyle:'fade',beatSwitch:'off',groove:'dilla'},               // 페이드·딜라 드렁큰 그루브
   boombap:{introStyle:'direct',endStyle:'loop',beatSwitch:'off',groove:'mpc'},              // 바로 시작·MPC 스윙·루프
   kpop:{introStyle:'stack',endStyle:'finale',beatSwitch:'double',groove:'straight'},        // 댄스브레이크 더블타임·피날레
   retro:{introStyle:'stack',endStyle:'finale',beatSwitch:'off',groove:'straight'},          // 80s 정박·피날레
@@ -10874,7 +10896,7 @@ function shapeDrumsFor(g,type,vix){
       d.hat=P(0,2,4,6,8,10,12,14);d.ohat=Array(16).fill(false);d.perc&&(d.perc=P(7,15));}     // 5킥 바운스 + 베드스퀵
     else if(gs==='afrohouse'){d.kick=P(0,4,8,12);d.snare=Array(16).fill(false);d.clap=Array(16).fill(false);
       d.hat=P(0,2,4,6,8,10,12,14);d.ohat=P(2,10);d.perc&&(d.perc=P(3,5,11,13));}              // 4플로어 + 트라이벌 콩가 퍼크(드럼 주도)
-    else if(gs==='bailefunk'){d.kick=P(0,8);d.snare=P(3,6,11,14);d.clap=Array(16).fill(false);
+    else if(gs==='bailefunk'){d.kick=P(0,8);d.snare=P(3,6,11,14);d.clap=P(4,12);
       d.hat=P(0,4,8,12);d.ohat=Array(16).fill(false);d.perc&&(d.perc=P(3,6,11,14));}          // 탐보르장: 붐(킥)-차-차(스네어·팜)
     else if(gs==='speedgarage'){d.kick=P(0,4,8,12);d.snare=Array(16).fill(false);d.clap=P(4,12);
       d.hat=P(0,2,3,4,6,8,10,11,12,14);d.ohat=P(6,14);d.perc&&(d.perc=Array(16).fill(false));} // 4x4 킥 + 스킵피 개러지 햇
