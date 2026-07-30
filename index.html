@@ -1793,6 +1793,8 @@ input[type=range]{accent-color:var(--teal)}
     </div>
     <div class="submini" style="margin:16px 0 7px;">주 멜로디 <span class="mini" style="color:var(--muted);font-weight:400;">— 구조에 맞춘 대중 팝 훅을 리드에 얹습니다</span></div>
     <label class="chip" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;margin-bottom:4px;"><input type="checkbox" id="topMel" style="margin:0"> 🎤 주 멜로디 얹기</label>
+    <label class="chip" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;margin:0 0 4px 8px;" title="킥·베이스를 여리게, 스네어는 2·4박 중심, 코드는 중역으로, 7·9도 화성 강화"><input type="checkbox" id="lofiSoft" style="margin:0"> 🌙 로파이 걸 스타일</label>
+    <label class="chip" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;margin:0 0 4px 6px;" title="마이너 중심 화성, 16분 펄스+옥타브 왕복 베이스, 2·4박 게이트 스네어, 넓은 패드"><input type="checkbox" id="synthWave" style="margin:0"> 🌌 신스웨이브 스타일</label>
     <select id="topFam" style="margin-left:6px;vertical-align:middle;">
       <option value="synth" selected>신스 (기본)</option>
       <option value="vocal">보컬 (노래)</option>
@@ -10054,6 +10056,53 @@ function songSheet(){
   L.push('※ MIDI 파일은 앞뒤 4마디 여백 포함 — 마커 "Edit space"~"Song End" 사이가 실제 곡');
   L.push('※ FX Cues 트랙(라이저·임팩트·서브 자리) + ADD- 빈 트랙(추가 악기 슬롯) 포함 — 로직가이드 참고');
   L.push('');
+  /* 장르마다 '그 소리를 그 소리답게 만드는' 특수 FX가 따로 있다.
+     스타일이 28개라 계열로 묶어 적는다. [MIDI FX]는 악기 앞단(노트를 바꿈), [Audio FX]는 뒷단(소리를 바꿈). */
+  { const FAM=[
+      {k:['rock','poppunk','animerock','kband','metal'], n:'록 계열', t:[
+        ['Amp Designer','Guitar','British Stack 또는 Modern Stack · Gain 6~7 · Presence 6. 로직 기본 앰프로 충분합니다'],
+        ['기타 더블링','Guitar','트랙 복제 → 한쪽 L100 다른쪽 R100 · 한쪽만 8~12ms 지연 → 벽처럼 넓어집니다'],
+        ['Drum Room','Drums','ChromaVerb Room 0.6~0.9s · Send 12~18% — 드럼에 방을 줍니다'],
+        ['※ 리버브 과하지 않게','전체','록은 드라이해야 밀도가 삽니다']]},
+      {k:['ballad','jballad','royalroad','marusa','billie'], n:'발라드 계열', t:[
+        ['서스테인 페달','Piano','CC64가 이미 실려 있습니다 — 음원에서 페달 반응 켜져 있는지만 확인'],
+        ['Plate Reverb','Melody·Strings','Plate 1.8~2.4s · Pre-delay 25ms — 선율을 멀리 띄웁니다'],
+        ['Vocal 자리','Piano·Pad','2~4kHz −1.5dB — 나중에 보컬 얹을 자리를 미리 비웁니다'],
+        ['※ 컴프 가볍게','전체','GR 2~3dB. 발라드는 다이내믹이 표현입니다']]},
+      {k:['jazz','neosoul','funk','motown','gospel'], n:'재즈·소울 계열', t:[
+        ['Room Reverb','Drums·Piano','Room 0.8~1.2s — 클럽 공간. Hall은 쓰지 않습니다'],
+        ['Amp / Tape','Bass·Guitar','Bass Amp 또는 ChromaGlow 낮게 — 배음만 살짝'],
+        ['※ 퀀타이즈 세게 하지 않기','전체','흔들림(휴머나이즈)이 그루브입니다'],
+        ['Sidechain 쓰지 않기','—','이 계열은 펌핑하지 않습니다']]},
+      {k:['epic','animeost','disney','worship'], n:'오케스트라 계열', t:[
+        ['Hall Reverb','전체 Send','ChromaVerb Hall 2.4~3.2s · Pre-delay 30ms — 모든 악기가 같은 홀에 있어야 합니다'],
+        ['CC11 익스프레션','Strings·Winds','이미 실려 있습니다 — 음원이 CC11에 반응하는지 확인(대부분 반응)'],
+        ['섹션 밸런스','Brass·Strings','금관이 현을 덮지 않게 금관 −2~3dB에서 시작']]},
+      {k:['celtic','gypsy','balkan','tango','rumba','saguk'], n:'민속 계열', t:[
+        ['자연 공간','전체','Room 1.0~1.4s. 신스 리버브(Hall·Plate)보다 방 느낌이 어울립니다'],
+        ['※ FX 최소','전체','악기 소리 자체가 장르입니다. 코러스·디스토션은 쓰지 않습니다'],
+        ['더블링 대신 실연','Melody','같은 선율을 옥타브로 겹치기보다 악기를 바꿔 주고받는 편이 낫습니다']]},
+      {k:['komuro','kpop','citypop','ukpop','countrypop','hookpop'], n:'일렉·팝 계열', t:[
+        ['Sidechain','Pad·Chords','Compressor Sidechain=킥 · Ratio 4:1 · Attack 1ms · Release 120ms'],
+        ['Stereo Widener','Chords·Synth','Direction Mixer로 좌우 확장 — 단, 베이스는 모노로 두기'],
+        ['MIDI FX · Arpeggiator','Chords','Up · 1/16 · Octave 2 — 신스 아르페지오를 얹고 싶을 때']]},
+      {k:['country'], n:'컨트리', t:[
+        ['Slapback Delay','Guitar·Melody','80~120ms · Feedback 10% 이하'],
+        ['※ FX 최소','전체','자연스러움이 장르입니다']]}
+    ];
+    const hit=FAM.find(f=>f.k.indexOf(state.style)>=0);
+    if(hit){
+      L.push('');
+      L.push('■ 이 장르의 특수 FX — 소리를 장르답게 만드는 지점 ('+hit.n+')');
+      L.push('  [MIDI FX] 는 악기 앞단(노트를 바꿈) · [Audio FX] 는 악기 뒷단(소리를 바꿈)');
+      L.push('  로직에서 MIDI FX는 트랙 선택 > 인스펙터 좌측 상단 "MIDI FX" 슬롯입니다');
+      hit.t.forEach(x=>{
+        L.push('   · '+x[0]+(x[1]&&x[1]!=='—'?('  →  '+x[1]+(/트랙$/.test(x[1])?'':' 트랙')):''));
+        L.push('       '+x[2]);
+      });
+      L.push('');
+    }
+  }
   L.push('■ 트랙별 셋업 — 트랙마다 [①가상악기 → ②FX → ③팬·볼륨 → ④믹싱 수치(EQ·컴프·리버브·주파수)]');
   L.push('  [넣는 법] 믹서(X) → 트랙 선택 → Audio FX 슬롯: EQ → Comp → [Sat] → Send(리버브/딜레이 Aux)');
   L.push('');
@@ -11801,7 +11850,7 @@ function applyGenreDefaults(randomize,opt){opt=opt||{};
   const g=curGenre();state.active=0;
   if(opt.genreSwitch){                                          // 장르 전환 시: 구성 설정을 그 장르 기본값으로
     const cfg=GENRE_CONFIG[g.id]; if(cfg){
-      state.topMel=state.topMel||false; state.topFam=state.topFam||'synth'; state.introStyle=cfg.introStyle; state.endStyle=cfg.endStyle; state.beatSwitch=cfg.beatSwitch; state.groove=cfg.groove; state.endUser=false; state.keyUser=false; state.edmUser=false; // 장르 바뀌면 엔딩·키·EDM 스타일 다시 자동 다양화
+      state.topMel=state.topMel||false; state.topFam=state.topFam||'synth'; state.lofiSoft=state.lofiSoft||false; state.synthWave=state.synthWave||false; state.introStyle=cfg.introStyle; state.endStyle=cfg.endStyle; state.beatSwitch=cfg.beatSwitch; state.groove=cfg.groove; state.endUser=false; state.keyUser=false; state.edmUser=false; // 장르 바뀌면 엔딩·키·EDM 스타일 다시 자동 다양화
       ['introStyle','endStyle','beatSwitch','groove'].forEach(k=>{if($(k))$(k).value=cfg[k];});
     }
   }
@@ -13479,6 +13528,8 @@ function arrange(){
   layerHookpop();                                                     // Hook-Pop: 악기 레이어 누적 빌드업
   stopHitHookpop();                                                   // Hook-Pop: 코러스 직전 1박 완전 침묵 → 강타
   finalHookDrop();                                                    // Hook-Pop: 마지막 코러스 첫 부분 드럼아웃(챈트) → 복귀 폭발
+  if(state.lofiSoft){ try{ applyLofiSoft(MODEL); }catch(e){ console.error('로파이 걸 스타일 오류', e); } }   // 여리게·중역·재즈 화성
+  if(state.synthWave){ try{ applySynthwave(MODEL); }catch(e){ console.error('신스웨이브 스타일 오류', e); } }  // 어둡게·16분 펄스·게이트 스네어
   if(state.topMel){ try{ buildTopMelody(MODEL); }catch(e){ console.error('주 멜로디 오류', e); } }   // 구조에 맞춘 팝 훅을 리드에 얹기
   dedupMelodic(MODEL.tracks);                                         // 위 레이어들도 정리 대상 — 나중에 만들어지므로 여기서 한 번 더
   return MODEL;
@@ -13949,6 +14000,127 @@ function fixHarmonyClashes(tr,sview){
 /* 멜로디 트랙의 같은 음 중복·겹침 정리 — 드럼과 달리 음정이 있어서, 같은 음이 꺼지기 전에 다시 켜지면
    로직에서 어택이 겹치거나 노트가 물려 남는다(스턱 노트). 완전 동일 시각이면 하나로 합치고,
    앞 음이 뒤 음까지 물고 있으면 뒤 음 직전에 끊는다. */
+/* ── 로파이 걸 스타일 ──
+   실측해보면 우리 로파이는 스윙(0.59)·킥밀도·리드없음은 맞지만
+   킥·베이스가 세고(vel 98) 스네어가 많고(4/마디) 코드가 높고 넓으며(49~84) 7도가 적다(26~46%).
+   그래서 로파이보다 붐뱁·칠하우스처럼 들린다. 네 가지를 후처리로 되돌린다. */
+function applyLofiSoft(M){
+  const tr=M.tracks; if(!tr) return;
+  const bar=4;
+  // ① 킥·베이스를 뒤로 물린다 (로파이는 전체를 여리게)
+  (tr.kick||[]).forEach(n=>{ n.vel=Math.max(38,Math.round(n.vel*0.74)); });
+  (tr.bass||[]).forEach(n=>{ n.vel=Math.max(40,Math.round(n.vel*0.76)); });
+  // ② 스네어: 2·4박만 본타, 나머지는 고스트로
+  (tr.snare||[]).forEach(n=>{
+    const b=(n.t%bar);
+    const onBackbeat = Math.abs(b-1)<0.08 || Math.abs(b-3)<0.08;
+    n.vel = onBackbeat ? Math.max(56,Math.round(n.vel*0.82)) : Math.max(22,Math.round(n.vel*0.42));
+  });
+  (tr.hat||[]).forEach(n=>{ n.vel=Math.max(20,Math.round(n.vel*0.82)); });
+  // ③ 코드를 중역으로 접는다 (48~74) — 높으면 밝고 앞으로 나온다
+  ['chords','pad'].forEach(k=>{ (tr[k]||[]).forEach(n=>{
+    while(n.midi>74) n.midi-=12;
+    while(n.midi<44) n.midi+=12;
+    n.vel=Math.max(34,Math.round(n.vel*0.9));
+  }); });
+  // ④ 7·9도 화성 강화 — 3화음뿐이면 7도를 얹는다(재즈 감)
+  const byT={}; (tr.chords||[]).forEach(n=>{ const k=n.t.toFixed(3); (byT[k]=byT[k]||[]).push(n); });
+  const add=[];
+  Object.keys(byT).forEach(k=>{
+    const v=byT[k].slice().sort((a,b)=>a.midi-b.midi); if(v.length<2) return;
+    const root=v[0].midi, iv=v.map(x=>(((x.midi-root)%12)+12)%12);
+    const hasMinor = iv.indexOf(3)>=0;
+    if(iv.indexOf(10)<0 && iv.indexOf(11)<0){
+      const sev = hasMinor ? 10 : 11;                 // 단3도면 단7도, 장3도면 장7도
+      let m=root+sev; while(m>74)m-=12; while(m<48)m+=12;
+      if(!v.some(x=>x.midi===m)) add.push({t:v[0].t, midi:m, dur:v[0].dur, vel:Math.max(30,Math.round(v[0].vel*0.8))});
+    }
+  });
+  if(add.length) tr.chords=(tr.chords||[]).concat(add).sort((a,b)=>a.t-b.t);
+}
+
+/* ── 신스웨이브 스타일 (Lofi Boy 쪽) ──
+   실측하면 우리 retro는 템포·정박(스윙 0.5)·음역은 맞지만
+   단조가 18~44%로 낮고(어둡지 않음), 베이스 옥타브 왕복이 곡마다 0~59%로 불안정하며
+   스네어가 4.5~5.8/마디로 많다. 세 가지를 되돌린다.
+   로파이 걸이 '따뜻하고 뿌옇게'라면 이쪽은 '어둡고 날 서게'. */
+function applySynthwave(M){
+  const tr=M.tracks; if(!tr) return;
+  const bar=4;
+  /* ① 마이너 중심 — 장3도를 반음 내리고 장7도는 단7도로.
+        코드·패드·리드·아르프·주멜로디까지 한꺼번에 바꿔야 화성이 어긋나지 않는다. */
+  const byT={}; (tr.chords||[]).forEach(n=>{ const k=n.t.toFixed(3); (byT[k]=byT[k]||[]).push(n); });
+  const segs=Object.keys(byT).map(k=>parseFloat(k)).sort((a,b)=>a-b).map((t0,i,arr)=>{
+    const v=byT[t0.toFixed(3)].slice().sort((a,b)=>a.midi-b.midi);
+    return {t0:t0, t1:(i+1<arr.length?arr[i+1]:t0+bar), root:((v[0].midi%12)+12)%12};
+  });
+  const rootAt=t=>{ for(let i=segs.length-1;i>=0;i--) if(t>=segs[i].t0-0.02) return segs[i].root; return segs.length?segs[0].root:null; };
+  ['chords','pad','lead','arpseq','topmel','piano'].forEach(k=>{
+    (tr[k]||[]).forEach(n=>{
+      const r=rootAt(n.t); if(r==null) return;
+      const iv=(((n.midi-r)%12)+12)%12;
+      if(iv===4) n.midi-=1;          // 장3도 → 단3도
+      else if(iv===11) n.midi-=1;    // 장7도 → 단7도
+    });
+  });
+  /* ② 베이스 재작성 — 16분 펄스 + 옥타브 왕복(신스웨이브의 시그니처) */
+  if(segs.length){
+    /* 곡 끝 — 트랙에 유한하지 않은 값이 섞이면 Math.max가 NaN이 되어 루프가 아예 안 돈다.
+       유한한 값만 골라 접고, 못 구하면 마지막 코드 구간 끝을 쓴다. */
+    let endT=0;
+    ['kick','snare','chords','pad','hat'].forEach(k=>{ (tr[k]||[]).forEach(n=>{
+      const e=(+n.t)+(+n.dur); if(isFinite(e)&&e>endT) endT=e; }); });
+    if(!(endT>0)) endT=segs[segs.length-1].t1;
+    const nb=[]; const step=0.25;
+    segs.forEach(sg=>{
+      let base=36+sg.root; while(base<33)base+=12; while(base>45)base-=12;
+      let i=0;
+      for(let t=sg.t0; t<Math.min(sg.t1,endT)-0.01; t+=step, i++){
+        const up=(i%2===1);
+        nb.push({t:+t.toFixed(4), midi:up?base+12:base, dur:0.22,
+          vel: (i%4===0)?104:(up?78:88)});
+      }
+    });
+    if(nb.length) tr.bass=nb;
+  }
+  /* ③ 스네어 — 2·4박 한 방(게이트 리버브 자리), 나머지는 걷어냄 */
+  if(tr.snare&&tr.snare.length){
+    tr.snare=tr.snare.filter(n=>{ const b2=n.t%bar; return Math.abs(b2-1)<0.09||Math.abs(b2-3)<0.09; })
+      .map(n=>{ n.vel=Math.min(118,Math.round(n.vel*1.15)); n.dur=Math.max(n.dur,0.5); return n; });
+  }
+  /* ④ 아르페지오 — 신스웨이브의 상징. 코드 구간의 코드톤을 16분으로 올렸다 내린다.
+        이미 아르페지오가 충분하면 건드리지 않는다(장르 고유 패턴 보존). */
+  if(segs.length){
+    let endA=0; ['kick','snare','chords'].forEach(k=>{ (tr[k]||[]).forEach(n=>{ const e=(+n.t)+(+n.dur); if(isFinite(e)&&e>endA)endA=e; }); });
+    if(!(endA>0)) endA=segs[segs.length-1].t1;
+    const bars=Math.max(1,Math.round(endA/bar));
+    const have=(tr.arpseq||[]).length;
+    if(have < bars*8){                                  // 이미 16분급으로 촘촘하면 그대로, 아니면 새로 만든다(신스웨이브는 16분 아르페지오가 시그니처)
+      const out=[]; const step=0.25;
+      segs.forEach(sg=>{
+        const on=(tr.chords||[]).filter(n=>Math.abs(n.t-sg.t0)<0.03).map(n=>n.midi).sort((a,b)=>a-b);
+        if(!on.length) return;
+        // 코드톤을 상역(72~93)으로 올려 패드·리드 위에 앉힌다
+        const tones=[]; on.forEach(m=>{ let x=m; while(x<72)x+=12; while(x>93)x-=12; if(tones.indexOf(x)<0)tones.push(x); });
+        tones.sort((a,b)=>a-b);
+        if(tones.length<2) return;
+        const seq=tones.concat(tones.slice(1,-1).reverse());   // 업–다운(펜듈럼)
+        let i=0;
+        for(let t=sg.t0; t<Math.min(sg.t1,endA)-0.01; t+=step, i++){
+          out.push({t:+t.toFixed(4), midi:seq[i%seq.length], dur:0.2,
+            vel:(i%4===0)?86:(i%2===0?74:66)});
+        }
+      });
+      if(out.length) tr.arpseq=out;
+    }
+  }
+  /* ⑤ 패드를 넓게 — 저역 패드에 옥타브 위 층을 얹어 시야를 넓힌다 */
+  if(tr.pad&&tr.pad.length){
+    const up=[]; tr.pad.forEach(n=>{ if(n.midi<62 && n.midi+12<=88) up.push({t:n.t,midi:n.midi+12,dur:n.dur,vel:Math.max(26,Math.round(n.vel*0.55))}); });
+    if(up.length) tr.pad=tr.pad.concat(up).sort((a,b)=>a.t-b.t);
+  }
+}
+
 /* ── 주 멜로디(팝 훅 토플라인) ──
    Beat는 리듬 중심이라 장르에 따라 리드가 없다(trap·lofi·boombap 등).
    코드 트랙에서 화성을 읽어 '2마디 훅 모티브'를 만들고 구간 전체에 반복해 얹는다.
@@ -14902,6 +15074,65 @@ function buildSongSheet(){
     L.push('┈┈┈┈┈┈┈┈ 여기부터 비트 전용 ┈┈┈┈┈┈┈┈');
     L.push('');
   }
+  /* 장르마다 '그 소리를 그 소리답게 만드는' 특수 FX가 따로 있다.
+     로직에서 어느 트랙에 무엇을 걸어야 하는지 — MIDI FX와 Audio FX를 나눠 적는다. */
+  { const FXTIP={
+      retro:[['MIDI FX · Arpeggiator','Chords 트랙','Up/Down · Rate 1/16 · Octave Range 2 · Note Length 60%. 곡을 돌리면서 패턴을 바꿔보고, 정해지면 트랙 우클릭 > "MIDI 효과를 MIDI 리전으로 변환"으로 실물 노트로 굳힙니다'],
+             ['Gated Reverb','Snare','ChromaVerb(Room, Decay 1.8s) → 뒤에 Noise Gate(Threshold -28dB, Hold 120ms). 80년대 스네어의 그 "퍽" 소리'],
+             ['Chorus / Ensemble','Lead·Pad','Chorus Rate 0.4Hz Depth 40% — 신스를 넓고 흔들리게'],
+             ['Sidechain','Pad·Chords','Compressor Sidechain=킥 · Ratio 4:1 · Attack 1ms · Release 120ms']],
+      edm:[['Sidechain 펌핑','Pad·Chords·Bass','Compressor Sidechain=킥 · Ratio 6:1 · Attack 0.5ms · Release 100~150ms. EDM의 심장'],
+           ['Filter 오토메이션','Arp/Pluck','Auto Filter Cutoff를 빌드업 4~8마디에 걸쳐 서서히 올림'],
+           ['MIDI FX · Arpeggiator','Chords','Up · 1/16 · Octave 2 — 이미 아르페지오가 있으면 겹치지 않게 하나만']],
+      lofi:[['Bitcrusher','Chords·Pad','Resolution 12bit · Downsampling 2~3x — 살짝만. 과하면 지저분해집니다'],
+            ['Tape Delay','Chords','1/8점 · Feedback 18% · LPF 4kHz — 뿌옇게 번지는 잔향'],
+            ['Vinyl/Hiss','FX-bed','iZotope Vinyl 또는 샘플. 볼륨 -26~-30dB로 거의 안 들릴 듯'],
+            ['※ 사이드체인 쓰지 않기','—','로파이는 펌핑하지 않습니다. 킥을 뒤로 물리는 것으로 충분']],
+      boombap:[['Bitcrusher','Drums','SP-1200 느낌 — 12bit · Downsampling 2x'],
+               ['Tape/Saturation','Drums·Bass','ChromaGlow 낮게 — 배음만 살짝'],
+               ['※ 드럼 타이트하게','Drums','리버브 최소. 드라이해야 붐뱁입니다']],
+      trap:[['Pitch Glide','Bass(808)','Pitch Bend 또는 Sampler에서 Glide Time 80~120ms — 808의 미끄러짐'],
+            ['Reverb + Gate','Snare/Clap','Plate 1.2s → Gate로 잘라 짧게'],
+            ['Hi-hat Roll','Hat','16분/32분 트리플렛 구간을 리전 안에서 직접 그리기']],
+      deephouse:[['Sidechain','Pad·Chords','Ratio 4:1 · Release 150ms — 부드럽게'],
+                 ['Filter 오토메이션','Chords','Auto Filter로 8~16마디 주기의 느린 열림'],
+                 ['Reverb 길게','Pad','ChromaVerb Hall 3~4s — 공간을 넓게']],
+      melodichouse:[['Sidechain','Pad·Arp','Ratio 4:1 · Release 140ms'],
+                    ['Delay 1/4점','Arp/Pluck','Feedback 25% · Stereo — 아르페지오를 넓게 번지게'],
+                    ['MIDI FX · Arpeggiator','Chords','Up/Down · 1/16 · Octave 2']],
+      chillwave:[['Chorus 깊게','Pad·Lead','Rate 0.3Hz · Depth 55% — 흔들리는 질감이 이 장르의 핵심'],
+                 ['Tape Wobble','Chords','Tape Delay + Modulation 또는 Vintage 계열 플러그인'],
+                 ['Reverb 크게','Pad','Hall 4s · Pre-delay 30ms']],
+      kpop:[['Stereo Widener','Chords·Arp','Direction Mixer 또는 Stereo Spread — 좌우로 넓게'],
+            ['Vocal Chop 자리','GUIDE 트랙','샘플을 직접 얹는 자리 — 리전만 비어 있습니다'],
+            ['Sidechain 살짝','Pad','Ratio 3:1 · Release 120ms — EDM보다 약하게']],
+      country:[['※ FX 최소','전체','자연스러움이 장르입니다. 리버브는 Room 1.2s 정도, 컴프도 가볍게'],
+               ['Slapback Delay','Guitar·Lead','80~120ms · Feedback 10% 이하 — 옛 컨트리의 그 짧은 반사']],
+      running:[['Sidechain','Pad·Chords','Ratio 4:1 · Release 110ms — 달리는 박동에 맞춰 규칙적으로'],
+               ['Transient Designer','Drums','Attack +20% — 스네어·킥을 또렷하게. 이어폰에서 리듬이 살아납니다'],
+               ['High Shelf','전체 버스','8kHz +1.5dB — 야외·이어폰에서 선명하게 들리도록']],
+      global:[['Stereo Widener','Perc·Chords','Direction Mixer — 월드 퍼커션을 좌우로 벌려 공간감'],
+              ['Room Reverb','Perc','Room 0.9~1.2s — 손으로 치는 악기의 자연 공간'],
+              ['MIDI FX · Arpeggiator','Chords','Random 또는 Up — 1/8. 민속 현악의 반복 패턴을 만들 때']],
+      hooksong:[['Doubler / Chorus','Lead','후렴 리드를 두껍게 — Chorus Depth 25% 또는 트랙 복제 후 ±8cent'],
+                ['Vocal 자리 비우기','Chords·Pad','2~4kHz를 1~2dB 파서 보컬 들어갈 자리 만들기'],
+                ['Sidechain 살짝','Pad','Ratio 3:1 · Release 120ms']],
+      hookpop:[['Stereo Widener','Chords·Arp','좌우로 벌려 후렴을 크게'],
+               ['Multiband Comp','전체 버스','저역만 눌러 킥·베이스 단단하게'],
+               ['Vocal 자리 비우기','Chords·Pad','2~4kHz −1~2dB']]
+    };
+    const tip=FXTIP[state.genre];
+    if(tip){
+      L.push('');
+      L.push('■ 이 장르의 특수 FX — 소리를 장르답게 만드는 지점');
+      L.push('  [MIDI FX] 는 악기 앞단(노트를 바꿈) · [Audio FX] 는 악기 뒷단(소리를 바꿈)');
+      L.push('  로직에서 MIDI FX는 트랙 선택 > 인스펙터 좌측 상단 "MIDI FX" 슬롯입니다');
+      tip.forEach(t=>{
+        L.push('   · '+t[0]+(t[1]&&t[1]!=='—'?('  →  '+t[1]+(/트랙$/.test(t[1])?'':' 트랙')):''));
+        L.push('       '+t[2]);
+      });
+    }
+  }
   L.push('■ 트랙별 셋업 — 트랙마다 [①가상악기 → ②FX → ③팬·볼륨 → ④믹싱 수치(EQ·컴프·리버브·주파수)]');
   L.push('  [넣는 법] 트랙 선택 → Instrument 슬롯(음원 삽입·트랙명으로 라이브러리 Y 검색) → Audio FX 슬롯(EQ→Comp→[Sat]) → Sends 슬롯(리버브/딜레이 Bus)');
   L.push('');
@@ -15646,6 +15877,16 @@ $('gen').onclick=()=>generateSong(false);          // 설정 반영
   const _tf=document.getElementById('topFam');
   if(_tf){ _tf.value=state.topFam||'synth';
     _tf.onchange=function(e){ state.topFam=e.target.value;
+      const g=document.getElementById('gen'); if(g) g.click(); }; }
+  const _ls=document.getElementById('lofiSoft');
+  if(_ls){ _ls.checked=!!state.lofiSoft;
+    _ls.onchange=function(e){ state.lofiSoft=e.target.checked;
+      if(e.target.checked){ const o=document.getElementById('synthWave'); if(o){o.checked=false; state.synthWave=false;} }
+      const g=document.getElementById('gen'); if(g) g.click(); }; }
+  const _sw=document.getElementById('synthWave');
+  if(_sw){ _sw.checked=!!state.synthWave;
+    _sw.onchange=function(e){ state.synthWave=e.target.checked;
+      if(e.target.checked){ const o=document.getElementById('lofiSoft'); if(o){o.checked=false; state.lofiSoft=false;} }   // 정반대 성격이라 동시에 켜지 않는다
       const g=document.getElementById('gen'); if(g) g.click(); }; } }   // 켜고 끌 때·음색 바꿀 때 즉시 다시 만들기
 $('fullRand').onclick=()=>generateSong(true);      // 전부 랜덤
 $('curvePreset').onclick=()=>{if(state.sections.length<2){flashMsg('구간이 2개 이상 필요해요.');return;}
@@ -21628,6 +21869,75 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       window.SO_renderCommon({skip:{vinst:1,plugin:1,gain:1,eqBasic:1,routing:1,sidechain:1,master:1}}).forEach(function(x){ L.push(x); });
     }
     L.push('──────────────────────────────────────────────────');
+    /* 장르마다 '그 소리를 그 소리답게 만드는' 특수 FX가 따로 있다. 그룹 단위로 묶어 적는다.
+       [MIDI FX]는 악기 앞단(노트를 바꿈), [Audio FX]는 뒷단(소리를 바꿈). */
+    { const FAM=[
+        {k:['ballad','kballad','jballad','citypop','lyricPenta','lyricMinyo'], n:'서정·발라드', t:[
+          ['서스테인 페달','Piano','CC64가 이미 실려 있습니다 — 음원의 페달 반응만 확인'],
+          ['Plate Reverb','Melody·Pad','Plate 1.8~2.4s · Pre-delay 25ms'],
+          ['※ 컴프 가볍게','전체','GR 2~3dB. 다이내믹이 표현입니다']]},
+        {k:['jazz','neosoul','blues','funk','gospel'], n:'재즈·소울', t:[
+          ['Room Reverb','Piano·Drums','Room 0.8~1.2s — 클럽 공간. Hall은 쓰지 않습니다'],
+          ['※ 퀀타이즈 세게 하지 않기','전체','흔들림이 그루브입니다'],
+          ['Amp / Tape','Bass','Bass Amp 또는 ChromaGlow 낮게']]},
+        {k:['epic','cinematic','orchestral','classic'], n:'오케스트라·시네마틱', t:[
+          ['Hall Reverb','전체 Send','Hall 2.4~3.2s · Pre-delay 30ms — 모든 악기가 같은 홀에'],
+          ['CC11 익스프레션','Melody·Pad','이미 실려 있습니다 — 음원이 CC11에 반응하는지 확인'],
+          ['Sub / Riser','Sub·Riser 트랙','샘플로 교체하는 자리입니다. 드롭 직전 4마디에 배치']]},
+        {k:['gugak','gukvocal','quartal','saguk','folk','celtic','shanty'], n:'민속·국악 계열', t:[
+          ['자연 공간','전체','Room 1.0~1.4s. 신스 리버브보다 방 느낌이 어울립니다'],
+          ['※ FX 최소','전체','악기 소리 자체가 장르입니다'],
+          ['CC11 익스프레션','Melody','관·현 계열 음원이면 반응 확인 — 긴 음의 표정이 여기서 나옵니다']]},
+        {k:['edm','house','deephouse','melodichouse','synth','retro'], n:'일렉 계열', t:[
+          ['Sidechain','Pad·Chords','Sidechain=킥 · Ratio 4:1 · Attack 1ms · Release 120ms'],
+          ['MIDI FX · Arpeggiator','Chords','Up/Down · 1/16 · Octave 2. 정해지면 우클릭 > "MIDI 효과를 MIDI 리전으로 변환"'],
+          ['Filter 오토메이션','Pad·Chords','Auto Filter Cutoff를 빌드업 구간에 서서히 올림']]},
+        {k:['lyric','lyricMid','joypiano','pop','kids'], n:'서정 피아노·팝', t:[
+          ['서스테인 페달','Piano','CC64 실려 있습니다 — 음원 페달 반응 확인'],
+          ['Plate / Room','Piano·Melody','Plate 1.6~2.0s · Pre-delay 20ms — 너무 넓히면 또렷함이 죽습니다'],
+          ['※ 컴프 가볍게','전체','GR 2~3dB']]},
+        {k:['epicaeol','cineSoar','cineTension','cineSorrow','cineJoy'], n:'시네마틱', t:[
+          ['Hall Reverb','전체 Send','Hall 2.6~3.4s · Pre-delay 30ms — 모든 악기가 같은 홀에'],
+          ['CC11 익스프레션','Melody·Pad','이미 실려 있습니다 — 긴 음의 부풀림이 여기서 나옵니다'],
+          ['Sub / Riser','Sub·Riser 트랙','샘플로 교체하는 자리 — 전환 직전 4마디에 배치'],
+          ['Low Rumble','Sub','30~50Hz 지속음. 큰 스피커·헤드폰에서만 들립니다']]},
+        {k:['rock'], n:'록', t:[
+          ['Amp Designer','Guitar','British/Modern Stack · Gain 6~7 · Presence 6'],
+          ['기타 더블링','Guitar','복제 후 L100/R100 · 한쪽만 8~12ms 지연'],
+          ['※ 리버브 과하지 않게','전체','드라이해야 밀도가 삽니다']]},
+        {k:['lofi'], n:'로파이', t:[
+          ['Bitcrusher','Chords·Pad','12bit · Downsampling 2~3x — 살짝만'],
+          ['Tape Delay','Chords','1/8점 · Feedback 18% · LPF 4kHz'],
+          ['※ 사이드체인 쓰지 않기','—','로파이는 펌핑하지 않습니다']]},
+        {k:['bossa'], n:'보사노바', t:[
+          ['Room Reverb','Guitar·Piano','Room 0.8~1.1s — 작은 방'],
+          ['※ 퀀타이즈 세게 하지 않기','전체','흔들림이 그루브입니다'],
+          ['하이패스','Bass','40Hz HPF — 나일론 기타 자리를 비웁니다']]},
+        {k:['dorian','phrygian','lydian','mixolydian','doubleharm','hungarian','phrygdom'], n:'모달 계열', t:[
+          ['드론 유지','Pad·Sub','으뜸음을 길게 깔면 모드 색이 또렷해집니다 — Pad에 롱 리전'],
+          ['Reverb 중간','Melody','Room~Plate 1.4~1.8s. 너무 길면 모드 특유의 음정 관계가 뭉갭니다'],
+          ['※ 화성 진행 늘리지 않기','—','모드는 한 화성에 오래 머물수록 색이 살아납니다']]},
+        {k:['gypsy','tango','rumba'], n:'민속 무곡', t:[
+          ['자연 공간','전체','Room 1.0~1.4s — 신스 리버브보다 방 느낌'],
+          ['※ FX 최소','전체','악기 소리 자체가 장르입니다'],
+          ['Accordion / Bandoneon','Melody','음원 교체 자리 — 로직 기본에 없으면 Accordion 계열로']]},
+        {k:['ambient','meditation','drone','newage'], n:'앰비언트', t:[
+          ['Reverb 길게','Pad·Melody','Hall 3.5~5s · Pre-delay 40ms · Mix 35%'],
+          ['※ 컴프 쓰지 않기','전체','다이내믹을 누르면 공간이 죽습니다'],
+          ['LFO / 무빙 필터','Pad','아주 느리게(0.05~0.1Hz) — 소리가 살아 있게']]}
+      ];
+      const hit=FAM.find(f=>f.k.indexOf(gsel)>=0);
+      if(hit){
+        L.push('■ 이 장르의 특수 FX — 소리를 장르답게 만드는 지점 ('+hit.n+')');
+        L.push('  [MIDI FX] 는 악기 앞단(노트를 바꿈) · [Audio FX] 는 악기 뒷단(소리를 바꿈)');
+        L.push('  로직에서 MIDI FX는 트랙 선택 > 인스펙터 좌측 상단 "MIDI FX" 슬롯입니다');
+        hit.t.forEach(x=>{
+          L.push('   · '+x[0]+(x[1]&&x[1]!=='—'?('  →  '+x[1]+(/트랙$/.test(x[1])?'':' 트랙')):''));
+          L.push('       '+x[2]);
+        });
+        L.push('');
+      }
+    }
     L.push('■ 트랙 배치 순서 (로직에서 위→아래, 그룹으로)');
     L.push('──────────────────────────────────────────────────');
     { const order=[]; 
