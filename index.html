@@ -14951,7 +14951,9 @@ function buildSongSheet(){
     const hit=MH.ROLE.find(r=>r[0]===n||r[0].indexOf(n)===0);
     if(hit) return hit;
     if(n==='TopMel'){
-      const L=MH.ROLE.find(r=>r[0]==='Lead'||r[0].indexOf('Lead')===0);
+      /* 장르에 따라 선율 자리 항목명이 다르다 — Lead가 없으면 Arp/Pluck을 기준으로 쓴다
+         (멜로딕하우스·딥하우스는 Lead 항목 없이 Arp/Pluck만 있음) */
+      const L=MH.ROLE.find(r=>/^(Lead|Arp)/.test(r[0])) || MH.ROLE.find(r=>r[0]==='Pad');
       const bothLead=!!(MODEL.tracks.lead&&MODEL.tracks.lead.length);
       const pan = bothLead ? 'C (리드는 L15~R15로 비켜 앉히기)' : 'C';
       const lvl = L ? (String(L[2])+' 에서 +2dB (주선율이 가장 앞)') : '−4~−6 (가장 앞)';
