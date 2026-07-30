@@ -1795,6 +1795,7 @@ input[type=range]{accent-color:var(--teal)}
     <label class="chip" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;margin-bottom:4px;"><input type="checkbox" id="topMel" style="margin:0"> 🎤 주 멜로디 얹기</label>
     <label class="chip" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;margin:0 0 4px 8px;" title="킥·베이스를 여리게, 스네어는 2·4박 중심, 코드는 중역으로, 7·9도 화성 강화"><input type="checkbox" id="lofiSoft" style="margin:0"> 🌙 로파이 걸 스타일</label>
     <label class="chip" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;margin:0 0 4px 6px;" title="마이너 중심 화성, 16분 펄스+옥타브 왕복 베이스, 2·4박 게이트 스네어, 넓은 패드"><input type="checkbox" id="synthWave" style="margin:0"> 🌌 신스웨이브 스타일</label>
+    <label class="chip" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;margin:0 0 4px 6px;" title="옥타브 베이스, 4-on-the-floor, 16분 커팅 기타, 브라스 스탭 — 곡마다 다른 조합"><input type="checkbox" id="discoFunk" style="margin:0"> 🪩 디스코·펑크 스타일</label>
     <select id="topFam" style="margin-left:6px;vertical-align:middle;">
       <option value="synth" selected>신스 (기본)</option>
       <option value="vocal">보컬 (노래)</option>
@@ -9273,11 +9274,14 @@ function exportAll(){arrange();
   if(__imp) tr.push(noteTrack(__imp,15,73,false,(__impSel?null:[{t:0,ctrl:7,val:0}]),(__impSel?'':'[뮤트] ')+'[가져온] 멜로디 — 보존됨 (Flute)',null));   // 멜로디 앵커: 넘어온 멜로디 그대로 실음(선택 안 되면 뮤트)
   if(window.SO_motive){ const __mo=window.SO_motive('band'); if(__mo.length) tr.push(noteTrack(__mo,14,11,false,null,'[모티브] 인트로·간주·아웃트로 (멜로디 훅 기반) — Vibraphone',null)); }   // 멜로디 훅 모티브: 전환 구간에 협화로 배치
   dl(tr,`band_${state.style}_${MODEL.bpm}bpm.mid`);
-  { const _toc=['','','═══════════════════════════════════════════','  이 문서 하나에 다 들어 있습니다 — 순서대로 따라오세요','═══════════════════════════════════════════',
-      '  1부. 이 곡 정보 · 구간별 코드 진행 · 트랙별 셋업 (바로 아래)',
-      '  2부. 로직 공통 준비 — 미디 불러오기 · 플러그인 넣는 위치 · 주파수 지도 (문서 뒤쪽)',
-      '  ※ 처음이면 2부부터 읽고 1부로 오면 편합니다.',''].join('\n');
-    downloadTxt(songSheet()+_toc+'\n\n\n'+logicGuide(), `band_${state.style}_${MODEL.bpm}bpm_설명서.txt`); }}
+  /* 목차는 문서 맨 앞에 — 뒤에 붙으면 "바로 아래"라는 안내가 1부가 끝난 자리에서 나와 어긋난다.
+     1부와 2부 사이에는 별도 구분선을 넣어 어디부터 2부인지 보이게 한다. */
+  { const _toc=['═══════════════════════════════════════════','  이 문서 하나에 다 들어 있습니다 — 순서대로 따라오세요','═══════════════════════════════════════════',
+      '  1부. 이 곡 정보 · 구간별 코드 진행 · 트랙별 셋업   (이 아래부터)',
+      '  2부. 로직 공통 준비 — 미디 불러오기 · 플러그인 넣는 위치 · 주파수 지도   (문서 뒤쪽)',
+      '  ※ 처음이면 2부부터 읽고 1부로 오면 편합니다.','',''].join('\n');
+    const _mid=['','','═══════════════════════════════════════════','  여기부터 2부 — 로직 공통 준비','═══════════════════════════════════════════',''].join('\n');
+    downloadTxt(_toc+songSheet()+_mid+'\n\n'+logicGuide(), `band_${state.style}_${MODEL.bpm}bpm_설명서.txt`); }}
 /* 로직 셋업 가이드 — 켜진 트랙에 맞춰 음원·이펙트·조합·명상 세팅을 체크리스트로 */
 /* ===== 장르별 상세 FX (항목별 세분화: eq/dyn/rev/dly/more, 수치·명칭 포함) ===== */
 const GENRE_FX={
@@ -11850,7 +11854,7 @@ function applyGenreDefaults(randomize,opt){opt=opt||{};
   const g=curGenre();state.active=0;
   if(opt.genreSwitch){                                          // 장르 전환 시: 구성 설정을 그 장르 기본값으로
     const cfg=GENRE_CONFIG[g.id]; if(cfg){
-      state.topMel=state.topMel||false; state.topFam=state.topFam||'synth'; state.lofiSoft=state.lofiSoft||false; state.synthWave=state.synthWave||false; state.introStyle=cfg.introStyle; state.endStyle=cfg.endStyle; state.beatSwitch=cfg.beatSwitch; state.groove=cfg.groove; state.endUser=false; state.keyUser=false; state.edmUser=false; // 장르 바뀌면 엔딩·키·EDM 스타일 다시 자동 다양화
+      state.topMel=state.topMel||false; state.topFam=state.topFam||'synth'; state.lofiSoft=state.lofiSoft||false; state.synthWave=state.synthWave||false; state.discoFunk=state.discoFunk||false; state.introStyle=cfg.introStyle; state.endStyle=cfg.endStyle; state.beatSwitch=cfg.beatSwitch; state.groove=cfg.groove; state.endUser=false; state.keyUser=false; state.edmUser=false; // 장르 바뀌면 엔딩·키·EDM 스타일 다시 자동 다양화
       ['introStyle','endStyle','beatSwitch','groove'].forEach(k=>{if($(k))$(k).value=cfg[k];});
     }
   }
@@ -13528,8 +13532,10 @@ function arrange(){
   layerHookpop();                                                     // Hook-Pop: 악기 레이어 누적 빌드업
   stopHitHookpop();                                                   // Hook-Pop: 코러스 직전 1박 완전 침묵 → 강타
   finalHookDrop();                                                    // Hook-Pop: 마지막 코러스 첫 부분 드럼아웃(챈트) → 복귀 폭발
+  MODEL.__style=null;   // 스타일 오버레이 기록 초기화(끄면 설명서에서도 사라지게)
   if(state.lofiSoft){ try{ applyLofiSoft(MODEL); }catch(e){ console.error('로파이 걸 스타일 오류', e); } }   // 여리게·중역·재즈 화성
   if(state.synthWave){ try{ applySynthwave(MODEL); }catch(e){ console.error('신스웨이브 스타일 오류', e); } }  // 어둡게·16분 펄스·게이트 스네어
+  if(state.discoFunk){ try{ applyDiscoFunk(MODEL); }catch(e){ console.error('디스코·펑크 스타일 오류', e); } }  // 밝게·옥타브 베이스·커팅 기타
   if(state.topMel){ try{ buildTopMelody(MODEL); }catch(e){ console.error('주 멜로디 오류', e); } }   // 구조에 맞춘 팝 훅을 리드에 얹기
   dedupMelodic(MODEL.tracks);                                         // 위 레이어들도 정리 대상 — 나중에 만들어지므로 여기서 한 번 더
   return MODEL;
@@ -14006,6 +14012,7 @@ function fixHarmonyClashes(tr,sview){
    그래서 로파이보다 붐뱁·칠하우스처럼 들린다. 네 가지를 후처리로 되돌린다. */
 function applyLofiSoft(M){
   const tr=M.tracks; if(!tr) return;
+  try{ M.__style={kind:'lofi'}; }catch(e){}
   const bar=4;
   // ① 킥·베이스를 뒤로 물린다 (로파이는 전체를 여리게)
   (tr.kick||[]).forEach(n=>{ n.vel=Math.max(38,Math.round(n.vel*0.74)); });
@@ -14023,20 +14030,132 @@ function applyLofiSoft(M){
     while(n.midi<44) n.midi+=12;
     n.vel=Math.max(34,Math.round(n.vel*0.9));
   }); });
-  // ④ 7·9도 화성 강화 — 3화음뿐이면 7도를 얹는다(재즈 감)
+  /* ④ 7도 화성 강화 — 3화음뿐이면 7도를 얹는다(재즈 감).
+     근음은 '화음의 최저음'이 아니라 베이스 트랙에서 읽는다.
+     자리바꿈된 화음에서 최저음을 근음으로 잡으면 엉뚱한 음이 붙어
+     단조가 장조처럼 뒤집힌다(실측: 단조 50%→13%). */
   const byT={}; (tr.chords||[]).forEach(n=>{ const k=n.t.toFixed(3); (byT[k]=byT[k]||[]).push(n); });
+  const bassSorted=(tr.bass||[]).slice().sort((a,b)=>a.t-b.t);
+  const rootPcAt=function(t){
+    let best=null, bd=1e9;
+    for(let i=0;i<bassSorted.length;i++){
+      if(bassSorted[i].t>t+0.75) break;
+      const d=Math.abs(bassSorted[i].t-t);
+      if(d<bd){ bd=d; best=bassSorted[i]; } }
+    return (best && bd<=0.75) ? ((best.midi%12)+12)%12 : null;
+  };
   const add=[];
   Object.keys(byT).forEach(k=>{
     const v=byT[k].slice().sort((a,b)=>a.midi-b.midi); if(v.length<2) return;
-    const root=v[0].midi, iv=v.map(x=>(((x.midi-root)%12)+12)%12);
-    const hasMinor = iv.indexOf(3)>=0;
+    let rpc=rootPcAt(v[0].t);
+    if(rpc==null) rpc=((v[0].midi%12)+12)%12;
+    const iv=v.map(x=>(((x.midi-rpc)%12)+12)%12);
+    const hasMinor = iv.indexOf(3)>=0, hasMajor = iv.indexOf(4)>=0;
+    if(!hasMinor && !hasMajor) return;                 // 3도가 없는 5도 화음은 건드리지 않음
     if(iv.indexOf(10)<0 && iv.indexOf(11)<0){
       const sev = hasMinor ? 10 : 11;                 // 단3도면 단7도, 장3도면 장7도
-      let m=root+sev; while(m>74)m-=12; while(m<48)m+=12;
+      let m = v[0].midi + (((((rpc+sev) - (v[0].midi%12))%12)+12)%12);
+      while(m>74)m-=12; while(m<48)m+=12;
       if(!v.some(x=>x.midi===m)) add.push({t:v[0].t, midi:m, dur:v[0].dur, vel:Math.max(30,Math.round(v[0].vel*0.8))});
     }
   });
   if(add.length) tr.chords=(tr.chords||[]).concat(add).sort((a,b)=>a.t-b.t);
+}
+
+/* ── 디스코·펑크 스타일 ──
+   Earth, Wind & Fire 'September' 계열. 옥타브 베이스 · 4-on-the-floor ·
+   16분 커팅 기타 · 브라스 스탭이 뼈대이고, 장조로 밝게 간다.
+   같은 스타일 안에서도 곡마다 다르게 — 베이스 5종 · 기타 4종 · 브라스 3종을 시드로 고른다. */
+function applyDiscoFunk(M){
+  const tr=M.tracks; if(!tr) return;
+  const bar=4;
+  const pick=(arr,salt)=>arr[Math.abs(((state.seed||1)*2654435761+salt*131)>>>0) % arr.length];
+  const DF_BASS=[
+    {n:'옥타브 8분 (September)', step:0.5, seq:[0,12]},
+    {n:'옥타브 16분', step:0.25, seq:[0,12,0,12]},
+    {n:'근음-옥타브-5도', step:0.25, seq:[0,12,7,12]},
+    {n:'싱코페이션 옥타브', step:0.25, seq:[0,0,12,0,7,12,0,12]},
+    {n:'근음 펄스 + 4박 옥타브', step:0.25, seq:[0,0,0,12]}
+  ];
+  const DF_GTR=[
+    {n:'16분 풀 커팅', hits:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]},
+    {n:'뒷박 커팅', hits:[2,3,6,7,10,11,14,15]},
+    {n:'&박 커팅', hits:[2,6,10,14]},
+    {n:'싱코페이션 커팅', hits:[0,3,4,6,8,11,12,14]}
+  ];
+  const DF_BRASS=[
+    {n:'훅 스탭', at:[0,6,8,14]}, {n:'앞 스탭', at:[0,4,8,12]}, {n:'싱코 스탭', at:[3,7,11,15]}
+  ];
+  const BP=pick(DF_BASS,7), GP=pick(DF_GTR,17), SP=pick(DF_BRASS,23);
+  try{ M.__style={kind:'disco', bass:BP.n, gtr:GP.n, brass:SP.n}; }catch(e){}
+
+  // 화성 구간
+  const byT={}; (tr.chords||[]).forEach(n=>{ const k=n.t.toFixed(3); (byT[k]=byT[k]||[]).push(n); });
+  const keys=Object.keys(byT).map(parseFloat).sort((a,b)=>a-b);
+  if(!keys.length) return;
+  const segs=keys.map((t0,i)=>{ const v=byT[t0.toFixed(3)].slice().sort((a,b)=>a.midi-b.midi);
+    return {t0:t0, t1:(i+1<keys.length?keys[i+1]:t0+bar), root:((v[0].midi%12)+12)%12, tones:v.map(x=>x.midi)}; });
+  let endT=0; ['kick','snare','chords'].forEach(k=>{ (tr[k]||[]).forEach(n=>{ const e=(+n.t)+(+n.dur); if(isFinite(e)&&e>endT)endT=e; }); });
+  if(!(endT>0)) endT=segs[segs.length-1].t1;
+
+  /* ① 장조로 — 단3도를 장3도로 (디스코는 밝은 정서) */
+  const rootAt=t=>{ for(let i=segs.length-1;i>=0;i--) if(t>=segs[i].t0-0.02) return segs[i].root; return segs[0].root; };
+  ['chords','pad','lead','arpseq','topmel','piano'].forEach(k=>{ (tr[k]||[]).forEach(n=>{
+    const r=rootAt(n.t); const iv=(((n.midi-r)%12)+12)%12;
+    if(iv===3) n.midi+=1; }); });
+
+  /* ② 옥타브 베이스 */
+  { const nb=[];
+    segs.forEach(sg=>{
+      let base=36+sg.root; while(base<33)base+=12; while(base>45)base-=12;
+      let i=0;
+      for(let t=sg.t0; t<Math.min(sg.t1,endT)-0.01; t+=BP.step, i++){
+        const iv=BP.seq[i%BP.seq.length];
+        nb.push({t:+t.toFixed(4), midi:base+iv, dur:+(BP.step*0.8).toFixed(3),
+          vel:(i%(BP.seq.length)===0)?106:(iv>0?84:94)});
+      }
+    });
+    if(nb.length) tr.bass=nb;
+  }
+  /* ③ 4-on-the-floor + 오픈햇 백비트 */
+  { const nk=[];
+    for(let t=0; t<endT-0.01; t+=1) nk.push({t:+t.toFixed(3), midi:36, dur:0.3, vel:(t%bar===0)?112:102});
+    if(nk.length) tr.kick=nk;
+    const no=[];
+    for(let t=0.5; t<endT-0.01; t+=1) no.push({t:+t.toFixed(3), midi:46, dur:0.24, vel:74});
+    if(no.length) tr.ohat=no;
+  }
+  /* ④ 16분 커팅 기타 — 코드톤을 짧게 끊어 친다 */
+  { const ng=[];
+    segs.forEach(sg=>{
+      const tones=sg.tones.map(m=>{ let x=m; while(x<60)x+=12; while(x>81)x-=12; return x; })
+                          .filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a-b).slice(0,3);
+      if(!tones.length) return;
+      for(let t=sg.t0; t<Math.min(sg.t1,endT)-0.01; t+=bar){
+        GP.hits.forEach(h=>{ const tt=t+h*(bar/16);
+          if(tt>=Math.min(sg.t1,endT)-0.01) return;
+          tones.forEach(m=>ng.push({t:+tt.toFixed(4), midi:m, dur:0.11, vel:(h%4===0)?78:64}));
+        });
+      }
+    });
+    if(ng.length) tr.arpseq=ng;                        // 커팅 기타를 아르페지오 자리에
+  }
+  /* ⑤ 브라스 스탭 — 훅 구간에만 */
+  { const S=(M.sections||[]).filter(s=>/Hook|Chorus|Drop/i.test(s.type));
+    const nl=[];
+    S.forEach(sc=>{
+      for(let t=sc.startQ; t<Math.min(sc.endQ,endT)-0.01; t+=bar){
+        const sg=segs.filter(x=>x.t0<=t+0.02).pop(); if(!sg) continue;
+        const tones=sg.tones.map(m=>{ let x=m; while(x<67)x+=12; while(x>88)x-=12; return x; })
+                            .filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a-b).slice(0,3);
+        SP.at.forEach(h=>{ const tt=t+h*(bar/16);
+          if(tt>=Math.min(sc.endQ,endT)-0.01) return;
+          tones.forEach(m=>nl.push({t:+tt.toFixed(4), midi:m, dur:0.3, vel:98}));
+        });
+      }
+    });
+    if(nl.length) tr.lead=nl;
+  }
 }
 
 /* ── 신스웨이브 스타일 (Lofi Boy 쪽) ──
@@ -14063,7 +14182,22 @@ function applySynthwave(M){
       else if(iv===11) n.midi-=1;    // 장7도 → 단7도
     });
   });
-  /* ② 베이스 재작성 — 16분 펄스 + 옥타브 왕복(신스웨이브의 시그니처) */
+  /* ② 베이스 재작성 — 곡마다 다른 패턴을 고른다(같은 스타일 안에서 다채롭게).
+        시드로 고르므로 같은 곡은 늘 같고, 새로 만들면 달라진다. */
+  const SW_BASS=[
+    {n:'옥타브 왕복 16분', step:0.25, seq:[0,12,0,12], acc:[1,0,0,0]},
+    {n:'근음 연타 + 옥타브', step:0.25, seq:[0,0,0,12], acc:[1,0,0,0]},
+    {n:'근음-5도-옥타브 상승', step:0.25, seq:[0,7,12,7], acc:[1,0,0,0]},
+    {n:'8분 옥타브', step:0.5, seq:[0,12], acc:[1,0]},
+    {n:'싱코페이션 옥타브', step:0.25, seq:[0,0,12,0,0,12,0,12], acc:[1,0,0,0,0,0,0,0]}
+  ];
+  const SW_ARP=[
+    {n:'펜듈럼', mode:'pend'}, {n:'상승', mode:'up'}, {n:'하강', mode:'down'},
+    {n:'브로큰', mode:'broken'}, {n:'옥타브 점프', mode:'oct'}
+  ];
+  const swPick=(arr,salt)=>arr[Math.abs(((state.seed||1)*2654435761+salt*97)>>>0) % arr.length];
+  const BP=swPick(SW_BASS,11), AP=swPick(SW_ARP,29);
+  try{ M.__style={kind:'synthwave', bass:BP.n, arp:AP.n}; }catch(e){}
   if(segs.length){
     /* 곡 끝 — 트랙에 유한하지 않은 값이 섞이면 Math.max가 NaN이 되어 루프가 아예 안 돈다.
        유한한 값만 골라 접고, 못 구하면 마지막 코드 구간 끝을 쓴다. */
@@ -14071,14 +14205,15 @@ function applySynthwave(M){
     ['kick','snare','chords','pad','hat'].forEach(k=>{ (tr[k]||[]).forEach(n=>{
       const e=(+n.t)+(+n.dur); if(isFinite(e)&&e>endT) endT=e; }); });
     if(!(endT>0)) endT=segs[segs.length-1].t1;
-    const nb=[]; const step=0.25;
+    const nb=[]; const step=BP.step;
     segs.forEach(sg=>{
       let base=36+sg.root; while(base<33)base+=12; while(base>45)base-=12;
       let i=0;
       for(let t=sg.t0; t<Math.min(sg.t1,endT)-0.01; t+=step, i++){
-        const up=(i%2===1);
-        nb.push({t:+t.toFixed(4), midi:up?base+12:base, dur:0.22,
-          vel: (i%4===0)?104:(up?78:88)});
+        const iv=BP.seq[i%BP.seq.length];
+        const acc=BP.acc[i%BP.acc.length];
+        nb.push({t:+t.toFixed(4), midi:base+iv, dur:+(step*0.88).toFixed(3),
+          vel: acc?104:(iv>0?78:88)});
       }
     });
     if(nb.length) tr.bass=nb;
@@ -14104,7 +14239,12 @@ function applySynthwave(M){
         const tones=[]; on.forEach(m=>{ let x=m; while(x<72)x+=12; while(x>93)x-=12; if(tones.indexOf(x)<0)tones.push(x); });
         tones.sort((a,b)=>a-b);
         if(tones.length<2) return;
-        const seq=tones.concat(tones.slice(1,-1).reverse());   // 업–다운(펜듈럼)
+        let seq;
+        if(AP.mode==='up')          seq=tones.slice();
+        else if(AP.mode==='down')   seq=tones.slice().reverse();
+        else if(AP.mode==='broken') seq=[tones[0],tones[Math.min(2,tones.length-1)],tones[Math.min(1,tones.length-1)],tones[tones.length-1]];
+        else if(AP.mode==='oct')    seq=tones.concat(tones.map(x=>Math.min(93,x+12)));
+        else                        seq=tones.concat(tones.slice(1,-1).reverse());   // 펜듈럼
         let i=0;
         for(let t=sg.t0; t<Math.min(sg.t1,endA)-0.01; t+=step, i++){
           out.push({t:+t.toFixed(4), midi:seq[i%seq.length], dur:0.2,
@@ -15076,6 +15216,43 @@ function buildSongSheet(){
   }
   /* 장르마다 '그 소리를 그 소리답게 만드는' 특수 FX가 따로 있다.
      로직에서 어느 트랙에 무엇을 걸어야 하는지 — MIDI FX와 Audio FX를 나눠 적는다. */
+  /* 스타일 오버레이(로파이 걸·신스웨이브·디스코)를 켰다면 무엇이 적용됐는지,
+     이번 곡에 어떤 패턴이 뽑혔는지 적는다 — 로직에서 트랙을 볼 때 대조가 된다. */
+  { const SY=MODEL.__style;
+    if(SY){
+      const D={
+        lofi:{n:'🌙 로파이 걸 스타일', d:[
+          '킥·베이스를 여리게(×0.74/0.76) · 스네어는 2·4박만 본타, 나머지는 고스트(×0.42)',
+          '코드·패드를 중역(44~74)으로 접음 — 따뜻하고 뿌옇게',
+          '3화음이면 7도를 얹어 재즈 화성으로 (단3도면 단7도, 장3도면 장7도)',
+          '※ 사이드체인 쓰지 마세요 — 로파이는 펌핑하지 않습니다']},
+        synthwave:{n:'🌌 신스웨이브 스타일', d:[
+          '마이너 중심 — 장3도를 단3도로, 장7도를 단7도로 (코드·패드·리드·아르페지오 전부)',
+          '스네어는 2·4박 한 방 — 게이트 리버브를 걸 자리입니다',
+          '패드에 옥타브 위 층을 얹어 넓게']},
+        disco:{n:'🪩 디스코·펑크 스타일', d:[
+          '장조 중심 — 단3도를 장3도로 (밝은 정서)',
+          '킥 4-on-the-floor + 오픈햇 백비트',
+          '커팅 기타는 Arp/Pluck 트랙에 들어 있습니다 — 짧게 끊어 치는 16분',
+          '브라스 스탭은 Lead 트랙, 훅 구간에만']}
+      }[SY.kind];
+      if(D){
+        L.push('');
+        L.push('■ 적용된 스타일 — '+D.n);
+        D.d.forEach(x=>L.push('   · '+x));
+        const pat=[];
+        if(SY.bass)  pat.push('베이스: '+SY.bass);
+        if(SY.arp)   pat.push('아르페지오: '+SY.arp);
+        if(SY.gtr)   pat.push('커팅 기타: '+SY.gtr);
+        if(SY.brass) pat.push('브라스 스탭: '+SY.brass);
+        if(pat.length){
+          L.push('   [이번 곡에 뽑힌 패턴]  '+pat.join('  ·  '));
+          L.push('   같은 스타일이라도 새로 만들 때마다 다른 패턴이 뽑힙니다.');
+        }
+        L.push('');
+      }
+    }
+  }
   { const FXTIP={
       retro:[['MIDI FX · Arpeggiator','Chords 트랙','Up/Down · Rate 1/16 · Octave Range 2 · Note Length 60%. 곡을 돌리면서 패턴을 바꿔보고, 정해지면 트랙 우클릭 > "MIDI 효과를 MIDI 리전으로 변환"으로 실물 노트로 굳힙니다'],
              ['Gated Reverb','Snare','ChromaVerb(Room, Decay 1.8s) → 뒤에 Noise Gate(Threshold -28dB, Hold 120ms). 80년대 스네어의 그 "퍽" 소리'],
@@ -15121,7 +15298,26 @@ function buildSongSheet(){
                ['Multiband Comp','전체 버스','저역만 눌러 킥·베이스 단단하게'],
                ['Vocal 자리 비우기','Chords·Pad','2~4kHz −1~2dB']]
     };
-    const tip=FXTIP[state.genre];
+    let tip=FXTIP[state.genre];
+    if(MODEL.__style && MODEL.__style.kind==='disco') tip=[
+      ['Amp / Auto Filter','Arp/Pluck (커팅 기타)','Amp Designer Clean + Auto Filter로 와와 느낌. 또는 Phaser 살짝'],
+      ['Brass 음원','Lead (브라스 스탭)','Studio Horns 또는 Alchemy 검색 Brass — 짧게 끊어 치는 스탭이라 어택이 빠른 것으로'],
+      ['Compressor 붙여서','Bass','Ratio 4:1 · Attack 10ms · Release 80ms — 옥타브 베이스를 단단하게'],
+      ['Room Reverb','Drums','Room 0.8~1.0s · Send 12% — 70년대 스튜디오 공간'],
+      ['※ 사이드체인 쓰지 않기','—','디스코는 킥과 베이스가 함께 밀어야 합니다']
+    ];
+    if(MODEL.__style && MODEL.__style.kind==='synthwave') tip=[
+      ['Gated Reverb','Snare','ChromaVerb(Room, Decay 1.8s) → 뒤에 Noise Gate(Threshold -28dB, Hold 120ms)'],
+      ['Chorus / Ensemble','Lead·Pad','Rate 0.4Hz · Depth 40%'],
+      ['Sidechain','Pad·Chords','Sidechain=킥 · Ratio 4:1 · Attack 1ms · Release 120ms'],
+      ['※ 아르페지에이터 불필요','Arp/Pluck','이미 실물 노트로 나와 있습니다. 패턴을 바꾸고 싶을 때만 Chords 트랙에 거세요']
+    ];
+    if(MODEL.__style && MODEL.__style.kind==='lofi') tip=[
+      ['Bitcrusher','Chords·Pad','12bit · Downsampling 2~3x — 살짝만'],
+      ['Tape Delay','Chords','1/8점 · Feedback 18% · LPF 4kHz'],
+      ['Vinyl / Hiss','FX-bed','볼륨 -26~-30dB로 거의 안 들릴 듯'],
+      ['※ 사이드체인 쓰지 않기','—','로파이는 펌핑하지 않습니다']
+    ];
     if(tip){
       L.push('');
       L.push('■ 이 장르의 특수 FX — 소리를 장르답게 만드는 지점');
@@ -15881,12 +16077,21 @@ $('gen').onclick=()=>generateSong(false);          // 설정 반영
   const _ls=document.getElementById('lofiSoft');
   if(_ls){ _ls.checked=!!state.lofiSoft;
     _ls.onchange=function(e){ state.lofiSoft=e.target.checked;
-      if(e.target.checked){ const o=document.getElementById('synthWave'); if(o){o.checked=false; state.synthWave=false;} }
+      if(e.target.checked){ const o=document.getElementById('synthWave'); if(o){o.checked=false; state.synthWave=false;} const o2=document.getElementById('discoFunk'); if(o2){o2.checked=false; state.discoFunk=false;} }
       const g=document.getElementById('gen'); if(g) g.click(); }; }
   const _sw=document.getElementById('synthWave');
+  const _df=document.getElementById('discoFunk');
+  const only=function(keep){   // 세 스타일은 성격이 달라 하나만 켠다
+    [['lofiSoft',_ls],['synthWave',_sw],['discoFunk',_df]].forEach(function(x){
+      if(x[0]!==keep && x[1]){ x[1].checked=false; state[x[0]]=false; } });
+  };
   if(_sw){ _sw.checked=!!state.synthWave;
     _sw.onchange=function(e){ state.synthWave=e.target.checked;
-      if(e.target.checked){ const o=document.getElementById('lofiSoft'); if(o){o.checked=false; state.lofiSoft=false;} }   // 정반대 성격이라 동시에 켜지 않는다
+      if(e.target.checked) only('synthWave');
+      const g=document.getElementById('gen'); if(g) g.click(); }; }
+  if(_df){ _df.checked=!!state.discoFunk;
+    _df.onchange=function(e){ state.discoFunk=e.target.checked;
+      if(e.target.checked) only('discoFunk');
       const g=document.getElementById('gen'); if(g) g.click(); }; } }   // 켜고 끌 때·음색 바꿀 때 즉시 다시 만들기
 $('fullRand').onclick=()=>generateSong(true);      // 전부 랜덤
 $('curvePreset').onclick=()=>{if(state.sections.length<2){flashMsg('구간이 2개 이상 필요해요.');return;}
@@ -21869,6 +22074,22 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       window.SO_renderCommon({skip:{vinst:1,plugin:1,gain:1,eqBasic:1,routing:1,sidechain:1,master:1}}).forEach(function(x){ L.push(x); });
     }
     L.push('──────────────────────────────────────────────────');
+    L.push('■ 트랙 배치 순서 (로직에서 위→아래, 그룹으로)');
+    L.push('──────────────────────────────────────────────────');
+    { const order=[]; 
+      if(INST.drums.on) order.push('Drums(ch9)'); if(gsel==='epicaeol'||gsel==='gukvocal'||CINE.has(gsel)){ order.push('Timpani'); order.push('OrchCymbals'); } if(INST.bass.on) order.push('Bass(ch3)'); if(prodTracks) order.push('Sub(ch8)');
+      if(INST.piano.on) order.push('Piano(ch0)'); if(INST.piano.on && songTheme) order.push('Piano2(테마)'); if(prodTracks) order.push('Pad(ch4)');
+      if(INST.strings.on) order.push('Strings(ch1)'); if(INST.winds.on) order.push('Winds(ch2)');
+      if(CINE.has(gsel)){ order.push('Horns(ch10)'); order.push('Contrabass(ch15)'); if(gsel!=='cineTension')order.push('Harp(ch12)'); }
+      if(counterOn) order.push('Counter(ch6)'); if(INST.melody.on) order.push('Melody(ch5)');
+      if(prodTracks) order.push('Riser(ch7)');
+      L.push('   리듬→저음: '+order.filter(x=>/Drums|Bass|Sub|Timpani|OrchCym/.test(x)).join('  '));
+      L.push('   화성: '+order.filter(x=>/Piano|Pad|Strings|Winds|Horns|Contrabass|Harp/.test(x)).join('  '));
+      L.push('   선율: '+order.filter(x=>/Counter|Melody/.test(x)).join('  '));
+      if(prodTracks) L.push('   FX/보조: Riser(ch7)  + Aux: Reverb Hall, Delay, (드럼)Room');
+      L.push('   * Aux 버스: A=Hall리버브 / B=Delay / C=Room(드럼) — 센드로 보냄'); }
+    L.push('');
+    L.push('──────────────────────────────────────────────────');
     /* 장르마다 '그 소리를 그 소리답게 만드는' 특수 FX가 따로 있다. 그룹 단위로 묶어 적는다.
        [MIDI FX]는 악기 앞단(노트를 바꿈), [Audio FX]는 뒷단(소리를 바꿈). */
     { const FAM=[
@@ -21938,22 +22159,6 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
         L.push('');
       }
     }
-    L.push('■ 트랙 배치 순서 (로직에서 위→아래, 그룹으로)');
-    L.push('──────────────────────────────────────────────────');
-    { const order=[]; 
-      if(INST.drums.on) order.push('Drums(ch9)'); if(gsel==='epicaeol'||gsel==='gukvocal'||CINE.has(gsel)){ order.push('Timpani'); order.push('OrchCymbals'); } if(INST.bass.on) order.push('Bass(ch3)'); if(prodTracks) order.push('Sub(ch8)');
-      if(INST.piano.on) order.push('Piano(ch0)'); if(INST.piano.on && songTheme) order.push('Piano2(테마)'); if(prodTracks) order.push('Pad(ch4)');
-      if(INST.strings.on) order.push('Strings(ch1)'); if(INST.winds.on) order.push('Winds(ch2)');
-      if(CINE.has(gsel)){ order.push('Horns(ch10)'); order.push('Contrabass(ch15)'); if(gsel!=='cineTension')order.push('Harp(ch12)'); }
-      if(counterOn) order.push('Counter(ch6)'); if(INST.melody.on) order.push('Melody(ch5)');
-      if(prodTracks) order.push('Riser(ch7)');
-      L.push('   리듬→저음: '+order.filter(x=>/Drums|Bass|Sub|Timpani|OrchCym/.test(x)).join('  '));
-      L.push('   화성: '+order.filter(x=>/Piano|Pad|Strings|Winds|Horns|Contrabass|Harp/.test(x)).join('  '));
-      L.push('   선율: '+order.filter(x=>/Counter|Melody/.test(x)).join('  '));
-      if(prodTracks) L.push('   FX/보조: Riser(ch7)  + Aux: Reverb Hall, Delay, (드럼)Room');
-      L.push('   * Aux 버스: A=Hall리버브 / B=Delay / C=Room(드럼) — 센드로 보냄'); }
-    L.push('');
-    L.push('──────────────────────────────────────────────────');
     L.push('■ 트랙별 셋업 — 트랙마다 [①가상악기 → ②FX → ③팬·볼륨 → ④믹싱 수치(EQ·컴프·리버브·주파수)] 순서');
     L.push('──────────────────────────────────────────────────');
     L.push('   [넣는 법] 믹서 열기(X) → 트랙 선택 → 채널 스트립 Audio FX 슬롯 클릭 → 아래 플러그인 선택 → 더블클릭해 값 입력');
