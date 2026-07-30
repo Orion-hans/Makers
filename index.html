@@ -14971,7 +14971,18 @@ function buildSongSheet(){
     if(MODEL.tracks.arpseq&&MODEL.tracks.arpseq.length)present.push('Arp');
     if(MODEL.tracks.drone&&MODEL.tracks.drone.length)present.push('Drone');
     if(MODEL.tracks.piano&&MODEL.tracks.piano.length)present.push('Piano');
-    present.forEach(n=>{ const k=RK[n]; const role=roleOf(n); const rec=(k&&RN[k])?RN[k]:''; const lp=(k&&LP[k])?LP[k]:''; const ap=(k&&AP[k])?AP[k]:'';
+    /* 주 멜로디는 음색 선택(신스·보컬·관악·현악·피아노)에 따라 로직에서 찾을 음원이 달라진다.
+       Lead 추천을 그대로 쓰면 엉뚱한 음원을 찾게 되므로 선택에 맞춰 갈아준다. */
+    const TOPREC={
+      synth:  ['Soft Lead','Alchemy 검색 Lead > Soft/Warm','EFM1: mellow FM lead'],
+      vocal:  ['Voice / Vocal Pad','Alchemy 검색 Vocal > Aah/Ooh 계열','Vintage Mellotron: Choir'],
+      winds:  ['Flute / Woodwind','Studio Woodwinds 또는 Alchemy 검색 Flute','Vintage Mellotron: Flute'],
+      strings:['Solo Violin / Cello','Studio Strings 솔로 또는 Alchemy 검색 Strings','Vintage Mellotron: Strings'],
+      piano:  ['Grand / Felt Piano','Studio Piano (Felt 프리셋)','Vintage Keys: Electric Piano']
+    };
+    present.forEach(n=>{ const k=RK[n]; const role=roleOf(n);
+      let rec=(k&&RN[k])?RN[k]:''; let lp=(k&&LP[k])?LP[k]:''; let ap=(k&&AP[k])?AP[k]:'';
+      if(n==='TopMel'){ const T=TOPREC[state.topFam||'synth']||TOPREC.synth; rec=T[0]; lp=T[1]; ap=T[2]; }
       L.push(''); L.push('  ━━━━━ '+n+(n==='Bass'?(' ('+BS.play+')'):'')+' ━━━━━');
       L.push('  ① 가상악기: '+(rec?(rec+(lp?(' → '+lp):'')+(ap?('  ‖  '+ap):'')):(lp||'음원 유지 · 트랙명으로 라이브러리 검색')));
       const fxL=fxOf(n); const syn=(ss&&ss[n])?ss[n]:'';
