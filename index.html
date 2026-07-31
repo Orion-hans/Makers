@@ -1965,6 +1965,7 @@ input[type=range]{accent-color:var(--teal)}
   <details class="opt-fold" id="instFold">
     <summary><span style="opacity:.5;font-weight:400;margin-right:3px;">02</span>🎹 악기 · 음색 · 세부 조정</summary>
     <div class="preset-row"><button type="button" id="presetSolo">🎍 선율악기 + 피아노 반주</button><button type="button" id="presetBand">🎹 풀 밴드</button></div>
+    <label class="pedal-tog"><input type="checkbox" id="soloBuildTog"> 🥁 후반 타악 고조 <span>(타악 없는 편성에서만 · 절정 직전부터 팀파니·저역 북·심벌이 들어와 아웃트로에서 잦아듦)</span></label>
     <div class="inst-grid" id="instGrid"></div>
     <div class="fold-div"></div>
   <label class="pedal-tog"><input type="checkbox" id="soloPianoTog"> 🎹 솔로 피아노 <span>(드럼·베이스·반주 없이 피아노 한 대가 전부 연주)</span></label>   
@@ -5353,7 +5354,9 @@ function buildMidi(){
   // 박자표 메타(FF 58): 프로젝트 기본 4/4 등과 일치하도록 현재 박자표 기록
   const mparts=state.meter.split('/'), mNum=+mparts[0]||4, mDen=+mparts[1]||4;
   const mDd=Math.round(Math.log2(mDen));
-  pv(tr,0);tr.push(0xFF,0x58,0x04,mNum,mDd,mDen===8?12:24,8);
+  /* 메트로놈 클럭 — 24=4분 · 36=점4분(복합박) · 12=8분(변박). 6/8을 12로 적으면 6박으로 세어진다. */
+  var _mclk=(mDen===8)?((mNum%3===0&&mNum>3)?36:12):24;
+  pv(tr,0);tr.push(0xFF,0x58,0x04,mNum,mDd,_mclk,8);
   /* 트랙명 = 로직에서 보이는 유일한 안내다. 독주 편곡 여부·악기군·실린 CC를 적어 둔다. */
   let nm='SUM WAVE Melody';
   { const F=state.instFam||'piano';
@@ -5930,7 +5933,11 @@ const GROOVES={ballad8:{name:'발라드 8비트',kick:[0,10],snare:[4,12],hatRes
   afrobeat:{name:'아프로비트',kick:[0,6,10],snare:[4,12],ghost:[3,7,11],hatRes:16,openHat:[2,10],feel:'straight'},
   reggaeton:{name:'레게톤(뎀보우)',kick:[0,8],snare:[3,6,11,14],hatRes:8,feel:'straight'},
     rubato:{name:'루바토 (드럼 없음)',rubato:true,feel:'straight'}};
-const META_GROOVE={'5/8':'5_32','10/8':'10_3232'};
+/* 박자표를 고르면 자동으로 바뀌는 기본 리듬.
+   예전엔 5/8·10/8이 GROOVES에 없는 '5_32'·'10_3232'를 가리켜, 그 박자표를 고르면
+   기본 리듬 값이 빈 채로 남고 화면 갱신이 오류로 멈췄다(실측: 10/8 선택 시 TypeError).
+   변박은 발칸 브라스가 가장 가깝다(다불·타판이 3+2 계열 묶음을 그대로 다룬다). */
+const META_GROOVE={'5/8':'balkanbrass','10/8':'balkanbrass','7/8':'balkanbrass','6/8':'celtic68','12/8':'celtic68'};
 
 /* ===== 상태 ===== */
 const $=id=>document.getElementById(id);
@@ -6395,7 +6402,9 @@ function renderEditor(){
     tsel.onchange=e=>{sec.type=e.target.value;renderEditor();updateRibbon();};
     const msel=document.createElement('select');let oi=document.createElement('option');oi.value='inherit';oi.textContent='박자=기본';msel.appendChild(oi);
     Object.keys(METERS).forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;msel.appendChild(o);});msel.value=sec.meter;
-    msel.onchange=e=>{sec.meter=e.target.value;if(META_GROOVE[sec.meter])sec.groove=META_GROOVE[sec.meter];renderEditor();updateRibbon();};
+    msel.onchange=e=>{sec.meter=e.target.value; const mg=META_GROOVE[sec.meter];
+      if(mg && GROOVES[mg]) sec.groove=mg;   // 실제로 있는 리듬일 때만
+      renderEditor();updateRibbon();};
     const ssel=document.createElement('select');ssel.title='빌드업 단계 — 악기 진입·드럼 밀도·셈여림을 단계로';
     {const o=document.createElement('option');o.value='0';o.textContent='빌드=자동';ssel.appendChild(o);}
     Object.entries(STAGES).forEach(([k,v])=>{const o=document.createElement('option');o.value=k;o.textContent=v.ko;ssel.appendChild(o);});
@@ -6472,7 +6481,8 @@ function renderEditor(){
     const ab=document.createElement('button');ab.className='sm addbar';ab.textContent='+마디';
     ab.onclick=()=>{const last=sec.grid[sec.grid.length-1];sec.grid.push([last?last[0]:'']);renderEditor();updateRibbon();};
     bars.appendChild(ab);card.appendChild(bars);ed.appendChild(card);
-  $('styleHint').textContent=curStyle().hint+'  · 기본 그루브: '+GROOVES[grooveId()].name;
+  { const _g=GROOVES[grooveId()];   // 없는 리듬 id가 들어와도 화면이 멈추지 않게
+    $('styleHint').textContent=curStyle().hint+'  · 기본 그루브: '+(_g?_g.name:'—'); }
 }
 
 /* ===== 편곡 (그리드 → 이벤트) ===== */
@@ -9238,7 +9248,10 @@ function tempoTrack(){const PPQ=480,M=METERS[secMeter(state.sections[0])];
     if(e.type==='tempo'){const m=Math.round(60000000/e.bpm);body.push(0xFF,0x51,0x03,(m>>16)&255,(m>>8)&255,m&255);}
     else if(e.type==='ks')body.push(0xFF,0x59,0x02,e.sf&0xFF,e.mi);
     else if(e.type==='mark'){const b=sbm(asc(e.text)).slice(0,120);body.push(0xFF,0x06,b.length,...b);}   // FF 06 = Marker
-    else{const EM=METERS[e.meter]||M;body.push(0xFF,0x58,0x04,EM.num,EM.dp,24,8);}});
+    else{const EM=METERS[e.meter]||M;
+      /* 메트로놈 클럭 — 24=4분·36=점4분(복합박)·12=8분(변박). 늘 24로 적으면 6/8이 3박으로 세어진다. */
+      const _ck=(EM.dp===3)?((EM.num%3===0&&EM.num>3)?36:12):24;
+      body.push(0xFF,0x58,0x04,EM.num,EM.dp,_ck,8);}});
   body.push(...vlq(Math.max(0,padT+Math.round(endQ*PPQ)+padT-last)),0xFF,0x2F,0x00);   // EOT를 곡 끝+4마디 뒤에 → 뒤 여백 확보
   const NM=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
   const overview=`${state.style} ${NM[kpc]}${isMinor?'m':''} | ${state.sections.map(s=>s.type).join('-')}`;
@@ -10586,7 +10599,11 @@ function importJSON(file){const r=new FileReader();r.onload=()=>{try{applyState(
 /* ===== 바인딩 ===== */
 $('bpm').oninput=()=>updateRibbon();$('bpm').onchange=()=>updateRibbon();
 $('swing').oninput=e=>{state.swing=Math.max(0,Math.min(100,+e.target.value||0))/100;};
-$('key').onchange=e=>setKey(+e.target.value);$('meter').onchange=e=>{if(META_GROOVE[e.target.value])$('groove').value=META_GROOVE[e.target.value];renderEditor();updateRibbon();};$('groove').onchange=()=>{$('styleHint').textContent=curStyle().hint+'  · 기본 그루브: '+GROOVES[grooveId()].name;};
+$('key').onchange=e=>setKey(+e.target.value);$('meter').onchange=e=>{ const mg=META_GROOVE[e.target.value];
+  if(mg && GROOVES[mg] && [...$('groove').options].some(o=>o.value===mg)) $('groove').value=mg;   // 실제로 있는 리듬일 때만 바꾼다
+  renderEditor();updateRibbon();};
+$('groove').onchange=()=>{ const g=GROOVES[grooveId()];
+  $('styleHint').textContent=curStyle().hint+'  · 기본 그루브: '+(g?g.name:'—'); };
 function syncModeUI(){const sel=$('mode');if(!sel)return;const mi=styleModeInfo();
   sel.disabled=!!mi.lock;
   if(mi.lock){sel.value='';sel.title=(mi.base==='minor'?'단조':'장조')+' 고정 (장르 정체성)';}
@@ -11809,17 +11826,34 @@ function applyMeter(){
     const old=secSteps(sec);
     if(old===stn) return;
     sec.steps=stn;
-    // 드럼 패턴 리맵 (비율 보존)
-    if(sec.drums){ Object.keys(sec.drums).forEach(lane=>{
-      const arr=sec.drums[lane]; if(!Array.isArray(arr))return;
-      const nw=Array(stn).fill(false);
-      arr.forEach((v,i)=>{ if(v){ const ni=Math.round(i/old*stn); if(ni<stn)nw[ni]=true; } });
-      sec.drums[lane]=nw;
-    }); }
+    /* 드럼 패턴 리맵 — 예전에는 비율로 늘리고 줄였다(i/old*stn).
+       그러면 4/4의 1·2·3·4박이 6/8에서 0·0.75·1.5·2.25박으로 떨어져
+       점4분 맥(0·1.5박)과 어긋난다. 실측: 복합박 51개 조합 전부에서
+       킥이 맥에 얹히는 비율이 60% 아래, 대부분 0~5%였다.
+       meterPat()이 이미 '4/4의 박 하나 = 복합박의 점4분 맥 하나'로 옮기는 규칙을 갖고 있으므로
+       16스텝(4/4) 기준으로 되돌린 뒤 그 규칙으로 다시 깐다. */
+    if(sec.drums){
+      const src={};
+      Object.keys(sec.drums).forEach(lane=>{
+        const arr=sec.drums[lane]; if(!Array.isArray(arr)){ return; }
+        const base=Array(16).fill(false);                      // 먼저 4/4 16스텝으로 환산
+        arr.forEach((v,i)=>{ if(v){ const bi=Math.round(i/old*16); if(bi<16) base[bi]=true; } });
+        src[lane]=base;
+      });
+      const mapped=meterPat(src,m);
+      Object.keys(sec.drums).forEach(lane=>{
+        if(!Array.isArray(sec.drums[lane])) return;
+        sec.drums[lane]=mapped[lane]||Array(stn).fill(false);
+      });
+    }
   });
 }
 // MIDI 박자 메타 바이트 (den=8이면 dd=3, den=4면 dd=2)
-function meterMetaBytes(m){ m=m||curMeter(); const dd=m.den===8?3:(m.den===2?1:2); const cc=m.den===8?8:24; return [0xFF,0x58,0x04,m.num,dd,cc,8]; }
+function meterMetaBytes(m){ m=m||curMeter(); const dd=m.den===8?3:(m.den===2?1:2);
+  /* 메트로놈 클럭 — 24=4분 · 36=점4분(복합박: 분자가 3의 배수이고 3보다 클 때) · 12=8분(변박).
+     8로 적으면 셋잇단 8분마다 클릭이 되어 6/8이 6박으로 세어진다. */
+  const cc=(dd===3)?((m.num%3===0&&m.num>3)?36:12):((dd===1)?48:24);
+  return [0xFF,0x58,0x04,m.num,dd,cc,8]; }
 
 /* 에너지별 드럼 패턴 — 구간 유형이 소리로 들리게 (러닝은 킥 절대 유지 = 페이서) */
 function shapeDrumsFor(g,type,vix){
@@ -12000,7 +12034,7 @@ function newSection(type,bars,vix){const g=curGenre(),km=keyPc();vix=vix|0;
   const prog=randomProgRoman(g).map(t=>romanToSym(t,km));
   const en=STYPES[type].energy;
   return {type,bars,vix,tempo:'inherit',swing:'inherit',steps:(typeof curMeter==='function'?curMeter().stn:16),
-    drums:shapeDrumsFor(g,type,vix),
+    drums:meterPat(shapeDrumsFor(g,type,vix),(typeof curMeter==='function'?curMeter():null)),   // 박자표의 맥에 맞춰 깐다(비례 압축 금지)
     chords:prog,chordBars:(g.id==='deephouse')?(deephouseStyle().chordBars||2):(g.id==='melodichouse')?(melodichouseStyle().chordBars||2):(g.id==='kpop')?(kpopStyle().chordBars||1):((g.id==='running'||isHouse(g.id)||g.id==='edm')?2:1),   // 하우스=서브스타일별, K-Pop=서브스타일별(하우스팝·앰비언트=2), 나머지 신스계열 2마디
     arp:(g.id==='edm'&&en>=5)||(g.id==='running'&&en>=5&&(RUNSTYLES[state.runStyle]||RUNSTYLES.fresh)&&((RUNSTYLES[state.runStyle]||RUNSTYLES.fresh).arpHook||(RUNSTYLES[state.runStyle]||RUNSTYLES.fresh).leadStyle==='arp'))||(g.id==='kpop'&&en>=4&&kpopStyle().arp)||(g.id==='melodichouse'&&en>=4&&melodichouseStyle().arp),
     bass:g.bass,pump:g.pad&&en>=4&&(g.id==='edm'||g.id==='global'),
@@ -12545,7 +12579,7 @@ function renderEditor(){
   const head=document.createElement('div');head.className='shead';
   const tsel=document.createElement('select');Object.entries(STYPES).forEach(([k,v])=>{const o=document.createElement('option');o.value=k;o.textContent=v.ko;if(k===sec.type)o.selected=true;tsel.appendChild(o);});
   tsel.onchange=e=>{sec.type=e.target.value;
-    sec.drums=remapPat(shapeDrumsFor(curGenre(),sec.type,sec.vix),secSteps(sec));                // 유형=에너지 → 드럼 갱신
+    sec.drums=meterPat(shapeDrumsFor(curGenre(),sec.type,sec.vix),meterOf(sec));                 // 유형=에너지 → 드럼 갱신(박자표의 맥 기준)
     const g2=curGenre(),st2=g2.id==='running'?runStyle():null,en2=STYPES[sec.type].energy;
     sec.arp=(g2.id==='edm'&&en2>=5)||(st2&&en2>=5&&(st2.arpHook||st2.leadStyle==='arp'));
     renderEditor();updateRibbon();flashMsg('유형에 맞춰 드럼·아르페지오 기본값을 갱신했어요. 그리드는 자유롭게 다시 편집하세요.');};
@@ -12604,7 +12638,7 @@ function renderEditor(){
   stripC.onchange=()=>{sec.strip=stripC.checked;updateRibbon();flashMsg(sec.strip?'스트립 켜짐 — 전반 킥만 남기고 비웠다가 후반 급격히 쌓아 다음 구간 다운비트에 착지':'스트립 꺼짐');};
   stripL.append(stripC,'스트립(킥만→급쌓기)');stripL.title='구간 전반은 킥만 남기고 전부 비우고, 후반은 마디마다 베이스·리듬·백비트를 급격히 다시 쌓습니다. 라이저·스네어 롤·착지 크래시 자동.';
   const clr=document.createElement('button');clr.className='sm';clr.textContent='드럼 비우기';clr.onclick=()=>{sec.drums=emptyDrums(secSteps(sec));renderEditor();};
-  const fillp=document.createElement('button');fillp.className='sm';fillp.textContent='장르 기본 패턴';fillp.onclick=()=>{sec.drums=remapPat(shapeDrumsFor(curGenre(),sec.type,sec.vix),secSteps(sec));renderEditor();};
+  const fillp=document.createElement('button');fillp.className='sm';fillp.textContent='장르 기본 패턴';fillp.onclick=()=>{sec.drums=meterPat(shapeDrumsFor(curGenre(),sec.type,sec.vix),meterOf(sec));renderEditor();};
   // 하이햇 롤 (트랩·드릴의 핵심)
   const rollSel=document.createElement('select');
   [['','🎩 롤 없음'],['classic','트랩 롤'],['drill','드릴 롤'],['heavy','촘촘 롤']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;rollSel.appendChild(o);});
@@ -16003,7 +16037,10 @@ function guideTracks(){
     mk('[GUIDE] Vocal / Organic Layer','보컬 찹·실악기 등 오가닉 레이어 — 2026 트렌드는 기술 과잉에서 벗어난 유기적 질감. 여기에 실소스를.'));
   return L;
 }
-function exportAll(){arrange();EXPORT_PADQ=16;const P=gmProgs(),RN=recNames(),LP=logicPatches(),AP=altPatches(),BS=bassStyle();  // 앞뒤 4마디 편집 여백
+function exportAll(){arrange();
+  /* 앞뒤 편집 여백 — 4마디. 16박으로 못박아 두면 6/8(마디 3박)에서 5.33마디가 되어
+     곡이 마디 중간에서 시작한다(로직에서 마디선과 어긋남). 박자표의 마디 길이로 계산한다. */
+  EXPORT_PADQ=4*barQ();const P=gmProgs(),RN=recNames(),LP=logicPatches(),AP=altPatches(),BS=bassStyle();  // 앞뒤 4마디 편집 여백
   // 트랙 이름: [로직 추천악기] 역할 — 느낌 | 세부(추천/대체/GM). 스튜디오에서 헤더만 봐도 뭘 얹을지 바로 보이게.
   const primaryInst=(r)=>{const lp=LP[r]||'';return lp.split(/[:(]/)[0].trim()||RN[r];};   // "Alchemy(Pads 카테고리 · 검색 「wide」)" → "Alchemy"
   const nm=(role,r)=>{const inst=primaryInst(r),feel=feelFor(r);
@@ -16048,7 +16085,7 @@ function exportAll(){arrange();EXPORT_PADQ=16;const P=gmProgs(),RN=recNames(),LP
   const stem=`beat_${state.genre==='running'?'running-'+state.runStyle:state.genre}_${MODEL.bpm}bpm`;
   dl(tr,stem+'.mid');EXPORT_PADQ=0;
   if(!$('noSheet')||!$('noSheet').checked)setTimeout(()=>dlText(buildSongSheet(),stem+'_송시트.txt'),400);}
-function exportOne(inst){arrange();EXPORT_PADQ=16;const P=gmProgs(),RN=recNames(),LP=logicPatches(),AP=altPatches();let tk;   // 앞뒤 4마디 편집 여백
+function exportOne(inst){arrange();EXPORT_PADQ=4*barQ();const P=gmProgs(),RN=recNames(),LP=logicPatches(),AP=altPatches();let tk;   // 앞뒤 4마디 편집 여백
   if(inst==='drums')tk=[tempoTrack(),drumMidiTrack()];
   else{const c={bass:[1,P.bass,'Bass'],chords:[2,P.chords,'Chords'],pad:[3,P.pad,'Pad'],lead:[4,P.lead,'Lead']}[inst];
     const BS=inst==='bass'?bassStyle():null;
@@ -16308,7 +16345,7 @@ function renderRunStyles(){const row=$('runStyleRow'),hint=$('runStyleHint');
         const at=st.atmos||{sweep:0.4};
         state.palette={};ATMOS.forEach(a=>{state.palette[a.id]=at[a.id]!=null;});
         state.sections.forEach(sec=>{sec.chords=randomProgRoman(curGenre()).map(t=>romanToSym(t,keyPc()));
-          sec.drums=remapPat(shapeDrumsFor(curGenre(),sec.type,sec.vix),secSteps(sec));
+          sec.drums=meterPat(shapeDrumsFor(curGenre(),sec.type,sec.vix),meterOf(sec));
           sec.atmos=Object.assign({},at);
           sec.arp=STYPES[sec.type].energy>=5&&(st.arpHook||st.leadStyle==='arp');});
         state.seed=((Math.random()*1e9)|0)||1;
@@ -16334,7 +16371,7 @@ function renderRunStyles(){const row=$('runStyleRow'),hint=$('runStyleHint');
         if($('mode'))$('mode').value=(st.mode&&MODES[st.mode])?st.mode:(GENRE_MODE[state.genre]||'ionian'); // 스타일 조성도 소속(없으면 장르 기본)
         applySubstyleCfg(st);                                              // 구성 설정·길이를 스타일에 맞게
         state.sections.forEach(sec=>{sec.chords=randomProgRoman(curGenre()).map(t=>romanToSym(t,keyPc()));
-          sec.drums=remapPat(shapeDrumsFor(curGenre(),sec.type,sec.vix),secSteps(sec));
+          sec.drums=meterPat(shapeDrumsFor(curGenre(),sec.type,sec.vix),meterOf(sec));
           sec.atmos=Object.assign({},at);
           sec.arp=STYPES[sec.type].energy>=5&&(st.arpHook||st.leadStyle==='arp');});
         state.seed=((Math.random()*1e9)|0)||1;
@@ -16352,7 +16389,7 @@ function renderRunStyles(){const row=$('runStyleRow'),hint=$('runStyleHint');
         if($('mode'))$('mode').value=(st.mode&&MODES[st.mode])?st.mode:(GENRE_MODE[state.genre]||'ionian'); // 스타일 조성도 소속(없으면 장르 기본)
         applySubstyleCfg(st);
         state.sections.forEach(sec=>{sec.chords=randomProgRoman(curGenre()).map(t=>romanToSym(t,keyPc()));
-          sec.drums=remapPat(shapeDrumsFor(curGenre(),sec.type,sec.vix),secSteps(sec));
+          sec.drums=meterPat(shapeDrumsFor(curGenre(),sec.type,sec.vix),meterOf(sec));
           sec.atmos=Object.assign({},at);});
         state.seed=((Math.random()*1e9)|0)||1;
         renderRunStyles();renderAll();updateRibbon();updateLenTag();flashMsg(st.name+' — '+st.bpm+' BPM · 리듬·베이스·코드가 함께 바뀌었어요');};
@@ -16376,7 +16413,7 @@ function renderRunStyles(){const row=$('runStyleRow'),hint=$('runStyleHint');
         state.sections.forEach(sec=>{sec.chords=randomProgRoman(curGenre()).map(t=>romanToSym(t,keyPc()));
           if((isDeep||isMelo||isKpop)&&st.chordBars)sec.chordBars=st.chordBars;    // 하우스·K-Pop: 스타일별 코드 길이
           if(isKpop)sec.arp=STYPES[sec.type].energy>=4&&!!st.arp;                  // K-Pop: 하우스팝·앰비언트는 아르페지오
-          sec.drums=remapPat(shapeDrumsFor(curGenre(),sec.type,sec.vix),secSteps(sec));
+          sec.drums=meterPat(shapeDrumsFor(curGenre(),sec.type,sec.vix),meterOf(sec));
           sec.atmos=Object.assign({},at);});
         state.seed=((Math.random()*1e9)|0)||1;
         renderRunStyles();renderAll();updateRibbon();updateLenTag();
@@ -17634,7 +17671,8 @@ const document = __scopedDoc('app-play');
     const vlq=n=>{ const b=[n&0x7f]; n=Math.floor(n/128); while(n>0){ b.unshift((n&0x7f)|0x80); n=Math.floor(n/128); } return b; };
     let ev=[]; const mpq=Math.round(60000000/(bpm||100));
     const nm='Progression'; ev.push(0,0xFF,0x03,nm.length); for(let i=0;i<nm.length;i++) ev.push(nm.charCodeAt(i)&0x7f); // 트랙명(영문·모지바케 방지)
-    ev.push(0,0xFF,0x58,0x04,sN,Math.round(Math.log2(sD)),(sD===8&&sN%3===0)?36:24,8); // 박자표(현재 박자 반영)
+    { const _dd=Math.round(Math.log2(sD)), _ck=(_dd===3)?((sN%3===0&&sN>3)?36:12):24;
+      ev.push(0,0xFF,0x58,0x04,sN,_dd,_ck,8); } // 박자표 — 클럭: 24=4분·36=점4분(복합박)·12=8분(변박)
     ev.push(0,0xFF,0x51,0x03,(mpq>>16)&0xff,(mpq>>8)&0xff,mpq&0xff);
     ev.push(0, ...keySigMeta()); // 조표(로직 등 DAW 표시용)
     steps.forEach(st=>{ const bq=boostQ(st[1],st[2]); const iv=Q[bq]?Q[bq].iv:[0,4,7]; const base=60+tonic+st[1]; const notes=iv.map(i=>(base+i)&0x7f);
@@ -21210,7 +21248,10 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
     const sgB=currentSig.split(' ')[0], sgN=+sgB.split('/')[0]||4, sgD=+sgB.split('/')[1]||4, sgDd=Math.round(Math.log2(sgD))||2;
     const secLabelEn={'인트로':'Intro','벌스':'Verse','프리코러스':'Pre-Chorus','코러스':'Chorus','코러스변주':'Chorus var','간주':'Interlude','브릿지':'Bridge','하이라이트':'Highlight','솔로':'Solo','아웃트로':'Outro','전개부':'Development (new motif)'};
     const asc=str=>str.replace(/[^\x00-\x7F]/g,c=>({'♭':'b','♯':'#','–':'-','·':'-'}[c]||'')); // 로직은 메타 텍스트를 Latin-1로 읽어 한글 깨짐 → ASCII로
-    let tBytes=[0,0xFF,0x58,0x04,sgN,sgDd,24,8,0].concat(keySigMeta()); // 박자표+조표 (tick 0)
+    /* 메트로놈 클럭(4번째 바이트) — 로직이 한 클릭을 어느 음표로 셀지 정한다.
+       24=4분 · 36=점4분(복합박) · 12=8분(변박). 늘 24로 적으면 6/8이 3박으로 세어진다. */
+    const _mclk=(sgDd===3)?((sgN%3===0&&sgN>3)?36:12):((sgDd===1)?48:24);
+    let tBytes=[0,0xFF,0x58,0x04,sgN,sgDd,_mclk,8,0].concat(keySigMeta()); // 박자표+조표 (tick 0)
     { const cn=Array.from(new TextEncoder().encode('Conductor / '+gsel+' FX Guide')); tBytes=tBytes.concat([0,0xFF,0x03]).concat(vlq(cn.length)).concat(cn); // 컨덕터 트랙명
       const fxTxt='FX ['+gsel+'] '+genreFXAscii().join('  ||  ')+'  ||  ORDER: EQ>Comp>Sat>Reverb/Delay (verb=Aux Send)';
       const fb=Array.from(new TextEncoder().encode(fxTxt)); tBytes=tBytes.concat([0,0xFF,0x01]).concat(vlq(fb.length)).concat(fb); } // 장르 FX 가이드(텍스트 메타 — 이벤트 리스트에서 열람)
@@ -21245,11 +21286,15 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
       if(e.type==='tempo'){ const mq=Math.round(60000000/e.bpm); tBytes=tBytes.concat([0xFF,0x51,0x03,(mq>>16)&0xff,(mq>>8)&0xff,mq&0xff]); }
       else if(e.type==='keysig'){ tBytes=tBytes.concat(keySigFor(baseTonicKS+e.ks)); }
       else if(e.type==='timesig'){ const _b=e.sig.split(' ')[0], _n=+_b.split('/')[0]||4, _d=+_b.split('/')[1]||4;
-        tBytes=tBytes.concat([0xFF,0x58,0x04,_n,Math.round(Math.log2(_d))||2,(_d===8&&_n%3===0)?36:24,8]); } /* 섹션 박자표 변경 */
+        { const _dd=Math.round(Math.log2(_d))||2, _ck=(_dd===3)?((_n%3===0&&_n>3)?36:12):24;
+          tBytes=tBytes.concat([0xFF,0x58,0x04,_n,_dd,_ck,8]); } } /* 섹션 박자표 변경 */
       else { const tb=Array.from(new TextEncoder().encode(asc(e.txt))); tBytes=tBytes.concat([0xFF,0x06]).concat(vlq(tb.length)).concat(tb); } });
     tBytes=tBytes.concat([0,0xFF,0x2F,0x00]);
     const trackBytes=[trk(tBytes)];
-    const groups=[];
+        /* 타악 바탕 유무 — 드럼(리듬 바탕)이 켜져 있을 때만 오케 타악·절정 보강 타악을 얹는다.
+       바탕 없이 얹히면 "중간에 잠깐 나왔다 사라지는" 소리가 된다. */
+    const _percBed = !!(INST && INST.drums && INST.drums.on);
+const groups=[];
     // ── 터짐 직전 정지: 다음 섹션이 확 뜨거워지는 섹션의 마지막 마디, 마지막 박을 전 악기 정지 → 다음 첫박에 폭발
     const stopWins=[];
       currentSong.forEach((sec,i)=>{ const nb=SEC_TK[i].bars, mT=SEC_TK[i].meas, nx=currentSong[i+1];
@@ -21463,8 +21508,11 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
       if(INST.brass.on!==false && (gsel==='cineTension'||gsel==='cineSoar')) groups.push({gm:57,ch:11,role:'lowbrass',key:'lowbrass'}); // Trombone — 저금관 무게
       if(INST.harp.on!==false && gsel!=='cineTension') groups.push({gm:46,ch:12,role:'harp',key:'harp'}); // Harp — 아르페지오·상승 런
       if(gsel==='cineTension'||gsel==='cineSoar') groups.push({gm:52,ch:13,role:'choir',key:'choir'}); // Choir Aahs — 절정 성벽
-      if(gsel!=='cineSorrow') groups.push({gm:47,ch:14,role:'timpani',key:'timpani'}); // Timpani — 화성 따라가는 저역 타격
-      groups.push({gm:0,ch:9,role:'orchcym',key:'orchcym'}); // 오케 심벌(크래시·서스펜디드) — 별도 트랙(팀파니와 뭉치지 않게)
+      /* 오케 타악은 바탕 리듬(드럼) 위에 얹는 층이다. 드럼을 끈 편성(예: 선율악기+피아노 반주)에서
+         이것만 나오면 곡 중간에 잠깐 울렸다 사라지는 소리가 된다 — 바탕이 없으면 함께 뺀다. */
+      if(_percBed){
+        if(gsel!=='cineSorrow') groups.push({gm:47,ch:14,role:'timpani',key:'timpani'}); // Timpani — 화성 따라가는 저역 타격
+        groups.push({gm:0,ch:9,role:'orchcym',key:'orchcym'}); }                          // 오케 심벌(크래시·서스펜디드) — 별도 트랙(팀파니와 뭉치지 않게)
       groups.push({gm:43,ch:15,role:'cbass',key:'cbass'}); }           // Contrabass — 오케 바닥(오스티나토/롱톤)
     else { // 일반 장르: 금관=롱톤 받침(4단계+), 하프=아르페지오 — 악기군 특성 반영
       if(INST.brass.on){ if(INST.brass.gm===61){ // 브라스 섹션: 호른(중)·트롬본(저)·트럼펫(고) 분리 — 각자 음역·주법
@@ -21476,8 +21524,9 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
     if(gsel==='epicaeol'||gsel==='classic'||gsel==='gukvocal'){ // 오케스트라 편성: 팀파니·오케 심벌을 드럼킷과 분리된 트랙으로
       const usedO=new Set(groups.map(g=>g.ch)); usedO.add(9);
       let chT=null; for(const cc of [15,14,13,10]){ if(!usedO.has(cc)){ chT=cc; break; } }
-      if(chT!=null) groups.push({gm:47,ch:chT,role:'timpani',key:'timpani'});
-      groups.push({gm:0,ch:9,role:'orchcym',key:'orchcym'}); }
+      if(_percBed){
+        if(chT!=null) groups.push({gm:47,ch:chT,role:'timpani',key:'timpani'});
+        groups.push({gm:0,ch:9,role:'orchcym',key:'orchcym'}); } }
     // 듀엣: 여성 보컬 트랙 분리 + 파트 배분(1절 남 → 2절 여 → 후렴은 함께 옥타브)
     const duetOn=(vocType==='duet' && INST.melody.on && INST.melody.gm===54);
     const duetMap={}; let duetByRep=false;
@@ -22122,7 +22171,181 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
        말발굽은 셋잇단(따그닥)과 점8분+16분(따-닥) 두 종을 시드로 고른다. */
     /* 타악 합주를 쓰는 장르 — 전투는 전량, 오케스트라·시네마틱은 절정 구간에만 얹어 웅장함을 보탠다.
        (목탁 그리드는 빼고 대고·중북·징만 — 오케 편성에 목탁이 계속 깔리면 지저분해진다) */
-    const WARPERC = { cineWar:'full', epicaeol:'orch', cineSoar:'orch', cineTension:'orch', classic:'orch', gukvocal:'orch' }[gsel];
+    /* ── 후반 타악 고조(독주 편성 전용) ──
+       타악이 아예 없는 편성에서 후반부만 밀어 올린다.
+       규칙: 한 번 들어오면 끝까지 간다 — 중간에 사라지지 않고 아웃트로에서 잦아든다.
+       ① 팀파니: 별도 채널의 음정 트랙(드럼맵 아님). 화음 근음·5도, D2~F3.
+          롤은 빠른 연타가 아니라 '긴 음 1개 + CC11 크레셴도'로 적는다 — 음원의 롤 주법이 걸린다.
+       ② 저역 북: ch9 드럼맵. 프레임드럼·저역 톰 계열.
+       ③ 심벌: ch9 별도 트랙. 서스펜디드 롤은 '긴 음 1개 + CC1 크레셴도',
+          크래시는 절정 다운비트에만. (CC1은 드럼 음원이 무시해 저역 북과 섞이지 않는다)
+       리듬꼴은 곡마다 달라진다 — 곡 자체 데이터(화음 근음·구간 이름·조성)로 시드를 뽑아
+       북·팀파니·심벌 조합을 고르므로, 같은 곡은 늘 같고 새 곡은 달라진다.
+       박자표도 따른다 — 4/4·3/4·6/8·5/8·7/8의 강박 격자를 읽어 타점을 놓는다. */
+    if(soloBuildPerc && !_percBed && currentSong && currentSong.length>=3){
+      const q=TPQ, MQ=meterQuarters(), measure=Math.round(q*MQ);
+      const BPf=meterBeatPos(), QPf=meterQuarterPos(), EPf=meterEighth();   // 마디 분수 위치
+      const bars0=currentSong.map(function(sc){ const st=(sc.prog&&sc.prog.steps)||[]; return st.length*(sc.reps||1); });
+      const total=bars0.reduce(function(a,b2){ return a+b2; },0);
+      if(total>=8){
+        /* ── 곡 시드 — 같은 곡은 늘 같은 패턴, 새로 만들면 달라진다 ── */
+        let _bs=2166136261>>>0;
+        currentSong.forEach(function(sc,ix){
+          const stp=(sc.prog&&sc.prog.steps)||[];
+          stp.forEach(function(x,jx){ const r=(+x[1]); _bs=(Math.imul(_bs,16777619)^((isFinite(r)?r:0)+ix*7+jx*3))>>>0; });
+          const nm=String(sc.label||''); for(let c=0;c<nm.length;c++) _bs=(Math.imul(_bs,16777619)^nm.charCodeAt(c))>>>0;
+        });
+        _bs=(Math.imul(_bs,16777619)^(currentSong.length*13+Math.round(MQ*10)))>>>0;
+        const pick=function(arr,salt){ const h=((Math.imul(_bs^salt,2654435761)>>>0)^(_bs>>>11))>>>0; return arr[h%arr.length]; };
+        /* ── 저역 북 리듬꼴 — 박자표 격자에서 타점을 뽑으므로 어느 박자에서도 어긋나지 않는다 ── */
+        const mids=function(a){ const o=[]; for(let k=0;k<a.length;k++){ const nx=(k+1<a.length)?a[k+1]:1; o.push((a[k]+nx)/2); } return o; };
+        const LOWPAT=[
+          {n:'정박 행진',      f:function(){ return QPf.slice(); }},
+          {n:'강박만 (성긴)',   f:function(){ return BPf.slice(); }},
+          {n:'강박+엇박',      f:function(){ return BPf.concat(mids(BPf)); }},
+          {n:'8분 몰이',       f:function(){ return EPf.slice(); }},
+          {n:'강박+끝당김',    f:function(){ return BPf.concat([1-1/Math.max(2,EPf.length)]); }},
+          {n:'엇박 중심',      f:function(){ return [0].concat(mids(QPf)); }}
+        ];
+        /* ── 팀파니 음형 ── */
+        const TIMPAT=[
+          {n:'롱톤 지속'},{n:'근음-5도 교대'},{n:'두 번 치기'},{n:'마디 끝 상행 이음'}
+        ];
+        /* ── 심벌 운용 ── */
+        const CYMPAT=[
+          {n:'롤 → 크래시', crash:true},{n:'롤만 (부드럽게)', crash:false},{n:'롤 → 크래시 + 구간마다 재타', crash:true, more:true}
+        ];
+        const LP=pick(LOWPAT,0x11), TP=pick(TIMPAT,0x22), CP=pick(CYMPAT,0x33);
+        try{ window.__SB_PATTERN={low:LP.n, tim:TP.n, cym:CP.n}; }catch(e){}
+        soloBuildPatternName = LP.n+' / '+TP.n+' / '+CP.n;
+
+        let mx=0; currentSong.forEach(function(sc){ mx=Math.max(mx, sc.stage||3); });
+        let cli=0; currentSong.forEach(function(sc,i2){ if((sc.stage||3)===mx) cli=i2; });
+        const lastI=currentSong.length-1;
+        /* 진입 지점 — 단계만 보면 장르마다 크게 어긋난다(실측: 재즈 33%·블루스 44%).
+           곡 길이의 55% 지점을 바닥으로 깔아 어느 장르든 절정 직전(≈62%)에서 스며들게 한다. */
+        let _acc=0, _secAt=1;
+        for(let i2=0;i2<bars0.length;i2++){ if(_acc+bars0[i2] > total*0.55){ _secAt=i2; break; } _acc+=bars0[i2]; }
+        const inTro=Math.min(Math.max(1, Math.max(cli-1, _secAt)), Math.max(1,lastI-1));
+        if(cli<=inTro) cli=Math.min(inTro+1, lastI);
+
+        const TIM=[], LOW=[], CYM=[];
+        const put=function(arr,tk,note,vel,len){ arr.push({tk:tk,on:1,m:note,v:Math.max(1,Math.min(127,Math.round(vel)))});
+                                                 arr.push({tk:tk+(len||30),on:0,m:note,v:0}); };
+        const cc  =function(arr,tk,num,val){ arr.push({tk:tk,cc:num,v:Math.max(0,Math.min(127,Math.round(val)))}); };
+        const timNote=function(sec,bi){
+          const st=(sec.prog&&sec.prog.steps)||[]; if(!st.length) return 45;
+          let r=+st[bi % st.length][1]; if(!isFinite(r)) r=0;
+          let n=38+((r%12)+12)%12; while(n>53) n-=12; while(n<38) n+=12; return n; };
+        let tick=0;
+        currentSong.forEach(function(sec,si){
+          const bars=bars0[si];
+          if(si<inTro){ tick+=bars*measure; return; }
+          const isOut=(si===lastI);
+          const atCli=(si>=cli && !isOut);
+          const lvl = isOut ? 0.45 : (si<cli ? 0.55 : (si===cli ? 1.0 : 0.82));
+          /* 진입 구간은 뒤 절반부터 — 구간 처음부터 깔면 절정에서 한참 앞서 들어온다(실측 48%). */
+          const b0=(si===inTro)?Math.floor(bars/2):0;
+          for(let b=b0;b<bars;b++){
+            const T=tick+b*measure, last=(b===bars-1);
+            const hyper=(b%4===0);                       // 4마디 주기 다운비트 — 여기에 힘을 준다
+            const nt=timNote(sec,b);
+            /* ① 팀파니 */
+            if(si===inTro && last){                      // 절정 직전 마디 = 롤
+              put(TIM, T, nt, 52, measure-20);
+              for(let k=0;k<=8;k++) cc(TIM, T+Math.round(measure*k/8), 11, 40+58*k/8);
+            } else if(isOut && last){
+              /* 아웃트로 마지막 마디는 아래에서 따로 처리 */
+            } else {
+              const base=isOut?58:(atCli?104:80), vv=base*(hyper?1.0:0.88);
+              if(TP.n==='롱톤 지속'){
+                put(TIM, T, nt, vv, Math.round(measure*(isOut?0.8:0.62)));
+                cc(TIM, T, 11, isOut?70:(atCli?112:88));
+              } else if(TP.n==='근음-5도 교대'){
+                put(TIM, T, nt, vv, Math.round(measure*0.42));
+                if(BPf.length>1) put(TIM, T+Math.round(measure*BPf[1]), nt+7, vv*0.82, Math.round(measure*0.34));
+                cc(TIM, T, 11, isOut?70:(atCli?110:88));
+              } else if(TP.n==='두 번 치기'){
+                put(TIM, T, nt, vv, Math.round(measure*0.3));
+                put(TIM, T+Math.round(measure*0.5), nt, vv*0.76, Math.round(measure*0.3));
+                cc(TIM, T, 11, isOut?70:(atCli?108:86));
+              } else {                                    // 마디 끝 상행 이음
+                put(TIM, T, nt, vv, Math.round(measure*0.55));
+                if(!isOut && !last) put(TIM, T+Math.round(measure*(1-1/Math.max(2,EPf.length))), nt+(atCli?7:5), vv*0.7, Math.round(measure*0.16));
+                cc(TIM, T, 11, isOut?70:(atCli?110:88));
+              }
+              if(atCli && si===cli && hyper && bars>2) put(TIM, T+Math.round(measure*0.5), nt+7, vv*0.8, Math.round(measure*0.3));
+            }
+            /* ② 저역 북 — 곡이 고른 리듬꼴. 단계에 따라 성기게/촘촘하게 솎는다. */
+            if(!(isOut && last)){
+              let pos=LP.f();
+              const thin = isOut ? 3 : (si<cli ? 2 : (si===cli ? 1 : 2));   // n개 중 1개만 쓰기
+              pos = pos.filter(function(x,ix){ return ix%thin===0; });
+              if(pos.indexOf(0)<0) pos.unshift(0);
+              pos.forEach(function(x){
+                const acc=(x<0.001);
+                put(LOW, T+Math.round(measure*x), acc?41:45, ((acc?96:72)*lvl+16)*(hyper&&acc?1.08:1), 40);
+              });
+              /* 구간 마지막 마디 = 다음 구간으로 밀어주는 필 (하강) */
+              if(last && !isOut && si<lastI){
+                const fn=(atCli?4:3);
+                for(let k=0;k<fn;k++) put(LOW, T+Math.round(measure*(1-(fn-k)/(fn*2))), (k%2?43:45), (60+k*12)*lvl+18, 34);
+              }
+            }
+            /* ③ 심벌 */
+            if(si===inTro && last){
+              put(CYM, T, 52, 44, measure-20);
+              for(let k=0;k<=8;k++) cc(CYM, T+Math.round(measure*k/8), 1, 20+96*k/8);
+            }
+            if(si===cli && b===0 && CP.crash) put(CYM, T, 49, 112, Math.round(measure*0.5));
+            if(si===cli && b===0 && !CP.crash){ put(CYM, T, 52, 78, measure); cc(CYM, T, 1, 108); }
+            if(atCli && si>cli && b===0 && CP.more) put(CYM, T, 49, 88, Math.round(measure*0.4));
+            if(isOut && b===0) put(CYM, T, 52, 40, Math.round(measure*0.8));
+            /* 아웃트로 마지막 마디 — 팀파니 롱톤이 구간 끝까지 남으며 잦아든다 */
+            if(isOut && last){
+              put(TIM, T, nt, 44, measure-10);
+              cc(TIM, T, 11, 56); cc(TIM, T+Math.round(measure*0.5), 11, 26); cc(TIM, T+measure-30, 11, 6);
+              put(CYM, T, 52, 32, measure-10);
+              cc(CYM, T, 1, 46); cc(CYM, T+Math.round(measure*0.75), 1, 10);
+            }
+          }
+          tick+=bars*measure;
+        });
+        /* 구간이 끝난 뒤에도 곡은 마무리 악구로 몇 마디 더 간다(실측: 구간 176박, 곡 195박).
+           거기서 타악만 뚝 끊기면 다시 "나왔다 사라지는" 소리가 된다 — 함께 잦아들며 끝난다. */
+        { const eb=4, endRoot=timNote(currentSong[lastI], 0);
+          put(TIM, tick, endRoot, 40, measure*eb-40);
+          for(let k=0;k<=6;k++) cc(TIM, tick+Math.round(measure*eb*k/6), 11, Math.round(52-46*k/6));
+          put(CYM, tick, 52, 30, measure*eb-40);
+          for(let k=0;k<=5;k++) cc(CYM, tick+Math.round(measure*eb*k/5), 1, Math.round(40-36*k/5));
+          put(LOW, tick, 41, 52, 60);
+          put(LOW, tick+measure, 45, 38, 50); }
+        /* 트랙으로 기록 — 팀파니는 음정 채널, 북·심벌은 드럼 채널(ch9) */
+        let chT=15; { const usedB=new Set(groups.map(function(g){ return g.ch; })); usedB.add(9);
+          for(const cX of [15,14,13,12,11,10]){ if(!usedB.has(cX)){ chT=cX; break; } } }
+        const emit=function(arr,name,ch){
+          if(!arr.length) return;
+          arr.sort(function(a2,b2){ return (a2.tk-b2.tk)||((a2.cc!=null?0:1)-(b2.cc!=null?0:1)); });
+          const nb=Array.from(new TextEncoder().encode(name));
+          let pb=[0,0xFF,0x03].concat(vlq(nb.length)).concat(nb);
+          if(ch!==9) pb=pb.concat([0,0xC0|ch,47]);
+          let pl=0;
+          arr.forEach(function(e){ pb=pb.concat(vlq(Math.max(0,e.tk-pl))); pl=e.tk;
+            if(e.cc!=null) pb=pb.concat([0xB0|ch, e.cc, e.v]);
+            else pb=pb.concat(e.on?[0x90|ch,e.m,e.v]:[0x80|ch,e.m,0]); });
+          pb=pb.concat([0,0xFF,0x2F,0x00]); trackBytes.push(trk(pb));
+        };
+        emit(TIM,'[후반 고조] Timpani — '+TP.n+' · 롤은 긴 음+CC11',chT);
+        emit(LOW,'[후반 고조] Low Drums — '+LP.n+' [41·43·45]',9);
+        emit(CYM,'[후반 고조] Cymbals — '+CP.n+' [52·49]',9);
+      }
+    }
+
+    let WARPERC = { cineWar:'full', epicaeol:'orch', cineSoar:'orch', cineTension:'orch', classic:'orch', gukvocal:'orch' }[gsel];
+    /* '절정 보강'은 곡 전체에 깔린 바탕 리듬 위에 얹는 층이다.
+       드럼을 끈 편성에서 이것만 나오면 절정 부근에 잠깐 울렸다 사라지는 소리가 된다 —
+       바탕이 없으면 만들지 않는다(전투 장르의 전량 편성은 그 자체가 바탕이라 유지). */
+    if(!_percBed) WARPERC=null;   // 드럼(바탕 리듬)을 끄면 타악 합주도 통째로 뺀다 — 전투 장르도 예외 없음
     if(WARPERC && currentSong && currentSong.length){
       const WD={ mok:76, mokLo:77, tomHi:48, tomMid:47, tomLo:45, daegoHi:43, daegoLo:41,
                  kick:35, jing:52, kkwaeng:56, crash:49 };
@@ -22167,12 +22390,27 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
       const GP=GALLOP[_h32 % GALLOP.length];
       const AC=ACCENT[_h2 % ACCENT.length];
       const pev=[]; const q=TPQ; let ptick=0;
+      /* ── 박자표 대응 ──
+         이 타악 합주의 리듬꼴은 4/4를 전제로 쓰여 있다(타점 0·1·2·3.75 …).
+         마디를 q*4로 고정해 두면 3/4·6/8에서 마디가 어긋나 곡 전체와 따로 논다
+         (실측: 박자표를 바꿔도 타점이 한 틱도 달라지지 않았다).
+         이제 마디 길이는 박자표를 따르고, 타점은 그 박자표의 실제 박 위치에 얹는다.
+         이 박자표에 없는 박(예: 3/4의 4번째 박)은 생략하고,
+         마디 끝을 당겨 치는 몸짓(3.5·3.75)만 마지막 박 뒤쪽으로 옮겨 살린다. */
+      const _MQ=meterQuarters(), _measure=Math.round(q*_MQ);
+      const _QP=meterQuarterPos(), _NQ=Math.max(1,_QP.length);
+      const posOf=function(sl){
+        const i=Math.floor(sl+1e-6), fr=sl-i;
+        if(i<_NQ){ const a=_QP[i], nx=(i+1<_NQ)?_QP[i+1]:1; return a+(nx-a)*fr; }
+        if(fr<=1e-6) return null;                       // 이 박자표에 없는 박 → 생략
+        const a=_QP[_NQ-1]; return Math.min(0.995, a+(1-a)*fr);
+      };
       currentSong.forEach(function(sec,si){
         const steps=(sec.prog&&sec.prog.steps)||[]; if(!steps.length) return;
         const bars=steps.length*(sec.reps||1), stg=sec.stage||3;
         for(let b=0;b<bars;b++){
-          const T=ptick+b*q*4;
-          const hit=function(sl,note,vel,len){ const on=T+Math.round(sl*q);
+          const T=ptick+b*_measure;
+          const hit=function(sl,note,vel,len){ const _p=posOf(sl); if(_p==null) return; const on=T+Math.round(_p*_measure);
             pev.push({tk:on,on:1,m:note,v:Math.max(1,Math.min(127,vel))});
             pev.push({tk:on+(len||30),on:0,m:note,v:0}); };
           /* ── 빌드업 설계 ──
@@ -22190,7 +22428,7 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
           if(WARPERC==='full'){
             const fine=(GP.div===3)?(1/3):0.25;
             const mokStep = (stg<=1)?1.0 : (stg===2?0.5 : fine);
-            for(let t=0;t<4;t+=mokStep){ const acc=(Math.abs(t-Math.round(t))<0.02);
+            for(let t=0;t<_NQ;t+=mokStep){ const acc=(Math.abs(t-Math.round(t))<0.02);
               hit(t, acc?WD.mok:WD.mokLo, acc?(56+stg*3):(38+stg*2), 24); }
           }
           /* ② 중북 말발굽 — 단계가 오를수록 리듬이 복잡해진다
@@ -22198,7 +22436,7 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
                 stg5+: 뒷박에 겹침 한 겹 추가 · stg6: 마디 끝에 채움 */
           if(stg>=(WARPERC==='full'?2:5)){
             const useN = (stg<=2)?1 : (stg===3?Math.min(2,GP.p.length) : GP.p.length);
-            for(let beat=0;beat<4;beat++){
+            for(let beat=0;beat<_NQ;beat++){          // 마디의 실제 박 수만큼 (4/4=4·3/4=3·6/8=2)
               const bAcc=AC.b[beat]||0.85;
               GP.p.slice(0,useN).forEach(function(off,k){
                 const isDown=(off===0);
@@ -22212,7 +22450,7 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
             }
             if(stg>=6){                                         // 마디 끝 채움
               const fine2=(GP.div===3)?(1/3):0.25;
-              for(let t=3;t<4;t+=fine2) hit(t, WD.tomMid, 74, 18);
+              for(let t=_NQ-1;t<_NQ;t+=fine2) hit(t, WD.tomMid, 74, 18);   // 마지막 박 안에서 잘게 몰아치기
             }
           }
           /* ③ 대고 — 두 박에 한 번으로 시작해서 촘촘해진다 */
@@ -22223,33 +22461,38 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
             else if(stg>=5){ hit(0, WD.daegoLo, 114, 60); hit(0, WD.kick, 104, 60);
                              hit(1, WD.daegoHi, 86, 45); hit(2, WD.daegoHi, 104, 55); hit(2, WD.kick, 94, 55);
                              hit(3, WD.daegoHi, 90, 45);
-                             if(stg>=6){ hit(1.5, WD.daegoHi, 76, 38); hit(3.5, WD.daegoHi, 80, 38); } }
+                             if(stg>=6){ hit(1.5, WD.daegoHi, 76, 38); hit((_NQ-1+0.5), WD.daegoHi, 80, 38); } }
           }
           /* ④ 꽹과리 — 고조부터, 절정에서 더 자주 */
           if(WARPERC==='full' && stg>=4){
-            if(stg===4 && b%2===1){ hit(3.5, WD.kkwaeng, 74, 20); }
-            else if(stg>=5){ hit(1.5, WD.kkwaeng, 82, 20); hit(3.5, WD.kkwaeng, 76, 20);
+            if(stg===4 && b%2===1){ hit((_NQ-1+0.5), WD.kkwaeng, 74, 20); }
+            else if(stg>=5){ hit(1.5, WD.kkwaeng, 82, 20); hit((_NQ-1+0.5), WD.kkwaeng, 76, 20);
                              if(stg>=6) hit(2.5, WD.kkwaeng, 70, 18); }
           }
           /* ⑤ 징 — 구간 첫 마디 한 방 (오케는 고조 구간부터) */
-          if(b===0 && si>0 && (WARPERC==='full'||stg>=4)) hit(0, WD.jing, stg>=5?118:96, q*3);
+          /* 징 — 다른 타악보다 먼저 나오면 곡 초반에 딱 한 번 "쟁" 하고 사라지는 소리가 된다.
+             오케 편성에서는 대고·중북이 들어오는 단계(5)부터 함께 울린다. */
+          if(b===0 && si>0 && (WARPERC==='full'?stg>=4:stg>=5)) hit(0, WD.jing, stg>=5?118:96, q*3);
 
           /* ⑥ 밀어올리는 마디 — 마지막 박을 잘게 쪼개 크레셴도 */
           if(rising && isLastBar && stg>=3){                 // 낮은 단계(정적·접근)에선 채우지 않는다
             const rs=(GP.div===3)?(1/6):0.125;
             let vv=(stg>=5)?70:56;
-            for(let t=3;t<4-0.001;t+=rs){ hit(t, (vv>92?WD.tomLo:WD.tomMid), Math.min(120,Math.round(vv)), 14); vv+=(stg>=5?10:7); }
+            /* 마지막 박 안에서 점층 */
+            for(let t=_NQ-1;t<_NQ-0.001;t+=rs){ hit(t, (vv>92?WD.tomLo:WD.tomMid), Math.min(120,Math.round(vv)), 14); vv+=(stg>=5?10:7); }
           }
-          /* ⑦ 터트림 — 다 함께 강타 + 징 최대 */
-          if(blow){
-            hit(3.75, WD.daegoLo, 122, 90); hit(3.75, WD.kick, 116, 90);
-            hit(3.75, WD.tomLo, 118, 60);   hit(3.75, WD.jing, 127, q*4);
-            hit(3.75, WD.crash, 118, q*2);
-            if(WARPERC==='full') hit(3.75, WD.kkwaeng, 104, 30);
+          /* ⑦ 터트림 — 다 함께 강타 + 징 최대
+             오케 편성에서는 타악 합주가 들어오는 단계(5)부터만. 그 전에 터지면 곡 초반에
+             타악이 딱 한 번 울리고 사라지는 소리가 된다(실측: 8%·24%에 금속 타악 단발). */
+          if(blow && (WARPERC==='full'||stg>=5)){
+            hit((_NQ-1+0.75), WD.daegoLo, 122, 90); hit((_NQ-1+0.75), WD.kick, 116, 90);
+            hit((_NQ-1+0.75), WD.tomLo, 118, 60);   hit((_NQ-1+0.75), WD.jing, 127, q*4);
+            hit((_NQ-1+0.75), WD.crash, 118, q*2);
+            if(WARPERC==='full') hit((_NQ-1+0.75), WD.kkwaeng, 104, 30);
           }
-          if(rising && isLastBar && !blow) hit(3.5, WD.crash, 100, q);                              // 전환 크래시(터트림 없을 때만)
+          if(rising && isLastBar && !blow && (WARPERC==='full'||stg>=5)) hit((_NQ-1+0.5), WD.crash, 100, q); // 전환 크래시(터트림 없을 때만 · 타악 합주가 이미 들어온 뒤에만)
         }
-        ptick += bars*q*4;
+        ptick += bars*_measure;
       });
       /* 악기별로 트랙을 나눠 내보낸다 — 한 트랙에 섞여 있으면 로직에서 샘플을 갈아끼우기 어렵다.
          (대고 / 중북 / 목탁 / 징·심벌 — 각각 다른 음원을 얹게 됨) */
@@ -22588,6 +22831,45 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
       if(gsel!=='cineSorrow') blk('Timpani ch14', ['음원(Instrument 슬롯): 팀파니 — 긴 음(롤 구간)은 Roll 아티큘레이션','CC1(모듈레이션)을 음원의 다이내믹/레이어 크로스페이드에 매핑: 롤이 여리게 시작해 부풀어 오름','CC11(익스프레션)도 함께 들어감 — 볼륨 곡선','EQ(Channel EQ): HPF 50Hz · 3kHz +1dB(막대 어택)','센드(Sends→Bus): Hall '+rv(2.8)+'s, 25%']);
       blk('Contrabass ch15', ['음원(Instrument 슬롯): 저현(콘트라베이스)','EQ(Channel EQ): HPF 30Hz · 120Hz +1dB','컴프(Comp): 2:1 GR2 · 트랙딜레이 -40ms · CC1']);
     }
+    if(soloBuildPerc && !(INST&&INST.drums&&INST.drums.on)){
+      L.push(''); L.push('  ━━━━━ [후반 고조] 타악 3트랙 — 토글로 켠 것 ━━━━━');
+      L.push('  타악 없는 편성에서 후반부만 밀어 올립니다. 곡의 55~62% 지점에서 스며들어');
+      L.push('  절정에서 최고조, 이후 유지, 아웃트로에서 잦아들며 곡과 함께 끝납니다(중간에 사라지지 않습니다).');
+      L.push('');
+      L.push('  ◆ 이 곡이 고른 리듬꼴: '+(soloBuildPatternName||'—'));
+      L.push('     리듬꼴은 곡마다 달라집니다 — 화음 근음·구간 이름·조성·박자표에서 시드를 뽑아');
+      L.push('     북 6종 × 팀파니 4종 × 심벌 3종 중에서 고릅니다. 같은 곡은 늘 같고, 새로 만들면 달라집니다.');
+      L.push('     타점은 박자표의 강박 격자에서 뽑으므로 3/4·6/8·5/8·7/8에서도 어긋나지 않습니다.');
+      L.push('     구간 마지막 마디에는 다음 구간으로 밀어주는 하강 필이 들어갑니다.');
+      L.push('');
+      L.push('  ▸ [후반 고조] Timpani  — 음정 트랙(드럼맵 아님)');
+      L.push('     ① 음원   : 라이브러리(Y) → 오케스트라 타악 계열에서 팀파니. 없으면 Quick Sampler에 팀파니 샘플');
+      L.push('     ② 볼륨·팬: −6dB · 살짝 뒤(C~R10)');
+      L.push('     ③ EQ     : Channel EQ → HPF 40Hz · 120Hz +1dB(몸통) · 4kHz −2dB(말렛 소음 정리)');
+      L.push('     ④ 컴프   : Compressor → Thr −18dB · 2:1 · Atk 30ms · Rel 250ms');
+      L.push('     ⑤ 센드   : Hall 리버브 30~40% (오케 공간과 같은 버스)');
+      L.push('     ⑥ 이미 기록됨 : 화음 근음·5도를 D2~F3 안에 접어 넣었습니다.');
+      L.push('        롤은 빠른 연타가 아니라 긴 음 1개 + CC11 크레셴도로 적혀 있습니다 —');
+      L.push('        음원의 롤 주법이 CC11(또는 모드휠)을 받도록 두면 그대로 재현됩니다.');
+      L.push('');
+      L.push('  ▸ [후반 고조] Low Drums — ch10(드럼맵) · 노트 41·43·45');
+      L.push('     ① 음원   : 프레임드럼·저역 톰·타이코 계열. 드럼킷을 쓸 거면 플로어 톰과 킥에 매핑');
+      L.push('     ② 볼륨·팬: −8dB · 중앙');
+      L.push('     ③ EQ     : Channel EQ → HPF 45Hz · 80Hz +2dB · 400Hz −3dB(박스 울림 제거)');
+      L.push('     ④ 컴프   : Compressor → Thr −16dB · 3:1 · Atk 15ms · Rel 120ms');
+      L.push('     ⑤ 센드   : 리버브 15% 이하 — 저역이 번지면 곡이 탁해집니다');
+      L.push('');
+      L.push('  ▸ [후반 고조] Cymbals — ch10(드럼맵) · 노트 52(서스펜디드)·49(크래시)');
+      L.push('     ① 음원   : 오케 심벌. 52에 서스펜디드(롤 가능한 것), 49에 크래시');
+      L.push('     ② 볼륨·팬: −10dB · 넓게');
+      L.push('     ③ EQ     : Channel EQ → HPF 300Hz · 10kHz +1dB');
+      L.push('     ④ 컴프   : 걸지 않음 — 심벌은 압축하면 지저분해집니다');
+      L.push('     ⑤ 센드   : Hall 45% (가장 길게)');
+      L.push('     ⑥ 이미 기록됨 : 서스펜디드 롤은 긴 음 1개 + CC1 크레셴도입니다.');
+      L.push('        음원 릴리스를 짧게 두면 롤이 살지 않습니다 — Release를 최대로.');
+      L.push('        ※ CC1은 저역 북 음원이 무시하므로 같은 채널이어도 섞이지 않습니다.');
+      L.push('');
+    }
     L.push(''); L.push('  ━━━━━ 아티큘레이션 — 이미 MIDI에 새겨진 것 ━━━━━');
     L.push('  음 길이와 벨로시티에 주법 신호를 넣어 두었습니다. 음원의 아티큘레이션 선택을 "벨로시티/노트 길이 자동"으로 두면 그대로 물립니다.');
     L.push('  ');
@@ -22689,13 +22971,17 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
     L.push('■ 트랙 배치 순서 (로직에서 위→아래, 그룹으로)');
     L.push('──────────────────────────────────────────────────');
     { const order=[]; 
-      if(INST.drums.on) order.push('Drums(ch9)'); if(gsel==='epicaeol'||gsel==='gukvocal'||CINE.has(gsel)){ order.push('Timpani'); order.push('OrchCymbals'); } if(INST.bass.on) order.push('Bass(ch3)'); if(prodTracks) order.push('Sub(ch8)');
+      if(INST.drums.on) order.push('Drums(ch9)');
+      /* 오케 타악은 드럼(바탕 리듬)이 켜져 있을 때만 나온다 — 목록도 실제 파일과 맞춘다 */
+      if(INST.drums.on && (gsel==='epicaeol'||gsel==='gukvocal'||CINE.has(gsel))){ order.push('Timpani'); order.push('OrchCymbals'); }
+      if(soloBuildPerc && !INST.drums.on){ order.push('[후반 고조] Timpani'); order.push('[후반 고조] Low Drums'); order.push('[후반 고조] Cymbals'); }
+      if(INST.bass.on) order.push('Bass(ch3)'); if(prodTracks) order.push('Sub(ch8)');
       if(INST.piano.on) order.push('Piano(ch0)'); if(INST.piano.on && songTheme) order.push('Piano2(테마)'); if(prodTracks) order.push('Pad(ch4)');
       if(INST.strings.on) order.push('Strings(ch1)'); if(INST.winds.on) order.push('Winds(ch2)');
       if(CINE.has(gsel)){ order.push('Horns(ch10)'); order.push('Contrabass(ch15)'); if(gsel!=='cineTension')order.push('Harp(ch12)'); }
       if(counterOn) order.push('Counter(ch6)'); if(INST.melody.on) order.push('Melody(ch5)');
       if(prodTracks) order.push('Riser(ch7)');
-      L.push('   리듬→저음: '+order.filter(x=>/Drums|Bass|Sub|Timpani|OrchCym/.test(x)).join('  '));
+      L.push('   리듬→저음: '+order.filter(x=>/Drums|Bass|Sub|Timpani|OrchCym|Cymbals/.test(x)).join('  '));
       L.push('   화성: '+order.filter(x=>/Piano|Pad|Strings|Winds|Horns|Contrabass|Harp/.test(x)).join('  '));
       L.push('   선율: '+order.filter(x=>/Counter|Melody/.test(x)).join('  '));
       if(prodTracks) L.push('   FX/보조: Riser(ch7)  + Aux: Reverb Hall, Delay, (드럼)Room');
@@ -23059,15 +23345,22 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
   { const ci=$('compIntSel'), cv=$('compIntVal'); if(ci) ci.addEventListener('input',e=>{ compIntensity=(+e.target.value||0)/100; // 스타일 강도 변경
       if(cv) cv.textContent=Math.round(compIntensity*100)+'%';
       stopGroove(); if(typeof songState!=='undefined'&&songState) stopSong(); }); }
-  function applyPreset(solo){
+  let soloBuildPerc=false;   // 후반 타악 고조 — 타악이 없는 편성에서만 동작
+let soloBuildPatternName='';   // 이번 곡이 고른 리듬꼴 — 제작가이드에 그대로 적는다
+function applyPreset(solo){
     INST.melody.on=solo; INST.piano.on=true; INST.bass.on=true;
     INST.strings.on=false; INST.winds.on=false; INST.drums.on=!solo;
+    /* 독주 편성에서는 타악을 통째로 끈다 — 예전엔 드럼만 꺼서 팀파니·오케심벌이 남았고,
+       바탕 리듬이 없는 상태에서 이것들만 절정 부근에 잠깐 울렸다 사라졌다. */
+    if(solo){ if(INST.timpani) INST.timpani.on=false; if(INST.orchcym) INST.orchcym.on=false; }
     pedalOn=true; archDepth=solo?0.12:0.2;
     const ad=$('archDepth'); if(ad){ ad.value=solo?12:20; $('archVal').textContent=solo?'옅게':'보통'; }
     renderInst();
     if(loopState){ const pi=loopState.id.slice(5); stopGroove(); startCardLoop(pi); }
     if(typeof songState!=='undefined' && songState){ stopSong(); playSong(); }
   }
+  $('soloBuildTog').addEventListener('change',e=>{ soloBuildPerc=e.target.checked;
+    if(typeof songState!=='undefined' && songState){ stopSong(); } });
   $('presetSolo').addEventListener('click',()=>applyPreset(true));
   $('presetBand').addEventListener('click',()=>applyPreset(false));
 
