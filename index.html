@@ -24548,18 +24548,21 @@ function padVoiceP(ac,G,t,dur,midi,pan,breath,vel,inten){
     amp.gain.exponentialRampToValueAtTime(peak,t+Math.min(3.2,dur*0.45));
     amp.gain.setValueAtTime(peak,t+dur*0.7);
   }
-  amp.gain.linearRampToValueAtTime(0.0001,t+dur+0.4);
+  /* 릴리스를 길게 — 앞 코드 꼬리가 다음 코드 밑으로 스며들어야 전환이 툭 끊기지 않는다(MIDI 겹침과 같은 원리) */
+  const _rel=Math.min(2.2, Math.max(0.9, dur*0.06));
+  amp.gain.linearRampToValueAtTime(0.0001,t+dur+_rel);
   lp.connect(amp);if(pn){amp.connect(pn);pn.connect(G);}else amp.connect(G);
   [-7,-3,4,8].forEach(dt=>{const o=ac.createOscillator();o.type=wv;o.frequency.value=f2mP(midi);o.detune.value=dt;
-    const og=ac.createGain();og.gain.value=0.25;o.connect(og);og.connect(lp);o.start(t);o.stop(t+dur+0.6);});
+    const og=ac.createGain();og.gain.value=0.25;o.connect(og);og.connect(lp);o.start(t);o.stop(t+dur+_rel+0.2);});
 }
 // 베이스: 사인 + 미세 디튠 비팅 (Orion sub 개조, 슬래시 베이스 음)
 function bassVoiceP(ac,G,t,dur,midi){
   const amp=ac.createGain();
   amp.gain.setValueAtTime(0.0001,t);amp.gain.exponentialRampToValueAtTime(0.16,t+Math.min(3,dur*0.3));
-  amp.gain.setValueAtTime(0.16,t+Math.max(dur-2,dur*0.6));amp.gain.linearRampToValueAtTime(0.0001,t+dur+0.2);
+  const _rel=Math.min(1.4, Math.max(0.6, dur*0.04));   // 저역도 꼬리를 남긴다 — 다만 짧게(길면 뭉갠다)
+  amp.gain.setValueAtTime(0.16,t+Math.max(dur-2,dur*0.6));amp.gain.linearRampToValueAtTime(0.0001,t+dur+_rel);
   amp.connect(G);
-  [0,6].forEach(dt=>{const o=ac.createOscillator();o.type='sine';o.frequency.value=f2mP(midi);o.detune.value=dt;o.connect(amp);o.start(t);o.stop(t+dur+0.3);});
+  [0,6].forEach(dt=>{const o=ac.createOscillator();o.type='sine';o.frequency.value=f2mP(midi);o.detune.value=dt;o.connect(amp);o.start(t);o.stop(t+dur+_rel+0.2);});
 }
 // 멜로디: 에테리얼 리드 — 트라이앵글+옥타브 아래 사인 + 늦게 걸리는 비브라토 (Orion)
 function melodyVoiceP(ac,G,t,dur,midi,pan,vel){
@@ -25802,12 +25805,101 @@ function buildMidi(){
     cd.notes.forEach(nn=> chordTrack.push({note:nn, start:_hT(S(cd.t)), dur:S(cd.dur)-10, vel:_hV(cd.vel)})); });
   piece.ev.bass.forEach(b=> bassTrack.push({note:b.midi, start:_hT(S(b.t)), dur:S(b.dur)-10, vel:_hV(b.vel)}));
   piece.ev.melody.forEach(n=> melTrack.push({note:n.midi, start:_hT(S(n.t)), dur:Math.max(60,S(n.dur)), vel:_hV(n.vel)}));
-  piece.ev.bells.forEach(b=> bellTrack.push({note:b.midi, start:_hT(S(b.t)), dur:S(Math.min(b.decay,4)), vel:_hV(72)}));
+  piece.ev.bells.forEach(b=> bellTrack.push({note:b.midi, start:_hT(S(b.t)), dur:S(Math.min(b.decay,12)), vel:_hV(72)}));   // 4초로 자르면 '댕' 하고 툭 끊긴다 — 감쇠 시간을 그대로
   (piece.ev.bellsSing||[]).forEach(b=> singTrack.push({note:b.midi, start:S(b.t), dur:S(b.dur), vel:52}));
-  piece.ev.tingsha.forEach(b=> tingTrack.push({note:b.midi, start:_hT(S(b.t)), dur:S(4), vel:_hV(64)}));
-  piece.ev.handpan.forEach(b=> hpTrack.push({note:b.midi, start:_hT(S(b.t)), dur:S(Math.min(b.decay*0.6,3)), vel:_hV(70)}));
+  piece.ev.tingsha.forEach(b=> tingTrack.push({note:b.midi, start:_hT(S(b.t)), dur:S(Math.max(4,Math.min(b.decay||6,10))), vel:_hV(64)}));
+  piece.ev.handpan.forEach(b=> hpTrack.push({note:b.midi, start:_hT(S(b.t)), dur:S(Math.min(b.decay,7)), vel:_hV(70)}));
 
   // Meditation Builder 호흡 표현(CC11 Expression): 패드가 들숨에 부풀고 날숨에 잦아듦. 세기 탭(breathInt)으로 범위 조절.
+  /* ── 패드·베이스 이음새 정리 ──
+     코드가 바뀔 때마다 모든 성부가 다시 타건되고 그 사이에 10~23ms 틈까지 있어서
+     "툭툭" 넘어가는 소리가 났다(실측: 전환 4곳 모두 틈 +0.010~0.023초, 공통음도 매번 재타건).
+     ① 공통음 잇기: 앞뒤 코드에 같이 있는 음은 다시 치지 않고 하나로 이어 붙인다 — 이게 "툭"의 주범.
+     ② 움직이는 성부 겹치기: 바뀌는 음만 다음 코드 위로 잠깐 물려 앞 코드 꼬리가 새 코드 밑으로 스며든다.
+     같은 음끼리는 절대 겹치지 않게 한다(겹치면 노트오프가 충돌해 뒤 음이 꺼진다). */
+  function padLegato(tt, opt){
+    const notes=tt.filter(x=>x.cc==null);
+    if(notes.length<2) return;
+    const TIE=S(opt.tieGap), OVL=S(opt.overlap), MAXTIE=S(opt.maxTie), GAP=S(0.06), END=S(piece.lengthSec);
+    const by={};
+    notes.forEach(function(n){ (by[n.note]=by[n.note]||[]).push(n); });
+    const dead=new Set();
+    Object.keys(by).forEach(function(k){
+      const a=by[k].sort(function(x,y){ return x.start-y.start; });
+      for(let i=0;i<a.length-1;i++){
+        if(dead.has(a[i])) continue;
+        let j=i+1;
+        while(j<a.length){                                   // ① 공통음 잇기
+          const cur=a[i], nx=a[j];
+          const gap=nx.start-(cur.start+cur.dur);
+          if(gap>TIE) break;
+          if((nx.start+nx.dur-cur.start)>MAXTIE) break;       // 너무 길어지면 한 번 다시 친다(샘플이 바닥나지 않게)
+          cur.dur=nx.start+nx.dur-cur.start;
+          dead.add(nx); j++;
+        }
+      }
+    });
+    for(let i=tt.length-1;i>=0;i--) if(dead.has(tt[i])) tt.splice(i,1);
+    const left=tt.filter(x=>x.cc==null);
+    const by2={}; left.forEach(function(n){ (by2[n.note]=by2[n.note]||[]).push(n); });
+    Object.keys(by2).forEach(function(k){ by2[k].sort(function(x,y){ return x.start-y.start; }); });
+    left.forEach(function(n){                                 // ② 움직이는 성부만 겹치기
+      const a=by2[n.note], i=a.indexOf(n), nx=a[i+1];
+      let end=n.start+n.dur+OVL;
+      if(nx) end=Math.min(end, nx.start-GAP);                 // 같은 음 재타건 앞에서는 멈춘다
+      end=Math.min(end, END);
+      if(end>n.start+n.dur) n.dur=end-n.start;
+    });
+  }
+  /* tieGap = 이 정도 틈이면 같은 음으로 보고 이어 붙임 · overlap = 다음 코드로 물리는 길이
+     maxTie = 한 음이 이어질 수 있는 최대 길이 */
+  padLegato(chordTrack, {tieGap:0.35, overlap:1.0, maxTie:120});   // 패드: 넉넉히 물려 스며들게
+  padLegato(bassTrack,  {tieGap:0.35, overlap:0.35, maxTie:180});  // 저역: 짧게만 — 길게 물리면 뭉갠다
+
+  /* ── 트랙별 표현 곡선(CC11) ──
+     지금까지 표현이 붙은 건 패드·베이스뿐이라, 선율·지속현·포인트는 어택이 딱딱하고 끝이 툭 끊겼다.
+     ① 선율(피아노·바이올린 등): 음마다 부드럽게 차오르고 길게 빠지는 스웰
+     ② 지속현(Bowl Sing): 아주 느린 어택(문지르기) + 아주 긴 릴리스
+     ③ 포인트(벨·띵샤·핸드팬): 친 뒤 서서히 사라지는 감쇠 꼬리 — 노트가 끝날 때 이미 0에 가깝다
+     공통 원칙: 다음 음이 오기 직전에 값을 되돌려 놓는다(안 그러면 다음 음이 안 들린다).
+     CC11은 트랙마다 채널이 달라 서로 간섭하지 않는다. */
+  function exprCurve(tt, opt){
+    if(!tt || !tt.length) return;
+    const ns=tt.filter(x=>x.cc==null).slice().sort((a,b)=>a.start-b.start);
+    if(!ns.length) return;
+    const PRE=8;                                        // 노트 직전 되돌림(틱)
+    const out=[];
+    ns.forEach(function(n,i){
+      const len=Math.max(1, n.dur||1);
+      const nx=ns[i+1];
+      const aT=Math.min(len*opt.aFrac, S(opt.aMax));    // 어택 구간
+      const rT=Math.min(len*opt.rFrac, S(opt.rMax));    // 릴리스 구간
+      const hold=Math.max(0, len-aT-rT);
+      const steps=Math.max(3, Math.round(aT/S(0.25)));
+      out.push({start:Math.max(0,n.start-PRE), cc:11, val:opt.lo});
+      for(let k=1;k<=steps;k++){                        // 어택: 코사인으로 부드럽게 차오름
+        const f=k/steps;
+        out.push({start:n.start+Math.round(aT*f), cc:11, val:Math.round(opt.lo+(opt.pk-opt.lo)*(0.5-0.5*Math.cos(Math.PI*f)))});
+      }
+      if(hold>0) out.push({start:n.start+Math.round(aT+hold), cc:11, val:Math.round(opt.pk*opt.sus)});
+      const rs=Math.max(4, Math.round(rT/S(0.25)));
+      for(let k=1;k<=rs;k++){                           // 릴리스: 사라지듯 길게
+        const f=k/rs;
+        out.push({start:n.start+Math.round(aT+hold+rT*f), cc:11, val:Math.round(opt.end+(opt.pk*opt.sus-opt.end)*(0.5+0.5*Math.cos(Math.PI*f)))});
+      }
+      if(nx && nx.start > n.start+len+PRE) out.push({start:n.start+len+2, cc:11, val:opt.end});
+    });
+    let prev=null;
+    out.sort((a,b)=>a.start-b.start).forEach(function(e){ if(e.val!==prev){ tt.push(e); prev=e.val; } });
+  }
+  /* aFrac/rFrac = 음 길이 대비 어택·릴리스 비율 · aMax/rMax = 초 상한 · lo→pk = 차오르는 범위
+     sus = 유지 구간 비율 · end = 사라진 뒤 남는 값(0으로 두면 다음 음이 안 나올 수 있어 조금 남긴다) */
+  exprCurve(melTrack,  {aFrac:0.18, aMax:1.2, rFrac:0.55, rMax:6,  lo:38, pk:104, sus:0.92, end:14});   // 선율: 노래하듯
+  exprCurve(singTrack, {aFrac:0.35, aMax:7,   rFrac:0.45, rMax:10, lo:8,  pk:100, sus:0.95, end:6});    // 지속현: 문지르는 어택
+  exprCurve(bellTrack, {aFrac:0.02, aMax:0.15,rFrac:0.92, rMax:12, lo:60, pk:118, sus:1.0,  end:4});    // 벨: 치고 사라짐
+  exprCurve(tingTrack, {aFrac:0.02, aMax:0.12,rFrac:0.94, rMax:10, lo:60, pk:114, sus:1.0,  end:4});    // 띵샤
+  exprCurve(hpTrack,   {aFrac:0.03, aMax:0.15,rFrac:0.88, rMax:7,  lo:60, pk:112, sus:1.0,  end:5});    // 핸드팬
+
   /* 호흡 표현(CC11) — 고른 호흡 주기(들숨:날숨)를 곡 전체에 끊김 없이 한 줄로 그린다.
      예전에는 코드가 바뀔 때마다 코드 길이에 맞춰 부풀렸다 줄여서(17초 주기) 호흡이 아니라
      기계적인 펌프가 됐고, 코드 경계마다 방향이 꺾여 인위적으로 들렸다.
@@ -25835,6 +25927,10 @@ function buildMidi(){
     }
     breathCC(chordTrack, 1.0);    // 패드가 호흡의 주인공
     breathCC(bassTrack,  0.45);   // 베이스는 절반 이하로만 — 저역이 출렁이면 멀미가 난다
+  } else {
+    /* 호흡을 껐어도 패드·베이스가 맨몸으로 나가면 어택이 딱딱하고 끝이 툭 끊긴다 — 음마다 아주 느린 스웰만 준다 */
+    exprCurve(chordTrack, {aFrac:0.28, aMax:5, rFrac:0.40, rMax:8, lo:52, pk:104, sus:0.96, end:18});
+    exprCurve(bassTrack,  {aFrac:0.30, aMax:6, rFrac:0.35, rMax:8, lo:74, pk:106, sus:0.97, end:52});   // 저역은 폭을 좁게 — 출렁이면 멀미가 난다
   }
 
   const tracks = [];
@@ -26208,11 +26304,21 @@ function trackSetupBlocks(piece){
     L.push('   ④ 컴프     : 오디오 FX 슬롯 → Dynamics > Compressor → '+((g&&g.comp)||F.comp||'—'));
     L.push('   ⑤ 센드     : 믹서(X) → 이 채널 Sends 슬롯 → '+((g&&g.send)||F.send||'—'));
     const baked=[];
+    const brOn=(state.breathInt||'normal')!=='off';
     if(t.key==='chord'||t.key==='bass'){
-      if(piece && piece.breath && (state.breathInt||'normal')!=='off')
-        baked.push('CC11 호흡('+piece.breath.name+' 들숨'+piece.breath.in+'초:날숨'+piece.breath.out+'초) — 음원이 CC11을 볼륨에 받도록 두면 그대로 재현');
+      if(piece && piece.breath && brOn)
+        baked.push('CC11 호흡('+piece.breath.name+' 들숨'+piece.breath.in+'초:날숨'+piece.breath.out+'초) — 곡 전체를 끊김 없이 오르내림');
+      else if(t.key==='chord')
+        baked.push('CC11 느린 스웰 — 호흡을 껐을 때도 어택이 딱딱해지지 않게 음마다 서서히 차오르고 빠짐');
     }
+    if(t.key==='mel')  baked.push('CC11 스웰 — 음마다 부드럽게 차올랐다가 길게 사라짐(어택 1.2초 이내 · 릴리스 최대 6초)');
+    if(t.key==='sing') baked.push('CC11 느린 어택(문지르기, 최대 7초) + 아주 긴 릴리스(최대 10초) — 활·문지름 지속음');
+    if(t.key==='bell'||t.key==='ting'||t.key==='hp')
+      baked.push('CC11 감쇠 꼬리 — 친 직후 최대, 노트가 끝날 때는 거의 0. 툭 끊기지 않고 사라집니다');
     if(t.key==='chord') baked.push('벨로시티 아치(여림→정점→여림)');
+    baked.push('★ CC11(익스프레션)이 이 트랙 표현의 전부입니다 — 음원에서 CC11을 볼륨/레이어에 연결해 두세요.');
+    if(t.key==='bell'||t.key==='ting'||t.key==='hp')
+      baked.push('   음원 릴리스를 짧게 두면 CC11 꼬리가 소용없습니다. Release를 최대로, 또는 One Shot(감쇠 전체 재생)으로.');
     baked.push('CC7 페이드(앞 3초 들어옴 · 끝 10초 빠짐) · CC10 팬 · CC91 리버브 깊이 '+t.rev);
     baked.forEach(function(x,i){ L.push('   '+(i===0?'⑥ 이미 기록됨':'             ')+' : '+x); });
     L.push('');
