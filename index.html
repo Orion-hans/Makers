@@ -1577,6 +1577,7 @@ input[type=range]{accent-color:var(--teal)}
   <button class="d-acc" id="dockAcc">🎹 코드 <b>OFF</b></button>
   <button class="d-mid" id="dockMidi">💾 전체 MIDI</button>
   <button class="d-wav" id="dockWav">🔊 WAV</button>
+  <button class="d-mid" id="dockSheet">📄 제작가이드</button>
 </div>
 
 <div class="modal" id="saveModal">
@@ -2314,7 +2315,7 @@ input[type=range]{accent-color:var(--teal)}
    <li><b>1 침잠</b> 드론만 · <b>2 정착</b> +베이스 · <b>3 전개</b> +선율 · <b>4 고조</b> · <b>5 만개</b> 풀 레이어 · <b>6 방하</b> 걷어냄</li>
    <li>목적을 고르면 <b>자동 추천</b> — 구간 셀렉트를 만지면 직접 설정으로 전환, "↺ 자동 추천으로"로 복귀</li>
    <li>깊은 단계(1·2·6)는 <b>화성 홀드</b>(코드 절반 속도) — 대신 보이싱·질감이 서서히 변함 (요즘 앰비언트 문법)</li>
-   <li>단계가 <b>패드 EQ도 자동으로</b> 엽니다 — 침잠은 어둡게, 만개는 밝게 (재생·WAV에 반영 · MIDI에선 <b>FX Cue 트랙</b>이 그 구간을 표시)</li>
+   <li>단계가 <b>패드 EQ도 자동으로</b> 엽니다 — 침잠은 어둡게, 만개는 밝게 (재생·WAV에 반영 · MIDI는 제작가이드의 <b>구간 지도</b>에 시각이 적혀 있습니다)</li>
    <li>어떤 설정이든 <b>마지막은 으뜸 도착</b> — 엔딩이 끊기지 않음</li>
   </ul>
 
@@ -2339,7 +2340,7 @@ input[type=range]{accent-color:var(--teal)}
   </table>
   <ul style="margin:0;padding-left:20px;color:#c8d4e0;">
    <li>리버브 <b>앞</b>에 LPF — 밝은 꼬리가 쏘는 것 방지</li>
-   <li>패드 하이컷은 재생·WAV엔 단계 연동으로 반영 — Logic에선 <b>FX Cue 트랙 구간</b>을 보고 필요할 때만 필터 오토메이션</li>
+   <li>패드 하이컷은 재생·WAV엔 단계 연동으로 반영 — Logic에선 제작가이드의 <b>구간 지도</b> 시각을 보고 필요할 때만 필터 오토메이션</li>
    <li>딜레이는 점묘 악기(벨·핸드팬)에만 — 1/4 점음표 · 피드백 20%</li>
    <li>드론엔 8~16초 주기의 느린 볼륨 스웰 = 숨</li>
    <li>과하면 탁해짐 — 하나씩 빼며 정하기</li>
@@ -2348,7 +2349,7 @@ input[type=range]{accent-color:var(--teal)}
   <div style="font-weight:700;color:#8fd8c9;margin:16px 0 6px;">⑤ MIDI에 담기는 것</div>
   <ul style="margin:0;padding-left:20px;color:#c8d4e0;">
    <li>앞뒤 <b>4마디 편집 여백</b> · 빌드업 구간 마커 · 실제 코드명 마커</li>
-   <li>트랙별 악기 추천 이름 · <b>Bowl Sing</b>(지속울림) 트랙 · <b>FX Cue</b> 단계 트랙(리전 지도)</li>
+   <li>트랙별 역할이 트랙명에 그대로 · <b>Bowl Sing</b>(지속울림) 트랙 · 구간 경계는 Conductor 마커로 표시</li>
    <li><b>[가이드] 빈 트랙 4개</b> — 그래뉼러·필드렉·서브드론·솔로 단편: 채울 자리와 방법이 트랙 메모에</li>
   </ul>
 
@@ -2412,10 +2413,12 @@ window.SO_GUIDE_COMMON={
   '· post-fader: 센드가 페이더 "뒤"라 페이더 내리면 리버브 양도 함께 줆(리버브·딜레이는 이게 기본이자 정답)',
   '· dBFS/dBTP/LUFS: dBFS=디지털 음량, dBTP=진짜 최고점(리미터 기준), LUFS=체감 라우드니스(스트리밍 기준)'],
  import:[
-  '① 로직 새 프로젝트(Empty Project) → .mid 파일을 트랙 영역에 드래그',
-  '② 팝업에서 "Import tempo information" 체크 → OK. (템포·조표·박자·마커 자동 반영)',
-  '③ 각 트랙 이름이 그대로 표시됨 → 이름 보고 아래 [2단계]에서 음원 로드',
-  '④ 앞뒤 4마디 여백 있음(라이저·잔향 편집용)'],
+  '① 로직에서 File > Open으로 .mid 파일을 엽니다. 템포·박자표·조표·마커가 그대로 따라옵니다.',
+  '   (빈 프로젝트에 드래그하면 프로젝트 기본값 4/4·120BPM이 남습니다. 드래그할 때는 팝업의 "Import tempo information"을 체크하세요)',
+  '② 각 트랙 이름이 그대로 표시됩니다 → 이름을 보고 아래에서 음원을 로드하세요.',
+  '③ 앞뒤로 4마디씩 빈칸이 있습니다. 곡은 5번째 마디 첫박에서 시작합니다(박자표가 무엇이든 마디 단위).',
+  '④ 파일에 임시 음색(GM)이 지정돼 있습니다. 임포트 직후 나는 소리는 자리를 잡아 두는 용도이니 음원을 바꿔 쓰세요.',
+  '⑤ 리퀀타이즈·Force Legato·Note Length 일괄 처리는 걸지 마세요. 음 길이에 주법 신호가 들어 있습니다.'],
  vinst:[
   '가상악기 로드 위치: 트랙 헤더 더블클릭, 또는 좌측 Inspector(단축키 I) 맨 위 파란 "Instrument" 슬롯 클릭',
   '⚠ 음원 표기 읽는 법 — 이 가이드에서 「Alchemy」·「ES2」·「Studio Bass」처럼 적힌 것은 실제 로직 플러그인 이름입니다.',
@@ -5364,13 +5367,18 @@ function buildMidi(){
     const cc = (state.soloPiano||((ME.GENRES[state.genre]||{}).pedal))
       ? (F==='piano' ? ' · CC64 sustain' : ' · CC11 expression')
       : '';
-    nm = 'SUM WAVE Melody — ' + (state.soloPiano?'독주 루바토 ':'') + '(' + (FN[F]||F) + cc + ')';
+    nm = 'SUM WAVE Melody — ' + (state.soloPiano?'독주 루바토 ':'') + '(' + (FN[F]||F) + cc + ') · 임시음색 — 로직에서 교체';
   }
   const nmB=[]; for(const c of nm){ const cp=c.codePointAt(0);
     if(cp<0x80) nmB.push(cp);
     else if(cp<0x800){ nmB.push(0xC0|(cp>>6),0x80|(cp&63)); }
     else { nmB.push(0xE0|(cp>>12),0x80|((cp>>6)&63),0x80|(cp&63)); } }
   pv(tr,0);tr.push(0xFF,0x03,nmB.length);nmB.forEach(b=>tr.push(b));
+  /* 프로그램 체인지 — 로직에서 열면 임시로 이 음색이 얹힌다.
+     예전엔 아예 없어서 임포트 직후 어떤 소리로 들릴지 파일이 스스로 말해주지 못했다.
+     악기군에 맞는 GM 번호만 심는다(실제 음원 교체는 사용자가 로직에서 한다). */
+  { const FAMGM={piano:0, vocal:54, strings:48, winds:73, synth:81};
+    const gm=FAMGM[state.instFam||'piano']; if(gm!=null){ pv(tr,0); tr.push(0xC0, gm); } }
   let last=0;evs.forEach(e=>{pv(tr,e.tick-last);tr.push(e.t,e.m,e.v);last=e.tick;});
   pv(tr,0);tr.push(0xFF,0x2F,0x00);
   const head=[0x4D,0x54,0x68,0x64,0,0,0,6,0,0,0,1,(PPQ>>8)&255,PPQ&255];
@@ -5416,6 +5424,101 @@ function pcToChord(root,pcs){const rel=pcs.map(pc=>((pc-root)+12)%12);const has=
   if(has(3)&&has(7))q='m';else if(has(3)&&has(6))q='dim';if(has(10))q+='7';else if(has(11))q=(q==='m'?'m':'')+'maj7';return PCN[root]+q;}
 
 /* ── 저장 ── */
+
+/* ── 제작가이드 — 다른 앱과 같은 형식(트랙 하나를 ①~⑤ 순서로) ── */
+const MEL_FAM_SETUP = {
+  piano:{ nm:'Piano', find:'펠트/어쿠스틱 피아노 — 어택이 부드럽고 여운이 긴 것',
+    build:'Studio Piano 또는 Vintage Electric Piano. Release를 길게, 벨로시티 커브를 완만하게',
+    vol:'0 dB (리드)', pan:'정중앙 (독주는 살짝 넓게 L10~R10)',
+    eq:'Band 1(HPF) 60Hz · Band 4 300Hz −2dB(탁함 제거) · Band 7(HiShelf) 10kHz +1dB',
+    comp:'Studio VCA · Thr −18dB · 2:1 · Atk 25ms · Rel 200ms (GR 2~3dB)',
+    send:'Bus 1 리버브 Hall 2.0~2.6초 · 센드 20~30%' },
+  vocal:{ nm:'Vocal', find:'합창·보이스 — 모음이 길게 남는 것',
+    build:'로직 기본 합창 음원. 없으면 ES2 — OSC 3개 Sine·미세 디튠, ENV3 Attack 200ms · Release 1200ms',
+    vol:'0 dB (리드)', pan:'정중앙',
+    eq:'Band 1(HPF) 100Hz · Band 5 2.5kHz +2dB(존재감) · Band 8(LPF) 12kHz',
+    comp:'Studio VCA · Thr −16dB · 3:1 · Atk 15ms · Rel 150ms (GR 3~4dB)',
+    send:'Bus 1 리버브 2.4초 · 센드 30~40% · 딜레이 1/8점 12%' },
+  strings:{ nm:'Strings', find:'현악 독주 또는 앙상블 — 레가토가 자연스러운 것',
+    build:'Studio Strings(Instrument 팝업에서 편성 선택). 없으면 Alchemy(Strings 카테고리 · 검색 「legato」)',
+    vol:'−2 dB', pan:'정중앙~L15',
+    eq:'Band 1(HPF) 70Hz · Band 4 350Hz −2dB · Band 6 6kHz +1dB(윤기)',
+    comp:'Studio VCA · Thr −20dB · 1.5:1 · Atk 40ms(느리게) · Rel 300ms',
+    send:'Bus 1 리버브 Hall 2.8~3.4초 · 센드 30~40%' },
+  winds:{ nm:'Winds', find:'플루트·오보에·클라리넷 — 숨결이 들리는 것',
+    build:'Studio Horns 또는 로직 목관 음원. 없으면 EFM1 — 만들 소리: 부드러운 배음의 목관형',
+    vol:'−2 dB', pan:'정중앙~R15',
+    eq:'Band 1(HPF) 120Hz · Band 4 500Hz −1.5dB · Band 6 4kHz +1dB(공기)',
+    comp:'Studio VCA · Thr −18dB · 2:1 · Atk 30ms · Rel 250ms',
+    send:'Bus 1 리버브 2.2~2.8초 · 센드 25~35%' },
+  synth:{ nm:'Synth', find:'신스 리드 — 단음이 또렷하고 여운이 있는 것',
+    build:'ES2 — OSC1 Saw + OSC2 Saw를 +7cent 디튠 / Cutoff 0.6 · Res 0.2 / ENV3 Attack 5ms · Release 600ms',
+    vol:'−3 dB', pan:'정중앙',
+    eq:'Band 1(HPF) 90Hz · Band 5 1.5kHz +1dB · Band 8(LPF) 14kHz',
+    comp:'Studio VCA · Thr −16dB · 3:1 · Atk 10ms · Rel 120ms',
+    send:'Bus 1 리버브 1.8초 · 센드 20% · 딜레이 1/8 15%' }
+};
+function melSetupSheet(){
+  const L=[], line=(t)=>L.push(t==null?'':t);
+  const F=state.instFam||'piano', FS=MEL_FAM_SETUP[F]||MEL_FAM_SETUP.piano;
+  const G=ME.GENRES[state.genre]||{};
+  const solo=!!state.soloPiano, ped=!!(solo||G.pedal);
+  const bpm=(durationDriven()&&state.logicBpm>0)?state.logicBpm:state.bpm;
+  line('════════════════════════════════════════');
+  line('  SUM WAVE 멜로디 — 로직 제작가이드');
+  line('════════════════════════════════════════');
+  line('');
+  line('■ 곡 정보');
+  line('   장르       : '+(G.label||state.genre));
+  line('   조성       : '+state.key+' '+(state.keyMode==='minor'?'단조':'장조'));
+  line('   빠르기     : '+bpm+' BPM');
+  line('   박자표     : '+state.meter);
+  line('   악기군     : '+FS.nm+(solo?'  · 독주 루바토':''));
+  line('   음 수      : '+state.notes.length);
+  line('');
+  if(typeof window!=='undefined' && window.SO_renderCommon){
+    line('■ 공통 기본 (로직 프로 11)');
+    window.SO_renderCommon({skip:{gain:1,routing:1,sidechain:1}}).forEach(function(x){ line(x); });
+    line('');
+  }
+  line('──────────────────────────────────────────');
+  line('■ 트랙별 셋업 — 이 파일에 든 트랙 전부');
+  line('──────────────────────────────────────────');
+  line('   트랙 하나를 [① 음원 → ② 볼륨·팬 → ③ EQ → ④ 컴프 → ⑤ 센드] 로 끝내고 다음 트랙으로.');
+  line('   ⑤ 센드를 걸려면 아래 「공유 버스 만들기」를 먼저 해두는 게 편합니다.');
+  line('');
+  line('  ━━━━━ 트랙 1.  SUM WAVE Melody ('+FS.nm+') ━━━━━');
+  line('  ① 음원      : 트랙 선택 → 라이브러리(Y) → 찾는 성격: '+FS.find);
+  line('                마땅한 게 없으면 직접: '+FS.build);
+  line('  ② 볼륨·팬   : 믹서(X) → 페이더 '+FS.vol+' · 팬 '+FS.pan);
+  line('  ③ EQ        : 오디오 FX 슬롯 → EQ > Channel EQ → '+FS.eq);
+  line('  ④ 컴프      : 오디오 FX 슬롯 → Dynamics > Compressor → '+FS.comp);
+  line('  ⑤ 센드      : 믹서(X) → 이 채널 Sends 슬롯 → '+FS.send);
+  { const bk=[];
+    if(ped && F==='piano') bk.push('CC64 서스테인 — 프레이즈 경계마다 리프트→재프레스. 음원의 Sustain Pedal이 CC64를 받게 두면 그대로 재현됩니다.');
+    else if(ped)           bk.push('CC11 익스프레션 — 긴 음의 스웰. 음원에서 CC11을 볼륨에 연결해 두세요.');
+    bk.push('임시 음색(GM '+FS.nm+')이 지정돼 있습니다. 임포트 직후 나는 소리는 자리를 잡아 두는 용도입니다.');
+    bk.forEach(function(x,i){ line('  '+(i===0?'⑥ 이미 기록됨':'             ')+' : '+x); }); }
+  line('');
+  line('──────────────────────────────────────────');
+  line('■ 공유 버스 만들기 (한 번만)');
+  line('──────────────────────────────────────────');
+  line('   트랙의 Sends 슬롯 클릭 → Bus 1 선택 → 생기는 Aux 채널의 Audio FX에 Reverb > ChromaVerb');
+  line('   리버브는 트랙에 직접 인서트하지 말고 버스로 보내 쓰세요.');
+  line('');
+  line('──────────────────────────────────────────');
+  line('■ 반주를 붙이려면');
+  line('──────────────────────────────────────────');
+  line('   이 파일에는 선율만 들어 있습니다. 앱의 🎹 코드 버튼은 미리듣기 전용입니다.');
+  line('   반주가 필요하면 Band Composer나 Play Composer에서 같은 조성·박자표로 만들어 겹치세요.');
+  line('');
+  line('──────────────────────────────────────────');
+  line('■ 마스터');
+  line('──────────────────────────────────────────');
+  line('   Stereo Out: −14 LUFS 목표 / 트루피크 −1 dBTP 리미터');
+  return L.join('\n');
+}
+
 function saveFile(bytes,fname,mime){
   const b64=btoa(String.fromCharCode.apply(null,bytes));const url='data:'+mime+';base64,'+b64;
   $('mFname').textContent=fname;$('mDl').href=url;$('mDl').download=fname;$('mDl').textContent='⬇ '+fname+' 저장';
@@ -5428,6 +5531,10 @@ function saveFile(bytes,fname,mime){
 $('mClose').onclick=()=>$('saveModal').classList.remove('show');
 $('saveModal').onclick=e=>{if(e.target===$('saveModal'))$('saveModal').classList.remove('show');};
 $('dockMidi').onclick=()=>{if(!state.notes.length){alert('먼저 멜로디를 만들어 주세요');return;}makeMelody(false);const d=buildMidi();if(d)saveFile(d,`sumwave_melody_${state.key}_${state.seed}.mid`,'audio/midi');};   // 추출 직전 현재 설정으로 재생성(시드 유지라 동일 악상)
+$('dockSheet').onclick=()=>{ if(!state.notes.length){ alert('먼저 멜로디를 만들어 주세요'); return; }
+  const txt=melSetupSheet();
+  const enc=new TextEncoder().encode(txt);
+  saveFile(enc, `sumwave_melody_${state.key}_제작가이드.txt`, 'text/plain'); };
 $('dockWav').onclick=async()=>{if(!state.notes.length){alert('먼저 멜로디를 만들어 주세요');return;}makeMelody(false);$('dockWav').textContent='렌더링…';try{const w=await renderWav();saveFile(w,`sumwave_melody_${state.key}_${state.seed}.wav`,'audio/wav');}catch(e){alert('WAV 실패: '+e.message);}$('dockWav').textContent='🔊 WAV';};
 
 /* ── WAV ── */
@@ -8896,10 +9003,59 @@ function gmCat(p){ if(p==null)return '';
    [105,'시타르/밴조 발현 계열'],[107,'코토/샤미센 발현 계열'],[109,'칼림바/백파이프 계열'],[111,'피들/샤나이 에스닉 계열'],
    [119,'타악 계열'],[127,'사운드 이펙트']];
   for(var i=0;i<C.length;i++){ if(p<=C[i][0]) return C[i][1]; } return '사운드 이펙트'; }
+
+/* ── 같은 음 겹침 정리(내보내기 직전 마지막 관문) ──
+   같은 채널·같은 음이 겹치면 앞 음의 노트오프가 뒤 음을 꺼버린다(음원에 따라 뒤 음이 통째로 사라진다).
+   같은 시각의 중복 타건도 소리만 두 배로 세질 뿐 얻는 게 없다.
+   생성 로직이 아무리 늘어나도 파일에는 겹침이 남지 않도록 여기서 한 번 더 훑는다.
+   실측: 박자표를 바꾸면(9/8·12/8 등) 패턴이 접히며 겹침이 생겼다 — 4/4에서는 드러나지 않던 문제. */
+function __sanitizeNotes(list, keyOn, keyOff, keyNote, minGapTick){
+  if(!list || list.length<2) return list;
+  const GAP = (minGapTick==null?24:minGapTick);
+  const by={};
+  list.forEach(function(n,i){ const k=n[keyNote]; (by[k]=by[k]||[]).push(i); });
+  const dead=new Set();
+  Object.keys(by).forEach(function(k){
+    const idx=by[k].sort(function(a,b){ return (list[a][keyOn]-list[b][keyOn]) || (list[a][keyOff]-list[b][keyOff]); });
+    for(let j=0;j<idx.length-1;j++){
+      const a=list[idx[j]], b=list[idx[j+1]];
+      if(dead.has(idx[j])) continue;
+      if(b[keyOn] <= a[keyOn]){ dead.add(idx[j+1]); continue; }        // 같은 시각 중복 → 뒤엣것 제거
+      if(a[keyOff] > b[keyOn]-GAP) a[keyOff]=Math.max(a[keyOn]+GAP, b[keyOn]-GAP);
+    }
+  });
+  const out=[];
+  list.forEach(function(n,i){ if(dead.has(i)) return; if(n[keyOff]<=n[keyOn]) return; out.push(n); });
+  return out;
+}
 function noteTrack(notes,ch,prog,isDrum,ctrl,name,fxNote){const PPQ=480,ev=[],padT=Math.round(exportPadQ()*PPQ);
   notes.forEach(n=>{const midi=isDrum?DRUMMIDI[n.type]:n.midi,dur=isDrum?0.12:n.dur;ev.push({t:padT+Math.round(n.t*PPQ),k:1,on:1,midi,vel:n.vel});ev.push({t:padT+Math.round((n.t+dur)*PPQ),k:1,on:0,midi,vel:0});});
   if(ctrl)ctrl.forEach(c=>ev.push({t:padT+Math.round(c.t*PPQ),k:0,cc:c.ctrl,val:c.val}));   // CC: 노트보다 먼저(k:0) — 페달이 음을 미리 받게
-  ev.sort((a,b)=>a.t-b.t||a.k-b.k||(a.on!=null?a.on:0)-(b.on!=null?b.on:0));let body=[];
+  ev.sort((a,b)=>a.t-b.t||a.k-b.k||(a.on!=null?a.on:0)-(b.on!=null?b.on:0));
+  /* ── 같은 음 겹침 정리(최종 틱 기준) ──
+     같은 채널·같은 음이 겹치면 앞 음의 노트오프가 뒤 음을 꺼버린다.
+     드럼은 길이가 0.12박 고정이라 그보다 촘촘한 연타에서 반드시 겹치고,
+     박자표를 바꾸면 패턴이 접히며 겹침이 더 늘어난다(실측: 9/8·12/8에서 40건 이상).
+     같은 시각 중복 타건도 세기만 두 배가 될 뿐이라 함께 정리한다. */
+  { const GAPT=12, ons={}, dead=new Set();
+    ev.forEach((e,i)=>{ if(e.k===1&&e.on) (ons[e.midi]=ons[e.midi]||[]).push(i); });
+    Object.keys(ons).forEach(k=>{ const idx=ons[k];
+      for(let j=0;j<idx.length-1;j++){
+        if(dead.has(idx[j])) continue;
+        const A=ev[idx[j]], B=ev[idx[j+1]];
+        if(B.t<=A.t){ dead.add(idx[j+1]); continue; }                       // 같은 시각 중복 → 뒤엣것 제거
+        for(let z=idx[j]+1;z<ev.length;z++){ if(ev[z].k===1&&!ev[z].on&&ev[z].midi===A.midi){
+          if(ev[z].t > B.t-GAPT) ev[z].t = Math.max(A.t+1, Math.min(B.t-1, B.t-GAPT));   // 두 타건이 GAPT보다 가까워도 반드시 앞에서 끝난다
+          break; } }
+      }
+    });
+    if(dead.size){ const rm=new Set();
+      dead.forEach(i=>{ rm.add(i);
+        for(let z=i+1;z<ev.length;z++){ if(ev[z].k===1&&!ev[z].on&&ev[z].midi===ev[i].midi){ rm.add(z); break; } } });
+      for(let i=ev.length-1;i>=0;i--) if(rm.has(i)) ev.splice(i,1); }
+    ev.sort((a,b)=>a.t-b.t||a.k-b.k||(a.on!=null?a.on:0)-(b.on!=null?b.on:0));
+  }
+  let body=[];
   if(name){const _cat=(prog!=null&&!isDrum)?(' [소리계열: '+gmCat(prog)+']'):''; const nb=sbm(name+_cat);body.push(...vlq(0),0xFF,0x03,...vlq(nb.length),...nb);}   // 트랙 이름(FF 03)
   if(fxNote){const fb=sbm('FX: '+fxNote);body.push(...vlq(0),0xFF,0x01,...vlq(fb.length),...fb);}   // FX 메모(FF 01 텍스트) → 로직 이벤트 리스트/일부 DAW에 표시
   if(prog!=null)body.push(...vlq(0),0xC0|ch,prog);let last=0;
@@ -9982,7 +10138,6 @@ function logicGuide(){
   };
   line('━━━━ ② 트랙별 셋업 — 이 파일에 든 트랙 전부 ━━━━');
   line('트랙 하나를 [① 음원 → ② 볼륨·팬 → ③ EQ → ④ 컴프 → ⑤ 센드 → ⑥ 연주] 로 끝내고 다음 트랙으로.');
-  line('같은 트랙 값이 다른 섹션에 또 나오지 않습니다 — 값은 여기 한 곳에만 있습니다.');
   line('⑤ 센드를 걸려면 아래 「공유 버스(Aux) 만들기」를 먼저 해두는 게 편합니다.');
   line('');
   KEYS.forEach(k=>{
@@ -10008,6 +10163,11 @@ function logicGuide(){
   line('  아무 트랙 "Sends" 슬롯 클릭 → Bus 1(리버브) / Bus 2(딜레이) 선택 → 자동 생성된 Aux 채널 Audio FX에 아래를 인서트:');
   if(fx.aux) line('  ◆ '+fx.aux);
   line('  리버브·딜레이는 트랙에 직접 인서트하지 않습니다 — 버스로 보내 공유하는 게 표준입니다.');
+  line('');
+  line('[박자표]');
+  line('  · 파일 첫머리에 박자표가 기록돼 있습니다. 6/8·9/8·12/8은 점4분음표를 한 박으로 세도록 적혀 있어');
+  line('    로직 메트로놈과 비트 매핑이 그대로 맞습니다.');
+  line('  · 구간마다 박자표를 다르게 두면 그 지점에 박자표 변경이 함께 기록됩니다(마디선 위에서만 바뀝니다).');
   line('');
   line('[전 트랙 공통 — 이미 MIDI에 기록된 것]');
   line('  · 페달(CC64): 코드 셀마다 밟고 다음 코드 직전 뗌(레가토 페달) — 피아노·2nd 피아노 트랙');
@@ -15303,6 +15463,9 @@ function fxCueTracks(){const PPQ=480,CUE=60,tracks=[];   // 타입별 별도 MTr
     let body=[],last=0;
     body.push(...vlq(0),...metaText(0x03,trackName));                       // 트랙 이름 = 효과명 (로직에 표시됨)
     body.push(...vlq(0),...metaText(0x04,desc));
+    /* 프로그램 체인지 — 없으면 로직이 기본 피아노로 울려서 가이드 트랙이 엉뚱하게 들린다.
+       샘플로 갈아끼울 자리이므로 앰비언스 계열(GM 122 Seashore)을 임시로 얹어 둔다. */
+    body.push(...vlq(0),0xC0|14,122);
     ev.forEach(e=>{body.push(...vlq(e.t-last));last=e.t;
       if(e.on)body.push(0x90|14,CUE,e.vel);else body.push(0x80|14,CUE,0);});
     body.push(...vlq(0),0xFF,0x2F,0x00);
@@ -15361,6 +15524,15 @@ function buildSongSheet(){
   L.push('조성(KEY)   : '+keyName);
   L.push('빠르기(TEMPO): '+tempoStr);
   L.push('박자표(METER): '+(($('meter')&&$('meter').value)||'4/4'));
+  { const _m=curMeter();
+    if(_m && _m.den===8 && _m.num%3===0 && _m.num>3){
+      L.push('  └ 복합박입니다. 점4분음표가 한 박이며(마디에 '+(_m.num/3)+'박), 킥·스네어가 그 맥에 놓입니다.');
+      L.push('    한 박은 8분음표 셋으로 나뉩니다 — 로직 격자를 1/8 셋잇단(Triplet)으로 두면 편집이 편합니다.');
+    } else if(_m && _m.den===8){
+      L.push('  └ 변박입니다. 8분음표가 한 박이며 마디는 '+_m.num+'박입니다.');
+    }
+    L.push('  └ 앞뒤로 4마디씩 빈칸이 있습니다. 곡은 5번째 마디 첫박에서 시작합니다.');
+  }
   { const B=state.sections.filter(s=>s.motif==='B');
     if(B.length){
       const ms=[...new Set(B.map(s=>s.meter).filter(Boolean))];
@@ -15558,7 +15730,6 @@ function buildSongSheet(){
   }
   L.push('■ 트랙별 셋업 — 이 파일에 든 트랙 전부');
   L.push('  트랙 하나를 [① 음원 → ② 볼륨·팬 → ③ EQ·컴프 → ④ 센드 → ⑤ 음원 설정] 로 끝내고 다음 트랙으로.');
-  L.push('  같은 트랙 값이 다른 섹션에 또 나오지 않습니다 — 값은 여기 한 곳에만 있습니다.');
   L.push('  [넣는 법] 트랙 선택 → Instrument 슬롯(음원 삽입·트랙명으로 라이브러리 Y 검색) → Audio FX 슬롯(EQ→Comp→[Sat]) → Sends 슬롯(리버브/딜레이 Bus)');
   L.push('');
   L.push('  ── 용어 풀이 (처음 보는 말이 있으면 여기부터) ──');
@@ -22188,36 +22359,9 @@ const groups=[];
       const bars0=currentSong.map(function(sc){ const st=(sc.prog&&sc.prog.steps)||[]; return st.length*(sc.reps||1); });
       const total=bars0.reduce(function(a,b2){ return a+b2; },0);
       if(total>=8){
-        /* ── 곡 시드 — 같은 곡은 늘 같은 패턴, 새로 만들면 달라진다 ── */
-        let _bs=2166136261>>>0;
-        currentSong.forEach(function(sc,ix){
-          const stp=(sc.prog&&sc.prog.steps)||[];
-          stp.forEach(function(x,jx){ const r=(+x[1]); _bs=(Math.imul(_bs,16777619)^((isFinite(r)?r:0)+ix*7+jx*3))>>>0; });
-          const nm=String(sc.label||''); for(let c=0;c<nm.length;c++) _bs=(Math.imul(_bs,16777619)^nm.charCodeAt(c))>>>0;
-        });
-        _bs=(Math.imul(_bs,16777619)^(currentSong.length*13+Math.round(MQ*10)))>>>0;
-        const pick=function(arr,salt){ const h=((Math.imul(_bs^salt,2654435761)>>>0)^(_bs>>>11))>>>0; return arr[h%arr.length]; };
-        /* ── 저역 북 리듬꼴 — 박자표 격자에서 타점을 뽑으므로 어느 박자에서도 어긋나지 않는다 ── */
-        const mids=function(a){ const o=[]; for(let k=0;k<a.length;k++){ const nx=(k+1<a.length)?a[k+1]:1; o.push((a[k]+nx)/2); } return o; };
-        const LOWPAT=[
-          {n:'정박 행진',      f:function(){ return QPf.slice(); }},
-          {n:'강박만 (성긴)',   f:function(){ return BPf.slice(); }},
-          {n:'강박+엇박',      f:function(){ return BPf.concat(mids(BPf)); }},
-          {n:'8분 몰이',       f:function(){ return EPf.slice(); }},
-          {n:'강박+끝당김',    f:function(){ return BPf.concat([1-1/Math.max(2,EPf.length)]); }},
-          {n:'엇박 중심',      f:function(){ return [0].concat(mids(QPf)); }}
-        ];
-        /* ── 팀파니 음형 ── */
-        const TIMPAT=[
-          {n:'롱톤 지속'},{n:'근음-5도 교대'},{n:'두 번 치기'},{n:'마디 끝 상행 이음'}
-        ];
-        /* ── 심벌 운용 ── */
-        const CYMPAT=[
-          {n:'롤 → 크래시', crash:true},{n:'롤만 (부드럽게)', crash:false},{n:'롤 → 크래시 + 구간마다 재타', crash:true, more:true}
-        ];
-        const LP=pick(LOWPAT,0x11), TP=pick(TIMPAT,0x22), CP=pick(CYMPAT,0x33);
-        try{ window.__SB_PATTERN={low:LP.n, tim:TP.n, cym:CP.n}; }catch(e){}
-        soloBuildPatternName = LP.n+' / '+TP.n+' / '+CP.n;
+        const _P=soloBuildPick(BPf,QPf,EPf,MQ);
+        const LP=_P.LP, TP=_P.TP, CP=_P.CP;
+        soloBuildPatternName = _P.name;
 
         let mx=0; currentSong.forEach(function(sc){ mx=Math.max(mx, sc.stage||3); });
         let cli=0; currentSong.forEach(function(sc,i2){ if((sc.stage||3)===mx) cli=i2; });
@@ -22320,6 +22464,29 @@ const groups=[];
           for(let k=0;k<=5;k++) cc(CYM, tick+Math.round(measure*eb*k/5), 1, Math.round(40-36*k/5));
           put(LOW, tick, 41, 52, 60);
           put(LOW, tick+measure, 45, 38, 50); }
+        /* 같은 음 겹침 정리 — 겹치면 노트오프가 충돌해 앞 음이 길이 0으로 나가거나 뒤 음이 꺼진다.
+           (실측: 5/8에서 팀파니 같은 음이 겹쳐 길이 0 노트 2개가 파일에 들어갔다) */
+        /* 배열에 CC 이벤트가 섞여 있어 '노트온 다음이 곧 노트오프'라는 가정이 깨진다 —
+           온/오프를 실제로 찾아 짝지어 정리한다(실측: 5/8에서 길이 0 노트가 남았다). */
+        [TIM,LOW,CYM].forEach(function(arr){
+          arr.sort(function(x,y){ return (x.tk-y.tk)||((x.cc!=null?0:1)-(y.cc!=null?0:1)); });
+          const ons={}, dead=new Set();
+          arr.forEach(function(e,i){ if(e.cc==null && e.on) (ons[e.m]=ons[e.m]||[]).push(i); });
+          Object.keys(ons).forEach(function(k){ const idx=ons[k];
+            for(let j=0;j<idx.length-1;j++){
+              if(dead.has(idx[j])) continue;
+              const A=arr[idx[j]], B=arr[idx[j+1]];
+              if(B.tk<=A.tk){ dead.add(idx[j+1]); continue; }
+              for(let z=idx[j]+1;z<arr.length;z++){ if(arr[z].cc==null && !arr[z].on && arr[z].m===A.m){
+                if(arr[z].tk > B.tk-24) arr[z].tk = Math.max(A.tk+1, Math.min(B.tk-1, B.tk-24));   // 아주 가까운 연타에서도 겹치지 않게
+                break; } }
+            }
+          });
+          if(dead.size){ const rm=new Set();
+            dead.forEach(function(i){ rm.add(i);
+              for(let z=i+1;z<arr.length;z++){ if(arr[z].cc==null && !arr[z].on && arr[z].m===arr[i].m){ rm.add(z); break; } } });
+            for(let i=arr.length-1;i>=0;i--) if(rm.has(i)) arr.splice(i,1); }
+        });
         /* 트랙으로 기록 — 팀파니는 음정 채널, 북·심벌은 드럼 채널(ch9) */
         let chT=15; { const usedB=new Set(groups.map(function(g){ return g.ch; })); usedB.add(9);
           for(const cX of [15,14,13,12,11,10]){ if(!usedB.has(cX)){ chT=cX; break; } } }
@@ -22498,6 +22665,27 @@ const groups=[];
          (대고 / 중북 / 목탁 / 징·심벌 — 각각 다른 음원을 얹게 됨) */
       if(pev.length){
         pev.sort(function(a,b){ return a.tk-b.tk||(a.on-b.on); });
+        /* 같은 음 겹침 정리 — 박자표에 따라 패턴이 접히며 같은 음이 겹칠 수 있다(실측: 2/4·3/4에서 발생).
+           겹치면 앞 음의 노트오프가 뒤 음을 꺼버리고, 같은 시각 중복 타건은 세기만 두 배가 된다. */
+        { const ons={}, dead=new Set();
+          pev.forEach(function(e,i){ if(e.on) (ons[e.m]=ons[e.m]||[]).push(i); });
+          Object.keys(ons).forEach(function(k){
+            const idx=ons[k];
+            for(let j=0;j<idx.length-1;j++){
+              if(dead.has(idx[j])) continue;
+              const A=pev[idx[j]], B=pev[idx[j+1]];
+              if(B.tk<=A.tk){ dead.add(idx[j+1]); continue; }
+              for(let z=idx[j]+1;z<pev.length;z++){ if(!pev[z].on && pev[z].m===A.m){
+                if(pev[z].tk > B.tk-24) pev[z].tk=Math.max(A.tk+1, Math.min(B.tk-1, B.tk-24));
+                break; } }
+            }
+          });
+          if(dead.size){ const rm=new Set();
+            dead.forEach(function(i){ rm.add(i);
+              for(let z=i+1;z<pev.length;z++){ if(!pev[z].on && pev[z].m===pev[i].m){ rm.add(z); break; } } });
+            for(let i=pev.length-1;i>=0;i--) if(rm.has(i)) pev.splice(i,1);
+            pev.sort(function(a,b){ return a.tk-b.tk||(a.on-b.on); }); }
+        }
         const LAY=[
           {k:'daego', nm:'War Perc 1 — 대고(큰북)  [41·43·35]',      set:[41,43,35],
            tip:'Orchestral Kit의 Bass Drum / Taiko. 가장 낮고 무겁게'},
@@ -22834,13 +23022,14 @@ const groups=[];
     if(soloBuildPerc && !(INST&&INST.drums&&INST.drums.on)){
       L.push(''); L.push('  ━━━━━ [후반 고조] 타악 3트랙 — 토글로 켠 것 ━━━━━');
       L.push('  타악 없는 편성에서 후반부만 밀어 올립니다. 곡의 55~62% 지점에서 스며들어');
-      L.push('  절정에서 최고조, 이후 유지, 아웃트로에서 잦아들며 곡과 함께 끝납니다(중간에 사라지지 않습니다).');
+      L.push('  절정에서 최고조, 이후 유지, 아웃트로에서 잦아들며 곡과 함께 끝납니다.');
       L.push('');
-      L.push('  ◆ 이 곡이 고른 리듬꼴: '+(soloBuildPatternName||'—'));
-      L.push('     리듬꼴은 곡마다 달라집니다 — 화음 근음·구간 이름·조성·박자표에서 시드를 뽑아');
-      L.push('     북 6종 × 팀파니 4종 × 심벌 3종 중에서 고릅니다. 같은 곡은 늘 같고, 새로 만들면 달라집니다.');
-      L.push('     타점은 박자표의 강박 격자에서 뽑으므로 3/4·6/8·5/8·7/8에서도 어긋나지 않습니다.');
-      L.push('     구간 마지막 마디에는 다음 구간으로 밀어주는 하강 필이 들어갑니다.');
+      { let _nm=soloBuildPatternName;
+        if(!_nm && currentSong && currentSong.length){
+          try{ _nm=soloBuildPick(meterBeatPos(),meterQuarterPos(),meterEighth(),meterQuarters()).name; }catch(e){}
+        }
+        L.push('  ◆ 이 곡이 고른 리듬꼴: '+(_nm||'—')); }
+      L.push('     곡을 새로 만들면 다른 리듬꼴이 나옵니다. 구간 마지막 마디에는 하강 필이 들어갑니다.');
       L.push('');
       L.push('  ▸ [후반 고조] Timpani  — 음정 트랙(드럼맵 아님)');
       L.push('     ① 음원   : 라이브러리(Y) → 오케스트라 타악 계열에서 팀파니. 없으면 Quick Sampler에 팀파니 샘플');
@@ -23073,7 +23262,6 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
     }
     L.push('■ 트랙별 셋업 — 이 파일에 든 트랙 전부');
     L.push('   트랙 하나를 [① 음원 → ② 볼륨·팬 → ③ EQ → ④ 컴프 → ⑤ 센드] 로 끝내고 다음 트랙으로 넘어가세요.');
-    L.push('   같은 트랙 값이 다른 섹션에 또 나오지 않습니다 — 값은 여기 한 곳에만 있습니다.');
     L.push('   트랙은 이름과 채널(ch)로 찾으세요. 로직에서 파일을 열면 트랙 이름이 그대로 표시됩니다.');
     L.push('   ⑤ 센드를 걸려면 아래 「공유 버스 만들기」를 먼저 해두는 게 편합니다.');
     L.push('──────────────────────────────────────────────────');
@@ -23347,6 +23535,32 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       stopGroove(); if(typeof songState!=='undefined'&&songState) stopSong(); }); }
   let soloBuildPerc=false;   // 후반 타악 고조 — 타악이 없는 편성에서만 동작
 let soloBuildPatternName='';   // 이번 곡이 고른 리듬꼴 — 제작가이드에 그대로 적는다
+/* 후반 고조 리듬꼴 선택 — 곡 데이터에서 시드를 뽑아 북·팀파니·심벌을 하나씩 고른다.
+   MIDI 생성부와 제작가이드가 같은 결과를 쓰도록 한 곳에 둔다. */
+function soloBuildPick(BPf,QPf,EPf,MQ){
+  let bs=2166136261>>>0;
+  (currentSong||[]).forEach(function(sc,ix){
+    const stp=(sc.prog&&sc.prog.steps)||[];
+    stp.forEach(function(x,jx){ const r=(+x[1]); bs=(Math.imul(bs,16777619)^((isFinite(r)?r:0)+ix*7+jx*3))>>>0; });
+    const nm=String(sc.label||''); for(let c=0;c<nm.length;c++) bs=(Math.imul(bs,16777619)^nm.charCodeAt(c))>>>0;
+  });
+  bs=(Math.imul(bs,16777619)^(((currentSong||[]).length)*13+Math.round(MQ*10)))>>>0;
+  const pick=function(arr,salt){ const h=((Math.imul(bs^salt,2654435761)>>>0)^(bs>>>11))>>>0; return arr[h%arr.length]; };
+  const mids=function(a){ const o=[]; for(let k=0;k<a.length;k++){ const nx=(k+1<a.length)?a[k+1]:1; o.push((a[k]+nx)/2); } return o; };
+  const LOWPAT=[
+    {n:'정박 행진',    f:function(){ return QPf.slice(); }},
+    {n:'강박만 (성긴)', f:function(){ return BPf.slice(); }},
+    {n:'강박+엇박',    f:function(){ return BPf.concat(mids(BPf)); }},
+    {n:'8분 몰이',     f:function(){ return EPf.slice(); }},
+    {n:'강박+끝당김',  f:function(){ return BPf.concat([1-1/Math.max(2,EPf.length)]); }},
+    {n:'엇박 중심',    f:function(){ return [0].concat(mids(QPf)); }}
+  ];
+  const TIMPAT=[{n:'롱톤 지속'},{n:'근음-5도 교대'},{n:'두 번 치기'},{n:'마디 끝 상행 이음'}];
+  const CYMPAT=[{n:'롤 → 크래시', crash:true},{n:'롤만 (부드럽게)', crash:false},
+                {n:'롤 → 크래시 + 구간마다 재타', crash:true, more:true}];
+  const LP=pick(LOWPAT,0x11), TP=pick(TIMPAT,0x22), CP=pick(CYMPAT,0x33);
+  return {LP:LP, TP:TP, CP:CP, name:LP.n+' / '+TP.n+' / '+CP.n};
+}
 function applyPreset(solo){
     INST.melody.on=solo; INST.piano.on=true; INST.bass.on=true;
     INST.strings.on=false; INST.winds.on=false; INST.drums.on=!solo;
@@ -24445,12 +24659,12 @@ function midiNameFor(sp){
   }
   return sp.midiName;
 }
-// 비어있는 가이드 트랙 (MIDI엔 이름만, Logic에서 채움)
+// 더 얹으면 좋은 레이어 — 제작가이드 ⑤에 안내로만 나간다(MIDI에는 들어가지 않음)
 const MIDI_GUIDE_TRACKS = [
-  {name:'[가이드] Texture — Granular Cloud (Alchemy Granular)', desc:'비어있는 가이드 트랙. 패드 소스(또는 이 파일 WAV)를 Alchemy 그래뉼러로 — 서서히 모핑하는 질감 구름. 고조~만개 구간에서만 -18dB로 올리고 침잠·방하에선 뮤트. 필터 컷오프를 아주 느리게 오토메이션.', short:'Texture (Alchemy Granular) : 패드/이 곡 WAV를 그래뉼러로 — 서서히 모핑하는 질감 구름. 고조~만개에서만 -18dB, 침잠·방하엔 뮤트. 컷오프 아주 느리게 오토메이션.'},
-  {name:'[가이드] Field Rec — 자연음 (Apple Loops·직접 녹음)', desc:'비어있는 가이드 트랙. 새·물·바람 필드 레코딩을 아주 낮게(-24dB 안팎) — 공간에 생기. 침잠·정착·방하 구간에 어울림. 하이패스 200Hz로 저역 정리, 긴 리버브 센드 살짝.', short:'Field Rec (자연음)         : 새·물·바람 필드레코딩 -24dB — 공간에 생기. HPF 200Hz, 긴 리버브 센드 살짝.'},
-  {name:'[가이드] Sub Drone — 저역 페달 (Alchemy(Soundscapes 카테고리 · 검색 「Drone」)·Sculpture)', desc:'비어있는 가이드 트랙. 본청 루트의 저역 지속 드론(스펙트럴 드론 계열) — 곡 전체를 받치는 바닥. 사인+약한 배음, 30~60Hz는 컷. 베이스 트랙과 겹치면 베이스를 우선.', short:'Sub Drone (저역 페달)      : 본청 루트 저역 지속(사인+약배음) — 곡 전체 바닥. 30~60Hz 컷, 베이스와 겹치면 베이스 우선.'},
-  {name:'[가이드] Solo Frag — EP·색소폰 단편 (앰비언트 재즈)', desc:'비어있는 가이드 트랙. 요즘 앰비언트 재즈 흐름 — 로즈 EP나 부드러운 색소폰으로 2~3음 단편만, 긴 리버브에 띄워서. 고조·만개 구간에 드물게. 프레이즈보다 여운이 주인공.', short:'Solo Frag (앰비언트 재즈)  : Rhodes EP·부드러운 색소폰 2~3음 단편만, 긴 리버브에 띄워서. 고조·만개에 드물게 — 여운이 주인공.'}
+  {name:'Texture — Granular Cloud (Alchemy Granular)', desc:'패드 소스(또는 이 파일 WAV)를 Alchemy 그래뉼러로 — 서서히 모핑하는 질감 구름. 고조~만개 구간에서만 -18dB로 올리고 침잠·방하에선 뮤트. 필터 컷오프를 아주 느리게 오토메이션.', short:'Texture (Alchemy Granular) : 패드/이 곡 WAV를 그래뉼러로 — 서서히 모핑하는 질감 구름. 고조~만개에서만 -18dB, 침잠·방하엔 뮤트. 컷오프 아주 느리게 오토메이션.'},
+  {name:'Field Rec — 자연음 (Apple Loops·직접 녹음)', desc:'새·물·바람 필드 레코딩을 아주 낮게(-24dB 안팎) — 공간에 생기. 침잠·정착·방하 구간에 어울림. 하이패스 200Hz로 저역 정리, 긴 리버브 센드 살짝.', short:'Field Rec (자연음)         : 새·물·바람 필드레코딩 -24dB — 공간에 생기. HPF 200Hz, 긴 리버브 센드 살짝.'},
+  {name:'Sub Drone — 저역 페달 (Alchemy(Soundscapes 카테고리 · 검색 「Drone」)·Sculpture)', desc:'본청 루트의 저역 지속 드론(스펙트럴 드론 계열) — 곡 전체를 받치는 바닥. 사인+약한 배음, 30~60Hz는 컷. 베이스 트랙과 겹치면 베이스를 우선.', short:'Sub Drone (저역 페달)      : 본청 루트 저역 지속(사인+약배음) — 곡 전체 바닥. 30~60Hz 컷, 베이스와 겹치면 베이스 우선.'},
+  {name:'Solo Frag — EP·색소폰 단편 (앰비언트 재즈)', desc:'요즘 앰비언트 재즈 흐름 — 로즈 EP나 부드러운 색소폰으로 2~3음 단편만, 긴 리버브에 띄워서. 고조·만개 구간에 드물게. 프레이즈보다 여운이 주인공.', short:'Solo Frag (앰비언트 재즈)  : Rhodes EP·부드러운 색소폰 2~3음 단편만, 긴 리버브에 띄워서. 고조·만개에 드물게 — 여운이 주인공.'}
 ];
 
 // 목적별 보정 (저역/밝기)
@@ -26094,7 +26308,7 @@ function buildMidi(){
   function _hrng(){ _hseed=(_hseed*1664525+1013904223)&0x7fffffff; return _hseed/0x7fffffff; }
   function _hT(tick){ return Math.max(0, tick + Math.round((_hrng()*2-1)*6)); } // ±6틱(60BPM서 ±12ms) 미세
   function _hV(v){ return Math.max(1, Math.min(127, v + Math.round((_hrng()*2-1)*7))); } // ±7 세기 흔들림
-  piece.ev.chords.forEach(cd=>{ // CC74(밝기 자동화)는 넣지 않음 — 밝기 변화는 FX Cue 트랙 구간 지도로만 안내
+  piece.ev.chords.forEach(cd=>{ // CC74(밝기 자동화)는 넣지 않음 — 밝기 변화는 제작가이드의 구간 지도로 안내
     cd.notes.forEach(nn=> chordTrack.push({note:nn, start:_hT(S(cd.t)), dur:S(cd.dur)-10, vel:_hV(cd.vel)})); });
   piece.ev.bass.forEach(b=> bassTrack.push({note:b.midi, start:_hT(S(b.t)), dur:S(b.dur)-10, vel:_hV(b.vel)}));
   piece.ev.melody.forEach(n=> melTrack.push({note:n.midi, start:_hT(S(n.t)), dur:Math.max(60,S(n.dur)), vel:_hV(n.vel)}));
@@ -26351,8 +26565,7 @@ function buildMidi(){
   });
   cond = cond.concat(writeVarLen(0),[0xFF,0x2F,0x00]);
   tracks.push(cond);
-  /* FX Cue 트랙은 없앴다 — 노트가 소리를 내지 않는 '가이드용 트랙'이라 임포트 후 무조건 뮤트해야 했고,
-     같은 구간 정보가 Conductor 마커(■ 구간1/6 …)에 이미 들어 있다. 시각 표는 제작가이드에 있다. */
+  /* 구간(빌드업 단계) 정보는 Conductor 마커(■ 구간1/6 …)와 제작가이드의 구간 지도에 있다. */
   // 코드 ch1: GM 88 Pad New Age / 베이스 ch2: GM 89 Pad Warm / 멜로디 ch3: GM 73 Flute
   const LY=state.layersOn||{pad:true,bass:true,melody:true,point:true};
   function pushTrack(baseName, memo, setup, noteArr, ch){
@@ -26371,6 +26584,26 @@ function buildMidi(){
         noteArr.push({start:S(_L-FADE_OUT+ts), cc:7, val:Math.round(Math.max(0,Math.min(127, vol*(1-ts/FADE_OUT))))});
   }
   _emittedTracks=[];   // 이 파일에 실제로 들어간 트랙 — 제작가이드가 이걸 그대로 읽는다
+  /* ── 같은 음 겹침 정리(내보내기 직전) ──
+     선율·포인트·지속현은 감쇠 꼬리를 길게 두는데, 같은 음이 그 안에서 다시 울리면
+     앞 음의 노트오프가 뒤 음을 꺼버린다(실측: 발리 수링 6박·시네마틱 지속현 47박 겹침).
+     패드·베이스는 padLegato가 이미 처리하므로 여기서는 나머지를 훑는다. */
+  Object.keys(_noteArrs).forEach(function(k){
+    var arr=_noteArrs[k]; if(!arr||!arr.length) return;
+    var ns=arr.filter(function(x){ return x.cc==null; });
+    var by={}; ns.forEach(function(n){ (by[n.note]=by[n.note]||[]).push(n); });
+    var dead=[];
+    Object.keys(by).forEach(function(m){
+      var a2=by[m].sort(function(x,y){ return x.start-y.start; });
+      for(var i=0;i<a2.length-1;i++){
+        var A=a2[i], B=a2[i+1];
+        if(B.start<=A.start){ dead.push(B); continue; }                       // 같은 시각 중복
+        var lim=Math.max(A.start+1, Math.min(B.start-1, B.start-24));         // 32분음표 절반 앞에서 끝냄
+        if(A.start+A.dur > lim) A.dur = lim - A.start;
+      }
+    });
+    if(dead.length) _noteArrs[k]=arr.filter(function(x){ return dead.indexOf(x)<0; });
+  });
   midiTrackSpec().forEach(function(sp){
     if(LY[sp.gate]===false) return;
     var arr=_noteArrs[sp.key];
@@ -26562,7 +26795,7 @@ const TRACK_FALLBACK = {
     send:'Verb-B 40%',
     build:'핸드팬은 로직 기본에 없다 → Quick Sampler에 샘플. 없으면 임시음(Kalimba) 유지하고 Release를 길게'}
 };
-function trackSetupBlocks(piece){
+function trackSetupBlocks(piece, prog){
   const L=[];
   const G=(state.aes && typeof GENRE_SPEC!=='undefined' && GENRE_SPEC[state.aes]) ? GENRE_SPEC[state.aes] : null;
   const findG=(pre)=> G ? G.tracks.find(function(x){ return x.role.indexOf(pre)===0; }) : null;
@@ -26570,8 +26803,11 @@ function trackSetupBlocks(piece){
   const specs={}; midiTrackSpec().forEach(function(sp){ specs[sp.key]=sp; });
   const mono=!!state.masking;
   const quiet=['sleep','meditation'].indexOf(state.purpose)>=0;
-  const em=(_emittedTracks && _emittedTracks.length)?_emittedTracks:null;
-  if(!em){ L.push('(트랙 목록을 읽지 못했습니다 — 💾 MIDI를 먼저 내려받으면 이 표가 파일과 정확히 맞습니다)'); return L; }
+  let em=(_emittedTracks && _emittedTracks.length)?_emittedTracks:null;
+  if(!em){ try{ const _bk=lastProgForMidi; lastProgForMidi = lastProgForMidi || (prog||state.selProg||'');
+      buildMidi(); lastProgForMidi=_bk;
+      em=(_emittedTracks&&_emittedTracks.length)?_emittedTracks:null; }catch(e){} }
+  if(!em){ L.push('(진행을 먼저 고르면 트랙 목록이 여기에 나옵니다)'); return L; }
   L.push('트랙 번호는 로직에서 파일을 열었을 때의 순서와 같습니다. 1번은 Conductor(템포·조표·마커)라 소리가 없습니다.');
   L.push('※ 지금 파일에 든 소리는 자리를 잡아 두는 임시음(GM)입니다 — 아래 ①로 바꾸는 게 첫 작업입니다.');
   L.push('※ 프리셋 "이름"은 로직 버전·설치한 사운드 라이브러리에 따라 다릅니다. 그래서 이름 대신 「찾는 성격」으로 적었고,');
@@ -26680,7 +26916,10 @@ function buildSongSheet(prog){
   L.push('');
   L.push('■ ② 트랙별 셋업 — 이 파일에 든 트랙 전부   [핵심 · STEP 2]');
   L.push('');
-  trackSetupBlocks(piece).forEach(function(x){ L.push(x); });
+  trackSetupBlocks(piece, prog).forEach(function(x){ L.push(x); });
+  L.push('◆ 전 트랙 공통 — 같은 음이 다시 울릴 때는 앞 음이 그 직전에 끝나도록 적어 두었습니다.');
+  L.push('   음원 릴리스를 길게 두어도 앞 음이 뒤 음을 끊지 않습니다.');
+  L.push('');
   L.push('◆ 싱잉볼·띵샤·핸드팬·탐푸라·가믈란은 로직 기본 음원에 없습니다.');
   L.push('   직접 녹음·구입한 샘플을 Quick Sampler에 올려 쓰거나, 임시음을 그대로 두고 Release만 길게 하세요.');
   L.push('');
