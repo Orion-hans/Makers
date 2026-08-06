@@ -20509,6 +20509,34 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
       }
       if(bd<99) n.midi=best;
     }
+    /* ── 실제 음높이로 부딪히는 자리 ──
+       음정 클래스가 화음음이어도, 그 순간 울리는 반주 음과 '단2도(1반음)'로 붙으면 부딪힌다.
+       옥타브가 벌어진 장7·단9도는 괜찮지만 1반음은 어느 음역에서든 거슬린다
+       (실측: 40장르 지속 선율음 4,514개 중 140개, 3.1%).
+       그 자리에서 울리는 반주 음을 실제 음높이로 보고, 1반음이면 화음음 쪽으로 옮긴다. */
+    const voi=[];
+    for(let bi=0; bi<steps.length; bi++){
+      const st=steps[bi]; if(!st){ voi.push([]); continue; }
+      const c=chordMidis(st[1],st[2],st[3]);
+      voi.push(c.notes.slice());
+    }
+    for(let i=0;i<a.length;i++){
+      const n=a[i].n, nx=a[i+1];
+      const heard=Math.max(n.dur||0, nx?(nx.t-a[i].t):(n.dur||0));
+      if(heard<0.5) continue;
+      const V=voi[n.bar%voi.length]; if(!V||!V.length) continue;
+      if(!V.some(q=>Math.abs(q-n.midi)===1)) continue;
+      const st=steps[n.bar%steps.length]; if(!st) continue;
+      const ct=chordMidis(st[1],st[2],st[3]).notes.map(x=>((x%12)+12)%12);
+      let best=null, bd=99;
+      for(const d of [-1,1,-2,2,-3,3]){
+        const c=n.midi+d;
+        if(ct.indexOf(((c%12)+12)%12)<0) continue;
+        if(V.some(q=>Math.abs(q-c)===1)) continue;           // 옮긴 자리도 부딪히면 안 된다
+        if(Math.abs(d)<bd){ bd=Math.abs(d); best=c; }
+      }
+      if(best!=null) n.midi=best;
+    }
     return mel;
   }
 function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=opts||{};
@@ -21628,8 +21656,14 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       const mood=gsel;
       /* 무드별 세기: 슬픔은 낮게, 긴장은 조이고, 벅차오름이 정점, 행복은 풀어 준다 */
       const arcOf={cineSorrow:0.82, cineTension:0.92, cineSoar:1.06, cineJoy:0.96}[mood]||1;
+      /* 무드별 단계 이동 — 세기 숫자만 바꾸면 실제 밀도가 거의 안 변한다(실측: 네 악장 모두 마디당 29~30음).
+         단계를 옮겨야 드럼·베이스·대선율 게이트가 함께 움직여 악장의 두께가 실제로 갈린다. */
+      const stgShift={cineSorrow:-1, cineTension:0, cineSoar:+1, cineJoy:0}[mood]||0;
       secs.forEach(x=>{
-        x.keyShift=(x.keyShift||0)+ks;
+        /* 조는 악장 하나에서 통일한다 — 곡 구조가 붙인 전조를 그대로 두면
+           악장 경계에서 5도권 밖으로 튄다(실측: +0 → +3 → +6 → −2, +6은 트라이톤). */
+        x.keyShift=ks;
+        if(stgShift){ x.stage=Math.max(1, Math.min(6, (x.stage||3)+stgShift)); applyStageFields(x); }
         x.intensity=Math.max(0.3, Math.min(1, (x.intensity||0.7)*arcOf));
         x.movement=k+1; x.cineMood=mood;
       });
@@ -22751,9 +22785,13 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       const BED={pad:45,sub:24,strings:45,choir:48,horns:40,lowbrass:30,brass:40,brass2:34,cbass:28}; // 지속층: 옥타브 내림 하한(저역 뭉개짐 방지 · 콘트라베이스 최저음 E1=28)
       const LINE={melody:1,counter:1,winds:1,winds2:1,winds3:1,brass3:1,vocal2:1,piano2:1,harp:1,orchcym:1};
       let partners=null, mode=null, loLim=28, thrMin=0;
+      /* 선율과 겹치는 기준. 기본은 8분(SUS*2)인데, 반주 화음은 그보다 짧게 스쳐도
+         선율 바로 옆에서 울리면 부딪혀 들린다(실측: 40장르 지속 선율음의 2.5%가 남았다).
+         피아노·하프는 16분(SUS)까지 내려 잡는다. */
+      let lineThr=null;
       if(BED[gkey]!=null){ partners=Object.keys(doneNotes); mode='drop'; loLim=BED[gkey]; }      // 지속층: 앞서 완료된 모든 트랙과 정리
-      else if(gkey==='piano'){ partners=['melody','counter']; mode='drop'; loLim=40; }             // 반주 화음: 멜로디 인접 반음 성부만 옥타브 아래로(화성 유지·음역 분리) — 하한 40: 절정에서 절단 대신 이동이 되도록(슬롯 소실 방지)
-      else if(gkey==='harp'){ partners=Object.keys(doneNotes); mode='trunc'; thrMin=SUS*2; }       // 하프(선율): 지속층과 8분 이상 겹치면 짧게
+      else if(gkey==='piano'){ partners=['melody','counter']; mode='drop'; loLim=40; lineThr=SUS; }             // 반주 화음: 멜로디 인접 반음 성부만 옥타브 아래로(화성 유지·음역 분리) — 하한 40: 절정에서 절단 대신 이동이 되도록(슬롯 소실 방지)
+      else if(gkey==='harp'){ partners=Object.keys(doneNotes); mode='trunc'; thrMin=SUS; lineThr=SUS; }       // 하프(선율): 지속층과 8분 이상 겹치면 짧게
       else if(gkey==='brass3'){ partners=Object.keys(doneNotes); mode='trunc'; thrMin=SUS*2; }     // 트럼펫(광채 라인): 늦게 빌드되어 지속층이 못 보는 사각 — 장시간 반음 겹침이면 자신을 끊음(짧은 광채는 유지)
       else if(gkey==='timpani'){ partners=Object.keys(doneNotes); mode='trunc'; thrMin=TPQ/8; } // 팀파니: 조율 악기 — 옥타브 이동 금지(음정이 바뀜). 지속층과 반음 겹치면 짧게 끊어 탁함 방지
     else if(gkey==='piano2'){ partners=['piano','pad']; mode='trunc'; }                          // 피아노2(테마): 끊기
@@ -22764,7 +22802,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       for(let sweep=0; sweep<3; sweep++){ let changed=false; // 수렴 스윕: 수정 후 재검사(다중 파트너·순서 사각 방지) — 절단은 줄이기만 하므로 수렴
         iv.forEach(function(a){ if(a.off<=a.on+8) return;
           for(let t2=0;t2<3;t2++){ // 최대 2회 이동 후에도 충돌이면 끊음
-            let hit=null,hOn=Infinity; for(const c of pIv){ if(Math.abs(a.note-c.note)===1){ const ov=Math.min(a.off,c.off)-Math.max(a.on,c.on); if(ov>=Math.max(thrMin,(c.line?SUS*2:SUS)) && c.on<hOn){ hit=c; hOn=c.on; } } } // 최조기 파트너부터
+            let hit=null,hOn=Infinity; for(const c of pIv){ if(Math.abs(a.note-c.note)===1){ const ov=Math.min(a.off,c.off)-Math.max(a.on,c.on); if(ov>=Math.max(thrMin,(c.line?(lineThr!=null?lineThr:SUS*2):SUS)) && c.on<hOn){ hit=c; hOn=c.on; } } } // 최조기 파트너부터
             if(!hit) break; changed=true;
             if(mode==='drop'){ if(a.note-12>=loLim){ a.note-=12; continue; } a.off=Math.max(a.on+8,Math.max(a.on,hit.on)-6); break; } // 옥타브 내림(기능 유지) → 하한 밑이면 충돌 직전 끊음
             else { if(a.on<hit.on){ a.off=hit.on-6; } else { a.off=Math.min(a.off, a.on+SUS-10); } break; } } }); // 먼저 침=상대 직전 끊음 · 나중 침=지속 기준 미만
