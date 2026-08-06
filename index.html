@@ -1992,7 +1992,7 @@ input[type=range]{accent-color:var(--teal)}
   <label class="pedal-tog"><input type="checkbox" id="soloPianoTog"> 🎹 솔로 피아노 <span>(드럼·베이스·반주 없이 피아노 한 대가 전부 연주)</span></label>   
     <label class="pedal-tog"><input type="checkbox" id="loungeTog"> ☕ 라운지 (배경음악) <span>(4~5분짜리 곡 여러 편을 이어 붙여 긴 시간용으로 · 곡마다 기승전결, 곡 사이는 다리로 연결)</span></label>
     <div class="field" id="loungeLenWrap" style="display:none"><label for="loungeLen">라운지 길이</label><select id="loungeLen" class="slim-sel"><option value="15">약 15분</option><option value="30" selected>약 30분</option><option value="45">약 45분</option><option value="60">약 60분</option><option value="90">약 90분</option></select></div>
-    <label class="pedal-tog"><input type="checkbox" id="cineSuiteTog"> 🎬 시네마틱 조곡 <span>(슬픔 → 긴장 → 벅차오름 → 행복 네 무드를 한 곡 안에 이어 붙임 · 무드마다 다른 진행과 악기)</span></label>
+    <div class="mini" id="modeHint" style="display:none;opacity:.85;margin:4px 0 2px;"></div>
     <div class="field" id="cineSuiteLenWrap" style="display:none"><label for="cineSuiteLen">조곡 길이</label><select id="cineSuiteLen" class="slim-sel"><option value="8">약 8분</option><option value="16" selected>약 16분</option><option value="24">약 24분</option><option value="40">약 40분</option></select></div>
   
   <label class="pedal-tog"><input type="checkbox" id="seventhBoost"> 🎵 7화음 강화 <span>(삼화음→maj7·min7, 딸림=7 · 심볼·소리 모두)</span></label>
@@ -17300,6 +17300,17 @@ function applySubstyleCfg(st){                       // 하위 스타일의 구�
 function renderRunStyles(){const row=$('runStyleRow'),hint=$('runStyleHint');
   const isRun=state.genre==='running', isEdm=state.genre==='edm', isTrap=state.genre==='trap', isLofi=state.genre==='lofi', isBoombap=state.genre==='boombap', isGlobal=state.genre==='global', isDeep=state.genre==='deephouse', isMelo=state.genre==='melodichouse', isRetro=state.genre==='retro', isHookpop=state.genre==='hookpop', isKpop=state.genre==='kpop', on=isRun||isEdm||isTrap||isLofi||isBoombap||isGlobal||isDeep||isMelo||isRetro||isHookpop||isKpop;
   row.style.display=on?'flex':'none';hint.style.display='none';
+  /* 믹스 토글은 장르 전용이다. 장르를 바꾸면 숨겨진 채 켜져 있는 상태가 남아
+     나중에 그 장르로 돌아왔을 때 왜 켜져 있는지 알 수 없다 — 장르가 바뀌면 해제한다.
+     넷은 서로 다른 장르에 속하므로 동시에 켜질 일이 없다. */
+  { const off=function(id,flagSet,rowId){
+      const t=$(id); if(t&&t.checked){ t.checked=false; flagSet(); }
+      const r=$(rowId); if(r) r.style.display='none'; };
+    if(!isRun) off('runMixTog',()=>{runMixMode=false;},'runMixRow');
+    if(!(state.genre==='lofi'||state.genre==='lofigirl')) off('lofiMixTog',()=>{lofiMixMode=false;},'lofiMixRow');
+    if(!(state.genre==='melodichouse'||state.genre==='deephouse')) off('houseMixTog',()=>{houseMixMode=false;},'houseMixRow');
+    if(state.genre!=='synthwave') off('waveMixTog',()=>{waveMixMode=false;},'waveMixRow');
+  }
   { const rm=$('runMixRow'); if(rm) rm.style.display=isRun?'flex':'none'; }   // 러닝 믹스는 러닝에서만
   { const lm=$('lofiMixRow'); if(lm) lm.style.display=(state.genre==='lofi'||state.genre==='lofigirl')?'flex':'none'; }   // 로파이 믹스
   { const hm=$('houseMixRow'); if(hm) hm.style.display=(state.genre==='melodichouse'||state.genre==='deephouse')?'flex':'none'; }   // 하우스 셋
@@ -18501,10 +18512,16 @@ const document = __scopedDoc('app-play');
   function naSteps(steps){ const lv=naLevel; return (steps||[]).map(function(st){
     return [st[0], st[1], naQual(st[2],lv), st[3]]; // st[4](반마디 분할) 의도적으로 탈락
   }); }
+  /* 조곡 항목 — G[gsel].progs를 참조하는 코드가 많아 벅차오름 것을 그대로 빌린다.
+     실제 곡은 buildCineSuite가 네 무드를 돌며 만든다. */
+  try{ if(G && G.cineSoar && !G.cineSuite){
+    G.cineSuite=Object.assign({}, G.cineSoar, {name:'조곡 (네 무드)',
+      note:'슬픔 → 긴장 → 벅차오름 → 행복을 한 곡으로 이어 붙입니다 (전투·추격 제외)'});
+  } }catch(e){}
   const GROUPS=[
     ['기악독주곡', ['lyric','lyricPenta','lyricMid','lyricMinyo','newage','joypiano']],
     ['국악·콰탈·클래식', ['gukvocal','gugak','quartal','classic']],
-    ['시네마틱 (무드)', ['cineSoar','cineTension','cineSorrow','cineJoy','cineWar']],
+    ['시네마틱 (무드)', ['cineSoar','cineTension','cineSorrow','cineJoy','cineWar','cineSuite']],
     ['팝 발라드', ['pop','ballad','citypop','epicaeol']],
     ['교육 동요', ['kids']],
     ['재즈·소울', ['jazz','neosoul','bossa','blues']],
@@ -18610,6 +18627,9 @@ const document = __scopedDoc('app-play');
   const MODE_SCALE={ dorian:[0,2,3,5,7,9,10], phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10], doubleharm:[0,1,4,5,7,8,11], hungarian:[0,2,3,6,7,8,11], phrygdom:[0,1,4,5,7,8,10] };
   const HARM_MIN=new Set(['classic','tango','gypsy']); // 리딩톤(화성단조) 유지 — 클래식·탱고·집시. 그 외 단조는 자연단조(에이올리안, ♭7·♭6)
   const CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar']); // 시네마틱(무드) — 오케스트라 트랙 추가
+  /* 조곡은 무드 하나가 아니라 네 무드를 이어 붙이는 '곡 종류'다.
+     장르 목록에 자리를 두어야 '장르를 골랐는데 쓰이지 않는다'는 모순이 없어진다.
+     G 항목은 다른 코드가 G[gsel].progs를 참조하므로 벅차오름 것을 그대로 빌려 둔다. */
   const MODES7={ ionian:[0,2,4,5,7,9,11], dorian:[0,2,3,5,7,9,10], phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10], aeolian:[0,2,3,5,7,8,10], locrian:[0,1,3,5,6,8,10] };
   function progScale(p){ if(p.scale==='pentatonic') return [0,3,5,7,10]; if(p.scale==='phrygdom') return [0,1,4,5,7,8,10]; if(p.scale==='majpenta') return [0,2,4,7,9]; if(MODES7[p.scale]) return MODES7[p.scale]; if(MODE_SCALE[gsel]) return MODE_SCALE[gsel]; if(p.mode==='minor') return HARM_MIN.has(gsel)?[0,2,3,5,7,8,11]:[0,2,3,5,7,8,10]; return [0,2,4,5,7,9,11]; }
   /* 선법 장르에서 쓸 음계 — 장·단조를 하드코딩하면 이국 선법(비잔틴·헝가리안·프리지안 도미넌트)의
@@ -21754,7 +21774,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     if(themeProg && ps.indexOf(themeProg)>=0){ A=themeProg; const others=shuffleArr(ps.filter(p=>p!==A)); B=others[0]||A; C=others[1]||others[0]||A; }
     else { const sh=shuffleArr(ps); A=sh[0]; B=sh[1]||sh[0]; C=sh[2]||sh[1]||sh[0]; }
     if(typeof songState!=='undefined'&&songState) stopSong();
-    if(cineSuiteMode){
+    if(cineSuiteMode || gsel==='cineSuite'){
       cineSuiteInst();
       const cs=buildCineSuite(structKey);
       if(!cs){ if($('themeMsg'))$('themeMsg').textContent='이 조성에 맞는 진행이 없어요'; return; }
@@ -22477,6 +22497,25 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     ccs.forEach(c=>out.push(c));
     out.sort((a,b)=>a.tick-b.tick || ((a.cc?2:a.on)-(b.cc?2:b.on)));
     return out; }
+
+  /* ── 페달 교체 자리 ──
+     페달은 마디마다 바꾸고 있었다. 그런데 한 마디에 화음이 둘인 진행(반마디 분할)에서는
+     마디 중간의 화음 전환에 페달이 그대로 밟혀 있어 앞 화음이 새 화음 위에 남는다
+     (실측: 마디 중간 전환 261곳 중 페달 교체 0곳).
+     화음이 바뀌는 자리마다 새 화음을 친 직후에 뗐다가 다시 밟는다 — 레가토 페달링의 정석이다. */
+  function pedalPoints(step, measure){
+    const pts=[0];
+    if(step && step[4]) pts.push(Math.round(measure/2));   // 반마디 분할: 마디 가운데서도 교체
+    return pts;
+  }
+  function pushPedal(ev, T, step, measure, isFirst){
+    if(isFirst){ ev.push({tick:T,cc:64,val:127}); }
+    pedalPoints(step, measure).forEach(function(o,i){
+      if(isFirst && i===0) return;                          // 첫 마디 다운비트는 위에서 처리
+      ev.push({tick:T+o+18,cc:64,val:0});
+      ev.push({tick:T+o+24,cc:64,val:127});
+    });
+  }
   function buildSongMIDI(){
     if(!currentSong) return null;
     const TPQ=480, measure=Math.round(TPQ*meterQuarters()), rh=defaultRhythm(), gv=GROOVE[gsel]||GROOVE.pop, bpm=rh.bpm||gv.bpm;
@@ -22948,8 +22987,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
               ev.push({tick:mt,on:1,note:cn.midi,vel:Math.max(44,Math.min(100,Math.round(84*inA)))}); ev.push({tick:mt+md,on:0,note:cn.midi}); }); }
           } else if(grp.role==='melody'){ const melBreath=(melVoiceOf()==='winds'||melVoiceOf()==='strings');
             if(melVoiceOf()==='piano' && pedalOn){ // 피아노 선율도 서스테인 페달(마디마다 교체 — 울림은 살고 화성은 안 섞임)
-              if(T===PAD) ev.push({tick:T,cc:64,val:127});
-              else { ev.push({tick:T+18,cc:64,val:0}); ev.push({tick:T+24,cc:64,val:127}); } }
+              pushPedal(ev, T, st, measure, T===PAD); }
             const themeHold = songTheme && INST.piano.on && ['아웃트로','간주'].indexOf(sec.label)>=0; // 테마만 남는 구간(아웃트로·간주 브레이크) → 멜로디 쉼
             const dPart = duetOn ? (duetMap[secIdx]==='alt' ? (((r*nsteps.length+si) < (nsteps.length*sec.reps)/2)?'m':'f') : duetMap[secIdx]) : 'both'; // 벌스 앞 절반=남, 뒤 절반=여
             const duetSkip = duetOn && (dPart==='f'); // 듀엣: 여성 파트 구간은 남성(ch5) 쉼
@@ -23042,14 +23080,14 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             const themeSec = compStyle==='auto' && songTheme && ['인트로','아웃트로','간주'].indexOf(sec.label)>=0; // 테마 구간: 인트로 제시 · 간주 브레이크 유지 · 아웃트로 잔존 (반주 스타일 선택 시엔 스타일 엔진이 대신)
             const nextHot = nextSec && (((nextSec.stage||3) > (sec.stage||3)) || ((nextSec.intensity||0.85) > (sec.intensity||0.85)+0.02));
             if(themeSec){
-              if(pedalOn){ if(T===PAD){ ev.push({tick:T,cc:64,val:127}); } else { ev.push({tick:T+18,cc:64,val:0}); ev.push({tick:T+24,cc:64,val:127}); } } // 첫 마디는 다운비트 전에 페달(앞 공백 PAD 고려)
+              if(pedalOn){ pushPedal(ev, T, st, measure, T===PAD); } // 첫 마디는 다운비트 전에 페달(앞 공백 PAD 고려)
               const tBars=nsteps.length*sec.reps, bIdx=r*nsteps.length+si, left=tBars-1-bIdx;
               const isBuild=(sec.label==='간주') && left<=1 && nextHot; // 간주 마지막 2마디 = 빌드업 → 다음 섹션에서 터짐
               const stg=sec.stage||3; const baseV=Math.max(40,Math.min(96,Math.round((52+stg*6)*inA)));
               const soloG=LYRIC_G.has(gsel)||pianoNA; // 독주곡: 오스티나토 반복이 인트로의 성격 → 매 박 반복 + 마디마다 옥타브로 변화
               emitTheme(ev,T,c,measure,{ baseV:baseV, build:isBuild, buildPos:(isBuild?Math.min(1,(bIdx-(tBars-2))/1):0), every:(isBuild||soloG)?1:(songTheme.every||1), lowRoot:true, octShift:(soloG&&(bIdx%2===1))?1:0 });
             } else {
-            if(pedalOn){ if(T===PAD){ ev.push({tick:T,cc:64,val:127}); } else { ev.push({tick:T+18,cc:64,val:0}); ev.push({tick:T+24,cc:64,val:127}); } } // 첫 마디는 다운비트 전에 페달(앞 공백 PAD 고려) // 레가토 페달: 코드 친 직후 교체
+            if(pedalOn){ pushPedal(ev, T, st, measure, T===PAD); } // 첫 마디는 다운비트 전에 페달(앞 공백 PAD 고려) // 레가토 페달: 코드 친 직후 교체
             const slots=(dens==='sparse'?compSec.filter(s=>s%8===0):compSec).filter(sl=>!(brkBar&&sl>=8));
             let cn=((vleadM&&vleadM[si])?vleadM[si].notes:c.notes).slice(); if(dens==='sparse'&&cn.length>2) cn=[cn[0],cn[cn.length-1]]; else if(dens==='full'&&!clearMel&&!introClr) cn=cn.concat([cn[cn.length-1]+12]);
             if(clearMel||introClr) cn=lowerClear(cn); cn=declash(cn);
@@ -23257,7 +23295,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                 ev.push({tick:mt,on:1,note:mn.midi,vel:Math.max(50,Math.min(124,Math.round(104*inA)))}); ev.push({tick:mt+md,on:0,note:mn.midi}); }); } }
           else if(grp.role==='theme2'){ // 2nd 피아노: 테마를 작게 유지(인트로는 1st가 제시하므로 쉼) — 코드에 맞춰 매 마디 변형되므로 부딪히지 않음
             if(sec.label!=='인트로' && T>=theme2Start){
-              if(T===PAD||T===theme2Start){ ev.push({tick:T,cc:64,val:127}); } else { ev.push({tick:T+18,cc:64,val:0}); ev.push({tick:T+24,cc:64,val:127}); } // 마디마다 페달 교체(1st 피아노와 동일)
+              pushPedal(ev, T, st, measure, (T===PAD||T===theme2Start)); // 마디마다 페달 교체(1st 피아노와 동일)
               const stg=sec.stage||3;
               const solo=LYRIC_G.has(gsel)||pianoNA; // 기악독주곡: 피아노 한 대가 주인공 → 테마는 그 위에서 종처럼 성기게
               const baseV=solo? Math.max(16,Math.min(44,Math.round((14+stg*4)*inA))) : Math.max(18,Math.min(64,Math.round((16+stg*7)*inA)));
@@ -24378,9 +24416,13 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('   편성       : 네 무드의 합집합으로 한 번에 고정했습니다(오보에 선율 · 첼로 대선율 · 현 · 목관 · 금관 · 피아노).');
       L.push('                악장마다 악기를 갈아끼우면 트랙이 쪼개져 로직에서 쓰기 어렵기 때문입니다.');
       L.push('   길이       : 악곡을 자르지 않으므로 목표에 딱 떨어지지 않습니다(약 ±15%).');
+      L.push('                오케스트라 편성이라 악장 하나가 2분 아래로 줄지 않습니다 — 8분을 고르면 10분쯤 나옵니다.');
+      L.push('   고르는 곳 : 장르 목록 「시네마틱 (무드)」의 <조곡 (네 무드)> 칩입니다.');
+      L.push('                무드 하나를 고르면 그 무드만으로 한 곡이 만들어집니다.');
       L.push('');
       L.push('   ▸ 로직에서 악장 나누기: Conductor 마커가 악장 경계에 있습니다.');
       L.push('   ▸ 악장마다 리버브를 바꾸지 마세요 — 한 홀에서 연주되는 조곡으로 들려야 합니다.');
+      L.push('   ▸ MIDI 만드는 데 20초쯤 걸립니다 — 오케스트라 13트랙이기 때문입니다.');
       L.push('');
     }
     if(loungeMode){
@@ -24394,6 +24436,10 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('   세기       : 45~85 안으로 눌러 두었습니다(폭 62%). 대화 위에 얹히도록 한 것이라,');
       L.push('                로직에서 컴프를 세게 걸 필요가 없습니다. 오히려 표정이 사라집니다.');
       L.push('   길이       : 악곡을 자르지 않으므로 목표에 딱 떨어지지 않습니다(약 ±10%).');
+      L.push('   켜는 곳   : 기악독주곡·뉴에이지·클래식·콰탈 계열에서만 토글이 나타납니다.');
+      L.push('                피아노 한 대로 만드는 방식이라, 피아노가 기본이 아닌 장르에서는 엉뚱한 악기 하나만 남습니다.');
+      L.push('   장르 고르기: 선율과 반주가 갈리는 뉴에이지가 라운지 피아노에 가장 가깝습니다(2트랙).');
+      L.push('                클래식은 정격 어법, 에이올리안은 어두운 밤 라운지, 밝은 피아노는 낮 시간대에 맞습니다.');
       L.push('');
       L.push('   ▸ 로직에서 편 나누기: Conductor 마커가 편 경계에 있습니다.');
       L.push('     한 편씩 따로 쓰려면 마커 지점에서 자르고, 다리(간주 두 마디)는 뒤 편에 붙이세요.');
@@ -24659,6 +24705,21 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
     const a=document.createElement('a'); a.href=url; a.download=(G[gsel].name+'_셋업시트').replace(/[^\w가-힣]+/g,'_')+'.txt';
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1200);
   }
+  function syncSuiteAvail(){
+    const w=$('cineSuiteLenWrap');
+    if(w) w.style.display=(gsel==='cineSuite')?'':'none';
+    cineSuiteMode=(gsel==='cineSuite');
+  }
+  function syncLoungeAvail(){
+    const ok=LOUNGE_OK.has(gsel);
+    const tog=$('loungeTog'), row=tog?tog.closest('label'):null, w=$('loungeLenWrap');
+    if(row) row.style.display=ok?'':'none';
+    if(!ok){
+      if(tog&&tog.checked){ tog.checked=false; loungeMode=false; }
+      if(w) w.style.display='none';
+    } else if(w) w.style.display=(tog&&tog.checked)?'':'none';
+    if(typeof _syncModeTogs==='function') _syncModeTogs('');
+  }
   function applyGenreInst(){
   // 결정적 리셋: 장르를 바꾸면 항상 그 장르의 기본 편성이 되도록, 이전 장르의 잔재(악기 on/off·음색 gm·대선율)를 전부 초기화
   INST.brass.on=false; INST.harp.on=false; INST.strings.on=false; INST.winds.on=false; INST.melody.on=false;
@@ -24753,7 +24814,8 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
     else if(typeof MODE_SCALE!=='undefined' && MODE_SCALE[gsel]){ INST.drums.on=false; INST.bass.on=false; INST.piano.on=true; INST.melody.on=true; INST.melody.gm=73; INST.harp.on=(gsel==='doubleharm'||gsel==='hungarian'||gsel==='phrygdom'); INST.harp.gm=104; } // 선법·월드: 피아노+플루트 리드, 월드 3종은 시타르·거문고류 발현 색
   else if(LYRIC_G.has(gsel)){ INST.drums.on=true; INST.bass.on=false; INST.piano.on=true; }
     else { INST.drums.on=true; INST.bass.on=true; INST.piano.on=true; } }
-  function renderInst(){
+  function renderInst(){ try{ syncLoungeAvail(); syncSuiteAvail(); }catch(e){}
+
     let h='';
     Object.keys(INST).forEach(k=>{ const g=INST[k];
       h+='<div class="inst-row"><label class="inst-tog"><input type="checkbox" data-inst="'+k+'"'+(g.on?' checked':'')+'> '+g.emoji+' '+g.label+'</label>';
@@ -24834,6 +24896,10 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       stopGroove(); if(typeof songState!=='undefined'&&songState) stopSong(); }); }
   let loungeMode=false, loungeMin=30;   // 라운지(배경음악) — 여러 악장을 이어 붙여 긴 시간용으로
 let cineSuiteMode=false, cineSuiteMin=16;   // 시네마틱 조곡 — 네 무드를 한 곡 안에
+/* 라운지는 '솔로 피아노 배경음악'이다 — 토글이 솔로 피아노를 강제로 켜므로 편성이 한 트랙으로 줄어든다.
+   피아노가 기본이 아닌 장르에 걸면 엉뚱한 악기 하나만 남는다(실측: 켈틱 → 플루트 독주 13분, EDM → 펠트 피아노 한 대).
+   피아노 독주가 성립하는 계열에서만 쓴다. */
+const LOUNGE_OK=new Set(['lyric','lyricPenta','lyricMid','lyricMinyo','newage','joypiano','classic','quartal']);
 let soloBuildPerc=false;   // 후반 타악 고조 — 타악이 없는 편성에서만 동작
 let soloBuildPatternName='';   // 이번 곡이 고른 리듬꼴 — 제작가이드에 그대로 적는다
 /* 후반 고조 리듬꼴 선택 — 곡 데이터에서 시드를 뽑아 북·팀파니·심벌을 하나씩 고른다.
@@ -24876,14 +24942,22 @@ function applyPreset(solo){
   }
   $('soloBuildTog').addEventListener('change',e=>{ soloBuildPerc=e.target.checked;
     if(typeof songState!=='undefined' && songState){ stopSong(); } });
+  /* 라운지와 조곡은 곡을 만드는 방식 자체가 달라 함께 켤 수 없다 — 하나를 켜면 다른 하나가 꺼진다.
+     솔로 피아노는 편성 옵션이라 어느 쪽과도 같이 쓸 수 있고, 라운지에서는 자동으로 켜진다. */
+  function _syncModeTogs(which){
+    /* 조곡은 이제 장르 칩이므로 토글과 겹칠 일이 없다. 라운지 안내만 남긴다. */
+    const lo=$('loungeTog'), msg=$('modeHint');
+    if(msg){
+      msg.textContent=(lo&&lo.checked)?'라운지는 피아노 한 대로 만듭니다 — 기악독주곡·뉴에이지·클래식 계열에서만 켤 수 있습니다.':'';
+      msg.style.display=msg.textContent?'':'none';
+    }
+  }
   $('loungeTog').addEventListener('change',e=>{ loungeMode=e.target.checked;
     const w=$('loungeLenWrap'); if(w) w.style.display=loungeMode?'':'none';
     if(loungeMode){ const sp=$('soloPianoTog'); if(sp&&!sp.checked){ sp.checked=true; sp.dispatchEvent(new Event('change')); } }
+    _syncModeTogs('lounge');
     if(typeof songState!=='undefined' && songState) stopSong(); });
   $('loungeLen').addEventListener('change',e=>{ loungeMin=+e.target.value||30; });
-  $('cineSuiteTog').addEventListener('change',e=>{ cineSuiteMode=e.target.checked;
-    const w=$('cineSuiteLenWrap'); if(w) w.style.display=cineSuiteMode?'':'none';
-    if(typeof songState!=='undefined' && songState) stopSong(); });
   $('cineSuiteLen').addEventListener('change',e=>{ cineSuiteMin=+e.target.value||16; });
   $('presetSolo').addEventListener('click',()=>applyPreset(true));
   $('presetBand').addEventListener('click',()=>applyPreset(false));
