@@ -5330,7 +5330,16 @@ function __smoothMelCC(evs, PPQ){
   return evs;
 }
 function buildMidi(){
-  const PPQ=480,notes=state.notes.slice().sort((a,b)=>a.t-b.t); if(!notes.length)return null;
+  const PPQ=480;
+  /* 앞 여백 4마디 — 다른 네 앱(Play·Band·Beat·Medi)은 모두 4마디에서 곡이 시작한다.
+     이 앱만 0마디였다. 여러 앱의 MIDI를 한 프로젝트에 얹으면 이 파일만 4마디 앞서 붙어
+     맞춰 놓은 마디가 어긋난다. 로직에서 앞부분을 잡을 여백이기도 하다. */
+  /* 마디 길이는 박자표마다 다르다 — 4박으로 고정하면 3/4·6/8·7/8에서 마디선 밖에 떨어진다
+     (실측: 5.33마디·2.67마디 같은 어긋난 시작이 24파일). */
+  const _mt=(typeof ME!=='undefined' && ME.METERS && ME.METERS[state.meter]) ? ME.METERS[state.meter] : {barLen:4};
+  const PADB=4*(_mt.barLen||4);                              // 4마디 × 그 박자표의 마디 길이
+  const notes0=state.notes.slice().sort((a,b)=>a.t-b.t); if(!notes0.length)return null;
+  const notes=notes0.map(function(n){ const c=Object.assign({},n); c.t=n.t+PADB; return c; });
   const evs=[];notes.forEach(n=>{evs.push({tick:Math.round(n.t*PPQ),t:0x90,m:n.midi,v:n.vel});evs.push({tick:Math.round((n.t+n.dur)*PPQ),t:0x80,m:n.midi,v:0});});
   // 페달 장르: CC64 서스테인 — 시작 프레스, 프레이즈 경계(무음 ≥1박)마다 리프트→재프레스, 끝에서 릴리즈
   const gG=ME.GENRES[state.genre]||{};
@@ -9759,9 +9768,14 @@ function harmGateBand(cells){
       const v=by[m].slice().sort(function(x,y){ return x.t-y.t; });
       for(let i=0;i<v.length-1;i++){
         const end=v[i].t+(v[i].dur||0);
-        if(end > v[i+1].t - 0.005) v[i].dur=Math.max(0.02, v[i+1].t - v[i].t - 0.02);
+        const gap=v[i+1].t - v[i].t;
+        /* 롤(펼침) 오프셋 때문에 같은 음이 0.01박 차이로 두 번 나오는 자리가 있다.
+           그 간격에서는 길이를 줄여도 겹침이 남으므로 뒤 음을 없앤다(들리지 않는 재타건). */
+        if(gap < 0.03){ v[i+1].midi=null; continue; }
+        if(end > v[i+1].t - 0.01) v[i].dur=Math.max(0.02, gap - 0.02);
       }
     });
+    MODEL.tracks[k]=arr.filter(function(n){ return !n || n.midi!=null; });
   });
 }
 function exportAll(){arrange();
@@ -14000,16 +14014,20 @@ function grooveOffset(lane,s16,rnd,withKick){
   const gr=state.groove;
   if(!gr||gr==='straight'||s16===0)return 0;               // straight/다운비트는 격자 유지(무회귀·앵커)
   if(withKick&&lane!=='kick'){
-    if(gr==='dilla')return 0.018;                          // 킥과 같은 자리 → 킥을 따라간다
+    if(gr==='dilla')return 0.012;                          // 킥과 같은 자리 → 킥을 따라간다
     if(gr==='human')return rnd()*0.008-0.004;              // 미세 랜덤도 좁혀 붙인다
     if(gr==='mpc')return (s16%2===1)?0.055:0;
   }
   if(gr==='mpc')return (s16%2===1)?0.055:0;                 // MPC 스윙: 16분 뒷박만 뒤로
-  if(gr==='dilla'){                                         // 드렁큰: 스네어 확실히 뒤, 킥 살짝 뒤, 햇 밀당+미세랜덤
-    if(lane==='snare'||lane==='clap')return 0.04;
-    if(lane==='kick')return 0.018;
-    if(lane==='hat'||lane==='ohat')return (s16%2===1?0.02:-0.008)+(rnd()*0.014-0.007);
-    return rnd()*0.01;
+  if(gr==='dilla'){
+    /* 드렁큰(딜라)은 레인마다 다르게 미는 게 어법이지만, 폭이 크면 박이 어긋나 들린다.
+       실측: 로파이걸에서 스네어가 +0.05, 킥·햇이 +0.10으로 두 배 차이가 나 있었다.
+       방향(스네어가 가장 뒤, 킥은 살짝 뒤, 햇은 앞뒤로 흔들림)은 남기고 폭을 절반으로 줄인다.
+       레인 간 최대 차이 0.058박 → 0.030박(90 BPM에서 39ms → 20ms). */
+    if(lane==='snare'||lane==='clap')return 0.024;
+    if(lane==='kick')return 0.012;
+    if(lane==='hat'||lane==='ohat')return (s16%2===1?0.010:-0.004)+(rnd()*0.006-0.003);
+    return rnd()*0.006;
   }
   if(gr==='human'){                                        // 자연스런 미세 랜덤 — 단, 강박(4분 정박)은 흔들지 않아 박이 무너지지 않게
     if(s16%4===0)return rnd()*0.012-0.006;                 // 정박: ±6ms만(거의 고정)
@@ -14140,7 +14158,7 @@ function arrange(){
             voi.forEach((n,vi)=>tr.chords.push({t:b0+rq+swQ(rq)+vi*0.02,dur:0.42,midi:n,vel:Math.round(64*a*eScale*ramp+rnd()*5)}));});}
         else if(g.id==='kpop'&&en>=5&&!doArp){ // 훅 브라스 스탭: 당김 리듬, 짧게
           [[0,1],[0.75,0.85],[1.5,0.9],[2.5,0.85],[3,0.95],[3.5,0.8]].forEach(([rq,a])=>{
-            voi.forEach(n=>tr.chords.push({t:b0+rq,dur:0.35,midi:n,vel:Math.round(78*a*eScale*ramp+rnd()*5)}));});}
+            voi.forEach(n=>tr.chords.push({t:b0+rq+swQ(rq),dur:0.35,midi:n,vel:Math.round(78*a*eScale*ramp+rnd()*5)}));});}
         else if(doArp&&g.id==='edm'){ // EDM은 전용 arpseq 아르프가 따로 있음 → 코드 트랙은 지속 화음만 유지(중복 방지)
           if(newChord)voi.forEach((n,vi)=>tr.chords.push({t:b0,dur:BQ*cb*0.96,midi:n,vel:Math.round((vi>=vBase?42:54)*eScale+rnd()*4)}));}
         else if(doArp){const asc=voi.slice().sort((a,b)=>a-b).concat(voi.slice().sort((a,b)=>a-b)[0]+12);
@@ -14173,15 +14191,15 @@ function arrange(){
             if(jazzy&&rnd()<0.55){                          // V7/next — 4박에 반마디 세컨더리 도미넌트 (다음 코드를 향한 긴장)
               const sd=makeChord((nc2.root+7)%12,'dom7'),ref=voi[0];
               const sv=[...new Set(sd.notes.map(n=>{let m=n;while(m<ref-5)m+=12;while(m>ref+11)m-=12;return m;}))];
-              sv.forEach(n=>tr.chords.push({t:b0+3,dur:0.85,midi:n,vel:Math.round(56*eScale+rnd()*4)}));
+              sv.forEach(n=>tr.chords.push({t:b0+3+swQ(3),dur:0.85,midi:n,vel:Math.round(56*eScale+rnd()*4)}));
             } else {                                        // 다음 코드를 8분 먼저 — 앤티시페이션 푸시
               const ref2=voi[Math.floor(voi.length/2)];
               const pv=[...new Set(nc2.notes.map(n=>{let m=n;while(m<ref2-6)m+=12;while(m>ref2+10)m-=12;return m;}))];
-              pv.forEach(n=>tr.chords.push({t:b0+3.5,dur:0.45,midi:n,vel:Math.round(60*eScale+rnd()*4)}));
+              pv.forEach(n=>tr.chords.push({t:b0+3.5+swQ(3.5),dur:0.45,midi:n,vel:Math.round(60*eScale+rnd()*4)}));
             }
           }
           if(jazzy&&newChord&&rnd()<0.28*dens)                   // 콤핑 재타격 — 윗성부 2음만 당김(2.5박)에서 살짝 (밀도 아크 반영)
-            voi.slice(-2).forEach(n=>tr.chords.push({t:b0+2.5,dur:0.6,midi:n,vel:Math.round(46*eScale+rnd()*4)}));
+            voi.slice(-2).forEach(n=>tr.chords.push({t:b0+2.5+swQ(2.5),dur:0.6,midi:n,vel:Math.round(46*eScale+rnd()*4)}));
         }
         if(g.pad&&newChord){let pl=48+((ch.bass%12)+12)%12;if(pl>59)pl-=12;   // 루트 저역
           const iv=QUAL[ch.q]||QUAL.maj;                                       // 패드는 텐션 없이 근음+3화음만 (충돌·튐 방지)
@@ -14233,7 +14251,7 @@ function arrange(){
           line.forEach(([deg,rq,du])=>{ const dg2=deg+mOff; let mn=pRoot+MINP[dg2%MINP.length]+(Math.floor(dg2/MINP.length)*12);
              if(rq%2===0 || du>=0.9 || sec.type==='Break') mn=snapCT(mn);
              else mn=avoidClash(mn);
-             tr.piano.push({t:b0+rq,dur:du*cb,midi:mn,vel:Math.round((sec.type==='Break'?48:en>=5?60:54)+rnd()*5)}); });}
+             tr.piano.push({t:b0+rq+swQ(rq),dur:du*cb,midi:mn,vel:Math.round((sec.type==='Break'?48:en>=5?60:54)+rnd()*5)}); });}
           const isDrop=en>=5;
           if(isDrop)base+=0;                                                        // 드롭은 옥타브 반짝을 더 크게(아래 octShift)
           const seq=tri.map(iv=>base+(iv-ch.notes[0])); seq.push(seq[1]+12);         // 근·3·5·옥타브3 = 4스텝(넓은 도약감)
@@ -14582,6 +14600,9 @@ function arrange(){
   if(state.discoFunk){ try{ applyDiscoFunk(MODEL); }catch(e){ console.error('디스코·펑크 스타일 오류', e); } }  // 밝게·옥타브 베이스·커팅 기타
   if(state.topMel){ try{ buildTopMelody(MODEL); }catch(e){ console.error('주 멜로디 오류', e); } }   // 구조에 맞춘 팝 훅을 리드에 얹기
   dedupMelodic(MODEL.tracks);                                         // 위 레이어들도 정리 대상 — 나중에 만들어지므로 여기서 한 번 더
+  /* 스타일 적용(신스웨이브·디스코펑크·재즈 등)이 화음음 관문 뒤에 돌면서 텐션을 다시 넣는다.
+     그래서 마지막에 한 번 더 건다 — 리드는 대상이 아니므로 선율의 색은 남는다. */
+  try{ harmGateBeat(MODEL.tracks, MODEL.sections); }catch(e){}
   return MODEL;
 }
 function qToSec(q){const S=(MODEL&&MODEL.tempoMap)||[];if(!S.length)return q*(60/MODEL.bpm);
@@ -22927,11 +22948,45 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           const c=o.note+d;
           if(pcs.indexOf(((((c%12)+12)%12))) >= 0 && Math.abs(d)<bd){ bd=Math.abs(d); best=c; }
         }
-        if(best!=null){ ev[o.i].note=best; if(o.off!=null) ev[o.off].note=best; o.note=best; continue; }
+        if(best!=null){ ev[o.i].note=best; if(o.off!=null) ev[o.off].note=best; o.note=best;
+          /* 음을 옮기면 아티큘레이션이 매긴 음역별 세기 상한과 어긋난다 — 지속음이면 상한 안으로 되돌린다
+             (실측: 플루트 선율이 목관 상한 94를 넘겨 102·103으로 남았다) */
+          if(ev[o.i].vel!=null && dur>=tpq*0.5 && ev[o.i].vel>94) ev[o.i].vel=94;
+          continue; }
       }
       /* 남기는 텐션은 세기를 눌러 스쳐 가게 한다 */
       if(ev[o.i].vel!=null && ev[o.i].vel>78) ev[o.i].vel=78;
     }
+    return ev;
+  }
+
+  /* ── 마디를 넘어 끌리는 선율음 ──
+     음이 마디선을 넘어가면 다음 마디의 화음 위에서 계속 울린다.
+     그 음이 다음 화음에 없으면 물고 들어온 순간부터 부딪힌다
+     (실측: 경계를 넘는 선율음 928개 중 74%가 다음 화음 밖, 최대 2마디를 끌었다).
+     · 살짝 걸치는 정도(8분음 이내)는 레가토의 결이므로 둔다
+     · 그보다 길게 끌리면 다음 화음 첫박 직전에서 끊는다 — 음을 옮기지 않으므로 선율선은 그대로다 */
+  function spillGate(ev, gkey, barPcs, barLen, padTick, tpq){
+    if(!barPcs || !barPcs.length) return ev;
+    if(gkey!=='melody' && gkey!=='counter') return ev;
+    const KEEP=Math.round(tpq*0.5);                 // 8분음까지는 걸쳐도 둔다
+    const open={};
+    ev.forEach(function(e){
+      if(e.cc!=null || e.note==null || e.tick==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push(e); }
+      else if(e.on===0){
+        const q=open[e.note]; if(!q||!q.length) return;
+        const on=q.shift();
+        const b0=Math.floor((on.tick-padTick)/barLen);
+        const edge=padTick+(b0+1)*barLen;
+        if(e.tick <= edge+KEEP) return;             // 살짝 걸침
+        const pcs=barPcs[b0+1];
+        if(!pcs || !pcs.length) return;
+        if(pcs.indexOf(((on.note%12)+12)%12) >= 0) return;   // 다음 화음에도 맞으면 둔다
+        const cut=Math.max(on.tick+Math.round(tpq*0.12), edge-2);
+        if(cut < e.tick) e.tick=cut;
+      }
+    });
     return ev;
   }
   function buildSongMIDI(){
@@ -23950,6 +24005,11 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          (실측: 병합 없이 두었을 때 추출 MIDI에서 같은 음 겹침 2,259곳) */
       ev=harmGate(ev, grp.key, __barPcs, __barLen, PAD); ev=coalesceNotes(ev);
       ev=melTensionGate(ev, grp.key, __barPcs, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
+      /* 두 관문이 음높이를 바꾸므로 음역별 세기·길이 규칙을 다시 태운다
+         (실측: 플루트 선율이 목관 지속음 상한 94를 넘겨 102·103으로 남았다) */
+      ev=famArticulate(grp.key, ev, grp.gm);
+      /* 마디를 넘어 끌리는 음 정리는 아티큘레이션 뒤에 — 앞에 두면 그 단계가 다시 길이를 늘린다 */
+      ev=spillGate(ev, grp.key, __barPcs, __barLen, PAD, TPQ);
       ev=selfDeclash(ev, grp.key, TPQ); ev=crossDeclash(grp.key, ev);
       ev.sort((a,b)=>(a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on))); doneNotes[grp.key]={ch:grp.ch, iv:pairIv(ev)}; // 교차 트랙 반음 정리 + 완료 트랙 등록
       let bytes=[];
