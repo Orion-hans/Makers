@@ -2633,7 +2633,13 @@ document.getElementById('so-tabs').addEventListener('click', (e)=>{
 // 새 곡을 처음부터 생성하면 지난 멜로디 앵커·모티브를 비움(수신부는 이 버튼을 누르지 않으므로 안전)
 [['app-band','styleRand'],['app-beat','gen'],['app-play','buildSongBtn']].forEach(([app,id])=>{
   const el=document.querySelector('#'+app+' #'+id);
-  if(el) el.addEventListener('click',()=>{ if(window.SO_HUB){ window.SO_HUB.importedMelody=null; if(window.SO_HUB.melSrc){window.SO_HUB.melSrc[app.replace('app-','')]=undefined;} } }, true);
+  /* 라운지는 가져온 멜로디를 악장의 주제로 쓴다 — 그 모드에서는 지우지 않는다.
+     (실측: 곡 만들기 버튼이 캡처 단계에서 먼저 지워 주제가 심기지 않았다) */
+  if(el) el.addEventListener('click',()=>{ if(window.SO_HUB){
+    let keep=false;
+    try{ const lg=document.querySelector('#app-play #loungeTog'); keep=!!(app==='app-play' && lg && lg.checked); }catch(e){}
+    if(!keep){ window.SO_HUB.importedMelody=null; if(window.SO_HUB.melSrc){window.SO_HUB.melSrc[app.replace('app-','')]=undefined;} }
+  } }, true);
 });
 // 밴드·비트: 흩어진 초기화 버튼을 가이드 버튼 바로 옆으로 이동(플레이처럼 제목 줄에 묶음). DOM 이동이라 핸들러 유지.
 (function(){
@@ -19864,7 +19870,10 @@ RHYTHMS.joypiano=[
         let cn2=null; if(st[4]){ const c2=chordMidis(st[4][0],st[4][1]); let n2=c2.notes.slice(); const cen=cn.reduce(function(a,b){return a+b;},0)/cn.length;
           n2=n2.map(function(m){ let x=m; while(x-cen>7)x-=12; while(cen-x>7)x+=12; return x; }); cn2=[...new Set(n2)].sort(function(a,b){return a-b;}); if(clear) cn2=lowerClear(cn2); } // 뒷반마디 코드(성부 근접)
         /* 라운지: 편마다 지정된 반주 성격을 쓴다 — 사용자가 스타일을 고르지 않았을 때만 */
-        const _lgComp=(compStyle==='auto' && loungeMode && sec && sec.loungeComp) ? sec.loungeComp : null;
+        /* 라운지: 편마다 지정된 반주 성격을 쓴다 — 사용자가 스타일을 고르지 않았을 때만.
+           이 함수에는 섹션 객체가 없다. 호출부가 opts.loungeComp로 넘겨 준다
+           (실측: sec을 직접 참조해 재생에서 'sec is not defined'로 멈췄다). */
+        const _lgComp=(compStyle==='auto' && loungeMode && opts && opts.loungeComp) ? opts.loungeComp : null;
         if(compStyle!=='auto' || _lgComp){ // 반주 스타일 선택 시: 장르 무관하게 스타일 엔진이 반주를 지배(재생)
           const _bs=((vlead[si]&&vlead[si].root!=null?vlead[si].root:cn[0])-12);
           const _seed=(((si+1)*2246822519)^((opts&&opts.compSeedBase)||0))>>>0;
@@ -21932,6 +21941,57 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       const c=st.slice(); c[2]=q; return c;
     });
   }
+  /* ── 가져온 멜로디를 라운지의 주제로 ──
+     멜로디메이커에서 보낸 선율은 몇 마디짜리인데 라운지는 30분이다.
+     그대로 두면 맨 앞에서 한 번 나오고 사라진다.
+     첫 악장의 주제로 심고, 이후 악장은 그 주제를 변주해 되돌아오게 한다.
+     · 1편 원형 · 2편 한 옥타브 위 · 3편 리듬 확대(1.5배)
+     · 4편 앞 절반만 발췌 · 5편 한 옥타브 아래 · 6편 리듬 축소(0.75배)
+     조는 악장의 keyShift가 옮겨 주고, 화음과 부딪히면 뒤의 화음음 관문이 잡는다. */
+  const THEME_VAR=[
+    {oct:0,  rate:1.0,  frac:1.0},
+    {oct:12, rate:1.0,  frac:1.0},
+    {oct:0,  rate:1.5,  frac:1.0},
+    {oct:0,  rate:1.0,  frac:0.5},
+    {oct:-12,rate:1.0,  frac:1.0},
+    {oct:0,  rate:0.75, frac:1.0}
+  ];
+  function loungeTheme(){
+    const H=window.SO_HUB||{};
+    const src=(H.importedMelody&&H.importedMelody.length)?H.importedMelody:null;
+    if(!src || !loungeMode || !currentSong) return 0;
+    const mq=meterQuarters();
+    const base=src.slice().sort(function(a,b){ return a.t-b.t; });
+    const t0=base[0].t;
+    let put=0;
+    const byMv={};
+    currentSong.forEach(function(sec){ if(sec.movement) (byMv[sec.movement]=byMv[sec.movement]||[]).push(sec); });
+    Object.keys(byMv).forEach(function(mk){
+      const V=THEME_VAR[(+mk-1)%THEME_VAR.length];
+      /* 주제는 그 악장의 코러스 계열에 놓는다 — 벌스까지 채우면 곡이 주제로만 가득 찬다 */
+      let tg=byMv[mk].filter(function(x){ return ['코러스','코러스변주','하이라이트'].indexOf(x.label)>=0; });
+      if(!tg.length) tg=byMv[mk].filter(function(x){ return x.label!=='간주'&&x.label!=='인트로'&&x.label!=='아웃트로'; });
+      if(!tg.length) return;
+      const sec=tg[0];
+      const steps=(sec.prog&&sec.prog.steps)||[];
+      const bars=steps.length*(sec.reps||1);
+      if(!bars) return;
+      const cut=Math.max(1, Math.round(base.length*V.frac));
+      const m=[];
+      base.slice(0,cut).forEach(function(n){
+        const rt=(n.t-t0)*V.rate;
+        const bar=Math.floor(rt/mq);
+        if(bar>=bars) return;
+        m.push({ bar:bar, pos:(rt%mq)/mq, dur:Math.max(0.12,(n.dur||0.5)*V.rate),
+                 midi:n.midi+V.oct, vel:n.vel||88 });
+      });
+      if(!m.length) return;
+      sec.mels=sec.mels||[];
+      for(let r=0;r<(sec.reps||1);r++) sec.mels[r]=m.map(function(x){ return Object.assign({},x); });
+      sec.themeFromImport=true; put++;
+    });
+    return put;
+  }
   function buildLoungeSong(structKey){
     /* 라운지가 늘 어둡게 나오던 이유 — 조성이 단조로 고정돼 단조 진행만 뽑혔다
        (실측: 여덟 장르 모두 keyMode=minor, 네오소울은 단화음 91%).
@@ -21970,8 +22030,14 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       const arc=loungeArc(k,nEst);
       /* 화음을 순하게 만든 만큼 연주로 결을 바꾼다 — 편마다 반주 성격이 돌아간다. */
       const compRot=['arpeggio','ballad','newage','block','stride','arpeggio','ballad','newage'];
+      /* 편마다 결이 갈리도록 세 가지를 함께 돌린다 — 반주 성격·음역·밀도.
+         반주만 바꾸면 여전히 같은 자리에서 같은 두께로 흐른다. */
+      const octRot=[0, +12, 0, -12, +12, 0, -12, 0];        // 편별 반주 음역
+      const denRot=['medium','sparse','full','medium','sparse','medium','full','sparse'];
       secs.forEach(x=>{
         x.loungeComp=compRot[k%compRot.length];
+        x.loungeOct=octRot[k%octRot.length];
+        if(x.label!=='인트로'&&x.label!=='아웃트로') x.density=denRot[k%denRot.length];
         x.keyShift=(x.keyShift||0)+ks;
         x.intensity=Math.max(0.3, Math.min(1, (x.intensity||0.7)*arc));
         x.movement=k+1;                                // 몇 번째 악장인지 — 시트·마커에 쓴다
@@ -22060,12 +22126,13 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       /* 구조 정리 뒤에 한 번 더 — 앞 단계에서 진행 객체가 갈릴 수 있다 */
       currentSong.forEach(x=>{ if(x.prog&&x.prog.steps) x.prog.steps=loungeSimplify(x.prog.steps); });
       bakeSongMelodies(); try{ repeatHookMels(currentSong); }catch(e){ console.error('후크 반복 오류',e); }
+      let _th=0; try{ _th=loungeTheme(); }catch(e){ console.error('주제 심기 오류',e); }
       renderSong();
       if($('scoreView')&&$('scoreView').style.display!=='none') renderScore();
       const _mv=new Set(currentSong.map(x=>x.movement||1)).size;
       const _ln=songLenSec(currentSong);
       const _br=currentSong.reduce((a2,s2)=>a2+(s2.reps||1)*((s2.prog&&s2.prog.steps)?s2.prog.steps.length:0),0);
-      if($('themeMsg'))$('themeMsg').textContent='라운지 '+_mv+'편 이어 붙임 ✓  ·  길이 '+Math.floor(_ln/60)+'분 '+(_ln%60)+'초 ('+_br+'마디)  —  ▶ 재생';
+      if($('themeMsg'))$('themeMsg').textContent='라운지 '+_mv+'편 이어 붙임 ✓'+(_th?('  ·  가져온 멜로디를 '+_th+'편의 주제로'):'')+'  ·  길이 '+Math.floor(_ln/60)+'분 '+(_ln%60)+'초 ('+_br+'마디)  —  ▶ 재생';
       updateGuideEst(); return;
     }
     currentSong=songStructure(A,B,C,structKey); squareSong(currentSong); standardizeLengths(currentSong); fitDuration(currentSong); squareSong(currentSong); bakeSongMelodies(); try{ repeatHookMels(currentSong); }catch(e){ console.error('후크 반복 오류',e); }
@@ -22388,7 +22455,13 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     else if(mode==='plagal') figs=[{dt:0,midi:dg(3),dur:0.75},{dt:0.75,midi:dg(2),dur:0.75},{dt:1.5,midi:dg(0),dur:2.2}];
     else figs=[{dt:0,midi:dg(4),dur:0.5},{dt:0.5,midi:dg(3),dur:0.5},{dt:1,midi:dg(2),dur:0.5},{dt:1.5,midi:dg(1),dur:0.5},{dt:2,midi:dg(0),dur:2.2}]; // descend(하행 종지)
     return {mode, figs}; }
-  function secTempoMul(sec){ // 섹션별 템포 배율(재생·MIDI 동일) — 국악 성악곡: 간주 숨 고르기 → 브릿지 가라앉음 → 하이라이트 a tempo → 전조 하이라이트 몰아침
+  /* 라운지: 편마다 빠르기를 조금씩 달리한다.
+     한 시간을 한 빠르기로 흐르면 편이 바뀌어도 같은 곡처럼 들린다.
+     폭은 ±4% — 배경음악이라 크게 흔들면 대화의 흐름을 방해한다.
+     느린 편 다음에 조금 빠른 편이 오도록 번갈아 둔다. */
+  const LOUNGE_TEMPO=[1.00, 0.96, 1.04, 0.98, 1.03, 0.95, 1.02, 0.97];
+  function secTempoMul(sec){ // 섹션별 템포 배율(재생·MIDI 동일)
+    if(loungeMode && sec && sec.movement) return LOUNGE_TEMPO[(sec.movement-1)%LOUNGE_TEMPO.length];
     if(gsel!=='gukvocal'||!sec) return 1;
     if(sec.label==='간주') return 0.97;
     if(sec.label==='브릿지') return 0.94;
@@ -22422,7 +22495,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       const secSpb=60/(secRh.bpm||gv.bpm), secMeasure=secSpb*meterQuarters();
       const nextSec=songArr[secIdx+1];
       for(let r=0;r<sec.reps;r++){
-        const ge=grooveEvents(steps, undefined, secRh, {density:sec.density, intensity:sec.intensity, stage:(sec.stage||3), melodyClear:INST.melody.on||introTheme, intro:(sec.label==='인트로'), climax:(sec.climaxSel==='off'?false:(sec.climaxSel?true:(secIdx===climaxIdxOf(songArr)&&!songArr.some(s2=>s2.climaxSel&&s2.climaxSel!=='off')))), climaxMode:(sec.climaxSel&&sec.climaxSel!=='off')?sec.climaxSel:(sec.climaxMode||null), archStart:r*steps.length, archTotal:totalBars, rep:r, compSeedBase:((((secIdx+1)*2654435761)^((r+1)*40503))>>>0),
+        const ge=grooveEvents(steps, undefined, secRh, {density:sec.density, intensity:sec.intensity, loungeComp:sec.loungeComp, stage:(sec.stage||3), melodyClear:INST.melody.on||introTheme, intro:(sec.label==='인트로'), climax:(sec.climaxSel==='off'?false:(sec.climaxSel?true:(secIdx===climaxIdxOf(songArr)&&!songArr.some(s2=>s2.climaxSel&&s2.climaxSel!=='off')))), climaxMode:(sec.climaxSel&&sec.climaxSel!=='off')?sec.climaxSel:(sec.climaxMode||null), archStart:r*steps.length, archTotal:totalBars, rep:r, compSeedBase:((((secIdx+1)*2654435761)^((r+1)*40503))>>>0),
           stopLast:(r===sec.reps-1 && nextSec && (nextSec.stage||3)>=5 && (nextSec.stage||3)>(sec.stage||3)), // 터짐 직전: 마지막 박 반주 정지(보컬만 노출) — MIDI와 동일
           tuttiFirst:(r===0 && secIdx>0 && (sec.stage||3)>=5 && (sec.stage||3)>(currentSong[secIdx-1].stage||3))}); // 브레이크 직후: 첫박 투티 임팩트
         const lastRep=(r===sec.reps-1);
@@ -22989,6 +23062,28 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     });
     return ev;
   }
+
+  /* 라운지 편별 음역 이동 — 반주 계열만. 선율은 그대로 둔다(오블리가토 음역이 이미 정해져 있다).
+     피아노가 칠 수 있는 범위(A0~C8) 안으로 접어 넣는다. */
+  function loungeOctave(ev, gkey, barOct, barLen, padTick){
+    if(!barOct || !barOct.length) return ev;
+    if(gkey==='melody' || gkey==='counter' || gkey==='drums') return ev;
+    const open={};
+    ev.forEach(function(e){
+      if(e.cc!=null || e.note==null || e.tick==null) return;
+      if(e.on===1){
+        const bi=Math.floor((e.tick-padTick)/barLen);
+        const o=barOct[bi]||0;
+        let n=e.note+o;
+        while(n>96) n-=12; while(n<28) n+=12;
+        (open[e.note]=open[e.note]||[]).push(n);
+        e.note=n;
+      } else if(e.on===0){
+        const q=open[e.note]; if(q&&q.length) e.note=q.shift();
+      }
+    });
+    return ev;
+  }
   function buildSongMIDI(){
     if(!currentSong) return null;
     const TPQ=480, measure=Math.round(TPQ*meterQuarters()), rh=defaultRhythm(), gv=GROOVE[gsel]||GROOVE.pop, bpm=rh.bpm||gv.bpm;
@@ -23088,6 +23183,14 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         });
       }catch(e){}
       tonic=T0; return out; })();
+    /* 마디별 라운지 옥타브 — 편마다 반주가 놓이는 자리를 바꾼다.
+       반주 성격만 돌리면 여전히 같은 음역에서 같은 두께로 흐른다. */
+    const __barOct=(function(){ const out=[];
+      try{ currentSong.forEach(function(sec){
+        const st=(sec.prog&&sec.prog.steps)||[]; const o=sec.loungeOct||0;
+        for(let r=0;r<(sec.reps||1);r++) st.forEach(function(){ out.push(o); });
+      }); }catch(e){}
+      return out; })();
 const groups=[];
     // ── 터짐 직전 정지: 다음 섹션이 확 뜨거워지는 섹션의 마지막 마디, 마지막 박을 전 악기 정지 → 다음 첫박에 폭발
     const stopWins=[];
@@ -24003,6 +24106,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ev=swingize(ev, grp.key, TPQ); ev=famArticulate(grp.key, ev, grp.gm);
       /* 음을 옮기면 서로 다른 두 음이 같은 음이 되어 겹칠 수 있다 — 옮긴 뒤 병합한다
          (실측: 병합 없이 두었을 때 추출 MIDI에서 같은 음 겹침 2,259곳) */
+      ev=loungeOctave(ev, grp.key, __barOct, __barLen, PAD);
       ev=harmGate(ev, grp.key, __barPcs, __barLen, PAD); ev=coalesceNotes(ev);
       ev=melTensionGate(ev, grp.key, __barPcs, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       /* 두 관문이 음높이를 바꾸므로 음역별 세기·길이 규칙을 다시 태운다
@@ -24975,6 +25079,11 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('                재즈·보사·네오소울도 켤 수 있습니다 — 바(bar) 피아노에 맞습니다.');
       L.push('   화음      : 반감7(m7♭5)·감·증화음은 스탠다드로 낮췄습니다 — 배경음악에서 방향을 강하게 지시하면 귀에 걸립니다.');
       L.push('                진행의 뼈대는 그대로이고 색만 순해집니다. 재즈다움은 스윙과 연주로 냅니다.');
+      L.push('   주제      : 멜로디메이커에서 [🎹 플레이로]를 눌러 보낸 선율이 있으면 악장의 주제로 심습니다.');
+      L.push('                1편 원형 · 2편 한 옥타브 위 · 3편 리듬 확대 · 4편 앞 절반 발췌 · 5편 한 옥타브 아래 · 6편 리듬 축소.');
+      L.push('                주제는 코러스 계열에만 놓습니다 — 벌스까지 채우면 곡이 주제로만 가득 찹니다.');
+      L.push('   빠르기    : 편마다 ±4% 안에서 달라집니다. 한 시간을 한 빠르기로 흐르면 편이 바뀌어도 같은 곡처럼 들립니다.');
+      L.push('   음역·밀도 : 편마다 반주 음역(±1옥타브)과 밀도가 함께 돌아갑니다.');
       L.push('   조성      : 편마다 장조를 주로 쓰고 셋에 한 번 단조로 내려갑니다(장·장·단 순환).');
       L.push('                배경음악이 계속 어두우면 공간이 가라앉기 때문입니다. 어둡게 가려면 라운지를 끄고 만드세요.');
       L.push('   반주      : 편마다 성격이 돕니다 — 분산 → 발라드 → 뉴에이지 → 블록 → 스트라이드.');
