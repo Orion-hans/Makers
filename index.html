@@ -5874,9 +5874,15 @@ const document = __scopedDoc('app-band');
 const NOTE=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const ROOTPC={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 const MAJ_OFF=[0,2,4,5,7,9,11];
+/* 코드 톤에는 텐션을 섞지 않는다.
+   9·11·13·6을 화음에 그대로 쌓으면 CM7(9,13)·F6(9) 같은 소리가 되어 배경에서 뭉갠다.
+   텐션은 선율에 양념으로 스칠 때만 제 역할을 한다.
+   장르의 성격은 화음의 색이 아니라 연주·리듬·분위기로 낸다.
+   기능(3화음·7화음)은 그대로 두고 덧쌓은 음만 뺀다. */
 const QUAL={maj:[0,4,7],min:[0,3,7],dim:[0,3,6],aug:[0,4,8],dom7:[0,4,7,10],min7:[0,3,7,10],
-  maj7:[0,4,7,11],m7b5:[0,3,6,10],dim7:[0,3,6,9],sus4:[0,5,7],sus2:[0,2,7],six:[0,4,7,9],
-  add9:[0,4,7,14],maj9:[0,4,7,11,14],min9:[0,3,7,10,14],dom9:[0,4,7,10,14]};
+  maj7:[0,4,7,11],m7b5:[0,3,6,10],dim7:[0,3,6,9],sus4:[0,5,7],sus2:[0,2,7],
+  six:[0,4,7],min6:[0,3,7],add9:[0,4,7],maj9:[0,4,7,11],min9:[0,3,7,10],dom9:[0,4,7,10],
+  min11:[0,3,7,10],maj13:[0,4,7,11],dom13:[0,4,7,10],min13:[0,3,7,10],quartal:[0,5,10]};
 const QSYM={maj:'',min:'m',dim:'dim',aug:'aug',dom7:'7',min7:'m7',maj7:'maj7',m7b5:'m7b5',
   dim7:'dim7',sus4:'sus4',sus2:'sus2',six:'6',add9:'add9',maj9:'maj9',min9:'m9',dom9:'9'};
 const ROMAN={I:0,II:1,III:2,IV:3,V:4,VI:5,VII:6};
@@ -9701,10 +9707,68 @@ function fixMelClashes(notes, cells){
   });
   return notes;
 }
+
+/* ── 반주 화음음 관문 ──
+   반주를 만드는 경로가 스타일마다 여럿이라 각 자리에서 막으면 늘 빠지는 데가 생긴다.
+   편곡이 끝난 뒤 한 곳에서, 그 시점 화음이 정한 음만 남긴다.
+   실측: 이 관문 이전 반주 음의 17.6%가 9·11·13이었다(피아노 22%, 집시·가스펠 38%).
+   선율·대선율은 대상이 아니다 — 텐션의 색은 거기서 나와야 한다. */
+
+/* 한 트랙 안에서 같은 음이 겹치면 노트오프가 앞 음을 끊어 뒤 음이 잘린다.
+   앞 음의 길이를 다음 타건 직전까지로 줄인다. */
+function dedupSameNote(){
+  Object.keys(MODEL.tracks||{}).forEach(function(k){
+    if(/drum|perc|fx/i.test(k)) return;
+    const arr=MODEL.tracks[k]; if(!arr||!arr.length) return;
+    const by={};
+    arr.forEach(function(n){ if(n&&n.midi!=null) (by[n.midi]=by[n.midi]||[]).push(n); });
+    Object.keys(by).forEach(function(m){
+      const v=by[m].slice().sort(function(x,y){ return x.t-y.t; });
+      for(let i=0;i<v.length-1;i++){
+        const d=(v[i].dur!=null?v[i].dur:0.25);
+        if(v[i].t+d > v[i+1].t - 0.005) v[i].dur=Math.max(0.02, v[i+1].t - v[i].t - 0.02);
+      }
+    });
+  });
+}
+function harmGateBand(cells){
+  if(!cells||!cells.length) return;
+  const at=function(t){ for(let i=0;i<cells.length;i++){ const c=cells[i];
+    if(c.s-1e-6<=t && t<c.s+c.d-1e-6) return c; } return null; };
+  Object.keys(MODEL.tracks||{}).forEach(function(k){
+    if(/melody|counter|drum|perc|fx/i.test(k)) return;
+    (MODEL.tracks[k]||[]).forEach(function(n){
+      if(!n || n.midi==null) return;
+      const c=at(n.t); if(!c || !c.pcs || !c.pcs.length) return;
+      const pcs=[...new Set(c.pcs.map(x=>((x%12)+12)%12))];
+      const pc=((n.midi%12)+12)%12;
+      if(pcs.indexOf(pc)>=0) return;
+      for(const d of [-1,1,-2,2]){
+        if(pcs.indexOf(((((n.midi+d)%12)+12)%12))>=0){ n.midi=n.midi+d; return; }
+      }
+    });
+  });
+  /* 음을 옮기면 서로 다른 두 음이 같은 음이 되어 겹칠 수 있다 — 옮긴 뒤 트랙별로 정리한다
+     (실측: 정리 없이 두었을 때 추출 MIDI에서 같은 음 겹침 406곳). */
+  Object.keys(MODEL.tracks||{}).forEach(function(k){
+    if(/drum|perc|fx/i.test(k)) return;
+    const arr=MODEL.tracks[k]; if(!arr||!arr.length) return;
+    const by={};
+    arr.forEach(function(n){ if(n&&n.midi!=null) (by[n.midi]=by[n.midi]||[]).push(n); });
+    Object.keys(by).forEach(function(m){
+      const v=by[m].slice().sort(function(x,y){ return x.t-y.t; });
+      for(let i=0;i<v.length-1;i++){
+        const end=v[i].t+(v[i].dur||0);
+        if(end > v[i+1].t - 0.005) v[i].dur=Math.max(0.02, v[i+1].t - v[i].t - 0.02);
+      }
+    });
+  });
+}
 function exportAll(){arrange();
   /* 악기군 아티큘레이션 — 내보내기 직전에 한 번(arrange가 매번 새로 만들므로 중복 적용 없음) */
   /* 선율·대선율 반음 충돌 교정 — 음역 접기·아티큘레이션보다 먼저 */
   try{ const _cells=MODEL._cells||[]; fixMelClashes(MODEL.tracks.melody,_cells); fixMelClashes(MODEL.tracks.counter,_cells); }catch(e){}
+  try{ harmGateBand(MODEL._cells||[]); }catch(e){}
   { const gmOf=p=>{ const m=instMeta(p); return m?m.p:null; }; const T=MODEL.tracks;
     /* 음역 접기 — 아티큘레이션·겹침 정리보다 먼저 해야 그 뒤 계산이 어긋나지 않는다 */
     const fold=function(arr,gm){ const R=__instRange(gm); if(!R||!arr) return;
@@ -11439,10 +11503,15 @@ const NOTE=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const ROOTPC={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 const MAJ_OFF=[0,2,4,5,7,9,11];
 const ROMAN={I:0,II:1,III:2,IV:3,V:4,VI:5,VII:6};
+/* 코드 톤에는 텐션을 섞지 않는다.
+   9·11·13·6을 화음에 그대로 쌓으면 CM7(9,13)·F6(9) 같은 소리가 되어 배경에서 뭉갠다.
+   텐션은 선율에 양념으로 스칠 때만 제 역할을 한다.
+   장르의 성격은 화음의 색이 아니라 연주·리듬·분위기로 낸다.
+   기능(3화음·7화음)은 그대로 두고 덧쌓은 음만 뺀다. */
 const QUAL={maj:[0,4,7],min:[0,3,7],dim:[0,3,6],aug:[0,4,8],dom7:[0,4,7,10],min7:[0,3,7,10],
-  maj7:[0,4,7,11],m7b5:[0,3,6,10],dim7:[0,3,6,9],maj9:[0,4,7,11,14],min9:[0,3,7,10,14],
-  dom9:[0,4,7,10,14],add9:[0,4,7,14],sus2:[0,2,7],sus4:[0,5,7],six:[0,4,7,9],min6:[0,3,7,9],
-  min11:[0,3,7,10,14,17]};
+  maj7:[0,4,7,11],m7b5:[0,3,6,10],dim7:[0,3,6,9],sus4:[0,5,7],sus2:[0,2,7],
+  six:[0,4,7],min6:[0,3,7],add9:[0,4,7],maj9:[0,4,7,11],min9:[0,3,7,10],dom9:[0,4,7,10],
+  min11:[0,3,7,10],maj13:[0,4,7,11],dom13:[0,4,7,10],min13:[0,3,7,10],quartal:[0,5,10]};
 const QSYM={maj:'',min:'m',dim:'dim',aug:'aug',dom7:'7',min7:'m7',maj7:'maj7',m7b5:'m7b5',dim7:'dim7',
   maj9:'maj9',min9:'m9',dom9:'9',add9:'add9',sus2:'sus2',sus4:'sus4',six:'6',min6:'m6',min11:'m11'};
 const symDisplay=(pc,q)=>NOTE[pc]+QSYM[q];
@@ -14492,6 +14561,7 @@ function arrange(){
   applyDrumArtic(tr,sview);                                           // 장르 드럼 주법 — 스네어 고스트·벨로시티 폭
   dedupDrums(tr);                                                     // 드럼 중복 노트 제거(같은 자리 겹침 = 플램·위상 간섭으로 박자가 어긋나 들림)
   fixHarmonyClashes(tr,sview);                                        // 리드·베이스가 코드와 정면충돌하는 음을 코드톤으로 보정
+  harmGateBeat(tr,sview);                                             // 화성층(코드·패드·피아노·아르프·드론)은 코드톤만
   dedupMelodic(tr);                                                   // 멜로디 트랙 같은 음 중복·물림 정리(스턱 노트 방지)
   MODEL={tracks:tr,sections:sview,tempoMap:tm.segs,totalQ:tm.totalQ,totalSec:tm.totalSec,bpm:+$('bpm').value};
   sview.forEach(s=>{s.startSec=qToSec(s.startQ);});
@@ -14953,6 +15023,28 @@ function chordMapQ(sview){
      ③ 베이스 지속 비화성음 — 베이스는 화성을 규정하므로 길게 끌면 코드가 뒤집힌다.
    9th·maj7·13th 같은 색채음, 짧은 경과음(0.4박 미만), 다음 코드 루트로 향하는 마디 끝 접근음(워킹 베이스)은
    정상 어법이므로 건드리지 않는다. */
+
+/* ── 반주 화음음 관문 ──
+   fixHarmonyClashes는 리드·베이스만 보정하고 화성층(코드·패드·피아노·아르프·드론)은 손대지 않았다.
+   그 층이 9·11·13을 짚으면 텐션을 화음에 쌓은 것과 같아져 배경에서 뭉갠다.
+   편곡이 끝난 뒤 한 곳에서, 그 시점 화음이 정한 음만 남긴다.
+   리드는 선율이므로 대상이 아니다 — 텐션의 색은 거기서 나와야 한다. */
+function harmGateBeat(tr,sview){
+  const map=chordMapQ(sview); if(!map.length)return;
+  const at=t=>{for(let i=0;i<map.length;i++)if(t>=map[i].q0-0.001&&t<map[i].q1-0.001)return i;return -1;};
+  ['chords','pad','piano','arpseq','drone'].forEach(function(lane){
+    (tr[lane]||[]).forEach(function(n){
+      if(!n || n.midi==null) return;
+      const i=at(n.t); if(i<0) return;
+      const pcs=map[i].pcs; if(!pcs||!pcs.length) return;
+      const pc=((n.midi%12)+12)%12;
+      if(pcs.includes(pc)) return;
+      for(const d of [-1,1,-2,2]){
+        if(pcs.includes(((((n.midi+d)%12)+12)%12))){ n.midi=n.midi+d; return; }
+      }
+    });
+  });
+}
 function fixHarmonyClashes(tr,sview){
   const map=chordMapQ(sview); if(!map.length)return;
   const at=t=>{for(let i=0;i<map.length;i++)if(t>=map[i].q0-0.001&&t<map[i].q1-0.001)return i;return -1;};
@@ -17185,6 +17277,13 @@ $('groove').onchange=e=>{state.groove=e.target.value;const nm={straight:'정직�
 /* 완성곡 랜덤 — 장르는 사용자의 의도이므로 유지, 나머지는 음악 규칙 안에서 전부 랜덤 */
 function generateSong(fullRandom){
   const g=curGenre();
+  /* 긴 시간 모드는 여기서도 걸러야 한다 — 화면의 '새 곡 생성' 버튼은 genFlow가 아니라 이 함수를 부른다.
+     그래서 토글을 켜도 3~4분짜리 일반 곡이 나오고 있었다. */
+  if(runMixMode||lofiMixMode||houseMixMode||waveMixMode) state.seed=((Math.random()*1e9)|0)||1;
+  if(runMixMode && g.id==='running'){ if(genRunMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
+  if(lofiMixMode && (g.id==='lofi'||g.id==='lofigirl')){ if(genLofiMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
+  if(houseMixMode && (g.id==='melodichouse'||g.id==='deephouse')){ if(genHouseMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
+  if(waveMixMode && g.id==='synthwave'){ if(genWaveMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
   // 컨셉: 스타일·키·템포·스윙
   if(g.id==='running'){const ks=Object.keys(RUNSTYLES);state.runStyle=ks[Math.floor(Math.random()*ks.length)];}
   if(g.id==='melodichouse'){const ks=Object.keys(MELODICHOUSESTYLES);state.melodichouseStyle=ks[Math.floor(Math.random()*ks.length)];} // 하위 스타일 곡마다 회전(멜로딕·테크노·프로그레시브·앰비언트·오가닉) — 진행 풀·드럼·분위기가 함께 바뀜
@@ -17838,16 +17937,21 @@ const document = __scopedDoc('app-play');
   function noteName(pc,roman){ pc=((pc%12)+12)%12; const flat = (roman&&roman.indexOf('♭')>=0) || FLAT_KEY.has(tonic) || useFlatKey(tonic,keyMode); return (flat?FLAT:SHARP)[pc]; }
 
   // 화음 품질 → 음정 / 표기
+  /* 코드 톤에는 텐션을 섞지 않는다.
+     9·11·13·6을 화음에 그대로 쌓으면 CM7(9,13)·F6(9) 같은 소리가 되어 배경에서 뭉갠다.
+     텐션은 선율에 양념으로 스칠 때만 제 역할을 한다.
+     장르의 성격은 화음의 색이 아니라 연주·리듬·분위기로 낸다.
+     기능(3화음·7화음)은 그대로 두고 덧쌓은 음만 뺀다 — 이름(sfx)은 진행 표기를 위해 남긴다. */
   const Q={
     maj:{iv:[0,4,7],sfx:''}, min:{iv:[0,3,7],sfx:'m'}, dim:{iv:[0,3,6],sfx:'dim'}, aug:{iv:[0,4,8],sfx:'aug'},
     sus4:{iv:[0,5,7],sfx:'sus4'}, sus2:{iv:[0,2,7],sfx:'sus2'},
     maj7:{iv:[0,4,7,11],sfx:'maj7'}, dom7:{iv:[0,4,7,10],sfx:'7'}, min7:{iv:[0,3,7,10],sfx:'m7'},
     m7b5:{iv:[0,3,6,10],sfx:'m7♭5'}, dim7:{iv:[0,3,6,9],sfx:'dim7'}, mM7:{iv:[0,3,7,11],sfx:'mM7'},
-    maj6:{iv:[0,4,7,9],sfx:'6'}, min6:{iv:[0,3,7,9],sfx:'m6'},
-    add9:{iv:[0,4,7,14],sfx:'add9'}, madd9:{iv:[0,3,7,14],sfx:'m(add9)'},
-    maj9:{iv:[0,4,7,11,14],sfx:'maj9'}, min9:{iv:[0,3,7,10,14],sfx:'m9'}, dom9:{iv:[0,4,7,10,14],sfx:'9'},
-    sus47:{iv:[0,5,7,10],sfx:'7sus4'}, dom13:{iv:[0,4,7,10,14,21],sfx:'13'},
-    q4:{iv:[0,5,10],sfx:'(4도)'}, q4w:{iv:[0,5,10,15],sfx:'(4도)'}
+    maj6:{iv:[0,4,7],sfx:''}, min6:{iv:[0,3,7],sfx:'m'},
+    add9:{iv:[0,4,7],sfx:''}, madd9:{iv:[0,3,7],sfx:'m'},
+    maj9:{iv:[0,4,7,11],sfx:'maj7'}, min9:{iv:[0,3,7,10],sfx:'m7'}, dom9:{iv:[0,4,7,10],sfx:'7'},
+    sus47:{iv:[0,5,7,10],sfx:'7sus4'}, dom13:{iv:[0,4,7,10],sfx:'7'},
+    q4:{iv:[0,5,10],sfx:'(4도)'}, q4w:{iv:[0,5,10],sfx:'(4도)'}
   };
   // 기능 라벨 (장조 기준 도수 → T/PD/D)
   function fnOf(rootSemi,mode){
@@ -18765,10 +18869,8 @@ const document = __scopedDoc('app-play');
     let notes=iv.map(i=>{ let m=r+i; while(m>83) m-=12; return m; });
     notes=[...new Set(notes)].sort((a,b)=>a-b);
     if(curVoicing && curVoicing!=='close') notes=applyVoicing(notes,r,curVoicing);
-    { const _lyr=(typeof LYRIC_G!=='undefined')&&LYRIC_G.has(gsel);   // 기악독주곡: add9 절제
-      const _add9ok=(q==='maj'||q==='min') && (!_lyr || (((rootSemi*7+(bassSemi||0))%5)<2)); // 솔로 피아노는 약 40% 코드에만
-      if(_add9ok){ const cands=_lyr?[r+14,r+26]:[r+14,r+2,r+26];   // 기악독주곡: 저음 2도(r+2) 제외 → 탁함 방지, 고음 9도만
-        for(const cand of cands){ let n9=cand; while(n9>84)n9-=12; if(n9>=(_lyr?64:58) && notes.indexOf(n9)<0){ const clash=notes.some(m=>{const d=Math.abs(m-n9);return d>=1&&d<=2;}); if(!clash){ notes.push(n9); notes.sort((a,b)=>a-b); break; } } } } }
+    /* add9 덧쌓기는 하지 않는다 — 코드 톤에 9도를 얹으면 3도·근음과 부딪히고 배경에서 뭉갠다.
+       9도의 색은 선율이 스치며 낼 몫이다. */
     // 최종 단2도(반음 클러스터) 정리: 붙은 위 음을 옥타브 올려 탁한 울림 제거 (sus2·9화음의 장2도는 유지)
     notes=[...new Set(notes)].sort((a,b)=>a-b);
     for(let i=0;i<notes.length-1;i++){ if(notes[i+1]-notes[i]===1){ const up=notes[i+1]+12; if(up<=88 && notes.indexOf(up)<0){ notes[i+1]=up; } else { notes.splice(i+1,1); } notes.sort((a,b)=>a-b); i=-1; } }
@@ -20291,6 +20393,21 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
   // 반환 {notes:[{pos,dur,note,vel}]}  pos·dur=마디 분수 · vel=0..1 · 재생·MIDI 공용(시드 결정적)
   const COMP_STYLES=['block','ballad','arpeggio','waltz','stride','jazz','newage','pop','rumba']; // 반주 스타일 키
   const STYLE_MOTION={block:0.28, ballad:0.30, arpeggio:0.82, waltz:0.20, stride:0.22, jazz:0.5, newage:0.68, pop:0.58, rumba:0.55}; // 스타일별 모션(분산·오프비트) 기본 비중
+
+  /* ── 코드 톤 걸러내기 ──
+     반주 트랙이 화음 밖 음을 짚으면 텐션을 화음에 쌓은 것과 같아진다.
+     화음이 정한 음(근음·3도·5도·7도)만 남기고, 벗어난 음은 가장 가까운 화음음으로 끌어당긴다.
+     선율·대선율은 대상이 아니다 — 텐션의 색은 거기서 나와야 한다. */
+  function chordToneOnly(list, cn){
+    if(!list||!list.length||!cn||!cn.length) return list;
+    const pcs=[...new Set(cn.map(n=>((n%12)+12)%12))];
+    return list.map(function(n){
+      const pc=((n%12)+12)%12;
+      if(pcs.indexOf(pc)>=0) return n;
+      for(const d of [-1,1,-2,2]){ const c=n+d; if(pcs.indexOf((((c%12)+12)%12))>=0) return c; }
+      return n;
+    });
+  }
   function compStyleBar(cn, bass, opts){
     cn=(cn&&cn.length)?[...new Set(cn)].sort((a,b)=>a-b):[60,64,67]; // 오른손 보이싱 정리
     const E=(opts.eighth&&opts.eighth.length)?opts.eighth:[0,.125,.25,.375,.5,.625,.75,.875]; // 8분 격자
@@ -20303,7 +20420,19 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
     const out=[], beatDur=B.length>1?(B[1]-B[0]):.25, endCap=.985; // endCap=마디 안에서 끊기
     const strongV=.9*inA, weakV=.58*inA, bassV=.8*inA; // 강박·약박·베이스 세기
     const bassLo=m=>{ let x=m; while(x<36)x+=12; while(x>57)x-=12; return x; }; // 왼손 저역 정리(F1~A3)
-    const add=(pos,dur,note,vel)=>{ if(pos>=1||pos<0)return; out.push({pos:pos, dur:Math.max(.03,Math.min(endCap-pos,dur)), note:note, vel:Math.max(.14,Math.min(1,vel))}); };
+    const add=(pos,dur,note,vel)=>{ if(pos>=1||pos<0)return;
+      /* 반주는 화음이 정한 음만 짚는다 — 스타일별 경로가 여럿이라 여기 한 곳에서 거른다.
+         화음 밖 음을 짚으면 텐션을 화음에 쌓은 것과 같아져 CM7(9,13) 같은 소리가 된다.
+         실측: 이 관문을 두기 전 반주 음의 40%가 9·11·13이었다. */
+      try{ const _c=chordAt(pos); if(_c&&_c.cn&&_c.cn.length){
+        const _p=((note%12)+12)%12;
+        const _pcs=_c.cn.map(n=>((n%12)+12)%12);
+        if(_pcs.indexOf(_p)<0){
+          let _f=null;
+          for(const d of [-1,1,-2,2]){ if(_pcs.indexOf(((((note+d)%12)+12)%12))>=0){ _f=note+d; break; } }
+          if(_f!=null) note=_f;
+        } } }catch(e){}
+      out.push({pos:pos, dur:Math.max(.03,Math.min(endCap-pos,dur)), note:note, vel:Math.max(.14,Math.min(1,vel))}); };
     const near=(a,b)=>Math.abs(a-b)<1e-6; // 위치 비교
     const style=opts.style, sm=(STYLE_MOTION[style]!=null?STYLE_MOTION[style]:0.3); // 스타일 모션 비중
     if(style==='rumba'){   // 룸바 플라멩카 라스게아도: 16분 스트럼 + 코드 굴림(라스게아도) + 룸바 신코 억양
@@ -20333,7 +20462,11 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
     const octave=build>0.72;      // 절정: 옥타브 보강
     const eD=beatDur*0.5, blockDur=eD*0.9, motionDur=(style==='newage')?beatDur*1.6:eD*0.9; // 음가=8분 이하(재타건 보존, coalesce 병합 방지) · 페달 CC64가 레가토 담당
     const anchorVoicing=(atStrong,f)=>{ const C=chordAt(f).cn, tp=C[C.length-1], bss=chordAt(f).bass; // 앵커 보이싱(위치별 코드)
-      if(style==='jazz'){ let v=C.filter(n=>(((n-bss)%12)+12)%12!==0); if(!v.length)v=C.slice(); if(build>0.5)v=v.concat([tp+(rnd()<0.5?2:-1)]); return v; }
+      /* 재즈 컴핑은 근음을 빼고(왼손이 잡으므로) 나머지를 쓴다.
+         예전에는 절정에서 톱 위에 9도(tp+2)나 ♭9(tp-1)을 덧붙였는데,
+         그 결과 피아노 연주음의 21%가 9도가 되어 CM7(9,13) 같은 소리로 뭉갰다.
+         텐션은 선율이 스치며 낼 몫이고, 컴핑은 화음 골격만 짚는다. */
+      if(style==='jazz'){ let v=C.filter(n=>(((n-bss)%12)+12)%12!==0); if(!v.length)v=C.slice(); return v; }
       if(build<0.28) return atStrong?[C[0],tp]:[tp]; return C.slice(); };
     const seqAt=(f)=>{ const C=chordAt(f).cn, tp=C[C.length-1], bss=chordAt(f).bass; return (style==='newage')?[bassLo(bss)+12].concat(C).concat([tp+12]):C.concat([tp+12]); }; // 모션 시퀀스(상행/물결)
     const motionNotes=(i,e)=>{ if(style==='pop') return chordAt(e).cn; if(style==='jazz') return anchorVoicing(false,e); const sq=seqAt(e); return [sq[i%sq.length]]; }; // 슬롯당 놓을 음(들)
@@ -20350,14 +20483,14 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
     let rhAnchors; const blockish=(style==='block'||style==='pop'); if(style==='stride') rhAnchors=[]; else if(style==='waltz') rhAnchors=B.filter(b=>!S.some(x=>near(x,b))); else rhAnchors=(anchorEvery&&blockish)?B:SA; // 블록·팝만 빌드업 시 모든 박, 그 외는 강박 앵커(고조 시 3+3+2)+모션이 빌드업 담당
     rhAnchors.forEach((b)=>{ const atStrong=SA.some(x=>near(x,b))||near(b,B[0]);
       const roll=(style==='ballad'&&atStrong)?0.012*(0.6+p):0; // 발라드 다운비트=롤 코드
-      anchorVoicing(atStrong,b).forEach((n,k)=>add(b+roll*k, blockDur, n, (atStrong?strongV:weakV)*(style==='ballad'?0.9:1)));
+      chordToneOnly(anchorVoicing(atStrong,b), chordAt(b).cn).forEach((n,k)=>add(b+roll*k, blockDur, n, (atStrong?strongV:weakV)*(style==='ballad'?0.9:1)));
       if(octave && atStrong && style!=='newage') add(b, beatDur*0.6, topAt(b)+12, weakV*0.7); }); // 절정 옥타브
 
     // ── 모션 레이어(분산·브로큰·오프비트) : 앵커 없는 8분 슬롯을 빌드업만큼 채움 → 블록과 겹침 ──
     E.forEach((e,i)=>{ if(rhAnchors.some(b=>near(b,e))) return;
       const amt=(style==='stride'||style==='waltz')?motionAmt*0.5:motionAmt; // 스트라이드·왈츠는 모션 절제
       if(rnd()>amt) return;
-      motionNotes(i,e).forEach((n,k)=>add(e+k*0.004, motionDur, n, weakV*(0.76+0.24*build))); });
+      chordToneOnly(motionNotes(i,e), chordAt(e).cn).forEach((n,k)=>add(e+k*0.004, motionDur, n, weakV*(0.76+0.24*build))); });
 
     // ── 화려한 피아노: 절정(build 높음)에서 마지막 박에 톱 옥타브 상행 16분 스파클(다음 마디로 밀어 올림) ──
     if(build>0.7 && style!=='newage' && style!=='stride' && style!=='waltz'){ const C=chordAt(0.75).cn, tp=C[C.length-1];
@@ -22697,7 +22830,10 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      (실측: 재즈 라운지의 8분 뒷박이 전부 0.5 위치 — 스트레이트).
      재즈·블루스·집시는 뒷 8분을 셋잇단 뒤쪽으로 민다. 비율은 62%(0.5 → 0.62).
      16분은 건드리지 않는다 — 스윙 8분 위의 16분까지 밀면 흔들려 들린다. */
-  const SWING_G={jazz:0.62, blues:0.60, gypsy:0.60, neosoul:0.56, lofi:0.58, bossa:0.50};
+  /* 비율은 드럼이 이미 쓰고 있는 값에 맞춘다 — 따로 정하면 두 층이 어긋나 '틀리게' 들린다.
+     실측: 재즈 드럼이 0.65~0.667(셋잇단)인데 유율에 0.62를 걸어 21ms 어긋나 있었다.
+     블루스는 드럼이 스트레이트(0.5·0.75)여서 유율도 흔들지 않는다. */
+  const SWING_G={jazz:0.667, blues:0.50, gypsy:0.64, neosoul:0.56, lofi:0.62, bossa:0.50};
   function swingize(ev, gkey, tpq){
     const amt=SWING_G[gsel];
     if(!amt || amt<=0.5) return ev;
@@ -22721,6 +22857,81 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       }
     });
     ev.sort(function(a,b){ return (a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on)); });
+    return ev;
+  }
+
+  /* ── 반주 화음음 관문 ──
+     반주를 만드는 경로가 스타일·장르마다 여럿이라 각 자리에서 막으면 늘 빠지는 데가 생긴다.
+     트랙이 완성된 뒤 한 곳에서, 그 시점 화음이 정한 음만 남긴다.
+     실측: 이 관문 이전 반주 음의 18%가 9·11·13이었다(재즈는 27%).
+     선율·대선율은 대상이 아니다 — 텐션의 색은 거기서 나와야 한다. */
+  function harmGate(ev, gkey, barChords, barLen, padTick){
+    if(!barChords || !barChords.length) return ev;
+    if(gkey==='melody' || gkey==='counter' || gkey==='drums') return ev;
+    const open={};
+    ev.forEach(function(e){
+      if(e.cc!=null || e.note==null || e.tick==null) return;
+      if(e.on===1){
+        const bi=Math.floor((e.tick-padTick)/barLen);
+        const pcs=barChords[bi];
+        if(!pcs || !pcs.length){ open[e.note]=open[e.note]||[]; open[e.note].push(e.note); return; }
+        const pc=((e.note%12)+12)%12;
+        let nn=e.note;
+        if(pcs.indexOf(pc)<0){
+          for(const d of [-1,1,-2,2]){ if(pcs.indexOf(((((e.note+d)%12)+12)%12))>=0){ nn=e.note+d; break; } }
+        }
+        (open[e.note]=open[e.note]||[]).push(nn);
+        e.note=nn;
+      } else if(e.on===0){
+        const q=open[e.note];
+        if(q&&q.length) e.note=q.shift();
+      }
+    });
+    return ev;
+  }
+
+  /* ── 선율 텐션은 양념으로만 ──
+     텐션(9·11·13·♭9·♯11·♭13)이 길게 끌리거나 강박에 앉거나 프레이즈 첫 음으로 나오면
+     양념이 아니라 주역이 되어 화성과 정면으로 부딪힌다
+     (실측: 긴 음의 12%, 강박의 9%, 프레이즈 첫 음의 12%가 텐션이었다).
+     그 자리에서는 화음음으로 내리고, 스쳐 지나가는 짧은 약박에서만 남긴다.
+     세게 친 텐션도 눌러 준다 — 세기까지 실리면 지나가는 음으로 안 들린다. */
+  const MEL_TEN=[1,2,5,6,8,9];
+  function melTensionGate(ev, gkey, barPcs, barLen, padTick, tpq){
+    if(!barPcs || !barPcs.length) return ev;
+    if(gkey!=='melody' && gkey!=='counter') return ev;
+    const ons=[]; const map={};
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1) ons.push({i:i, tick:e.tick, note:e.note, vel:e.vel, off:null});
+      else if(e.on===0){ for(let k=ons.length-1;k>=0;k--) if(ons[k].off==null && ons[k].note===e.note){ ons[k].off=i; break; } }
+    });
+    ons.sort(function(a,b){ return a.tick-b.tick; });
+    for(let k=0;k<ons.length;k++){
+      const o=ons[k];
+      const bi=Math.floor((o.tick-padTick)/barLen);
+      const pcs=barPcs[bi]; if(!pcs || !pcs.length) continue;
+      const root=pcs[0];
+      const pc=((o.note%12)+12)%12;
+      if(pcs.indexOf(pc)>=0) continue;                       // 화음음이면 둔다
+      const iv=(((pc-root)%12)+12)%12;
+      if(MEL_TEN.indexOf(iv)<0) continue;                    // 텐션이 아닌 경과음은 둔다
+      const dur=(o.off!=null? ev[o.off].tick : o.tick+tpq/4) - o.tick;
+      const inBar=((o.tick-padTick)%barLen+barLen)%barLen;
+      const isLong=dur >= tpq*0.9;
+      const isStrong=inBar < tpq*0.15;
+      const isFirst=(k===0) || (o.tick - (ons[k-1].off!=null?ev[ons[k-1].off].tick:ons[k-1].tick) > tpq*1.4);
+      if(isLong || isStrong || isFirst){
+        let best=null, bd=99;
+        for(const d of [-1,1,-2,2]){
+          const c=o.note+d;
+          if(pcs.indexOf(((((c%12)+12)%12))) >= 0 && Math.abs(d)<bd){ bd=Math.abs(d); best=c; }
+        }
+        if(best!=null){ ev[o.i].note=best; if(o.off!=null) ev[o.off].note=best; o.note=best; continue; }
+      }
+      /* 남기는 텐션은 세기를 눌러 스쳐 가게 한다 */
+      if(ev[o.i].vel!=null && ev[o.i].vel>78) ev[o.i].vel=78;
+    }
     return ev;
   }
   function buildSongMIDI(){
@@ -22803,6 +23014,25 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     /* 라운지: 세기 폭을 좁힌다 — 배경음악은 대화 위에 얹히므로 크게 튀면 안 된다.
        35~85 사이로 눌러 두되 셈여림의 방향은 그대로 남긴다. */
     const _lounge=!!loungeMode;
+    /* 마디별 화음 음정 클래스 — 반주 관문(harmGate)이 쓴다.
+       구간·반복·전조를 그대로 펼쳐 마디 순서대로 담는다. */
+    const __barLen=(function(){ const _sv=currentSig; let L=0;
+      try{ L=Math.round(meterQuarters()*TPQ); }catch(e){ L=4*TPQ; } currentSig=_sv; return L||4*TPQ; })();
+    const __barPcs=(function(){ const out=[]; const T0=tonic;
+      try{
+        currentSong.forEach(function(sec,i){
+          const st=(sec.prog&&sec.prog.steps)||[];
+          const _sv=currentSig; if(SEC_TK&&SEC_TK[i]&&SEC_TK[i].sig) currentSig=SEC_TK[i].sig;
+          tonic=T0+(sec.keyShift||0);
+          for(let r=0;r<(sec.reps||1);r++) st.forEach(function(x){
+            try{ const c=chordMidis(x[1],x[2],x[3]);
+              out.push([...new Set(c.notes.map(n=>((n%12)+12)%12))]); }
+            catch(e){ out.push(null); }
+          });
+          currentSig=_sv;
+        });
+      }catch(e){}
+      tonic=T0; return out; })();
 const groups=[];
     // ── 터짐 직전 정지: 다음 섹션이 확 뜨거워지는 섹션의 마지막 마디, 마지막 박을 전 악기 정지 → 다음 첫박에 폭발
     const stopWins=[];
@@ -23156,7 +23386,13 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
     const baseTonicM=tonic;
     const comp=tempoComp(rh.comp,bpm);
     const clearMel=INST.melody.on;
-    if(soloPiano){ for(let _gi=groups.length-1;_gi>=0;_gi--){ const _k=groups[_gi].key; if(_k!=='piano' && !(_k==='melody'&&INST.melody.on)) groups.splice(_gi,1); } }   // 솔로: 피아노만 (선율악기 켜지면 그 악기+피아노반주=기악 독주)
+    /* 솔로 피아노는 트랙을 만든 뒤 걷어내는 방식이라, 악기 켬/끔 상태는 켜진 채로 남아 있었다
+       (실측: 재즈 라운지에서 INST가 melody·piano·bass·drums로 켜져 있는데 나온 트랙은 피아노 둘뿐).
+       화면과 실제 결과가 어긋나므로 상태도 함께 끈다. */
+    if(soloPiano){
+      ['bass','drums','strings','winds','brass','harp','choir'].forEach(function(k){ if(INST[k]) INST[k].on=false; });
+      for(let _gi=groups.length-1;_gi>=0;_gi--){ const _k=groups[_gi].key; if(_k!=='piano' && !(_k==='melody'&&INST.melody.on)) groups.splice(_gi,1); }
+    }   // 솔로: 피아노만 (선율악기 켜지면 그 악기+피아노반주=기악 독주)
     groups.forEach(grp=>{
       let ev=[], tick=PAD; let soloPrevV=null;   // 솔로 피아노 자리바꿈 연속용
       const secOcc=(function(){ const cnt={},o=[]; currentSong.forEach(function(s2){ const L=(s2.label||''); o.push(cnt[L]||0); cnt[L]=(cnt[L]||0)+1; }); return o; })(); // 같은 유형 섹션의 n번째 등장(벌스1·2·3…) — 구조 인식 필인 선택
@@ -23707,7 +23943,14 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
   ev=coalesceNotes(ev);
       /* 스윙은 아티큘레이션보다 먼저 — 그래야 음 길이·겹침 정리가 옮겨진 자리 위에서 계산된다
          (뒤에 두면 밀린 음이 다음 음과 겹쳐 같은 음 겹침이 175곳 생겼다) */
-      ev=swingize(ev, grp.key, TPQ); ev=famArticulate(grp.key, ev, grp.gm); ev=selfDeclash(ev, grp.key, TPQ); ev=crossDeclash(grp.key, ev);
+      /* 화음음 관문은 아티큘레이션 뒤에 — 앞에 두면 음을 옮긴 결과로 음역 판정이 바뀌어
+         지속음 벨로시티 상한이 97곳 깨졌다. 여기서는 음높이만 마지막에 스냅한다. */
+      ev=swingize(ev, grp.key, TPQ); ev=famArticulate(grp.key, ev, grp.gm);
+      /* 음을 옮기면 서로 다른 두 음이 같은 음이 되어 겹칠 수 있다 — 옮긴 뒤 병합한다
+         (실측: 병합 없이 두었을 때 추출 MIDI에서 같은 음 겹침 2,259곳) */
+      ev=harmGate(ev, grp.key, __barPcs, __barLen, PAD); ev=coalesceNotes(ev);
+      ev=melTensionGate(ev, grp.key, __barPcs, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
+      ev=selfDeclash(ev, grp.key, TPQ); ev=crossDeclash(grp.key, ev);
       ev.sort((a,b)=>(a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on))); doneNotes[grp.key]={ch:grp.ch, iv:pairIv(ev)}; // 교차 트랙 반음 정리 + 완료 트랙 등록
       let bytes=[];
       const __melMuted=(grp.key==='melody' && window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length && (!window.SO_HUB.melSrc||window.SO_HUB.melSrc.play!=='own'));   // 가져온 멜로디 선택 시 자체 멜로디 뮤트
@@ -25196,7 +25439,12 @@ function applyPreset(solo){
   }
   $('loungeTog').addEventListener('change',e=>{ loungeMode=e.target.checked;
     const w=$('loungeLenWrap'); if(w) w.style.display=loungeMode?'':'none';
-    if(loungeMode){ const sp=$('soloPianoTog'); if(sp&&!sp.checked){ sp.checked=true; sp.dispatchEvent(new Event('change')); } }
+    if(loungeMode){ const sp=$('soloPianoTog');
+      if(sp&&!sp.checked){ sp.checked=true; sp.dispatchEvent(new Event('change')); }
+      /* 솔로 토글이 이미 켜져 있으면 change가 일어나지 않아 악기 상태가 그대로 남는다 — 여기서도 끈다 */
+      soloPiano=true;
+      ['bass','drums','strings','winds','brass','harp','choir'].forEach(function(k){ if(INST[k]) INST[k].on=false; });
+      if(typeof renderInst==='function') renderInst(); }
     _syncModeTogs('lounge');
     if(typeof songState!=='undefined' && songState) stopSong(); });
   $('loungeLen').addEventListener('change',e=>{ loungeMin=+e.target.value||30; });
@@ -25237,6 +25485,9 @@ function applyPreset(solo){
   /* 프로덕션 트랙 토글은 없앴다 — 로직으로 내보내는 게 이 앱의 목적이라 늘 켜고,
      피아노만 뽑고 싶으면 '솔로 피아노'가 알아서 끈다. */
   { const sp=$('soloPianoTog'); if(sp) sp.addEventListener('change',e=>{ soloPiano=e.target.checked;
+    /* 켜는 즉시 화면에서도 반주 악기를 내린다 — 결과와 같은 상태를 보여 준다 */
+    if(soloPiano){ ['bass','drums','strings','winds','brass','harp','choir'].forEach(function(k){ if(INST[k]) INST[k].on=false; });
+      if(typeof renderInst==='function') renderInst(); }
       prodTracks = !soloPiano;   // 솔로 피아노면 패드·서브·라이저·가이드를 빼고 피아노만 남긴다
       if(currentSong && currentSong.length && typeof buildSong==='function'){ buildSong(); } }); }
   $('playSong').addEventListener('click',()=>playSong());
