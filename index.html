@@ -11758,6 +11758,14 @@ const PAT={
   boombap:{kick:P(0,7,10),snare:P(4,12),clap:P(),hat:P(0,2,4,6,8,10,12,14),ohat:P(14),perc:P()},
   trap:{kick:P(0,6,10),snare:P(),clap:P(8),hat:P(0,2,3,4,6,8,10,11,12,14),ohat:P(),perc:P()},
   lofi:{kick:P(0,10),snare:P(4,12),clap:P(),hat:P(2,6,10,14),ohat:P(),perc:P(7)},
+  /* 로파이 걸: 공부·집중용 배경이라 로파이 힙합보다 더 성기고 부드럽다.
+     힌트에는 '여린 킥·2·4박 고스트 스네어'라 적혀 있었지만 실제로는 PAT에 항목이 없어
+     PAT.lofi로 떨어져 두 장르가 같은 드럼을 쓰고 있었다(실측: 킥·햇 위치가 완전히 동일).
+       · 킥은 1박과 3박 뒤(10)에만 — 앞으로 나서지 않는다
+       · 스네어는 2·4박 백비트 + 그 사이 고스트
+       · 하이햇은 8분이되 짝수 자리만 — 셰이커·브러시 질감
+       · 오픈햇으로 마디 끝을 살짝 들어 올린다 */
+  lofigirl:{kick:P(0,10),snare:P(4,12),clap:P(),hat:P(2,6,10,14),ohat:P(15),perc:P(3,11)},
   running:{kick:P(0,4,8,12),snare:P(),clap:P(4,12),hat:P(0,2,4,6,8,10,12,14),ohat:P(),perc:P()},
   country:{kick:P(0,8),snare:P(4,12),clap:P(),hat:P(0,2,4,6,8,10,12,14),ohat:P(),perc:P(2,6,10,14)}, // 트레인비트: 킥 1·3, 백비트 2·4, 탬버린 뒷박
   kpop:{kick:P(0,4,8,12),snare:P(4,12),clap:P(4,12),hat:P(0,2,4,6,8,10,12,14),ohat:P(6,14),perc:P()},
@@ -11825,7 +11833,7 @@ const GENRES=[
    chords:[['i9','bVIM7','bIIIM7','bVIIM7'],['i7','iv7','bVIM7','bVIIM7'],['i','bVII','bVI','bVII'],['iM9','bVIM9','iv7','bVII']],
    atmos:{hiss:0.4,sweep:0.35}},
   {id:'lofigirl',name:'로파이 걸 (Lofi Girl)',tempo:[70,84],swing:60,bass:'808',pad:true,lead:false,form:'lofi', defaultSec:180,
-   hint:'유튜브 로파이 라디오 계열 — 여린 킥·2·4박 고스트 스네어·중역 재즈 화성(maj7/min9)·바이닐. 펌핑 없이 뒤로 물린 믹스.',
+   hint:'유튜브 로파이 라디오 계열 — 공부·집중용 배경. 로파이 힙합보다 더 성기고 부드럽습니다. 킥은 1박과 3박 뒤에만(벨로시티 72 안팎으로 뒤에 물림) · 2·4박 백비트에 그 사이 고스트 스네어(벨 22 안팎) · 8분 하이햇은 짝수 자리만(셰이커·브러시 질감) · 절정에서만 오픈햇으로 마디 끝을 살짝 들어 올림 · 중역 재즈 화성(maj7/min9) · 바이닐.',
    chords:[['IM7','vi7','ii7','V7'],['ii7','V7','IM7','vi7'],['IM9','IVM9','iii7','vi7'],['vi7','IVM7','IM7','V7']],
    atmos:{vinyl:0.6,rain:0.25}, style:'lofi'},
   {id:'synthwave',name:'신스웨이브 (Synthwave)',tempo:[86,112],swing:0,bass:'synth',pad:true,lead:true,form:'edm', defaultSec:200,
@@ -12546,6 +12554,18 @@ function shapeDrumsFor(g,type,vix){
   else if(en===4){off('clap');off('ohat');
     if(isHouse(g.id))d.hat=P(2,6,10,14);                       // 하우스 빌드: 햇 폭증 없이 롤링 오프비트 유지(심플·연속)
     else d.hat=P(...Array.from({length:16},(_,i)=>i));} // 빌드: 햇 16분 밀도
+  /* ── 로파이 걸: 공부용 배경 ──
+     같은 로파이라도 라디오 배경으로 트는 것이라 앞에 나서면 안 된다.
+       · 후렴에서도 킥을 늘리지 않는다 — 밀도가 오르면 집중을 방해한다
+       · 고스트 스네어를 사이사이 넣어 결을 만들되 세기는 낮게(벨로시티는 아래에서 처리)
+       · 절정 구간에만 오픈햇으로 살짝 들어 올린다 */
+  if(g.id==='lofigirl'){
+    if(en>=4){ d.snare=P(2,4,7,12,14); }        // 백비트 + 고스트
+    else { d.snare=P(4,12); }                    // 벌스는 백비트만
+    if(en<=2){ d.kick=P(0); d.hat=P(2,10); }     // 인트로·브레이크는 아주 성기게
+    d.ohat=(en>=5)?P(15):P();
+    d.perc=(en>=3)?P(3,11):P();                  // 셰이커 자리
+  }
   /* ── 컨트리: 트레인 비트 ──
      패턴 주석에는 '트레인비트'라고 적혀 있었지만 실제로는 백비트(2·4)만 나오고 있었다.
      트레인 비트의 핵심은 스네어를 16분으로 잘게 굴려 기차 바퀴 소리를 내는 것이다.
@@ -14309,6 +14329,13 @@ function arrange(){
         else if(lane==='kick')acc=bp<1e-6?1:0.94;
         /* 컨트리 트레인 비트: 2·4박은 어택, 그 사이 16분은 고스트 노트로 여리게.
            이 대비가 기차 바퀴 소리를 만든다 — 전부 같은 세기로 치면 그냥 롤이 된다. */
+        /* 로파이 걸: 백비트는 여리게, 고스트는 아주 여리게.
+           공부용 배경이라 드럼이 앞에 나서면 안 된다. */
+        else if(lane==='snare'&&g.id==='lofigirl'){
+          const back=(Math.abs(bp-1)<1e-6)||(Math.abs(bp-3)<1e-6);
+          acc = back?0.82 : 0.38;
+        }
+        else if(lane==='kick'&&g.id==='lofigirl'){ acc=bp<1e-6?0.86:0.74; }
         else if(lane==='snare'&&g.id==='country'){
           const onBeat=Math.abs(bp%1)<1e-6;                  // 정박(1·2·3·4)
           const back=(Math.abs(bp-1)<1e-6)||(Math.abs(bp-3)<1e-6);   // 2·4박 = 백비트
@@ -14349,7 +14376,19 @@ function arrange(){
         const vBase=voi.length;
         if(!(rSt&&rSt.power)&&bar%cb===0)voi=addTensions(voi,ch,g,en,rnd);   // 텐션 얹기(파워코드 제외) — 패드·아르프에도 흘러듦
         const doArp=!!sec.arp;                                     // 체크박스가 유일한 진실
-        if(g.id==='country'&&!doArp){ // 스트럼: 붐-치카 리듬 + 살짝 굴리는 롤
+        /* 로파이 계열 화음: 정박에만 놓으면 스윙된 드럼과 격자가 어긋나 들린다.
+           (실측: 드럼은 0.602·0.8 자리에 있는데 화음은 0.0에만 있었다.)
+           재즈 컴핑처럼 뒷박에 얹어 스윙 자리를 함께 짚는다 — swQ가 걸려 드럼과 같은 격자에 놓인다. */
+        if((g.id==='lofigirl'||g.id==='lofi')&&!doArp){
+          const P=(g.id==='lofigirl')
+            ? [[0,0.90],[1.5,0.72],[2.5,0.80],[3.5,0.66]]      // 성기게 — 배경이라 앞에 안 나선다
+            : [[0,0.95],[0.5,0.70],[1.5,0.78],[2,0.88],[2.5,0.72],[3.5,0.68]];
+          P.forEach(function(pv){ const rq=pv[0], a=pv[1];
+            voi.forEach(function(n,vi){ tr.chords.push({t:b0+rq+swQ(rq)+vi*0.012,
+              dur:(g.id==='lofigirl')?0.62:0.48, midi:n,
+              vel:Math.round(60*a*eScale*ramp+rnd()*4)}); }); });
+        }
+        else if(g.id==='country'&&!doArp){ // 스트럼: 붐-치카 리듬 + 살짝 굴리는 롤
           [[0,1],[1,0.8],[1.5,0.7],[2,0.95],[3,0.8],[3.5,0.7]].forEach(([rq,a])=>{
             voi.forEach((n,vi)=>tr.chords.push({t:b0+rq+swQ(rq)+vi*0.02,dur:0.42,midi:n,vel:Math.round(64*a*eScale*ramp+rnd()*5)}));});}
         else if(g.id==='kpop'&&en>=5&&!doArp){ // 훅 브라스 스탭: 당김 리듬, 짧게
@@ -16559,6 +16598,25 @@ function buildSongSheet(){
     if(_sw>=40) L.push('스윙(SWING)  : '+_sw+'% — 셔플입니다. 로직에서 리퀀타이즈하면 이 결이 사라집니다.');
     else if(_sw>0) L.push('스윙(SWING)  : '+_sw+'% — 거의 스트레이트(미세한 흔들림).');
     else L.push('스윙(SWING)  : 스트레이트');
+  }
+  if(state.genre==='lofigirl'){
+    L.push('');
+    L.push('■ 로파이 걸 — 공부·집중용 배경');
+    L.push('   드럼   : 로파이 힙합과 같은 계보지만 앞에 나서지 않게 짰습니다.');
+    L.push('            킥은 1박과 3박 뒤에만 놓고 벨로시티를 72 안팎으로 뒤에 물렸습니다.');
+    L.push('            스네어는 2·4박 백비트(벨 82%)에 그 사이 고스트(38%)를 넣었습니다.');
+    L.push('            8분 하이햇은 짝수 자리만 — 셰이커·브러시 질감입니다.');
+    L.push('            오픈햇은 절정 구간에서만 마디 끝을 살짝 들어 올립니다.');
+    L.push('   밀도   : 후렴에서도 킥을 늘리지 않습니다. 밀도가 오르면 집중을 방해합니다.');
+    L.push('            인트로·브레이크는 킥 1박 하나와 하이햇 둘만 남깁니다.');
+    L.push('   8비트·16비트가 아닙니다 : 정박에 딱 맞으면 로파이 느낌이 사라집니다.');
+    L.push('            스윙 60%가 걸려 뒷박이 늦게 오는 것이 이 어법의 핵심입니다.');
+    L.push('            로직에서 리퀀타이즈하면 그루브가 통째로 없어집니다.');
+    L.push('   화음   : 컴핑이 뒷박에 얹혀 드럼과 같은 스윙 격자에 놓입니다.');
+    L.push('            정박에만 두면 스윙된 드럼과 어긋나 들립니다 — 재즈 컴핑과 같은 이치입니다.');
+    L.push('            로파이 걸은 1 · 2.5 · 3.5 · 4.5박 네 자리로 성기게, 로파이는 여섯 자리로 촘촘하게.');
+    L.push('   음원   : 드럼 = 브러시 킷 또는 로파이 드럼 샘플 · 스네어에 룸 리버브 짧게');
+    L.push('            바이닐 노이즈와 비 소리는 FX 가이드 트랙 위치에 얹으세요.');
   }
   if(state.genre==='country'){
     L.push('');
