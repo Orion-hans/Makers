@@ -24755,6 +24755,68 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     if(!Object.keys(drop).length) return ev;
     return ev.filter(function(e,i){ return !drop[i]; });
   }
+
+  /* ── 스윙 장르의 베이스 뒷박 ──
+     드럼과 피아노는 스윙 자리(8분 뒷박)를 짚는데 베이스가 정박에만 있으면
+     두 층이 어긋나 들린다.
+     (실측: 네오소울 피아노 0.56에 60음 vs 베이스 4음 · 로파이 0.62에 32음 vs 3음.)
+     재즈 워킹 베이스는 4분 걸음이 어법이라 그대로 두고,
+     네오소울·로파이·보사노바처럼 베이스가 뒷박에 얹히는 장르만 손본다.
+     화음음은 그대로 두고, 마디 안 빈 뒷박 자리에 같은 음을 한 번 더 놓는다. */
+  const BACKBEAT_BASS=new Set(['neosoul','lofi','bossa','citypop']);
+  function swingBassFill(ev, gkey, barLen, padTick, tpq){
+    if(gkey!=='bass') return ev;
+    if(!BACKBEAT_BASS.has(gsel)) return ev;
+    const amt=SWING_G[gsel]; if(!amt || amt<=0.5) return ev;
+    const E8=tpq/2, shift=Math.round(tpq*(amt-0.5));
+    const open={}; const seq=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push({on:i, tick:e.tick, vel:e.vel}); }
+      else if(e.on===0){ const q=open[e.note]; if(q&&q.length){ const o=q.shift();
+        seq.push({a:o.tick, b:e.tick, note:e.note, vel:o.vel}); } }
+    });
+    seq.sort(function(x,y){ return x.a-y.a; });
+    if(!seq.length) return ev;
+    const add=[];
+    seq.forEach(function(n,ix){
+      const nx=seq[ix+1];
+      const beat=Math.floor((n.a-padTick)/tpq);
+      const back=padTick+beat*tpq+E8+shift;        // 그 박의 스윙 뒷박 자리
+      if(back<=n.a) return;                         // 이미 뒷박에 있는 음
+      if(nx && nx.a<=back+2) return;                // 다음 음이 그 자리를 이미 쓴다
+      if(n.b<=back) return;                         // 앞 음이 이미 끝났으면 이어 붙일 자리가 아니다
+      /* 원래 음을 뒷박 직전에서 끊고, 뒷박에 같은 음을 다시 놓는다 —
+         음높이가 바뀌지 않으므로 화성은 그대로다. */
+      const cut=back-Math.round(tpq*0.06);
+      if(cut<=n.a+Math.round(tpq*0.1)) return;
+      const dur=Math.min(n.b, back+Math.round(tpq*0.42))-back;
+      if(dur<Math.round(tpq*0.12)) return;
+      add.push({cut:cut, at:back, dur:dur, note:n.note,
+                vel:Math.max(28, Math.round((n.vel||70)*0.78))});
+    });
+    if(!add.length) return ev;
+    /* 끊기 — 해당 노트오프를 앞당긴다 */
+    const openB={};
+    ev.forEach(function(e){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1){ (openB[e.note]=openB[e.note]||[]).push(e.tick); }
+      else if(e.on===0){
+        const q=openB[e.note]; if(!q||!q.length) return;
+        const st=q.shift();
+        for(let i=0;i<add.length;i++){
+          const A=add[i];
+          if(A.note===e.note && st<A.cut && e.tick>A.cut){ e.tick=A.cut; break; }
+        }
+      }
+    });
+    add.forEach(function(A){
+      ev.push({tick:A.at, on:1, note:A.note, vel:A.vel});
+      ev.push({tick:A.at+A.dur, on:0, note:A.note});
+    });
+    ev.sort(function(a,b){ return (a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on)); });
+    return ev;
+  }
   function buildSongMIDI(){
     if(!currentSong) return null;
     const TPQ=480, measure=Math.round(TPQ*meterQuarters()), rh=defaultRhythm(), gv=GROOVE[gsel]||GROOVE.pop, bpm=rh.bpm||gv.bpm;
@@ -25921,6 +25983,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ev=kidsMelodyShape(ev, grp.key, TPQ);
       ev=kidsAccompCap(ev, grp.key);
       ev=chanbulThin(ev, grp.key, __barLen, PAD, TPQ);
+      ev=swingBassFill(ev, grp.key, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       ev=harmGate(ev, grp.key, __barPcs, __barLen, PAD); ev=coalesceNotes(ev);
       /* 병행 보이싱은 음역 조정과 화음음 관문이 끝난 뒤에 건다.
          앞에 두면 뒤 단계가 음을 다시 옮겨 벌려 놓은 간격이 도로 좁아진다
