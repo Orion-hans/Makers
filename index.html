@@ -25163,7 +25163,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         seq.push({on:o.on, off:i, a:o.tick, b:e.tick, note:e.note}); } }
     });
     seq.sort(function(x,y){ return x.a-y.a; });
-    let prevCore=null;
+    let prevCore=null, prevDeg=null, prevPick=null;
     seq.forEach(function(n){
       const bi=Math.floor((n.a-padTick)/barLen);
       const pcs=barPcs[bi], root=barRoot[bi];
@@ -25188,26 +25188,43 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
          CHORD_CORE에 ♭7(10)이 있어 3화음에서도 ♭7을 뼈대로 보고 통과시키고 있었다
          (실측: 발라드에서 ♭7·11도·9도가 약박 긴 음으로 남아 화음 밖이 17%였다). */
       const pc=(((n.note%12)+12)%12);
-      if(CHORD_CORE.indexOf(iv)>=0 && pcs.indexOf(pc)>=0) return;   // 이미 뼈대를 짚고 있다
+      /* 11도(완전4도)는 장3도와 반음으로 부딪히는 회피음이다.
+         화음에 장3도가 있으면 11도를 뼈대로 보지 않고 옮긴다
+         (실측: 팝 선율의 11도가 14~23%로 화성을 흐리고 있었다). */
+      const hasMaj3=(pcs.indexOf((((root+4)%12)+12)%12)>=0);
+      if(iv===5 && hasMaj3){ /* 옮긴다 */ }
+      else if(CHORD_CORE.indexOf(iv)>=0 && pcs.indexOf(pc)>=0) return;   // 이미 뼈대를 짚고 있다
       /* 그 화음의 뼈대 중 가까운 음으로 옮기되, 앞 음과 같아지지 않게 한다.
          가장 가까운 것만 고르면 여러 음이 같은 근음으로 몰려 선율선이 사라진다
-         (실측: 재즈에서 한 마디가 72·72·72처럼 같은 음 반복이 되었다). */
-      let best=null, bd=99;
+         (실측: 재즈에서 한 마디가 72·72·72처럼 같은 음 반복이 되었다).
+
+         근음에 쏠리는 것도 문제다 — 노래가 화음을 따라 읊는 소리가 된다
+         (실측: 팝 첫박의 50~59%가 근음이었다).
+         3도가 화음의 성격을 정하고 노래를 가장 잘 들리게 하므로 3도에 가산점을 준다.
+         근음이 이미 앞에서 나왔으면 더 무겁게 깎는다. */
+      let best=null, bd=1e9;
       for(let k=0;k<CHORD_CORE.length;k++){
-        const want=(((root+CHORD_CORE[k])%12)+12)%12;
+        const deg=CHORD_CORE[k];
+        const want=(((root+deg)%12)+12)%12;
         if(pcs.indexOf(want)<0) continue;         // 그 화음에 없는 음은 쓰지 않는다
         let m=n.note-((((n.note%12)+12)%12))+want;
         while(m<n.note-6) m+=12;
         while(m>n.note+6) m-=12;
         if(prevCore!=null && m===prevCore) continue;   // 앞 음과 같으면 건너뛴다
-        const d=Math.abs(m-n.note);
-        if(d<bd){ bd=d; best=m; }
+        let d=Math.abs(m-n.note)*2;
+        if(deg===3 || deg===4) d-=3;              // 3도 우대 — 화음의 성격을 정한다
+        if(deg===7) d-=1;                          // 5도도 노래하기 좋다
+        if(deg===0){
+          d+=2;                                    // 근음은 조금 뒤로
+          if(prevDeg===0) d+=4;                    // 근음이 이어지면 더 뒤로
+        }
+        if(d<bd){ bd=d; best=m; prevPick=deg; }
       }
       if(best!=null && best!==n.note){
         ev[n.on].note=best; ev[n.off].note=best;
-        prevCore=best;
+        prevCore=best; prevDeg=prevPick;
       } else {
-        prevCore=n.note;
+        prevCore=n.note; prevDeg=(((n.note-root)%12)+12)%12;
       }
     });
     return ev;
@@ -25371,6 +25388,93 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         if(n.note+12>96) return;
         ev[n.on].note=n.note+12; ev[n.off].note=n.note+12; n.note+=12;
       });
+    });
+    return ev;
+  }
+
+  /* ── 첫박 근음 편중 풀기 ──
+     선율이 마디 첫박마다 근음을 짚으면 노래가 화음을 따라 읊는 소리가 된다.
+     (실측: 팝 첫박의 57% · 재즈의 75%가 근음이었다.)
+     화음 밖 음만 고치는 관문으로는 잡히지 않는다 — 근음은 이미 화음음이기 때문이다.
+     첫박 근음이 이어지면 그중 일부를 3도로 올린다.
+     3도가 화음의 성격을 정하고 노래를 가장 잘 들리게 한다.
+     한 번 걸러 하나씩만 바꿔 근음의 안정감도 남긴다. */
+  function downbeatVariety(ev, gkey, barPcs, barRoot, barLen, padTick, tpq){
+    if(gkey!=='melody') return ev;
+    if(!barPcs || !barPcs.length || !barRoot || !barRoot.length) return ev;
+    const open={}; const seq=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push({on:i, tick:e.tick}); }
+      else if(e.on===0){ const q=open[e.note]; if(q&&q.length){ const o=q.shift();
+        seq.push({on:o.on, off:i, a:o.tick, note:e.note}); } }
+    });
+    seq.sort(function(x,y){ return x.a-y.a; });
+    let run=0;
+    seq.forEach(function(n){
+      const off=((n.a-padTick)%barLen+barLen)%barLen;
+      if(off >= tpq*0.15) return;                 // 첫박만
+      const bi=Math.floor((n.a-padTick)/barLen);
+      const root=barRoot[bi], pcs=barPcs[bi];
+      if(root==null || !pcs || !pcs.length) return;
+      const iv=(((n.note-root)%12)+12)%12;
+      if(iv!==0){ run=0; return; }                // 근음이 아니면 초기화
+      run++;
+      if(run<2) return;                            // 첫 번째 근음은 남긴다
+      run=0;                                       // 바꾼 뒤 다시 센다
+      /* 3도로 올린다 — 그 화음에 있는 3도만 */
+      for(const deg of [4,3]){
+        const want=(((root+deg)%12)+12)%12;
+        if(pcs.indexOf(want)<0) continue;
+        let m=n.note-((((n.note%12)+12)%12))+want;
+        while(m<n.note) m+=12;                     // 근음 위의 3도
+        while(m>n.note+8) m-=12;
+        if(m<52 || m>91) continue;
+        ev[n.on].note=m; ev[n.off].note=m; return;
+      }
+    });
+    return ev;
+  }
+
+  /* ── 반주는 선율 아래에서 ──
+     노래가 있는 장르에서 반주가 선율 위로 올라가면 노래가 묻힌다.
+     (실측: 발라드에서 반주가 선율 위로 간 비율이 71% · 최고음이 선율과 같은 음이 43%였다.)
+     선율과 같은 순간 울리는 반주 음을 선율 아래로 접는다.
+     반주의 최고음이 선율과 같은 음정 클래스가 되지 않게도 한다 —
+     같은 음이 겹치면 노래의 윤곽이 반주에 흡수된다.
+     화음음은 바꾸지 않고 옥타브만 내린다. */
+  const SING_G=new Set(['pop','ballad','citypop','kids','chanbul','epicaeol','gukvocal','rock','folk','shanty']);
+  function accompBelowMelody(ev, gkey, melEv, tpq){
+    if(!SING_G.has(gsel)) return ev;
+    if(gkey!=='piano' && gkey!=='piano2' && gkey!=='harp' && gkey!=='strings') return ev;
+    if(!melEv || !melEv.length) return ev;
+    const M=melEv.slice().sort(function(a,b){ return a.a-b.a; });
+    let mi=0; const live=[];
+    const melTop=function(t){
+      while(mi<M.length && M[mi].a<=t){ live.push(M[mi]); mi++; }
+      for(let i=live.length-1;i>=0;i--) if(live[i].b<=t) live.splice(i,1);
+      if(!live.length) return null;
+      let lo=null;
+      live.forEach(function(x){ if(lo==null || x.n<lo) lo=x.n; });
+      return lo;
+    };
+    const open={}; const seq=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push({on:i, tick:e.tick}); }
+      else if(e.on===0){ const q=open[e.note]; if(q&&q.length){ const o=q.shift();
+        seq.push({on:o.on, off:i, a:o.tick, note:e.note}); } }
+    });
+    seq.sort(function(x,y){ return x.a-y.a; });
+    const LO=(gkey==='piano2')?52:36;
+    seq.forEach(function(n){
+      const mlo=melTop(n.a);
+      if(mlo==null) return;
+      const cap=mlo-2;                       // 선율 최저음보다 장2도 아래까지
+      let m=n.note;
+      let guard=0;
+      while(m>cap && m-12>=LO && guard++<4) m-=12;
+      if(m!==n.note){ ev[n.on].note=m; ev[n.off].note=m; }
     });
     return ev;
   }
@@ -26564,6 +26668,8 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ev=melCoreAnchor(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       /* 같은 음이 세 번 이상 이어지면 화음 안에서 비켜 준다 */
       ev=melRepeatBreak(ev, grp.key, __barPcs, __barLen, PAD); ev=coalesceNotes(ev);
+      /* 첫박이 근음으로만 이어지면 일부를 3도로 — 노래가 화음을 읊지 않게 */
+      ev=downbeatVariety(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       /* 컴핑 충돌 정리는 화음음 관문 뒤에 건다 —
          앞에 두면 harmGate가 옮긴 음을 다시 화음음으로 되돌린다
          (실측: 앞에 두었을 때 반음 충돌이 30%→28%로 거의 그대로였다). */
@@ -26625,6 +26731,11 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ev=finalChordSnap(ev, grp.key, __barPcs, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       /* 7도는 색을 내는 음이지 머무는 음이 아니다 — 자리와 길이를 정리한다 */
       ev=seventhDiscipline(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
+      /* 노래가 있는 장르는 반주를 선율 아래로 — 위로 올라가면 노래가 묻힌다 */
+      ev=accompBelowMelody(ev, grp.key, __melEv, TPQ); ev=coalesceNotes(ev);
+      /* 옥타브를 내리면서 서로 다른 음이 같은 음이 되어 쉼표를 삼킬 수 있다
+         (실측: 과잉 연장 5건). 음역 규칙을 다시 태워 길이를 정리한다. */
+      ev=famArticulate(grp.key, ev, grp.gm); ev=coalesceNotes(ev);
       /* 4중주 성부 정리 — 위 성부가 완료된 뒤에 걸어야 비교 대상이 있다 */
       ev=quartetVoiceFix(ev, grp.key, TPQ, doneNotes);
       ev.sort((a,b)=>(a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on))); doneNotes[grp.key]={ch:grp.ch, iv:pairIv(ev)};
@@ -27701,6 +27812,19 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('            옮길 자리가 없으면 그 음만 뺍니다 — 피아니스트도 그럴 때 치지 않습니다.');
       L.push('            화음의 뼈대(근음·3도·7도)는 건드리지 않으므로 진행은 그대로입니다.');
       L.push('   로직   : 컴핑 트랙을 선율보다 3~4dB 낮추면 이 나눔이 더 분명해집니다.');
+      L.push('');
+    }
+    if(SING_G.has(gsel)){
+      L.push('■ 노래와 반주의 자리');
+      L.push('   선율   : 첫박이 근음으로만 이어지지 않게 일부를 3도로 올립니다.');
+      L.push('            3도가 화음의 성격을 정하고 노래를 가장 잘 들리게 합니다.');
+      L.push('            근음만 짚으면 노래가 화음을 따라 읊는 소리가 됩니다.');
+      L.push('            11도(완전4도)는 장3도와 반음으로 부딪히므로 장화음에서 피합니다.');
+      L.push('   반주   : 선율 최저음보다 장2도 아래에서 울립니다 — 위로 올라가면 노래가 묻힙니다.');
+      L.push('            반주 최고음이 선율과 같은 음이 되지 않게 합니다.');
+      L.push('            같은 음이 겹치면 노래의 윤곽이 반주에 흡수됩니다.');
+      L.push('            화음음은 그대로이고 옥타브만 내리므로 진행은 변하지 않습니다.');
+      L.push('   로직   : 반주 트랙을 선율보다 3~4dB 낮추면 이 나눔이 더 분명해집니다.');
       L.push('');
     }
     L.push('■ 7도의 자리 — 7화음이라도 7도는 색을 내는 음입니다');
