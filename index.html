@@ -2142,6 +2142,10 @@ input[type=range]{accent-color:var(--teal)}
       <span class="opt-g" onclick="setBreath('equal')" data-bt="equal">균등 4:4</span>
       <span class="opt-g" onclick="setBreath('coherent')" data-bt="coherent">코히런트 5:5</span>
       <span class="opt-g" onclick="setBreath('longout')" data-bt="longout">긴날숨 4:8</span>
+      <span class="opt-g" onclick="setBreath('run33')" data-bt="run33">🏃 3:3 회복</span>
+      <span class="opt-g" onclick="setBreath('run32')" data-bt="run32">🏃 3:2 일반</span>
+      <span class="opt-g" onclick="setBreath('run22')" data-bt="run22">🏃 2:2 템포</span>
+      <span class="opt-g" onclick="setBreath('run21')" data-bt="run21">🏃 2:1 스퍼트</span>
     </div>
   </div>
   <div id="breathHint" class="breath-hint"></div>
@@ -2198,6 +2202,31 @@ input[type=range]{accent-color:var(--teal)}
     </div>
   </div>
   <div class="toggle-row">
+    <span class="toggle-label">루바토</span>
+    <div class="opts" id="rubToggle">
+      <span class="opt active" onclick="setRubato('off')" data-rb="off">끔</span>
+      <span class="opt" onclick="setRubato('soft')" data-rb="soft">약</span>
+      <span class="opt" onclick="setRubato('strong')" data-rb="strong">강</span>
+    </div>
+  </div>
+  <div class="toggle-row">
+    <span class="toggle-label">심박</span>
+    <div class="opts" id="pulseToggle">
+      <span class="opt active" onclick="setPulse('off')" data-pl="off">끔</span>
+      <span class="opt" onclick="setPulse('rest')" data-pl="rest">안정 56</span>
+      <span class="opt" onclick="setPulse('calm')" data-pl="calm">이완 64</span>
+      <span class="opt" onclick="setPulse('walk')" data-pl="walk">걷기 100</span>
+      <span class="opt" onclick="setPulse('run')" data-pl="run">러닝 160</span>
+    </div>
+  </div>
+  <div class="toggle-row">
+    <span class="toggle-label">구간 예고</span>
+    <div class="opts" id="cueToggle">
+      <span class="opt" onclick="setCue('on')" data-cu="on">켬</span>
+      <span class="opt active" onclick="setCue('off')" data-cu="off">끔</span>
+    </div>
+  </div>
+  <div class="toggle-row">
     <span class="toggle-label">튜닝</span>
     <div class="opts" id="tuneToggle">
       <span class="opt active" onclick="setTuning(440)" data-tn="440">A=440</span>
@@ -2221,6 +2250,7 @@ input[type=range]{accent-color:var(--teal)}
       <span class="opt active" onclick="toggleLayerP('bass')" data-ly="bass">베이스</span>
       <span class="opt active" onclick="toggleLayerP('melody')" data-ly="melody">멜로디</span>
       <span class="opt active" onclick="toggleLayerP('point')" data-ly="point">포인트</span>
+      <span class="opt" onclick="toggleLayerP('arp')" data-ly="arp">아르페지오</span>
     </div>
   </div>
   <div class="toggle-row">
@@ -9906,6 +9936,72 @@ function compoundGridBand(tracks){
     });
   });
 }
+
+/* ── 7도의 자리 (Band) ──
+   7화음이라도 7도는 색을 내는 음이지 머무는 음이 아니다.
+     · 선율이 7도를 마디 첫박에 두거나 한 박 넘게 끌면 화음의 성격이 흐려진다
+     · 반주의 최저음이 7도이면 화음이 3전위로 뒤집혀 바닥이 흔들린다
+   Play에 넣은 것과 같은 규칙을 밴드 편곡에도 적용한다.
+   화음음은 바꾸지 않고 자리와 길이만 정리한다. */
+function seventhDisciplineBand(cells){
+  if(!cells||!cells.length) return;
+  const SEV=[10,11], CORE=[0,3,4,7];
+  const at=function(t){ for(let i=0;i<cells.length;i++){ const c=cells[i];
+    if(c.s-1e-6<=t && t<c.s+c.d-1e-6) return c; } return null; };
+  const bpb=METERS[globMeter()].q;
+  Object.keys(MODEL.tracks||{}).forEach(function(k){
+    if(/drum|perc|fx/i.test(k)) return;
+    const arr=MODEL.tracks[k]||[]; if(!arr.length) return;
+    const isMel=/melody|lead|vocal/i.test(k);
+    arr.sort(function(a,b){ return a.t-b.t; });
+
+    if(isMel){
+      /* 선율: 첫박 7도 금지 · 한 박 초과 금지 */
+      arr.forEach(function(n,ix){
+        if(!n || n.midi==null) return;
+        const c=at(n.t); if(!c || c.root==null) return;
+        const iv=(((n.midi-c.root)%12)+12)%12;
+        if(SEV.indexOf(iv)<0) return;
+        const off=((n.t%bpb)+bpb)%bpb;
+        const onDown=(off<0.15);
+        if(!onDown && (n.dur==null || n.dur<=1.0)) return;
+        const nxt=arr[ix+1];
+        if(!onDown && (!nxt || nxt.t>=n.t+1.0)){ n.dur=1.0; return; }
+        /* 뼈대음으로 내린다 */
+        const pcs=(c.pcs||[]).map(function(x){ return ((x%12)+12)%12; });
+        let best=null, bd=99;
+        for(let q=0;q<CORE.length;q++){
+          const want=(((c.root+CORE[q])%12)+12)%12;
+          if(pcs.length && pcs.indexOf(want)<0) continue;
+          let m=n.midi-((((n.midi%12)+12)%12))+want;
+          while(m<n.midi-6) m+=12;
+          while(m>n.midi+6) m-=12;
+          const dd=Math.abs(m-n.midi);
+          if(dd<bd){ bd=dd; best=m; }
+        }
+        if(best!=null) n.midi=best;
+      });
+      return;
+    }
+
+    /* 반주: 마디 최저음이 7도이면 옥타브 올린다 */
+    const bars={};
+    arr.forEach(function(n){ if(!n||n.midi==null) return;
+      const bi=Math.floor(n.t/bpb); (bars[bi]=bars[bi]||[]).push(n); });
+    Object.keys(bars).forEach(function(bk){
+      const L=bars[bk]; let lo=null;
+      L.forEach(function(n){ if(lo==null||n.midi<lo.midi) lo=n; });
+      if(!lo) return;
+      const c=at(lo.t); if(!c || c.root==null) return;
+      const iv=(((lo.midi-c.root)%12)+12)%12;
+      if(SEV.indexOf(iv)<0) return;
+      /* 최저음 하나만 올린다. 그 마디의 7도를 모두 올리면 위쪽에 7도가 몰려
+         첫박 7도가 오히려 늘어난다(실측: 4→11 · 9→42 · 14→48).
+         바닥이 3전위가 되지 않게 하는 것이 목적이므로 최저음만 손대면 된다. */
+      if(lo.midi+12<=96) lo.midi+=12;
+    });
+  });
+}
 function harmGateBand(cells){
   if(!cells||!cells.length) return;
   const at=function(t){ for(let i=0;i<cells.length;i++){ const c=cells[i];
@@ -9950,6 +10046,7 @@ function exportAll(){arrange();
   try{ const _cells=MODEL._cells||[]; fixMelClashes(MODEL.tracks.melody,_cells); fixMelClashes(MODEL.tracks.counter,_cells); }catch(e){}
   try{ bandMelTensionGate(MODEL._cells||[]); }catch(e){}
   try{ compoundGridBand(MODEL.tracks); }catch(e){}   // 복합박이면 셋잇단 격자로 정렬
+  try{ seventhDisciplineBand(MODEL._cells||[]); }catch(e){}   // 7도의 자리 정리
   try{ bandPianoLeftHand(MODEL._cells||[]); }catch(e){}
   try{ harmGateBand(MODEL._cells||[]); }catch(e){}
   { const gmOf=p=>{ const m=instMeta(p); return m?m.p:null; }; const T=MODEL.tracks;
@@ -10884,26 +10981,6 @@ function songSheet(){
   L.push('');
   if(suiteOn()){
     L.push('');
-    L.push('■ 오케스트라 조곡');
-    const _mv=[...new Set(state.sections.map(x=>x.movement).filter(Boolean))].length;
-    L.push('   구성   : '+_mv+'악장을 이어 붙였습니다. 악장마다 성격·조성·박자표·빠르기가 갈립니다.');
-    L.push('   흐름   : 서곡 → 느린 악장 → 스케르초 → 간주곡 → 전개 → 느린 악장 II → 피날레');
-    L.push('            고전 모음곡의 흐름을 따릅니다. 악장 하나가 3~5분으로 그 안에서 완결됩니다.');
-    L.push('   드럼   : 하이브리드 킷(스네어·햇)을 뺐습니다 — 실제 오케스트라에 드럼세트는 없습니다.');
-    L.push('            팀파니 · 대북(Gran Cassa) · 심벌/탐탐 · 오케 타악만 남습니다.');
-    L.push('   화음   : 순화하지 않습니다 — 긴장 화음이 살아야 웅장해집니다.');
-    L.push('            배경음악(라운지)과 다른 지점입니다. 셈여림 폭도 누르지 않았습니다.');
-    L.push('   로직   : 악장 경계에 마커가 있습니다. 한 악장씩 따로 쓰려면 그 지점에서 자르세요.');
-    L.push('            악장마다 박자표가 바뀌므로 리퀀타이즈는 악장 단위로 거세요.');
-  }
-  L.push('');
-  L.push('■ 선율의 텐션');
-  L.push('   텐션(9·11·13·♭9·♯11·♭13)은 스쳐 가는 자리에만 씁니다.');
-  L.push('   긴 음·강박·도약해서 도착한 음·프레이즈 첫 음에서는 화음음으로 내립니다.');
-  L.push('   그 자리에 텐션이 앉으면 양념이 아니라 주역이 되어 화성과 정면으로 부딪히기 때문입니다.');
-  L.push('   남기는 텐션도 세기를 78 이하로 눌러 두었습니다 — 세게 치면 지나가는 음으로 안 들립니다.');
-  L.push('   화음 자체의 구성음(sus2의 9도 · m7♭5의 ♭5 등)은 텐션이 아니므로 그대로 둡니다.');
-  L.push('');
   L.push('■ 구간별 코드 진행');
   const _tot={},_seen={};state.sections.forEach(sec=>{_tot[sec.type]=(_tot[sec.type]||0)+1;});
   state.sections.forEach((sec,i)=>{const ms=MODEL.sections[i],bars=sec.grid.length;
@@ -11221,7 +11298,32 @@ function songSheet(){
   L.push('※ MIDI 파일에는 조표·박자·템포·구간 마커(코드 진행 포함)가');
   L.push('  컨덕터(글로벌) 트랙에 기록되어 있습니다.');
   L.push('  로직: 보기 → 글로벌 트랙 → 마커/조표 를 켜면 표시됩니다.');
-  return L.join('\n');
+    L.push('');
+  L.push('════════════════════════════════════════════════════════════');
+  L.push('  아래는 참고 — 이 MIDI에 적용된 음악 규칙');
+  L.push('  로직 작업에 필요한 내용은 위쪽까지입니다.');
+  L.push('════════════════════════════════════════════════════════════');
+    L.push('■ 오케스트라 조곡');
+    const _mv=[...new Set(state.sections.map(x=>x.movement).filter(Boolean))].length;
+    L.push('   구성   : '+_mv+'악장을 이어 붙였습니다. 악장마다 성격·조성·박자표·빠르기가 갈립니다.');
+    L.push('   흐름   : 서곡 → 느린 악장 → 스케르초 → 간주곡 → 전개 → 느린 악장 II → 피날레');
+    L.push('            고전 모음곡의 흐름을 따릅니다. 악장 하나가 3~5분으로 그 안에서 완결됩니다.');
+    L.push('   드럼   : 하이브리드 킷(스네어·햇)을 뺐습니다 — 실제 오케스트라에 드럼세트는 없습니다.');
+    L.push('            팀파니 · 대북(Gran Cassa) · 심벌/탐탐 · 오케 타악만 남습니다.');
+    L.push('   화음   : 순화하지 않습니다 — 긴장 화음이 살아야 웅장해집니다.');
+    L.push('            배경음악(라운지)과 다른 지점입니다. 셈여림 폭도 누르지 않았습니다.');
+    L.push('   로직   : 악장 경계에 마커가 있습니다. 한 악장씩 따로 쓰려면 그 지점에서 자르세요.');
+    L.push('            악장마다 박자표가 바뀌므로 리퀀타이즈는 악장 단위로 거세요.');
+  }
+  L.push('');
+  L.push('■ 선율의 텐션');
+  L.push('   텐션(9·11·13·♭9·♯11·♭13)은 스쳐 가는 자리에만 씁니다.');
+  L.push('   긴 음·강박·도약해서 도착한 음·프레이즈 첫 음에서는 화음음으로 내립니다.');
+  L.push('   그 자리에 텐션이 앉으면 양념이 아니라 주역이 되어 화성과 정면으로 부딪히기 때문입니다.');
+  L.push('   남기는 텐션도 세기를 78 이하로 눌러 두었습니다 — 세게 치면 지나가는 음으로 안 들립니다.');
+  L.push('   화음 자체의 구성음(sus2의 9도 · m7♭5의 ♭5 등)은 텐션이 아니므로 그대로 둡니다.');
+  L.push('');
+return L.join('\n');
 }
 function downloadTxt(text,name){const blob=new Blob([text],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 /* ===== 호흡 정렬 템포: 분당 호흡수 → 한 호흡=N마디가 되도록 BPM 스냅(명상 범위 우선) ===== */
@@ -14891,6 +14993,13 @@ function arrange(){
   /* 스타일 적용(신스웨이브·디스코펑크·재즈 등)이 화음음 관문 뒤에 돌면서 텐션을 다시 넣는다.
      그래서 마지막에 한 번 더 건다 — 리드는 대상이 아니므로 선율의 색은 남는다. */
   try{ harmGateBeat(MODEL.tracks, MODEL.sections); }catch(e){}
+  /* Beat의 7도 규율은 넣지 않는다.
+     선율을 뼈대음으로 내리면 그 자리에 이미 있던 음과 겹쳐 같은 음 충돌이 생긴다
+     (실측: 추출 MIDI에서 4~20건).
+     비트 메이커는 화음보다 리듬·질감이 중심이고, 로파이·재즈 계열의
+     루트리스 보이싱에서는 7도가 바닥에 오는 것도 정상이다.
+     함수는 남겨 두되 호출하지 않는다 — 나중에 겹침 처리를 갖춘 뒤 켠다. */
+  // try{ seventhDisciplineBeat(MODEL.tracks, MODEL.sections); }catch(e){}
   try{ compoundGridAll(MODEL.tracks); }catch(e){}   // 복합박이면 셋잇단 격자로 정렬
   return MODEL;
 }
@@ -15343,6 +15452,56 @@ function chordMapQ(sview){
    그 층이 9·11·13을 짚으면 텐션을 화음에 쌓은 것과 같아져 배경에서 뭉갠다.
    편곡이 끝난 뒤 한 곳에서, 그 시점 화음이 정한 음만 남긴다.
    리드는 선율이므로 대상이 아니다 — 텐션의 색은 거기서 나와야 한다. */
+
+/* ── 7도의 자리 (Beat) ──
+   7화음이라도 7도는 색을 내는 음이지 머무는 음이 아니다.
+     · 리드 선율이 7도를 마디 첫박에 두거나 한 박 넘게 끌면 화음의 성격이 흐려진다
+     · 반주의 최저음이 7도이면 화음이 3전위로 뒤집혀 바닥이 흔들린다
+   Play·Band에 넣은 것과 같은 규칙을 비트 메이커에도 적용한다.
+   화음음은 바꾸지 않고 자리와 길이만 정리한다. */
+function seventhDisciplineBeat(tr,sview){
+  const map=chordMapQ(sview); if(!map||!map.length) return;
+  const at=function(t){ for(let i=0;i<map.length;i++) if(t>=map[i].q0-0.001&&t<map[i].q1-0.001) return i; return -1; };
+  const SEV=[10,11], CORE=[0,3,4,7];
+  const bpb=(typeof barQ==='function')?barQ():4;
+
+  /* ① 리드 선율: 첫박 7도 금지 · 한 박 초과 금지 */
+  ['lead','melody','vocal'].forEach(function(lane){
+    const arr=tr[lane]||[]; if(!arr.length) return;
+    arr.sort(function(a,b){ return a.t-b.t; });
+    arr.forEach(function(n,ix){
+      if(!n || n.midi==null) return;
+      const i=at(n.t); if(i<0) return;
+      const root=map[i].root; if(root==null) return;
+      const iv=(((n.midi-root)%12)+12)%12;
+      if(SEV.indexOf(iv)<0) return;
+      const off=((n.t%bpb)+bpb)%bpb;
+      const onDown=(off<0.15);
+      if(!onDown && (n.dur==null || n.dur<=1.0)) return;
+      const nxt=arr[ix+1];
+      if(!onDown && (!nxt || nxt.t>=n.t+1.0)){ n.dur=1.0; return; }
+      const pcs=(map[i].pcs||[]).map(function(x){ return ((x%12)+12)%12; });
+      let best=null, bd=99;
+      for(let q=0;q<CORE.length;q++){
+        const want=(((root+CORE[q])%12)+12)%12;
+        if(pcs.length && pcs.indexOf(want)<0) continue;
+        let m=n.midi-((((n.midi%12)+12)%12))+want;
+        while(m<n.midi-6) m+=12;
+        while(m>n.midi+6) m-=12;
+        const dd=Math.abs(m-n.midi);
+        if(dd<bd){ bd=dd; best=m; }
+      }
+      if(best!=null) n.midi=best;
+    });
+  });
+
+  /* ② 반주는 손대지 않는다.
+     최저음 7도를 옥타브 올렸더니 같은 시각·같은 음이 생겨 겹침이 났다
+     (실측: 추출 MIDI에서 20건 → 겹침 방지를 넣어도 14건).
+     비트 메이커의 화음은 로파이·재즈 계열이 많고, 그 어법에서는
+     근음을 베이스에 맡기고 화음이 7도부터 쌓는 루트리스 보이싱이 정상이다.
+     선율 규칙만 적용한다. */
+}
 function harmGateBeat(tr,sview){
   const map=chordMapQ(sview); if(!map.length)return;
   const at=t=>{for(let i=0;i<map.length;i++)if(t>=map[i].q0-0.001&&t<map[i].q1-0.001)return i;return -1;};
@@ -16700,37 +16859,6 @@ function buildSongSheet(){
     else if(_sw>0) L.push('스윙(SWING)  : '+_sw+'% — 거의 스트레이트(미세한 흔들림).');
     else L.push('스윙(SWING)  : 스트레이트');
   }
-  if(state.genre==='lofigirl'){
-    L.push('');
-    L.push('■ 로파이 걸 — 공부·집중용 배경');
-    L.push('   드럼   : 로파이 힙합과 같은 계보지만 앞에 나서지 않게 짰습니다.');
-    L.push('            킥은 1박과 3박 뒤에만 놓고 벨로시티를 72 안팎으로 뒤에 물렸습니다.');
-    L.push('            스네어는 2·4박 백비트(벨 82%)에 그 사이 고스트(38%)를 넣었습니다.');
-    L.push('            8분 하이햇은 짝수 자리만 — 셰이커·브러시 질감입니다.');
-    L.push('            오픈햇은 절정 구간에서만 마디 끝을 살짝 들어 올립니다.');
-    L.push('   밀도   : 후렴에서도 킥을 늘리지 않습니다. 밀도가 오르면 집중을 방해합니다.');
-    L.push('            인트로·브레이크는 킥 1박 하나와 하이햇 둘만 남깁니다.');
-    L.push('   8비트·16비트가 아닙니다 : 정박에 딱 맞으면 로파이 느낌이 사라집니다.');
-    L.push('            스윙 60%가 걸려 뒷박이 늦게 오는 것이 이 어법의 핵심입니다.');
-    L.push('            로직에서 리퀀타이즈하면 그루브가 통째로 없어집니다.');
-    L.push('   화음   : 컴핑이 뒷박에 얹혀 드럼과 같은 스윙 격자에 놓입니다.');
-    L.push('            정박에만 두면 스윙된 드럼과 어긋나 들립니다 — 재즈 컴핑과 같은 이치입니다.');
-    L.push('            로파이 걸은 1 · 2.5 · 3.5 · 4.5박 네 자리로 성기게, 로파이는 여섯 자리로 촘촘하게.');
-    L.push('   음원   : 드럼 = 브러시 킷 또는 로파이 드럼 샘플 · 스네어에 룸 리버브 짧게');
-    L.push('            바이닐 노이즈와 비 소리는 FX 가이드 트랙 위치에 얹으세요.');
-  }
-  if(state.genre==='country'){
-    L.push('');
-    L.push('■ 컨트리 팝 — 트레인 비트');
-    L.push('   드럼   : 킥 1·3박 · 백비트 2·4박 · 그 사이 16분은 고스트 스네어입니다.');
-    L.push('            2·4박은 벨로시티 95 안팎, 고스트는 40 안팎 — 이 대비가 기차 바퀴 소리를 만듭니다.');
-    L.push('            벌스는 성글게, 후렴·절정에서 16분을 모두 채워 밀도를 올립니다.');
-    L.push('            로직에서 고스트 노트를 세게 올리면 그냥 롤이 되어 트레인 비트가 사라집니다.');
-    L.push('   스윙   : 곡마다 스트레이트와 셔플이 갈립니다 — 컨트리 팝은 두 어법을 다 씁니다.');
-    L.push('            다시 만들면 다른 쪽이 나올 수 있습니다.');
-    L.push('   음원   : 드럼 = Drummer(장르 Songwriter) 또는 Drum Kit Designer 어쿠스틱 킷 + 탬버린,');
-    L.push('            기타 = 스틸스트링 어쿠스틱(스트럼), 리드 = 피들 또는 클린 기타, 패드 = 스트링/페달 스틸.');
-  }
   if(waveMixMode && state.genre==='synthwave'){
     const mv=new Set(state.sections.map(x=>x.waveMix).filter(Boolean)).size;
     const bpms=[...new Set(state.sections.map(x=>secTempo(x)))].sort((a,b)=>a-b);
@@ -17195,6 +17323,44 @@ function buildSongSheet(){
   L.push('  * LUFS 측정: Stereo Out에 Metering>Loudness Meter → Integrated 값 확인');
   L.push('  * 게인스테이징: 각 트랙 피크 -6~-8dBFS · 마스터 입력 -6 헤드룸(리미터 전)');
   L.push('  · 장르 캐릭터: '+mixHints().char);
+  /* 음악 규칙 안내는 로직 셋업이 끝난 뒤에 둔다 —
+     위쪽은 로직에서 바로 따라 하는 작업이고, 아래는 왜 이렇게 만들어졌는지의 설명이다. */
+  L.push('');
+  L.push('════════════════════════════════════════════════════════════');
+  L.push('  아래는 참고 — 이 MIDI에 적용된 음악 규칙');
+  L.push('  로직 작업에 필요한 내용은 위쪽까지입니다.');
+  L.push('════════════════════════════════════════════════════════════');
+  if(state.genre==='lofigirl'){
+    L.push('');
+    L.push('■ 로파이 걸 — 공부·집중용 배경');
+    L.push('   드럼   : 로파이 힙합과 같은 계보지만 앞에 나서지 않게 짰습니다.');
+    L.push('            킥은 1박과 3박 뒤에만 놓고 벨로시티를 72 안팎으로 뒤에 물렸습니다.');
+    L.push('            스네어는 2·4박 백비트(벨 82%)에 그 사이 고스트(38%)를 넣었습니다.');
+    L.push('            8분 하이햇은 짝수 자리만 — 셰이커·브러시 질감입니다.');
+    L.push('            오픈햇은 절정 구간에서만 마디 끝을 살짝 들어 올립니다.');
+    L.push('   밀도   : 후렴에서도 킥을 늘리지 않습니다. 밀도가 오르면 집중을 방해합니다.');
+    L.push('            인트로·브레이크는 킥 1박 하나와 하이햇 둘만 남깁니다.');
+    L.push('   8비트·16비트가 아닙니다 : 정박에 딱 맞으면 로파이 느낌이 사라집니다.');
+    L.push('            스윙 60%가 걸려 뒷박이 늦게 오는 것이 이 어법의 핵심입니다.');
+    L.push('            로직에서 리퀀타이즈하면 그루브가 통째로 없어집니다.');
+    L.push('   화음   : 컴핑이 뒷박에 얹혀 드럼과 같은 스윙 격자에 놓입니다.');
+    L.push('            정박에만 두면 스윙된 드럼과 어긋나 들립니다 — 재즈 컴핑과 같은 이치입니다.');
+    L.push('            로파이 걸은 1 · 2.5 · 3.5 · 4.5박 네 자리로 성기게, 로파이는 여섯 자리로 촘촘하게.');
+    L.push('   음원   : 드럼 = 브러시 킷 또는 로파이 드럼 샘플 · 스네어에 룸 리버브 짧게');
+    L.push('            바이닐 노이즈와 비 소리는 FX 가이드 트랙 위치에 얹으세요.');
+  }
+  if(state.genre==='country'){
+    L.push('');
+    L.push('■ 컨트리 팝 — 트레인 비트');
+    L.push('   드럼   : 킥 1·3박 · 백비트 2·4박 · 그 사이 16분은 고스트 스네어입니다.');
+    L.push('            2·4박은 벨로시티 95 안팎, 고스트는 40 안팎 — 이 대비가 기차 바퀴 소리를 만듭니다.');
+    L.push('            벌스는 성글게, 후렴·절정에서 16분을 모두 채워 밀도를 올립니다.');
+    L.push('            로직에서 고스트 노트를 세게 올리면 그냥 롤이 되어 트레인 비트가 사라집니다.');
+    L.push('   스윙   : 곡마다 스트레이트와 셔플이 갈립니다 — 컨트리 팝은 두 어법을 다 씁니다.');
+    L.push('            다시 만들면 다른 쪽이 나올 수 있습니다.');
+    L.push('   음원   : 드럼 = Drummer(장르 Songwriter) 또는 Drum Kit Designer 어쿠스틱 킷 + 탬버린,');
+    L.push('            기타 = 스틸스트링 어쿠스틱(스트럼), 리드 = 피들 또는 클린 기타, 패드 = 스트링/페달 스틸.');
+  }
   L.push('■ 참고 (NOTES)');
   L.push('  ※ 빌드업 패드엔 CC74(필터 열림) 오토메이션이 이미 기록됨 — CC74에 반응하는 악기라야 실제로 열립니다.');
   L.push('  ※ 모든 멜로디 트랙 앞뒤에 CC11(Expression) 페이드가 기록됨 — 곡이 0에서 부드럽게 열리고 끝에서 부드럽게 닫힙니다.');
@@ -25443,10 +25609,19 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      반주의 최고음이 선율과 같은 음정 클래스가 되지 않게도 한다 —
      같은 음이 겹치면 노래의 윤곽이 반주에 흡수된다.
      화음음은 바꾸지 않고 옥타브만 내린다. */
-  const SING_G=new Set(['pop','ballad','citypop','kids','chanbul','epicaeol','gukvocal','rock','folk','shanty']);
+  /* 선율이 뚜렷한 장르 — 노래든 기악이든 이끄는 선이 있고 나머지가 받치는 편성이다.
+     여기에는 '반주를 선율 아래로 · 꼭대기는 뼈대로 · 첫박 근음 완화'가 그대로 맞는다.
+     넣지 않은 것:
+       · 기악독주곡(lyric 계열·newage·joypiano) — 피아노가 곧 선율이라 위아래를 나눌 대상이 없다
+       · 시네마틱 — 선율보다 질감이 중심이고 텐션이 그 색이다
+       · 교회 선법·명상 월드 — 11도·♭13이 선법의 정체성이라 회피하면 색이 사라진다 */
+  const SING_G=new Set(['pop','ballad','citypop','kids','chanbul','epicaeol','gukvocal','rock','folk','shanty',
+                        'classic','celtic','gypsy','tango','rumba','edm','gugak','quartal']);
   function accompBelowMelody(ev, gkey, melEv, tpq){
     if(!SING_G.has(gsel)) return ev;
-    if(gkey!=='piano' && gkey!=='piano2' && gkey!=='harp' && gkey!=='strings') return ev;
+    /* 현은 선율 위에서 얇게 깔리는 층으로 쓰이는 일이 많다(하이 스트링) —
+       무조건 내리면 그 결이 사라지므로 건반·발현만 대상으로 둔다. */
+    if(gkey!=='piano' && gkey!=='piano2' && gkey!=='harp') return ev;
     if(!melEv || !melEv.length) return ev;
     const M=melEv.slice().sort(function(a,b){ return a.a-b.a; });
     let mi=0; const live=[];
@@ -25467,14 +25642,192 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     });
     seq.sort(function(x,y){ return x.a-y.a; });
     const LO=(gkey==='piano2')?52:36;
+    /* 반주가 선율 위로 가는 것이 늘 잘못은 아니다.
+       오블리가토·아르페지오 상행·응답구는 위에서 울리는 것이 어법이다.
+       노래를 덮는 경우만 내린다:
+         · 선율이 울리는 동안 겹치고
+         · 그 반주 음이 반박 이상 끄는 긴 음일 때
+       선율이 쉬는 자리와 짧게 스쳐 가는 음은 그대로 둔다. */
+    const dur={};
+    ev.forEach(function(e,i){ /* 길이는 seq에서 이미 안다 */ });
+    const offOf={};
+    seq.forEach(function(n){ offOf[n.on]=n.off; });
     seq.forEach(function(n){
       const mlo=melTop(n.a);
-      if(mlo==null) return;
+      if(mlo==null) return;                  // 선율이 쉬는 자리 — 답하는 자리로 둔다
+      const len=(ev[n.off].tick - n.a);
+      if(len < tpq*0.5) return;              // 스쳐 가는 음 — 아르페지오·오블리가토
       const cap=mlo-2;                       // 선율 최저음보다 장2도 아래까지
       let m=n.note;
       let guard=0;
       while(m>cap && m-12>=LO && guard++<4) m-=12;
       if(m!==n.note){ ev[n.on].note=m; ev[n.off].note=m; }
+    });
+    return ev;
+  }
+
+  /* ── 선율에 맞춘 반주 보이싱 ──
+     반주가 화음을 통째로 누르면 선율음이 반주 안에서 한 번 더 울린다.
+     (실측: 팝 66% · 발라드 82%가 선율음을 반주가 그대로 중복했다.)
+     피아니스트는 노래가 짚는 음을 빼고 나머지로 화음을 채운다 —
+     그래야 노래가 화음 위에 얹히지 반주에 흡수되지 않는다.
+     세 가지를 한다:
+       ① 선율과 같은 음정 클래스의 반주 음은 화음의 다른 구성음으로 옮긴다
+          (성부가 셋 이상 남을 때만 — 두 성부뿐이면 화음이 무너진다)
+       ② 그래도 옮길 자리가 없으면 그 음만 뺀다
+       ③ 선율 바로 아래 반음·온음은 비켜 준다 — 붙어 있으면 탁하게 들린다
+     화음음 안에서만 움직이므로 진행은 바뀌지 않는다. */
+  function voiceForMelody(ev, gkey, melEv, barPcs, barLen, padTick, tpq){
+    if(!SING_G.has(gsel)) return ev;
+    if(gkey!=='piano' && gkey!=='harp' && gkey!=='strings') return ev;
+    if(!melEv || !melEv.length || !barPcs || !barPcs.length) return ev;
+    const M=melEv.slice().sort(function(a,b){ return a.a-b.a; });
+    let mi=0; const live=[];
+    const melPcsAt=function(t){
+      while(mi<M.length && M[mi].a<=t){ live.push(M[mi]); mi++; }
+      for(let i=live.length-1;i>=0;i--) if(live[i].b<=t) live.splice(i,1);
+      return live.map(function(x){ return {pc:((x.n%12)+12)%12, n:x.n}; });
+    };
+    const open={}; const seq=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push({on:i, tick:e.tick}); }
+      else if(e.on===0){ const q=open[e.note]; if(q&&q.length){ const o=q.shift();
+        seq.push({on:o.on, off:i, a:o.tick, note:e.note}); } }
+    });
+    seq.sort(function(x,y){ return x.a-y.a; });
+    /* 같은 시각 묶음 = 한 화음 */
+    const stack={};
+    seq.forEach(function(n){ const k=Math.round(n.a/(tpq*0.05)); (stack[k]=stack[k]||[]).push(n); });
+    const drop={};
+    Object.keys(stack).forEach(function(k){
+      const G=stack[k];
+      const mp=melPcsAt(G[0].a);
+      if(!mp.length) return;
+      const mpcs=mp.map(function(x){ return x.pc; });
+      const mlo=Math.min.apply(null, mp.map(function(x){ return x.n; }));
+      const bi=Math.floor((G[0].a-padTick)/barLen);
+      const pcs=barPcs[bi];
+      if(!pcs || !pcs.length) return;
+      /* 현재 화음에서 쓰이는 음정 클래스 */
+      const used=new Set(G.map(function(n){ return ((n.note%12)+12)%12; }));
+      G.forEach(function(n){
+        const pc=((n.note%12)+12)%12;
+        const dupe=(mpcs.indexOf(pc)>=0);
+        const tooClose=(mlo-n.note>0 && mlo-n.note<=2);
+        if(!dupe && !tooClose) return;
+        /* 성부가 셋 미만이면 화음이 무너지므로 건드리지 않는다 */
+        if(used.size<3) return;
+        /* 화음의 다른 구성음 중 선율과 겹치지 않고 아직 안 쓴 것으로 옮긴다 */
+        let best=null, bd=99;
+        for(let i=0;i<pcs.length;i++){
+          const cand=pcs[i];
+          if(mpcs.indexOf(cand)>=0) continue;      // 선율이 쓰는 음은 피한다
+          if(used.has(cand) && cand!==pc) continue; // 이미 다른 성부가 쓴다
+          let m=n.note-pc+cand;
+          while(m<n.note-6) m+=12;
+          while(m>n.note+6) m-=12;
+          if(mlo-m>0 && mlo-m<=2) continue;        // 선율 바로 아래는 피한다
+          if(m<36 || m>91) continue;
+          const dd=Math.abs(m-n.note);
+          if(dd<bd){ bd=dd; best=m; }
+        }
+        if(best!=null){
+          used.delete(pc); used.add(((best%12)+12)%12);
+          ev[n.on].note=best; ev[n.off].note=best; n.note=best;
+          return;
+        }
+        /* 옮길 자리가 없고 성부가 넷 이상이면 뺀다 — 피아니스트도 그 음을 치지 않는다 */
+        if(used.size>=4 && dupe){ drop[n.on]=1; drop[n.off]=1; used.delete(pc); }
+      });
+    });
+    if(!Object.keys(drop).length) return ev;
+    return ev.filter(function(e,i){ return !drop[i]; });
+  }
+
+  /* ── 반주 꼭대기는 선율을 받치는 음으로 ──
+     반주 화음에서 귀에 가장 잘 들리는 것은 맨 위 음이다.
+     그 자리에 텐션이나 회피음이 앉으면 선율과 어긋나 들린다
+     (실측: 첫박에서 근음→11도 · 근음→♭7 · 13도→11도 같은 조합이 나왔다).
+
+     보이싱 원칙:
+       · 꼭대기는 화음의 뼈대(근음·3도·5도) 중에서 고른다
+       · 선율과 같은 음정은 쓰지 않는다 — 겹치면 노래 윤곽이 흡수된다
+       · 선율이 3도면 꼭대기는 근음이나 5도, 선율이 근음이면 3도나 5도로
+         서로 다른 자리를 맡아 화음이 두툼해진다
+     꼭대기 음만 옮기고 아래 성부는 그대로 둔다 — 화성은 바뀌지 않는다. */
+  function topVoiceFit(ev, gkey, melEv, barPcs, barRoot, barLen, padTick, tpq){
+    if(!SING_G.has(gsel)) return ev;
+    if(gkey!=='piano' && gkey!=='harp' && gkey!=='strings') return ev;
+    if(!barPcs || !barPcs.length || !barRoot || !barRoot.length) return ev;
+    const M=(melEv||[]).slice().sort(function(a,b){ return a.a-b.a; });
+    let mi=0; const live=[];
+    const melPcAt=function(t){
+      while(mi<M.length && M[mi].a<=t){ live.push(M[mi]); mi++; }
+      for(let i=live.length-1;i>=0;i--) if(live[i].b<=t) live.splice(i,1);
+      return live.map(function(x){ return ((x.n%12)+12)%12; });
+    };
+    const open={}; const seq=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push({on:i, tick:e.tick}); }
+      else if(e.on===0){ const q=open[e.note]; if(q&&q.length){ const o=q.shift();
+        seq.push({on:o.on, off:i, a:o.tick, note:e.note}); } }
+    });
+    seq.sort(function(x,y){ return x.a-y.a; });
+    /* 같은 시각에 울리는 묶음의 맨 위 음만 본다 */
+    const grp={};
+    seq.forEach(function(n){ const k=Math.round(n.a/(tpq*0.05)); (grp[k]=grp[k]||[]).push(n); });
+    const CORE=[0,4,3,7];                       // 근음·장3·단3·5도
+    /* 아르페지오·컴핑은 화음을 한 번에 누르지 않고 한 음씩 흩는다.
+       그래서 '같은 시각 묶음'이 대부분 단음이고, 화음일 때만 보면 대다수를 놓친다
+       (실측: 발라드에서 단음 149개 vs 화음 묶음 44개).
+       단음이어도 그 마디에서 가장 높은 음이면 꼭대기로 본다. */
+    const barTop={};
+    seq.forEach(function(n){
+      const bi=Math.floor((n.a-padTick)/barLen);
+      if(barTop[bi]==null || n.note>barTop[bi]) barTop[bi]=n.note;
+    });
+    Object.keys(grp).forEach(function(k){
+      const L=grp[k];
+      if(L.length<2){
+        /* 단음: 그 마디의 최고음일 때만 본다 */
+        const n0=L[0];
+        const bi0=Math.floor((n0.a-padTick)/barLen);
+        if(barTop[bi0]==null || n0.note < barTop[bi0]-1) return;
+      }
+      let top=null;
+      L.forEach(function(n){ if(top==null || n.note>top.note) top=n; });
+      if(!top) return;
+      const bi=Math.floor((top.a-padTick)/barLen);
+      const root=barRoot[bi], pcs=barPcs[bi];
+      if(root==null || !pcs || !pcs.length) return;
+      const iv=(((top.note-root)%12)+12)%12;
+      const mp=melPcAt(top.a);
+      const topPc=(((top.note%12)+12)%12);
+      const clashMel=(mp.indexOf(topPc)>=0);
+      if(CORE.indexOf(iv)>=0 && !clashMel) return;   // 이미 뼈대이고 선율과 다르다
+      /* 뼈대 중 선율과 겹치지 않는 음으로 옮긴다 — 아래 성부보다는 위에 남긴다 */
+      let below=-1;
+      L.forEach(function(n){ if(n!==top && n.note>below) below=n.note; });
+      let best=null, bd=1e9;
+      for(let q=0;q<CORE.length;q++){
+        const want=(((root+CORE[q])%12)+12)%12;
+        if(pcs.indexOf(want)<0) continue;
+        if(mp.indexOf(want)>=0) continue;            // 선율과 같은 음정은 쓰지 않는다
+        let m=top.note-(((top.note%12)+12)%12)+want;
+        while(m<=below) m+=12;                        // 아래 성부보다 위에
+        /* 원래 자리에서 7반음 안으로 제한하면 아래 성부에 막혀 후보가 사라진다
+           (실측: 발라드 11도 59곳·시티팝 ♭7 46곳이 그대로 남았다).
+           한 옥타브까지 허용한다 — 화음음이므로 위로 가도 화성은 그대로다. */
+        while(m>top.note+12) m-=12;
+        if(m<=below || m>96) continue;
+        const d=Math.abs(m-top.note);
+        if(d<bd){ bd=d; best=m; }
+      }
+      if(best!=null && best!==top.note){
+        ev[top.on].note=best; ev[top.off].note=best;
+      }
     });
     return ev;
   }
@@ -26733,6 +27086,10 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ev=seventhDiscipline(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       /* 노래가 있는 장르는 반주를 선율 아래로 — 위로 올라가면 노래가 묻힌다 */
       ev=accompBelowMelody(ev, grp.key, __melEv, TPQ); ev=coalesceNotes(ev);
+      /* 반주 꼭대기는 화음 뼈대 중 선율과 다른 음으로 — 회피음이 앉지 않게 */
+      ev=topVoiceFit(ev, grp.key, __melEv, __barPcs, __barRoot, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
+      /* 선율이 짚는 음은 반주에서 빼거나 옮긴다 — 노래가 반주에 흡수되지 않게 */
+      ev=voiceForMelody(ev, grp.key, __melEv, __barPcs, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       /* 옥타브를 내리면서 서로 다른 음이 같은 음이 되어 쉼표를 삼킬 수 있다
          (실측: 과잉 연장 5건). 음역 규칙을 다시 태워 길이를 정리한다. */
       ev=famArticulate(grp.key, ev, grp.gm); ev=coalesceNotes(ev);
@@ -27807,65 +28164,12 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('■ 컴핑과 선율의 자리 나눔');
       L.push('   음역   : 피아노가 선율 최저음보다 장2도 아래에서 컴핑합니다.');
       L.push('            같은 음역에서 치면 두 성부가 엉키고 반음이 부딪힙니다.');
-      L.push('            (실측: 나누기 전 선율 70~84·피아노 48~82로 겹쳤고 충돌이 28%였습니다.)');
       L.push('   충돌   : 화음 텐션이 그 순간 선율과 반음·장7이 되면 다른 구성음으로 옮깁니다.');
       L.push('            옮길 자리가 없으면 그 음만 뺍니다 — 피아니스트도 그럴 때 치지 않습니다.');
       L.push('            화음의 뼈대(근음·3도·7도)는 건드리지 않으므로 진행은 그대로입니다.');
-      L.push('   로직   : 컴핑 트랙을 선율보다 3~4dB 낮추면 이 나눔이 더 분명해집니다.');
+      L.push('   로직   : 컴핑 트랙을 선율보다 3~4dB 낮추세요.');
       L.push('');
     }
-    if(SING_G.has(gsel)){
-      L.push('■ 노래와 반주의 자리');
-      L.push('   선율   : 첫박이 근음으로만 이어지지 않게 일부를 3도로 올립니다.');
-      L.push('            3도가 화음의 성격을 정하고 노래를 가장 잘 들리게 합니다.');
-      L.push('            근음만 짚으면 노래가 화음을 따라 읊는 소리가 됩니다.');
-      L.push('            11도(완전4도)는 장3도와 반음으로 부딪히므로 장화음에서 피합니다.');
-      L.push('   반주   : 선율 최저음보다 장2도 아래에서 울립니다 — 위로 올라가면 노래가 묻힙니다.');
-      L.push('            반주 최고음이 선율과 같은 음이 되지 않게 합니다.');
-      L.push('            같은 음이 겹치면 노래의 윤곽이 반주에 흡수됩니다.');
-      L.push('            화음음은 그대로이고 옥타브만 내리므로 진행은 변하지 않습니다.');
-      L.push('   로직   : 반주 트랙을 선율보다 3~4dB 낮추면 이 나눔이 더 분명해집니다.');
-      L.push('');
-    }
-    L.push('■ 7도의 자리 — 7화음이라도 7도는 색을 내는 음입니다');
-    L.push('   선율   : 마디 첫박에 7도를 두지 않습니다 — 길이와 무관하게 뼈대음으로 내립니다.');
-    L.push('            첫박에 7음이 앉으면 그 마디가 7도로 시작해 화음의 성격이 흐려집니다.');
-    L.push('            그 외 자리에서도 한 박을 넘게 끌지 않습니다.');
-    L.push('            강박에서 머무를 수 있는 음은 근음·3도·5도뿐입니다 —');
-    L.push('            7도는 지나가는 색이므로 약박의 짧은 자리에만 둡니다.');
-    L.push('   반주   : 마디의 최저음이 7도가 되지 않게 합니다 — 그 음을 옥타브 올립니다.');
-    L.push('            바닥이 7도면 화음이 3전위로 뒤집혀 조성이 흔들립니다.');
-    L.push('            화음음은 그대로이고 자리만 바뀌므로 진행은 변하지 않습니다.');
-    L.push('');
-    L.push('■ 악기별 익스프레션 — 같은 음표라도 악기마다 소리 내는 방식이 다릅니다');
-    L.push('   숨 악기  : 색소폰·아코디언·목관은 CC11로 프레이즈마다 부풀었다 잦아듭니다.');
-    L.push('              프레이즈 마지막 음은 조금 짧게 끊어 숨 자리를 만들었습니다.');
-    L.push('              로직에서 이 CC11을 지우면 한 세기로 밋밋하게 흐릅니다.');
-    L.push('   발현 악기: 나일론·스틸 기타·하프는 뜯은 뒤 감쇠합니다 — 1.6박을 넘겨 울리지 않습니다.');
-    L.push('              화음은 낮은 음부터 훑어 미세한 시차를 줍니다(스트럼). 세기도 위로 갈수록 조금 낮습니다.');
-    L.push('   로즈     : 마디 첫박에 서스테인 페달(CC64)을 밟고 화음이 바뀌기 직전에 뗍니다.');
-    L.push('              페달을 안 쓰면 로즈 특유의 이어짐이 사라집니다.');
-    L.push('   팀파니   : 1.5박 이상 지속음은 롤로 보고 CC11로 52 → 110 차오르게 했습니다.');
-    L.push('');
-    L.push('■ 연주 관습 — 악보에 적히지 않지만 연주자가 하는 것');
-    L.push('   아고긱   : 프레이즈의 최고음과 불협화음에 약 5% 늦게 도착합니다.');
-    L.push('              세게 치는 것이 아니라 늦추는 것입니다 — 그 자리에 무게가 실립니다.');
-    L.push('              로직에서 리퀀타이즈하면 이 결이 사라집니다.');
-    L.push('   종지 감속: 편(악장)이 바뀌는 자리마다 마지막 두 마디를 늦춥니다. rit. 표시가 없어도 합니다.');
-    L.push('              다음 편 첫 마디에서 제 빠르기로 돌아옵니다 — 늦춘 채로 두면 곡 전체가 처집니다.');
-    L.push('              템포 이벤트로 기록되므로 로직 템포 트랙에 그대로 들어옵니다.');
-    L.push('   subito p : 갑자기 여려지기 직전 한 마디를 10% 키웁니다. 대비를 크게 하려는 것입니다.');
-    L.push('   피카르디 : 단조 곡의 마지막 두 마디에서 단3도를 장3도로 올립니다.');
-    L.push('              바로크·고전의 관습이고, 단조로 끝나는 것보다 맺힘이 분명합니다.');
-    L.push('   빈 왈츠  : 3/4에서 2박이 약 5% 빨리 옵니다. 악보에는 균등하게 적혀 있지만');
-    L.push('              실제 연주는 그렇지 않습니다. 왈츠 어법을 쓰는 장르에서만 걸립니다.');
-    L.push('   팀파니   : 1.5박 이상 지속되는 음은 롤로 보고 CC11로 차오르게 했습니다(52 → 110).');
-    L.push('              표시가 없어도 롤은 커지면서 가는 것이 관습입니다.');
-    L.push('   금관     : 마지막 마디의 화음을 조금 더 길게 끕니다 — 끝이 두툼하게 맺힙니다.');
-    L.push('   넣지 않은 것: 트릴·아포지아투라·카덴차·다 카포 장식은 연주자 영역이라 넣지 않았습니다.');
-    L.push('              골격을 뽑고 로직에서 완성하는 구조에서는 오히려 지워야 할 것이 늘어납니다.');
-    L.push('              포르타멘토도 음원 설정으로 하는 편이 낫습니다 — CC로 흉내내면 음원마다 다르게 납니다.');
-    L.push('');
     if(quartetMode){
       L.push('■ 현악 4중주');
       if(loungeMode){
@@ -28249,6 +28553,10 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
     L.push('   [ ] 게인스테이징 → 마스터 리미터 → LUFS 측정');
     L.push('');
     L.push('──────────────────────────────────────────────────');
+    /* ── 음악 규칙 안내는 로직 셋업이 끝난 뒤에 둔다 ──
+       위쪽은 로직에서 바로 따라 하는 작업(임포트·EQ·트랙 배치·플러그인)이고,
+       아래는 '이 MIDI가 왜 이렇게 만들어졌는지'를 설명하는 부분이다.
+       작업 순서대로 읽히도록 뒤로 뺀다. */
     L.push('■ 마스터링 — 맨 마지막 (Stereo Out · LUFS 맞추기)');
     L.push('──────────────────────────────────────────────────');
     L.push('   [Stereo Out 채널 Audio FX 슬롯에 위→아래 순서로 추가]');
@@ -28261,7 +28569,69 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
     L.push('   * 게인스테이징: 각 트랙 피크 -6~-8 dBFS · 마스터 입력 -6 헤드룸(리미터 전)');
     L.push('   * 무료 추천: Spitfire LABS · BBC SO Discover · Valhalla Supermassive · TDR Nova(EQ) · TDR Kotelnikov(컴프)');
     L.push('※ 상세 이론은 「뉴에이지 프로덕션 핸드북」 참조.');
-    return L.join('\n');
+        L.push('════════════════════════════════════════════════════════════');
+    L.push('  아래는 참고 — 이 MIDI에 적용된 음악 규칙');
+    L.push('  로직 작업에 필요한 내용은 위쪽까지입니다.');
+    L.push('════════════════════════════════════════════════════════════');
+    L.push('');
+    if(SING_G.has(gsel)){
+      L.push('■ 노래와 반주의 자리');
+      L.push('   선율   : 첫박이 근음으로만 이어지지 않게 일부를 3도로 올립니다.');
+      L.push('            3도가 화음의 성격을 정하고 노래를 가장 잘 들리게 합니다.');
+      L.push('            근음만 짚으면 노래가 화음을 따라 읊는 소리가 됩니다.');
+      L.push('            11도(완전4도)는 장3도와 반음으로 부딪히므로 장화음에서 피합니다.');
+      L.push('   반주   : 선율 최저음보다 장2도 아래에서 울립니다 — 위로 올라가면 노래가 묻힙니다.');
+      L.push('            반주 최고음이 선율과 같은 음이 되지 않게 합니다.');
+      L.push('            같은 음이 겹치면 노래의 윤곽이 반주에 흡수됩니다.');
+      L.push('            화음음은 그대로이고 옥타브만 내리므로 진행은 변하지 않습니다.');
+      L.push('   꼭대기 : 반주 화음의 맨 위 음은 화음 뼈대(근음·3도·5도) 중에서 고릅니다.');
+      L.push('            화음에서 귀에 가장 잘 들리는 자리라 텐션이나 회피음이 앉으면 선율과 어긋납니다.');
+      L.push('            선율이 3도를 짚으면 꼭대기는 근음이나 5도로, 선율이 근음이면 3도나 5도로 —');
+      L.push('            서로 다른 자리를 맡아 화음이 두툼해집니다.');
+      L.push('            꼭대기 음만 옮기고 아래 성부는 그대로 두므로 화성은 바뀌지 않습니다.');
+      L.push('   로직   : 반주 트랙을 선율보다 3~4dB 낮추면 이 나눔이 더 분명해집니다.');
+      L.push('');
+    }
+    L.push('■ 7도의 자리 — 7화음이라도 7도는 색을 내는 음입니다');
+    L.push('   선율   : 마디 첫박에 7도를 두지 않습니다 — 길이와 무관하게 뼈대음으로 내립니다.');
+    L.push('            첫박에 7음이 앉으면 그 마디가 7도로 시작해 화음의 성격이 흐려집니다.');
+    L.push('            그 외 자리에서도 한 박을 넘게 끌지 않습니다.');
+    L.push('            강박에서 머무를 수 있는 음은 근음·3도·5도뿐입니다 —');
+    L.push('            7도는 지나가는 색이므로 약박의 짧은 자리에만 둡니다.');
+    L.push('   반주   : 마디의 최저음이 7도가 되지 않게 합니다 — 그 음을 옥타브 올립니다.');
+    L.push('            바닥이 7도면 화음이 3전위로 뒤집혀 조성이 흔들립니다.');
+    L.push('            화음음은 그대로이고 자리만 바뀌므로 진행은 변하지 않습니다.');
+    L.push('');
+    L.push('■ 악기별 익스프레션 — 같은 음표라도 악기마다 소리 내는 방식이 다릅니다');
+    L.push('   숨 악기  : 색소폰·아코디언·목관은 CC11로 프레이즈마다 부풀었다 잦아듭니다.');
+    L.push('              프레이즈 마지막 음은 조금 짧게 끊어 숨 자리를 만들었습니다.');
+    L.push('              로직에서 이 CC11을 지우면 한 세기로 밋밋하게 흐릅니다.');
+    L.push('   발현 악기: 나일론·스틸 기타·하프는 뜯은 뒤 감쇠합니다 — 1.6박을 넘겨 울리지 않습니다.');
+    L.push('              화음은 낮은 음부터 훑어 미세한 시차를 줍니다(스트럼). 세기도 위로 갈수록 조금 낮습니다.');
+    L.push('   로즈     : 마디 첫박에 서스테인 페달(CC64)을 밟고 화음이 바뀌기 직전에 뗍니다.');
+    L.push('              페달을 안 쓰면 로즈 특유의 이어짐이 사라집니다.');
+    L.push('   팀파니   : 1.5박 이상 지속음은 롤로 보고 CC11로 52 → 110 차오르게 했습니다.');
+    L.push('');
+    L.push('■ 연주 관습 — 악보에 적히지 않지만 연주자가 하는 것');
+    L.push('   아고긱   : 프레이즈의 최고음과 불협화음에 약 5% 늦게 도착합니다.');
+    L.push('              세게 치는 것이 아니라 늦추는 것입니다 — 그 자리에 무게가 실립니다.');
+    L.push('              로직에서 리퀀타이즈하면 이 결이 사라집니다.');
+    L.push('   종지 감속: 편(악장)이 바뀌는 자리마다 마지막 두 마디를 늦춥니다. rit. 표시가 없어도 합니다.');
+    L.push('              다음 편 첫 마디에서 제 빠르기로 돌아옵니다 — 늦춘 채로 두면 곡 전체가 처집니다.');
+    L.push('              템포 이벤트로 기록되므로 로직 템포 트랙에 그대로 들어옵니다.');
+    L.push('   subito p : 갑자기 여려지기 직전 한 마디를 10% 키웁니다. 대비를 크게 하려는 것입니다.');
+    L.push('   피카르디 : 단조 곡의 마지막 두 마디에서 단3도를 장3도로 올립니다.');
+    L.push('              바로크·고전의 관습이고, 단조로 끝나는 것보다 맺힘이 분명합니다.');
+    L.push('   빈 왈츠  : 3/4에서 2박이 약 5% 빨리 옵니다. 악보에는 균등하게 적혀 있지만');
+    L.push('              실제 연주는 그렇지 않습니다. 왈츠 어법을 쓰는 장르에서만 걸립니다.');
+    L.push('   팀파니   : 1.5박 이상 지속되는 음은 롤로 보고 CC11로 차오르게 했습니다(52 → 110).');
+    L.push('              표시가 없어도 롤은 커지면서 가는 것이 관습입니다.');
+    L.push('   금관     : 마지막 마디의 화음을 조금 더 길게 끕니다 — 끝이 두툼하게 맺힙니다.');
+    L.push('   넣지 않은 것: 트릴·아포지아투라·카덴차·다 카포 장식은 연주자 영역이라 넣지 않았습니다.');
+    L.push('              골격을 뽑고 로직에서 완성하는 구조에서는 오히려 지워야 할 것이 늘어납니다.');
+    L.push('              포르타멘토도 음원 설정으로 하는 편이 낫습니다 — CC로 흉내내면 음원마다 다르게 납니다.');
+    L.push('');
+return L.join('\n');
   }
   function downloadSetupSheet(){ const txt=buildSetupSheet();
     if(!txt){ if($('themeMsg'))$('themeMsg').textContent='먼저 곡을 만들어 주세요'; return; }
@@ -29029,13 +29399,38 @@ const PURPOSE_MODE = {
 };
 
 // 상황별 호흡 (들숨:날숨, 모두 패드 부풂:잦아듦에 대응)
+/* 러닝 호흡은 초가 아니라 발걸음 수로 센다.
+   들숨 3걸음·날숨 2걸음처럼 홀수 합이면 날숨이 매번 반대쪽 발에서 시작해
+   충격이 양쪽에 고르게 분산된다 — 옆구리 결림을 줄이는 것이 이 어법의 이유다.
+   짝수 합(2:2)은 늘 같은 발에서 날숨이 시작돼 한쪽에 부담이 쌓인다.
+   steps로 두고 케이던스에서 초를 역산한다 — 케이던스를 바꾸면 호흡도 함께 바뀐다. */
+const RUN_BREATHS = {
+  run33:{name:"러닝 3:3 (회복주)",  inS:3, outS:3, steps:6, use:"워밍업·회복주 — 대화 가능한 페이스"},
+  run32:{name:"러닝 3:2 (일반)",    inS:3, outS:2, steps:5, use:"가장 권장 — 날숨이 양발에 번갈아 실려 옆구리 결림이 줄어듭니다"},
+  run22:{name:"러닝 2:2 (템포)",    inS:2, outS:2, steps:4, use:"템포주·인터벌·언덕"},
+  run21:{name:"러닝 2:1 (스프린트)", inS:2, outS:1, steps:3, use:"막판 스퍼트·가파른 언덕 — 오래 쓰지 않습니다"}
+};
+/* 케이던스(분당 걸음). 심박 토글의 걷기·러닝과 맞물린다. */
+const CADENCE={walk:100, run:170};
+function runBreathCycle(key){
+  const R=RUN_BREATHS[key]; if(!R) return null;
+  const cad=(state.pulse==='walk')?CADENCE.walk:CADENCE.run;
+  const spm=cad/60;                     // 초당 걸음
+  return R.steps/spm;                   // 한 호흡의 초
+}
 const BREATHS = {
   basic:{name:"기본/평상", in:1, out:2, total:3, cycle:3, rpm:20, use:"가벼운 배경·일상"},
   relax:{name:"긴장 이완", in:2, out:4, total:6, cycle:6, rpm:10, use:"진정·스트레스 완화"},
   deep:{name:"깊은 명상/수면", in:4, out:6, total:10, cycle:10, rpm:6, use:"깊은 이완·수면·명상"},
   equal:{name:"균등 호흡", in:4, out:4, total:8, cycle:8, rpm:7.5, use:"균형·안정 (들숨=날숨, 초보자 쉬움)"},
   coherent:{name:"코히런트 (0.1Hz)", in:5, out:5, total:10, cycle:10, rpm:6, use:"HRV 최적·자율신경 공명 (과학적 근거)"},
-  longout:{name:"긴 날숨 (1:2)", in:4, out:8, total:12, cycle:12, rpm:5, use:"부교감 극대화, 가장 깊은 이완"}
+  longout:{name:"긴 날숨 (1:2)", in:4, out:8, total:12, cycle:12, rpm:5, use:"부교감 극대화, 가장 깊은 이완"},
+  /* 러닝 호흡 — cycle은 케이던스에서 역산한 값으로 chordLength()가 매번 덮어쓴다.
+     여기 적힌 초는 케이던스 170 기준의 기본값이다. */
+  run33:{name:"러닝 3:3 (회복주)",  in:3, out:3, total:6, cycle:2.12, rpm:28, run:true, use:"워밍업·회복주 — 대화 가능한 페이스"},
+  run32:{name:"러닝 3:2 (일반)",    in:3, out:2, total:5, cycle:1.76, rpm:34, run:true, use:"가장 권장 — 날숨이 양발에 번갈아 실려 옆구리 결림이 줄어듭니다"},
+  run22:{name:"러닝 2:2 (템포)",    in:2, out:2, total:4, cycle:1.41, rpm:43, run:true, use:"템포주·인터벌·언덕"},
+  run21:{name:"러닝 2:1 (스프린트)", in:2, out:1, total:3, cycle:1.06, rpm:57, run:true, use:"막판 스퍼트·가파른 언덕"}
 };
 // 목적별 코드길이 배수 (코드길이 = 호흡주기 × 배수, 8~20초 목표)
 const PURPOSE_MULT = {
@@ -29056,7 +29451,9 @@ const PURPOSE_CAP = {
 // 코드 길이 계산 (현재 호흡 × 목적 배수)
 function chordLength(){
   const bKey = state.breath==='auto' ? PURPOSE_BREATH[state.purpose] : state.breath;
-  const b = BREATHS[bKey];
+  const b0 = BREATHS[bKey];
+  /* 러닝 호흡은 케이던스에서 주기를 역산한다 — 심박 토글을 바꾸면 호흡도 함께 바뀐다 */
+  const b = (b0&&b0.run) ? Object.assign({}, b0, {cycle:(runBreathCycle(bKey)||b0.cycle)}) : b0;
   let mult = PURPOSE_MULT[state.purpose] || 2;
   // 목적별 코드 길이 상한: 넘으면 배수를 1씩 줄임 (최소 배수 1)
   const CAP = PURPOSE_CAP[state.purpose] || 20;
@@ -29820,7 +30217,36 @@ function midiTrackSpec(){
       midiName:'[뮤트] Solo Line · 노래하는 독주 선율 — 쓰려면 볼륨을 올리세요',
       role:'노래하는 독주 선율 — 기본 뮤트(볼륨 0). 쓰지 않으면 트랙째 지우면 됩니다',
       memo:function(){return '기본 뮤트(CC7=0) — 로직에서 볼륨을 올리면 살아납니다';}},
-    {key:'hp',    gate:'point',  name:'Handpan',  ch:5, prog:108, vol:76, pan:58, revMul:1.0, gm:'Kalimba',           to:'핸드팬 음원 (또는 '+I.pt+')', midiName:'Handpan · 따뜻한 금속 타현 "통통"', role:'포인트 — 따뜻한 리듬 점',       memo:function(){return '포인트 — 따뜻한 리듬 점';}}
+    {key:'hp',    gate:'point',  name:'Handpan',  ch:5, prog:108, vol:76, pan:58, revMul:1.0, gm:'Kalimba',           to:'핸드팬 음원 (또는 '+I.pt+')', midiName:'Handpan · 따뜻한 금속 타현 "통통"', role:'포인트 — 따뜻한 리듬 점',       memo:function(){return '포인트 — 따뜻한 리듬 점';}},
+    /* 심박 — 30~45Hz 대역. 귀보다 몸이 먼저 느끼는 층이다.
+       리버브를 걸지 않는다(revMul 0) — 저역에 잔향이 붙으면 웅웅거리고 맥이 흐려진다. */
+    /* 심박 — 어택이 맥을 만들고 리버브가 꼬리를 만든다.
+       완전히 드라이한 저역은 스피커에서 툭 튀어나와 신시사이저 티가 난다.
+       잔향은 맥 간격의 70~80%로 두어 다음 맥 직전에 잦아든다 — 끊기지도 겹치지도 않는다. */
+    /* 채널 9는 GM 표준에서 드럼 채널이다 — 여기에 두면 로직이 드럼 킷으로 열어
+       엉뚱한 타악 소리가 난다. 비어 있는 8로 둔다. */
+    {key:'pulse', gate:null,     name:'Pulse',    ch:8, prog:38,  vol:62, pan:64, revMul:0.35, gm:'Synth Bass 1',
+      to:'Retro Synth 사인 — 어택 0ms · 릴리스 120ms · 로우패스 200Hz',
+      midiName:'Pulse · 심박 맥 (30~45Hz · 몸이 느끼는 층)',
+      role:'심박·케이던스 — 수면·이완은 안정 심박에, 걷기·러닝은 발걸음에 맞춥니다',
+      memo:function(){ const P=(typeof PULSE_SPEC!=='undefined'&&PULSE_SPEC[state.pulse])||null;
+        if(!P) return '어택 0ms가 맥을 만듭니다 — 여기만 또렷하면 잔향이 있어도 맥은 살아납니다.';
+        return '리버브 '+P.rev+'초 · 센드 '+P.send+'% · 프리딜레이 0ms(원음과 잔향이 붙어 한 덩어리로) · 200Hz 위 자르기';}},
+    /* 앰비언트 아르페지오 — 화음을 하나씩 풀어 흐르는 층.
+       기본 뮤트(볼륨 0)로 둔다 — 필요할 때 볼륨만 올리면 된다. */
+    {key:'arp',   gate:null,     name:'Arp',      ch:11,
+      prog:((typeof ARP_SPEC!=='undefined'&&ARP_SPEC[state.aes])?ARP_SPEC[state.aes].gm:108),
+      vol:0,  pan:70, revMul:1.2, gm:'Kalimba',
+      to:((typeof ARP_SPEC!=='undefined'&&ARP_SPEC[state.aes])?ARP_SPEC[state.aes].name:'핸드팬 · 칼림바')+' — 어택 또렷 · 릴리스 길게',
+      midiName:'[뮤트] Arp · 핸드팬 아르페지오 — 쓰려면 볼륨을 올리세요',
+      role:'화음을 하나씩 풀어 흐르는 층 — 선율이 아니라 화성을 펼치는 것입니다',
+      memo:function(){return '기본 뮤트(CC7=0) — 볼륨을 올리면 살아납니다. 많이 넣고 싶으면 올리고, 아니면 트랙째 지우세요.';}},
+    /* 구간 예고 — 로직에서 리버스 리버브로 받는다 */
+    {key:'cue',   gate:null,     name:'Cue',      ch:10, prog:99, vol:58, pan:64, revMul:1.4, gm:'FX 4 (atmosphere)',
+      to:'Space Designer — 리버스 IR · 프리딜레이 0 · 드라이 0%',
+      midiName:'Cue · 구간 예고 (거꾸로 차오름)',
+      role:'다음 구간 4초 전부터 거꾸로 차오릅니다 — 의식적으로 알아채지 못하지만 몸이 준비합니다',
+      memo:function(){return '드라이를 0%로 두고 리버스 IR만 들리게 하세요. 원음이 들리면 예고가 아니라 소리가 됩니다.';}}
   ];
 }
 // 장르 선택 시 트랙 이름을 그 장르 악기 성격으로 (미선택 시 기본 midiName)
@@ -30701,7 +31127,94 @@ function generatePiece(prog, capMin){
     ['chords','bass','melody','bellsSing'].forEach(k=>{ ev[k]=ev[k].filter(x=>x.t<END-EPS); ev[k].forEach(x=>{ if(x.t+(x.dur||0)>END) x.dur=Math.max(0.1,END-x.t); }); });
     ['bells','tingsha','handpan'].forEach(k=>{ ev[k]=ev[k].filter(x=>x.t<END-EPS); ev[k].forEach(x=>{ if(x.t+(x.decay||0)>END) x.decay=Math.max(0.5,END-x.t); }); });
   }
+  /* 앰비언트 아르페지오 — 여기서 만들어 piece에 담는다.
+     buildMidi 안에서만 만들면 MIDI에는 있는데 재생에는 없다 —
+     이 앱의 원칙(재생·WAV·MIDI 삼자 일치)이 깨진다. */
+  ev.arp = buildAmbientArp(ev, cl.breath, lengthSec);
   return {lengthSec, chordDur, loops, tailSec, loopMode:_loop, chordNames:chords, slotNames:ev.slotNames, breath:cl.breath, ev, aes:state.aes, stageSeq:_seq, hasAir:(state.aes==='ambient'||state.aes==='natural')};
+}
+/* ── 앰비언트 아르페지오 (초 단위) ──
+   화음음을 하나씩 짚어 흐르는 층. 선율이 아니라 화성을 펼치는 것이다.
+   한 호흡 안에서 올라갔다 내려오는 곡선이라 들숨·날숨과 결이 맞는다.
+   루바토는 무작위가 아니라 곡선을 따른다 —
+   올라갈수록 느려지고, 꼭대기에서 머물고, 내려오며 빨라지고, 마지막에 한 번 더 머문다.
+   한 호흡 안의 시작과 끝은 고정하고 그 안의 간격만 늘였다 줄이므로 호흡과 어긋나지 않는다. */
+/* 미학별 아르페지오 설정 — 그 미학의 악기로 화음을 편다.
+   nOct: 몇 옥타브를 쓸지 · nUp: 한 번에 몇 음을 오를지 · perBreath: 한 호흡에 몇 번 도는지
+   미학마다 결이 다르다 — 미니멀은 아주 성기게, 발리·인디언은 촘촘하게. */
+const ARP_SPEC={
+  ambient:     {gm:108, name:'Handpan / Kalimba',      nOct:2, nUp:5, perBreath:1},
+  minimal:     {gm:0,   name:'Felt Piano (희소하게)',   nOct:1, nUp:3, perBreath:1},
+  zen:         {gm:107, name:'Koto',                    nOct:2, nUp:4, perBreath:1},
+  neoclassical:{gm:0,   name:'Grand Piano',             nOct:2, nUp:5, perBreath:1},
+  natural:     {gm:108, name:'Kalimba',                 nOct:2, nUp:4, perBreath:1},
+  cinematic:   {gm:46,  name:'Harp',                    nOct:2, nUp:5, perBreath:1},
+  vintage:     {gm:4,   name:'Rhodes / Wurlitzer',      nOct:2, nUp:4, perBreath:1},
+  indian:      {gm:104, name:'Sitar / Santoor',         nOct:2, nUp:5, perBreath:2},
+  tibetan:     {gm:14,  name:'Tubular Bells (성기게)',   nOct:1, nUp:3, perBreath:1},
+  bali:        {gm:12,  name:'Gamelan Marimba',         nOct:2, nUp:5, perBreath:2},
+  soundhealing:{gm:14,  name:'Crystal Bowl Mallet',     nOct:1, nUp:3, perBreath:1}
+};
+function buildAmbientArp(ev, breath, lengthSec){
+  const SP=ARP_SPEC[state.aes]; if(!SP) return [];
+  const src=(ev&&ev.chords)||[];
+  if(!src.length) return [];
+  const B=Math.max(2, (breath&&breath.cycle)||10);
+  const RB=(typeof RUBATO_AMT!=='undefined'&&RUBATO_AMT[state.rubato])||0;
+  const out=[];
+  src.forEach(function(cd, ix){
+    const notes=(cd.notes||[]).slice();
+    if(notes.length<2) return;
+    const span=(cd.dur!=null)?cd.dur:B;
+    const lo=Math.min.apply(null, notes);
+    const pcs=[...new Set(notes.map(function(m){ return ((m%12)+12)%12; }))].sort(function(a,b){ return a-b; });
+    const pool=[];
+    for(let oct=0; oct<SP.nOct; oct++){
+      pcs.forEach(function(pc){
+        let m=lo-(((lo%12)+12)%12)+pc+oct*12;
+        while(m<lo) m+=12;
+        /* 음역 토글을 따른다 — 낮은 음역을 고르면 아르페지오도 함께 내려가야 한다.
+           55~88로 고정하면 [낮게]에서 화음이 36~55로 내려갔을 때 후보가 하나도 남지 않아
+           아르페지오 트랙이 통째로 사라진다.
+           화음 최저음을 기준으로 그 위 두 옥타브 반을 쓴다. */
+        if(m>=lo && m<=lo+30 && m>=24 && m<=100) pool.push(m);
+      });
+    }
+    if(pool.length<3) return;
+    pool.sort(function(a,b){ return a-b; });
+    const up=pool.slice(0, Math.min(SP.nUp, pool.length));
+    const seq=up.concat(up.slice(0,-1).reverse());
+    const N=seq.length;
+    const w=[]; let sum=0;
+    for(let i=0;i<N;i++){
+      const f=i/Math.max(1,N-1);
+      let x=1;
+      if(RB>0){
+        x += RB*Math.sin(Math.PI*f)*1.2;
+        x += RB*(f<0.5? f*0.8 : -(1-f)*0.5);
+        if(i===N-1) x += RB*0.9;
+      }
+      w.push(Math.max(0.45,x)); sum+=w[i];
+    }
+    /* 한 호흡에 몇 번 도는지 — 인디언·발리는 두 번 돌아 촘촘하다 */
+    const per=SP.perBreath||1;
+    const cyc=B/per;
+    const nB=Math.max(1, Math.round(span/cyc));
+    for(let r=0; r<nB; r++){
+      const t0=cd.t + r*cyc;
+      let acc=0;
+      for(let i=0;i<N;i++){
+        const t=t0 + cyc*acc/sum;
+        const seg=cyc*w[i]/sum;
+        acc+=w[i];
+        if(t >= cd.t+span || t>=lengthSec) break;
+        const f=i/Math.max(1,N-1);
+        out.push({t:t, midi:seq[i], dur:Math.max(cyc/N*0.8, seg*1.6),
+                  vel:Math.round(30+14*Math.sin(Math.PI*f)), pan:0.62});
+      }
+    }
+  });
+  return out;
 }
 /* ── 악보 스케줄: 라이브·오프라인 공용 (재생=WAV 완전 일치) ── */
 function schedulePiece(ac, g, piece, t0){
@@ -30720,6 +31233,9 @@ function schedulePiece(ac, g, piece, t0){
     (piece.ev.bellsSing||[]).forEach(b=>bowlSingVoiceP(ac,g.buses.bell,t0+b.t,b.dur,b.midi,b.pan));
     piece.ev.tingsha.forEach(b=>tingshaVoiceP(ac,g.buses.tingsha,t0+b.t,b.midi,b.pan,b.decay));
     piece.ev.handpan.forEach(b=>handpanVoiceP(ac,g.buses.handpan,t0+b.t,b.midi,b.decay,b.pan));
+    /* 앰비언트 아르페지오 — 레이어의 [아르페지오]를 켰을 때만 들린다.
+       MIDI 트랙은 언제나 만들어 두되 기본 뮤트다(로직에서 볼륨만 올리면 된다). */
+    if(L.arp && piece.ev.arp) piece.ev.arp.forEach(b=>handpanVoiceP(ac,g.buses.handpan,t0+b.t,b.midi,b.dur,b.pan));
   }
   if(piece.hasAir) airLayerP(ac,g.buses.air,t0,piece.lengthSec,g.noise);
   if(state.solfeggio && state.solfeggio!=='off') solfeggioToneP(ac,g.master,t0,piece.lengthSec,+state.solfeggio);
@@ -31070,7 +31586,9 @@ let randomMelodies = [];
 
 
 function defaultState(){ return { purpose:null, scaleType:"auto", key:"C", breath:"auto", breathInt:"normal", bloomPat:"auto", mode:"auto", aes:null, masking:false, binaural:"off", midiDur:5, range:"mid", voicing:"root",
-  space:"auto", bright:"auto", tuning:440, solfeggio:"off", take:0, melodyIdx:0, layersOn:{pad:true,bass:true,melody:true,point:true} }; }
+  space:"auto", bright:"auto", tuning:440, solfeggio:"off", take:0, melodyIdx:0,
+  pulse:"off", cue:"off", rubato:"off",
+  layersOn:{pad:true,bass:true,melody:true,point:true,arp:false} }; }
 let state = defaultState();
 let showRandom=false;
 
@@ -31184,7 +31702,11 @@ function updateBreathHint(){
   }
   el.textContent = txt;
 }
-function setBreath(b){ state.breath=b; document.querySelectorAll("#breathToggle .opt-g").forEach(e=>e.classList.toggle("active",e.dataset.bt===b)); updateBreathHint(); render(); }
+function setBreath(b){ state.breath=b; document.querySelectorAll("#breathToggle .opt-g").forEach(e=>e.classList.toggle("active",e.dataset.bt===b));
+  /* 러닝·걷기 호흡을 고르면 심박을 함께 켠다 — 발이 따라갈 맥이 없으면 그 호흡을 쓸 수 없다.
+     이미 켜 두었으면 그 값을 존중한다(러닝 호흡에 걷기 케이던스를 쓸 수도 있다). */
+  if(typeof autoPulseForBreath==='function') autoPulseForBreath(b);
+  updateBreathHint(); render(); }
 function setBreathInt(v){ state.breathInt=v; document.querySelectorAll("#breathIntToggle .opt-g").forEach(e=>e.classList.toggle("active",e.dataset.bi===v));
   const H={off:"패드 호흡 없음 — 평탄하게.", soft:"살짝 부풂 (은은).", normal:"들숨에 부풀고 날숨에 잦아듦 (기본).", strong:"확 부풀었다 확 잦아듦 (폭 가장 큼)."};
   const el=document.getElementById('breathIntHint'); if(el) el.textContent=H[v]||""; }
@@ -31547,6 +32069,189 @@ function midiKeySig(){
   if(sf>7) sf-=12; if(sf<-7) sf+=12;
   return {sf:sf, mi:minor?1:0, label:label, minor:minor};
 }
+
+/* ── 앰비언트 질감 보강 ──
+   호흡 동조가 이 앱의 뼈대다 — 화음 전환이 한 호흡과 같은 길이로 맞아 있다
+   (실측: 명상 4:6과 코히런트 5:5에서 화음 전환 10박 = 한 호흡 10초).
+   아래 넷은 모두 그 호흡 주기 위에 얹는다. 주기를 새로 만들지 않으므로 동조가 깨지지 않는다.
+
+   ① 맥놀이(beating) — 앰비언트 드론의 핵심 질감.
+      같은 음을 두 층으로 두고 몇 센트 어긋나게 하면 느린 파동이 생겨 소리가 살아 있게 들린다.
+      MIDI로는 피치벤드로 미세하게 틀어 둔다. 벤드 폭 ±2반음 기준으로 3~6센트.
+   ② 서스테인(CC64) — 코토·피아노 계열의 여운. 호흡이 바뀌는 자리에서 뗐다가 다시 밟는다.
+   ③ 팬(CC10) 흐름 — 소리가 좌우로 아주 느리게 흐른다. 네 호흡을 한 바퀴로 돈다.
+   ④ 저역 확장 — 드론 한 옥타브 아래를 아주 여리게 겹쳐 공간을 넓힌다. */
+function ambientTexture(tracks, breathSec, PPQ, PAD){
+  const B=Math.max(2, breathSec||10);
+  const bt=Math.round(B*PPQ);              // 한 호흡의 틱 길이(60BPM 기준 1초=1박)
+
+  /* CC11 곡선 최종 다듬기 — 마지막에 부른다.
+     여러 단계가 각각 CC11을 쓰면 점들이 뒤섞여 한 걸음에 값이 크게 뛴다
+     (실측: 화음 꼬리를 겹친 뒤 걸음 56이 생겼다 — CC 1단위가 약 0.4dB이므로 20dB가 한 번에 튄다).
+     같은 채널의 이웃한 두 점 사이를 걸음 1 이하로 잘게 나눈다. */
+  const smoothCC=function(arr, num){
+    if(!arr||!arr.length) return;
+    const pts=arr.filter(function(n){ return n.cc===num; }).sort(function(a,b){ return a.start-b.start; });
+    if(pts.length<2) return;
+    const add=[];
+    for(let i=0;i<pts.length-1;i++){
+      const a1=pts[i], b1=pts[i+1];
+      const dv=b1.val-a1.val, dt=b1.start-a1.start;
+      if(Math.abs(dv)<=1 || dt<=0) continue;
+      const n=Math.min(64, Math.abs(dv));            // 걸음 1이 되도록 나눈다
+      for(let k=1;k<n;k++){
+        add.push({cc:num, val:Math.round(a1.val+dv*k/n), start:Math.round(a1.start+dt*k/n), dur:0});
+      }
+    }
+    add.forEach(function(x){ arr.push(x); });
+  };
+
+  /* ① 맥놀이 — 드론·화음 트랙에 아주 미세한 피치벤드를 깐다.
+     느린 사인으로 흔들어 두 층이 어긋났다 맞았다 하는 결을 만든다. */
+  ['bass','chord'].forEach(function(k){
+    const arr=tracks[k]; if(!arr||!arr.length) return;
+    const st=Math.min.apply(null, arr.map(function(n){ return n.start; }));
+    const en=Math.max.apply(null, arr.map(function(n){ return n.start+(n.dur||0); }));
+    const span=en-st; if(span<bt) return;
+    const cents=(k==='bass')?4:3;                    // 저역은 조금 더 넓게
+    const amt=Math.round(8192*cents/200);            // ±2반음=8192 기준 센트 환산
+    const cyc=bt*3;                                  // 세 호흡에 한 번 흔들린다 — 아주 느리게
+    for(let t=st; t<=en; t+=Math.round(PPQ*0.5)){
+      const v=Math.round(8192+amt*Math.sin(2*Math.PI*(t-st)/cyc));
+      arr.push({bend:Math.max(0,Math.min(16383,v)), start:t, dur:0});
+    }
+  });
+
+  /* ② 여운 — 서스테인 페달을 쓰지 않는다.
+     페달을 떼는 순간 울리던 배음이 한꺼번에 사라져 소리가 뚝 끊긴다
+     (실측: CC64가 2틱 만에 100→0으로 뛰었다 — 걸음 100).
+     대신 앞 화음의 꼬리를 다음 화음 위로 겹쳐 자연스럽게 사라지게 한다.
+     겹치는 동안 CC11이 내려가므로 서서히 묻히며 끊김이 들리지 않는다.
+
+     이미 밟혀 있던 페달이 남아 있으면 곤란하므로 맨 앞에서 한 번만 뗀다. */
+  { const arr=tracks.chord;
+    if(arr&&arr.length){
+      const notes=arr.filter(function(n){ return n.note!=null; });
+      const st0=Math.min.apply(null, notes.map(function(n){ return n.start; }));
+      arr.push({cc:64, val:0, start:Math.max(0,st0-16), dur:0});
+      /* 화음 꼬리를 다음 화음 시작 뒤로 한 호흡의 절반만큼 늘린다 */
+      const ons=[...new Set(notes.map(function(n){ return Math.round(n.start); }))].sort(function(a,b){ return a-b; });
+      /* 겹침이 길면 앞 화음의 CC11 곡선이 다음 화음 구간까지 뻗어 값이 충돌한다
+         (실측: 반 호흡 겹침에서 CC11 걸음이 56까지 튀었다).
+         한 호흡의 1/5만 겹친다 — 꼬리가 다음 화음 첫머리에 살짝 묻히는 정도면 끊김이 안 들린다. */
+      const tail=Math.round(bt*0.2);
+      notes.forEach(function(n){
+        const nx=ons.find(function(t){ return t>n.start+8; });
+        if(nx==null) return;
+        const want=nx+tail;
+        if(n.start+n.dur < want) n.dur = want - n.start;
+      });
+    } }
+
+  /* ③ 팬 흐름 — 네 호흡을 한 바퀴. 화음은 왼쪽에서, 선율은 오른쪽에서 시작해 서로 엇갈린다. */
+  [['chord',0],['melody',Math.PI]].forEach(function(pair){
+    const k=pair[0], ph=pair[1];
+    const arr=tracks[k]; if(!arr||!arr.length) return;
+    const st=Math.min.apply(null, arr.map(function(n){ return n.start; }));
+    const en=Math.max.apply(null, arr.map(function(n){ return n.start+(n.dur||0); }));
+    /* 점이 성기면 한 걸음에 값이 크게 뛰어 계단이 들린다
+       (실측: 2초 간격에 걸음 7 — 2를 넘는 걸음이 119곳).
+       한 걸음이 1 이하가 되도록 점 간격을 곡선 기울기에서 역산한다. */
+    const cyc=bt*4;
+    const amp=22;
+    const stepTick=Math.max(Math.round(PPQ*0.25), Math.round(cyc/(2*Math.PI*amp)));
+    for(let t=st; t<=en; t+=stepTick){
+      const v=Math.round(64+amp*Math.sin(2*Math.PI*(t-st)/cyc+ph));
+      arr.push({cc:10, val:Math.max(0,Math.min(127,v)), start:t, dur:0});
+    }
+  });
+
+  /* ④ 저역 확장 — 드론 한 옥타브 아래를 아주 여리게 겹친다.
+     중역만 있으면 공간이 좁게 들린다. 세기를 낮춰 존재만 남긴다. */
+  { const arr=tracks.bass;
+    if(arr&&arr.length){
+      const src=arr.filter(function(n){ return n.note!=null && n.note-12>=24; });
+      src.forEach(function(n){
+        arr.push({note:n.note-12, start:n.start, dur:n.dur,
+                  vel:Math.max(18, Math.round((n.vel||60)*0.42))});
+      });
+    } }
+
+  /* 마지막에 CC11 곡선을 다듬는다 — 부푸는 결이 계단 없이 이어지게 */
+  ['chord','bass','melody'].forEach(function(k){ smoothCC(tracks[k], 11); });
+}
+
+/* ── 심박 · 구간 예고 · 튜닝 ──
+   호흡 동조 위에 얹는 세 층. 모두 화음 주기를 건드리지 않는다.
+
+   ③ 심박 — 30~45Hz 대역의 아주 낮은 맥. 귀보다 몸이 먼저 느낀다.
+      수면·이완은 실제 안정 심박(56~64)에, 걷기·러닝은 케이던스(100·160)에 맞춘다.
+      앰비언트를 러닝·경보(競步)에도 쓸 수 있게 하는 지점이다 —
+      화성은 그대로 떠 있고 몸이 따라갈 맥만 아래에 깔린다.
+   ④ 구간 예고 — 다음 구간 4초 전부터 거꾸로 차오르는 음.
+      의식적으로 알아채지 못하지만 몸이 준비한다. 로직에서 리버스 리버브로 받는다.
+   ⑤ 튜닝 — A=432를 고르면 전 트랙을 -31.8센트 내린다.
+      평균율 A=440 대비 낮은 조율. 피치벤드 상수로 걸어 모든 음에 같은 값이 적용된다. */
+function pulseCueTuning(tracks, breathSec, totalTick, PPQ, PAD, sections){
+  const B=Math.max(2, breathSec||10);
+  const bt=Math.round(B*PPQ);
+
+  /* ③ 심박 */
+  if(state.pulse && state.pulse!=='off'){
+    const P=PULSE_SPEC[state.pulse]||PULSE_SPEC.calm;
+    const beat=PPQ*60/P.bpm;                    // 그 심박의 한 박(60BPM=1초=1박 기준)
+    const step=Math.round(beat*P.every);        // 실제로 소리를 내는 간격
+    const arr=tracks.pulse=[];
+    /* 음높이: 근음의 아주 낮은 옥타브. 30~45Hz는 MIDI 24~33 언저리 */
+    let root=36;
+    try{ const bs=tracks.bass&&tracks.bass.filter(function(n){ return n.note!=null; });
+      if(bs&&bs.length) root=Math.min.apply(null, bs.map(function(n){ return n.note; })); }catch(e){}
+    while(root>33) root-=12;
+    while(root<24) root+=12;
+    /* 길이는 잔향이 붙을 자리를 남기고 짧게 — 어택이 맥을 만들고 리버브가 꼬리를 만든다.
+       완전히 드라이한 저역은 스피커에서 툭 튀어나오므로 잔향을 전제로 짧게 둔다. */
+    const dur=Math.max(Math.round(PPQ*0.12), Math.round(beat*0.35));
+    let i=0;
+    for(let t=0; t<totalTick; t+=step, i++){
+      const strong=(i%2===0);                   // 심장의 두 소리(lub-dub) 결
+      arr.push({note:root, start:t, dur:dur, vel: strong?P.vel[0]:P.vel[1]});
+    }
+  }
+
+  /* ④ 구간 예고 */
+  if(state.cue==='on' && sections && sections.length){
+    const arr=tracks.cue=[];
+    const lead=Math.round(PPQ*4);               // 4초 전부터
+    let root=60;
+    try{ const ch=tracks.chord&&tracks.chord.filter(function(n){ return n.note!=null; });
+      if(ch&&ch.length) root=ch[0].note; }catch(e){}
+    sections.forEach(function(sec, ix){
+      if(ix===0) return;
+      const t0=Math.round(sec.t*PPQ);
+      const st=Math.max(0, t0-lead);
+      /* 거꾸로 차오르는 결 — 한 음을 길게 두고 CC11로 0에서 올린다 */
+      arr.push({note:root+12, start:st, dur:lead, vel:34});
+      const N=32;
+      for(let k=0;k<=N;k++){
+        arr.push({cc:11, val:Math.round(1+100*Math.pow(k/N,2)), start:st+Math.round(lead*k/N), dur:0});
+      }
+      arr.push({cc:11, val:1, start:t0+4, dur:0});   // 구간이 시작되면 바로 사라진다
+    });
+  }
+
+  /* ⑤ 튜닝 A=432 */
+  if(+state.tuning===432){
+    const cents=-31.8;
+    const bend=Math.round(8192+8192*cents/200);
+    ['chord','bass','melody','pulse','cue'].forEach(function(k){
+      const arr=tracks[k]; if(!arr||!arr.length) return;
+      const st=Math.min.apply(null, arr.filter(function(n){ return n.note!=null; }).map(function(n){ return n.start; }));
+      if(!isFinite(st)) return;
+      arr.push({bend:Math.max(0,Math.min(16383,bend)), start:Math.max(0,st-4), dur:0});
+    });
+  }
+}
+
 function buildMidi(){
   // 셀렉터 프리셋 반영 시 곡 길이를 프리셋에 맞춤 (명상 Hz만 — 러닝 BPM은 템포 재해석 충돌로 길이 어긋나므로 제외)
   var _durBak=state.midiDur;
@@ -31562,7 +32267,8 @@ function buildMidi(){
   function noteEvents(track, ch){
     ch=ch||0;
     let events=[];
-    track.forEach(n=>{ if(n.cc!=null){ events.push({t:n.start+PAD, type:'cc', cc:n.cc, val:n.val}); return; }
+    track.forEach(n=>{ if(n.bend!=null){ events.push({t:n.start+PAD, type:'bend', val:n.bend}); return; }
+                       if(n.cc!=null){ events.push({t:n.start+PAD, type:'cc', cc:n.cc, val:n.val}); return; }
                        events.push({t:n.start+PAD, type:'on', note:n.note, vel:n.vel});
                        events.push({t:n.start+n.dur+PAD, type:'off', note:n.note, vel:0}); });
     events.sort((a,b)=> a.t-b.t || (a.type==='off'?-1:1));
@@ -31570,7 +32276,8 @@ function buildMidi(){
     events.forEach(e=>{
       const delta=e.t-last; last=e.t;
       bytes=bytes.concat(writeVarLen(delta));
-      if(e.type==='cc') bytes.push(0xB0|ch, e.cc&0x7F, e.val&0x7F);
+      if(e.type==='bend') bytes.push(0xE0|ch, e.val&0x7F, (e.val>>7)&0x7F);
+      else if(e.type==='cc') bytes.push(0xB0|ch, e.cc&0x7F, e.val&0x7F);
       else bytes.push((e.type==='on'?0x90:0x80)|ch, e.note&0x7F, e.vel&0x7F);
     });
     bytes=bytes.concat(writeVarLen(0)); bytes.push(0xFF,0x2F,0x00);
@@ -31589,7 +32296,7 @@ function buildMidi(){
   function utf8Meta(type, txt){ const enc=unescape(encodeURIComponent(txt)); const b=[]; for(let i=0;i<enc.length;i++)b.push(enc.charCodeAt(i)&0xFF); return [0x00,0xFF,type].concat(writeVarLen(b.length)).concat(b); }
 
   // 악보 → 트랙 노트
-  const chordTrack=[], bassTrack=[], melTrack=[], soloTrack=[], bellTrack=[], tingTrack=[], hpTrack=[], singTrack=[];
+  const chordTrack=[], bassTrack=[], melTrack=[], soloTrack=[], bellTrack=[], tingTrack=[], hpTrack=[], singTrack=[], pulseTrack=[], cueTrack=[], arpTrack=[];
   // 명상용 미세 휴머나이즈: 사람이 연주하듯 타이밍·세기를 아주 조금 흔듦 (딱딱함 제거, 명상 흐름 유지)
   var _hseed=(state.take||0)*997+17;
   function _hrng(){ _hseed=(_hseed*1664525+1013904223)&0x7fffffff; return _hseed/0x7fffffff; }
@@ -31599,6 +32306,39 @@ function buildMidi(){
     cd.notes.forEach(nn=> chordTrack.push({note:nn, start:_hT(S(cd.t)), dur:S(cd.dur)-10, vel:_hV(cd.vel)})); });
   piece.ev.bass.forEach(b=> bassTrack.push({note:b.midi, start:_hT(S(b.t)), dur:S(b.dur)-10, vel:_hV(b.vel)}));
   piece.ev.melody.forEach(n=> melTrack.push({note:n.midi, start:_hT(S(n.t)), dur:Math.max(60,S(n.dur)), vel:_hV(n.vel)}));
+  /* 앰비언트 질감 — 호흡 주기 위에 얹는다(맥놀이·서스테인·팬·저역) */
+  try{
+    const _P=(typeof BREATH_SPEC!=='undefined'&&BREATH_SPEC[state.breath])||null;
+    let _bs=10;
+    try{ const _h=document.getElementById('breathHint');
+      const _m=_h&&/1호흡\s*(\d+)\s*초/.exec(_h.textContent||'');
+      if(_m) _bs=+_m[1]; }catch(e){}
+    ambientTexture({bass:bassTrack, chord:chordTrack, melody:melTrack}, _bs, PPQ, PAD);
+    /* 심박 · 구간 예고 · 튜닝 — 호흡 주기 위에 얹는 세 층 */
+    const _tot=Math.max.apply(null, [0].concat(
+      chordTrack.filter(n=>n.note!=null).map(n=>n.start+(n.dur||0))));
+    /* 구간 경계 — piece에 구간 정보가 없으면 화음이 바뀌는 자리를 쓴다.
+       화음 전환이 곧 호흡의 시작이므로 예고를 걸기에 가장 맞는 지점이다. */
+    let _secs=[];
+    try{
+      const _cs=(piece.sections||(piece.ev&&piece.ev.sections)||null);
+      if(_cs&&_cs.length) _secs=_cs.map(function(x){ return {t:(x.t!=null?x.t:x.start)||0}; });
+    }catch(e){}
+    if(!_secs.length){
+      const _on=[...new Set(chordTrack.filter(function(n){ return n.note!=null; })
+                   .map(function(n){ return Math.round(n.start/PPQ); }))].sort(function(a,b){ return a-b; });
+      /* 화음이 여러 번 바뀌므로 전부 예고하면 과하다 — 네 번에 한 번만 */
+      _secs=_on.filter(function(v,i){ return i>0 && i%4===0; }).map(function(v){ return {t:v}; });
+    }
+    const _T={bass:bassTrack, chord:chordTrack, melody:melTrack};
+    pulseCueTuning(_T, _bs, _tot, PPQ, PAD, _secs);
+    /* 앰비언트 아르페지오 — generatePiece가 만든 것을 그대로 옮긴다(재생과 완전 일치) */
+    (piece.ev.arp||[]).forEach(function(n){
+      arpTrack.push({note:n.midi, start:_hT(S(n.t)), dur:Math.max(60,S(n.dur)), vel:_hV(n.vel)});
+    });
+    if(_T.pulse) _T.pulse.forEach(function(n){ pulseTrack.push(n); });
+    if(_T.cue)   _T.cue.forEach(function(n){ cueTrack.push(n); });
+  }catch(e){}
   piece.ev.solo.forEach(n=> soloTrack.push({note:n.midi, start:_hT(S(n.t)), dur:Math.max(60,S(n.dur)), vel:_hV(n.vel), ph:n.ph, first:n.first, last:n.last}));
   piece.ev.bells.forEach(b=> bellTrack.push({note:b.midi, start:_hT(S(b.t)), dur:S(Math.min(b.decay,12)), vel:_hV(72)}));   // 4초로 자르면 '댕' 하고 툭 끊긴다 — 감쇠 시간을 그대로
   (piece.ev.bellsSing||[]).forEach(b=> singTrack.push({note:b.midi, start:S(b.t), dur:S(b.dur), vel:52}));
@@ -32015,7 +32755,7 @@ function buildMidi(){
     tracks.push(trackNameMeta(baseName).concat(utf8Meta(0x01,memo)).concat(setup).concat(noteEvents(noteArr,ch)));
   }
   // 단일 소스(midiTrackSpec)로 7개 트랙 생성 — buildSongSheet와 정의 공유
-  const _noteArrs={chord:chordTrack, bass:bassTrack, mel:melTrack, solo:soloTrack, bell:bellTrack, sing:singTrack, ting:tingTrack, hp:hpTrack};
+  const _noteArrs={chord:chordTrack, bass:bassTrack, mel:melTrack, solo:soloTrack, bell:bellTrack, sing:singTrack, ting:tingTrack, hp:hpTrack, pulse:pulseTrack, cue:cueTrack, arp:arpTrack};
   // Meditation Builder 페이드: 시작 3초 0→볼륨, 끝 10초 볼륨→0 (CC7). 호흡(CC11)과 별개 컨트롤러라 함께 적용됨.
   const FADE_IN=3, FADE_OUT=10, _L=piece.lengthSec;
   function addFades(noteArr, vol){
@@ -32382,6 +33122,99 @@ function buildSongSheet(prog){
   L.push('   직접 녹음·구입한 샘플을 Quick Sampler에 올려 쓰거나, 임시음을 그대로 두고 Release만 길게 하세요.');
   L.push('');
   L.push('');
+  L.push('■ 앰비언트 질감 — MIDI에 구워진 것   [읽기]');
+  L.push('   맥놀이 : 드론·화음에 아주 미세한 피치벤드가 들어 있습니다(3~4센트, 세 호흡에 한 번).');
+  L.push('            같은 음이 조금 어긋났다 맞았다 하며 느린 파동을 만듭니다 — 앰비언트의 핵심 질감입니다.');
+  L.push('            음원에서 피치벤드 범위를 ±2반음으로 두세요. 그보다 넓으면 흔들림이 과해집니다.');
+  L.push('            더 깊게 하려면 트랙을 복제하고 파인튠을 ±3센트 어긋나게 두세요.');
+  L.push('   여운   : 서스테인 페달을 쓰지 않습니다 — 페달을 떼는 순간 배음이 한꺼번에 사라져');
+  L.push('            소리가 뚝 끊기기 때문입니다. 맨 앞에서 한 번만 해제합니다(CC64=0).');
+  L.push('            대신 앞 화음의 꼬리가 다음 화음 위로 한 호흡의 1/5만큼 겹칩니다.');
+  L.push('            겹치는 동안 CC11이 내려가며 서서히 묻히므로 이음새가 들리지 않습니다.');
+  L.push('   부푸는 결: 화음·드론의 CC11은 한 걸음이 2를 넘지 않습니다(약 0.8dB).');
+  L.push('            들숨에 차오르고 날숨에 잦아드는 곡선이 계단 없이 이어집니다.');
+  L.push('            선율·포인트(싱잉볼·차임)는 타점 악기라 감쇠가 급합니다 — 그것이 어법입니다.');
+  L.push('   팬 흐름 : CC10이 네 호흡을 한 바퀴로 좌우를 아주 느리게 돕니다(64±22).');
+  L.push('            화음과 선율이 서로 엇갈리게 움직여 공간이 넓어집니다.');
+  L.push('   저역   : 드론 한 옥타브 아래가 아주 여리게 겹쳐 있습니다(세기 42%).');
+  L.push('            중역만 있으면 공간이 좁게 들립니다. 서브 대역이 부담되면 이 음만 지우세요.');
+  { const _P=(typeof PULSE_SPEC!=='undefined'&&PULSE_SPEC[state.pulse])||null;
+  L.push('   심박   : [심박] 토글을 켜면 30~45Hz의 아주 낮은 맥이 깔립니다.');
+  L.push('            귀보다 몸이 먼저 느끼는 층입니다.');
+  L.push('            안정 56 · 이완 64는 실제 심박에, 걷기 100 · 러닝 160은 발걸음에 맞춘 값입니다.');
+  L.push('            러닝 160은 앰비언트를 달리기·경보에 쓸 때의 케이던스입니다 —');
+  L.push('            화성은 그대로 떠 있고 몸이 따라갈 맥만 아래에 깔립니다.');
+  L.push('   밀도   : 맥이 빠를수록 성기게 짚습니다. 매 박마다 소리를 내면 앰비언트가 아니라 비트가 됩니다.');
+  L.push('            안정 56 → 2박에 1회(2.1초) · 이완 64 → 2박에 1회(1.9초)');
+  L.push('            걷기 100 → 3박에 1회(1.8초) · 러닝 160 → 4박에 1회(1.5초)');
+  L.push('            실제 간격이 1.5~2.1초로 모이므로 심박이 빨라도 귀에는 비슷한 밀도로 들립니다.');
+  L.push('            러닝은 발이 160으로 뛰는데 음악은 한 마디에 한 번만 짚어 느긋합니다.');
+  L.push('            한 호흡에 4~7회 — 있는 줄은 알겠는데 세고 싶지는 않은 밀도입니다.');
+  L.push('   리버브 : 어택 0ms가 맥을 만들고 리버브가 꼬리를 만듭니다.');
+  L.push('            완전히 드라이한 저역은 스피커에서 툭 튀어나와 신시사이저 티가 납니다.');
+  if(_P) L.push('            이번 설정: 잔향 '+_P.rev+'초 · 센드 '+_P.send+'% · 프리딜레이 0ms · 200Hz 위 자르기');
+  L.push('            잔향은 맥 간격의 70~80%입니다 — 다음 맥 직전에 잦아들어 끊기지도 겹치지도 않습니다.');
+  L.push('            이보다 길면 맥이 서너 개씩 겹쳐 웅웅거립니다.');
+  L.push('   강약   : 명상용(안정·이완)은 강약을 두지 않습니다 — 안정 30 · 이완 32로 균일합니다.');
+  L.push('            하나하나가 똑같이 와야 배경으로 가라앉습니다.');
+  L.push('            맥이 흔들리면 오히려 그 흔들림에 귀가 붙어 신경이 쓰입니다.');
+  L.push('            걷기 42/34 · 러닝 48/36은 강약을 남겼습니다 —');
+  L.push('            발이 짚어야 하므로 두 소리 결이 케이던스를 잡아 줍니다.');
+  L.push('   자동   : 러닝·걷기 호흡을 고르면 심박이 함께 켜집니다.');
+  L.push('            발이 따라갈 맥이 없으면 그 호흡을 쓸 수 없기 때문입니다.');
+  L.push('            이미 켜 두었으면 그 값을 그대로 씁니다(러닝 호흡에 걷기 케이던스도 가능).');
+  }
+  L.push('   구간예고: [구간 예고]를 켜면 다음 구간 4초 전부터 거꾸로 차오르는 음이 들어갑니다.');
+  L.push('            Space Designer에 리버스 IR을 걸고 드라이를 0%로 두세요.');
+  L.push('            원음이 들리면 예고가 아니라 소리가 됩니다.');
+  L.push('   튜닝   : [튜닝] A=432를 고르면 전 트랙에 -31.8센트 피치벤드가 상수로 걸립니다.');
+  L.push('            음원의 피치벤드 범위를 ±2반음으로 두어야 이 값이 정확히 맞습니다.');
+  { const _sp=(typeof ARP_SPEC!=='undefined')&&ARP_SPEC[state.aes];
+  if(_sp){
+  L.push('   아르페지오: [뮤트] Arp 트랙이 있습니다 — 이 미학의 악기는 '+_sp.name+'입니다.');
+  L.push('            미학마다 결이 다릅니다 — 미니멀·티베탄·사운드힐링은 성기게(1옥타브·3음),');
+  L.push('            인디언·발리는 촘촘하게(한 호흡에 두 번), 나머지는 그 사이입니다.');
+  L.push('            화음음을 하나씩 짚어 흐르는 층입니다. 선율이 아니라 화성을 펼치는 것이라');
+  L.push('            노래를 만들지 않고도 움직임이 생깁니다.');
+  L.push('            한 호흡 안에서 올라갔다 내려오는 곡선이라 들숨·날숨과 결이 맞습니다.');
+  L.push('            오르막이 차오르고 내리막이 잦아듭니다(벨로시티 30~44).');
+  L.push('            MIDI 트랙은 언제나 만들어지고 기본 뮤트(CC7=0)입니다 —');
+  L.push('            로직에서 볼륨만 올리면 살아납니다. 아니면 트랙째 지우세요.');
+  L.push('            앱에서 미리 들어 보려면 [레이어]의 [아르페지오]를 켜세요.');
+  L.push('            재생·WAV·MIDI가 완전히 같은 악보에서 나옵니다.');
+  L.push('            어택 또렷 · 릴리스 길게로 두세요.');
+  }
+  { const _r=state.rubato;
+    L.push('   루바토 : [루바토] 토글로 음 사이 간격의 자유로움을 고릅니다.');
+    L.push('            끔 = 등간격(기계적이지만 배경으로 가장 안전)');
+    L.push('            약 = 사람이 친 결만(간격 편차 5%) · 강 = 확실히 노래하는 결(11%)');
+    if(_r&&_r!=='off'){
+      L.push('            이번 곡: '+(_r==='soft'?'약':'강'));
+    }
+    L.push('            무작위가 아니라 음악적 이유를 따릅니다 —');
+    L.push('            올라갈수록 느려지고, 꼭대기에서 머물고, 내려오며 빨라지고,');
+    L.push('            마지막 음에서 한 번 더 머물러 프레이즈를 맺습니다.');
+    L.push('            한 호흡 안의 시작과 끝은 그대로라 들숨·날숨과 어긋나지 않습니다.');
+    L.push('            간격이 길어지면 음도 길게 울립니다 — 짧은 간격에 긴 음은 뭉개집니다.');
+    L.push('            로직에서 리퀀타이즈하면 이 결이 사라집니다.');
+  }
+  }
+  { const _b=(typeof BREATHS!=='undefined')&&BREATHS[state.breath==='auto'?PURPOSE_BREATH[state.purpose]:state.breath];
+    if(_b&&_b.run){
+      L.push('   러닝 호흡: 러닝 호흡은 초가 아니라 발걸음 수로 셉니다.');
+      L.push('            3:3 회복(6걸음) · 3:2 일반(5걸음) · 2:2 템포(4걸음) · 2:1 스퍼트(3걸음)');
+      L.push('            3:2를 권합니다 — 걸음 합이 홀수라 날숨이 매번 반대쪽 발에서 시작합니다.');
+      L.push('            날숨 끝은 횡격막이 이완돼 몸통이 가장 불안정한 순간이라,');
+      L.push('            그 자리가 양발에 번갈아 실려야 한쪽에 부담이 쌓이지 않습니다(옆구리 결림).');
+      L.push('            2:2처럼 짝수 합은 늘 같은 발에서 날숨이 시작됩니다.');
+      L.push('   케이던스: [심박] 토글이 케이던스를 정합니다 — 러닝 170 · 걷기 100.');
+      L.push('            케이던스를 바꾸면 호흡 주기가 자동으로 다시 계산되고 화음 길이도 함께 바뀝니다.');
+      L.push('            어느 조합이든 화음 하나가 정확히 네 호흡입니다.');
+      L.push('            로직에서 템포를 바꾸면 이 관계가 깨집니다 — 템포는 그대로 두세요.');
+    } }
+  L.push('   호흡   : 위 모두 호흡 주기 위에 얹혀 있습니다 — 새 주기를 만들지 않습니다.');
+  L.push('            화음 전환은 한 호흡과 같은 길이입니다. 호흡을 바꾸면 함께 바뀝니다.');
+  L.push('');
   L.push('■ ③ 공통 설정 · 센드 버스 만들기   [핵심 · STEP 3]');
   L.push('');
   try{ L.push(logicFxText()); }catch(e){ L.push('(이펙트 설정 생성 실패: 목적을 선택했는지 확인하세요)'); }
@@ -32598,6 +33431,52 @@ function setSpace(v){ _stopIfPlaying(); state.space=+v; document.getElementById(
 function setSpaceAuto(){ _stopIfPlaying(); state.space='auto'; document.getElementById('spaceAuto').classList.add('active'); updateSoundHint(); }
 function setBright(v){ _stopIfPlaying(); state.bright=+v; document.getElementById('brightAuto').classList.remove('active'); updateSoundHint(); }
 function setBrightAuto(){ _stopIfPlaying(); state.bright='auto'; document.getElementById('brightAuto').classList.add('active'); updateSoundHint(); }
+/* 심박 트랙 — 아주 낮은 맥이 몸에 닿는다.
+   귀로는 거의 안 들리는 30~45Hz 대역이라 '듣는다'기보다 '느낀다'에 가깝다.
+   수면·이완은 실제 안정 심박(56~64)에, 걷기·러닝은 케이던스(100·160)에 맞춘다.
+   러닝 케이던스 160은 앰비언트와도 잘 맞는다 — 발이 그 맥을 따라간다. */
+/* 심박 설계표 — bpm은 그 상태의 실제 맥, every는 몇 박에 한 번 소리를 낼지.
+   맥이 빠를수록 성기게 짚어야 한 호흡 안의 횟수가 비슷해진다.
+     안정 56 · 2박에 1회 → 2.1초 간격 (한 호흡 10초에 4.7회)
+     러닝 160 · 4박에 1회 → 1.5초 간격 (6.7회)
+   실제 간격이 1.5~2.1초로 모이므로 심박이 빨라도 귀에는 비슷한 밀도로 들리고,
+   각자의 케이던스 위에 정확히 얹힌다.
+   러닝은 발이 160으로 뛰는데 음악은 한 마디에 한 번만 짚어 느긋하다 — 앰비언트 러닝의 핵심이다.
+
+   vel은 [강, 약]. 성기게 짚을수록 하나하나가 사건이 되므로 강약 차이를 줄인다.
+   rev는 리버브 잔향 길이(초) — 간격의 70~80%로 두어 다음 맥 직전에 잦아든다.
+   send는 리버브 센드 양(%). */
+/* 루바토 폭 — 아르페지오의 음 사이 간격을 늘였다 줄인다.
+   끔은 등간격(기계적이지만 배경으로 가장 안전), 약은 사람이 친 결만,
+   강은 확실히 노래하는 결. 수면에는 약, 명상·감상에는 강이 어울린다. */
+const RUBATO_AMT={off:0, soft:0.15, strong:0.35};
+function setRubato(v){ _stopIfPlaying(); state.rubato=v;
+  document.querySelectorAll('#rubToggle .opt').forEach(e=>e.classList.toggle('active',e.dataset.rb===v));
+  if(typeof updateSoundHint==='function') updateSoundHint(); }
+const PULSE_SPEC={
+  /* 명상용(안정·이완)은 강약을 두지 않는다 — 하나하나가 똑같이 와야 배경으로 가라앉는다.
+     맥이 흔들리면 오히려 그 흔들림에 귀가 붙어 신경이 쓰인다.
+     걷기·러닝은 발이 짚어야 하므로 강약을 남긴다 — 두 소리 결이 케이던스를 잡아 준다. */
+  rest:{bpm:56,  every:2, vel:[30,30], rev:1.8, send:25},
+  calm:{bpm:64,  every:2, vel:[32,32], rev:1.4, send:22},
+  walk:{bpm:100, every:3, vel:[42,34], rev:1.2, send:18},
+  run: {bpm:160, every:4, vel:[48,36], rev:0.9, send:15}
+};
+const PULSE_BPM={rest:56, calm:64, walk:100, run:160};
+/* 러닝·걷기 호흡을 고르면 심박을 함께 켠다 — 발이 따라갈 맥이 없으면 그 호흡을 쓸 수 없다.
+   케이던스도 그 호흡에 맞춘다(러닝 170 · 걷기 100). */
+function autoPulseForBreath(bk){
+  if(!bk || bk.indexOf('run')!==0) return;
+  if(state.pulse==='off'){ setPulse('run'); }
+}
+function setPulse(v){ _stopIfPlaying(); state.pulse=v;
+  document.querySelectorAll('#pulseToggle .opt').forEach(e=>e.classList.toggle('active',e.dataset.pl===v));
+  if(typeof updateSoundHint==='function') updateSoundHint(); }
+/* 구간 예고 — 다음 구간이 오기 전에 거꾸로 차오르는 소리.
+   의식적으로 알아채지 못하지만 몸이 준비한다. 로직에서 리버스 리버브로 받는다. */
+function setCue(v){ _stopIfPlaying(); state.cue=v;
+  document.querySelectorAll('#cueToggle .opt').forEach(e=>e.classList.toggle('active',e.dataset.cu===v));
+  if(typeof updateSoundHint==='function') updateSoundHint(); }
 function setTuning(v){ _stopIfPlaying(); state.tuning=v; document.querySelectorAll('#tuneToggle .opt').forEach(e=>e.classList.toggle('active',+e.dataset.tn===v)); updateSoundHint(); }
 function setSolf(v){ _stopIfPlaying(); state.solfeggio=v; document.querySelectorAll('#solfToggle .opt').forEach(e=>e.classList.toggle('active',e.dataset.sf===v)); updateSoundHint(); }
 function toggleLayerP(k){ _stopIfPlaying(); state.layersOn[k]=!state.layersOn[k]; syncLayerChips(); updateSoundHint(); }
@@ -32680,11 +33559,34 @@ const B_RECIPES=[
  {name:'저녁 리셋 10분',purpose:'relax',aes:'zen',seq:[3,2,1,1,1,6],dur:10,feel:'퇴근 후 전환 의식 — 여백 많은 하강.'},
  {name:'요가 피크 세션',purpose:'flow',aes:'soundhealing',seq:[2,3,4,5,5,6],dur:20,feel:'만개를 길게 — 피크 자세 두 번 가는 클래스용.'},
  {name:'새벽 여명 드론',purpose:'morning',aes:'ambient',seq:[1,1,2,3,3,4],dur:15,feel:'아주 느린 상승 — 필드 레코딩(새소리) 얹기 좋은 베드.'},
- {name:'호흡 명상 10분',purpose:'meditation',aes:'zen',seq:[2,2,2,2,2,6],dur:10,feel:'정착 유지 — 호흡이 주인공, 음악은 바닥만.'}
+ {name:'호흡 명상 10분',purpose:'meditation',aes:'zen',seq:[2,2,2,2,2,6],dur:10,feel:'정착 유지 — 호흡이 주인공, 음악은 바닥만.'},
+ /* ── 러닝·걷기 ──
+    앰비언트 화성은 그대로 떠 있고 몸이 따라갈 맥만 아래에 깔린다.
+    호흡은 발걸음 수로 세고(3:2 등), 케이던스에서 초를 역산해 화음 주기와 맞물린다. */
+ {name:'🏃 러닝 이지 30분',purpose:'focus',aes:'ambient',seq:[1,2,2,3,3,2],dur:30,
+  breath:'run32',pulse:'run',rubato:'soft',arp:true,
+  feel:'3:2 호흡 · 케이던스 170 — 가장 권장되는 러닝 호흡. 날숨이 양발에 번갈아 실려 옆구리 결림이 줄어듭니다.'},
+ {name:'🏃 러닝 템포 20분',purpose:'focus',aes:'ambient',seq:[2,3,4,4,3,2],dur:20,
+  breath:'run22',pulse:'run',rubato:'off',arp:false,
+  feel:'2:2 호흡 · 템포주·인터벌용. 루바토를 끄고 맥을 또렷하게 — 페이스를 유지할 때.'},
+ {name:'🏃 회복주 40분',purpose:'relax',aes:'ambient',seq:[1,1,2,2,1,1],dur:40,
+  breath:'run33',pulse:'run',rubato:'strong',arp:true,
+  feel:'3:3 호흡 · 대화 가능한 페이스. 아르페지오가 자유롭게 흐르는 가장 느긋한 러닝 베드.'},
+ {name:'🚶 경보 걷기 25분',purpose:'flow',aes:'ambient',seq:[1,2,2,2,3,2],dur:25,
+  breath:'run32',pulse:'walk',rubato:'soft',arp:true,
+  feel:'3:2 호흡 · 케이던스 100 — 걷기 케이던스에 맞춰 호흡 주기가 자동으로 길어집니다.'}
 ];
 let _recipeDur=null; // null=조합 권장 시간
 function applyBRecipe(r){ if(typeof stopBGM==='function')stopBGM();
  state.purpose=r.purpose; state.aes=r.aes; state.stageSeq=r.seq?r.seq.slice():null;
+ /* 러닝 레시피는 호흡·심박·루바토·아르페지오까지 한 번에 맞춘다 —
+    이 넷이 서로 맞물려야 발걸음과 화음이 어긋나지 않는다. */
+ if(r.breath && typeof setBreath==='function') setBreath(r.breath);
+ if(r.pulse  && typeof setPulse==='function')  setPulse(r.pulse);
+ if(r.rubato && typeof setRubato==='function') setRubato(r.rubato);
+ if(r.arp!=null){ state.layersOn=state.layersOn||{}; state.layersOn.arp=!!r.arp;
+   document.querySelectorAll('#layerToggle .opt').forEach(function(e){
+     if(e.dataset.ly==='arp') e.classList.toggle('active', !!r.arp); }); }
  const _d=(_recipeDur===-1)?null:(_recipeDur||r.dur); if(_d&&typeof setDur==='function')setDur(_d); // -1=현재 시간 유지(분:초 직접 입력 보존)
  const lm=document.getElementById('loopMode'); if(lm)lm.checked=(_recipeLoop==null)?!!r.loop:_recipeLoop;
  showRandom=false; randomProgs=[]; randomMelodies=[];
@@ -32856,6 +33758,9 @@ try{window.setBreathInt=setBreathInt;}catch(e){}
 try{window.sumToggleBox=sumToggleBox;}catch(e){}
 try{window.sumPlayArc=sumPlayArc;}catch(e){}
 try{window.setTuning=setTuning;}catch(e){}
+try{window.setPulse=setPulse;}catch(e){}
+try{window.setRubato=setRubato;}catch(e){}
+try{window.setCue=setCue;}catch(e){}
 try{window.setScaleType=setScaleType;}catch(e){}
 try{window.setMode=setMode;}catch(e){}
 try{window.setMasking=setMasking;}catch(e){}
