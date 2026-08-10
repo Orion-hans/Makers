@@ -2262,30 +2262,7 @@ input[type=range]{accent-color:var(--teal)}
   </div>
   <div id="soundHint" class="play-hint" style="color:#8fd8c9;background:#0e2723">공간감·밝기: 자동(분위기 따라감). 레이어 끄면 재생·WAV·MIDI에서 함께 빠집니다.</div>
 
-  <div class="section-t">6. 재생 방식 (선택)</div>
-  <div class="toggle-row">
-    <span class="toggle-label">🔊 마스킹</span>
-    <div class="opts" id="maskToggle">
-      <span class="opt-g active" onclick="setMasking(false)" data-mk="off">미적용</span>
-      <span class="opt-g" onclick="setMasking(true)" data-mk="on">적용 (공간·스피커)</span>
-    </div>
-  </div>
-  <div id="maskHint" class="play-hint mask"></div>
-  <div class="toggle-row">
-    <span class="toggle-label">🎧 바이노럴</span>
-    <div class="opts" id="binToggle">
-      <span class="opt-g active" onclick="setBinaural('off')" data-bn="off">미적용</span>
-      <span class="opt-g" onclick="setBinaural('delta')" data-bn="delta">델타</span>
-      <span class="opt-g" onclick="setBinaural('theta')" data-bn="theta">세타</span>
-      <span class="opt-g" onclick="setBinaural('schumann')" data-bn="schumann">슈만 7.83</span>
-      <span class="opt-g" onclick="setBinaural('alpha')" data-bn="alpha">알파</span>
-      <span class="opt-g" onclick="setBinaural('beta')" data-bn="beta">베타</span>
-      <span class="opt-g" onclick="setBinaural('gamma')" data-bn="gamma">감마</span>
-    </div>
-  </div>
-  <div id="binHint" class="play-hint bin"></div>
-
-  <div class="section-t">7. MIDI·WAV 추출 설정</div>
+  <div class="section-t">6. MIDI·WAV 추출 설정</div>
   <div class="toggle-row">
     <span class="toggle-label">연주 시간</span>
     <div class="opts" id="durToggle">
@@ -31142,18 +31119,22 @@ function generatePiece(prog, capMin){
 /* 미학별 아르페지오 설정 — 그 미학의 악기로 화음을 편다.
    nOct: 몇 옥타브를 쓸지 · nUp: 한 번에 몇 음을 오를지 · perBreath: 한 호흡에 몇 번 도는지
    미학마다 결이 다르다 — 미니멀은 아주 성기게, 발리·인디언은 촘촘하게. */
+/* perBreath: 한 바퀴가 몇 호흡에 걸치는지. 1보다 크면 그만큼 느리게 흐른다.
+   한 호흡에 한 바퀴는 명상 음악에서 너무 빨랐다 — 세 호흡에 한 바퀴를 기본으로 둔다.
+   미학마다 결이 다르다: 미니멀·티베탄은 네 호흡에 한 바퀴로 가장 느리고,
+   인디언·발리는 한 호흡 반에 한 바퀴로 상대적으로 촘촘하다. */
 const ARP_SPEC={
-  ambient:     {gm:108, name:'Handpan / Kalimba',      nOct:2, nUp:5, perBreath:1},
-  minimal:     {gm:0,   name:'Felt Piano (희소하게)',   nOct:1, nUp:3, perBreath:1},
-  zen:         {gm:107, name:'Koto',                    nOct:2, nUp:4, perBreath:1},
-  neoclassical:{gm:0,   name:'Grand Piano',             nOct:2, nUp:5, perBreath:1},
-  natural:     {gm:108, name:'Kalimba',                 nOct:2, nUp:4, perBreath:1},
-  cinematic:   {gm:46,  name:'Harp',                    nOct:2, nUp:5, perBreath:1},
-  vintage:     {gm:4,   name:'Rhodes / Wurlitzer',      nOct:2, nUp:4, perBreath:1},
-  indian:      {gm:104, name:'Sitar / Santoor',         nOct:2, nUp:5, perBreath:2},
-  tibetan:     {gm:14,  name:'Tubular Bells (성기게)',   nOct:1, nUp:3, perBreath:1},
-  bali:        {gm:12,  name:'Gamelan Marimba',         nOct:2, nUp:5, perBreath:2},
-  soundhealing:{gm:14,  name:'Crystal Bowl Mallet',     nOct:1, nUp:3, perBreath:1}
+  ambient:     {gm:108, name:'Handpan / Kalimba',      nOct:2, nUp:5, perBreath:3},
+  minimal:     {gm:0,   name:'Felt Piano (희소하게)',   nOct:1, nUp:3, perBreath:4},
+  zen:         {gm:107, name:'Koto',                    nOct:2, nUp:4, perBreath:3},
+  neoclassical:{gm:0,   name:'Grand Piano',             nOct:2, nUp:5, perBreath:3},
+  natural:     {gm:108, name:'Kalimba',                 nOct:2, nUp:4, perBreath:3},
+  cinematic:   {gm:46,  name:'Harp',                    nOct:2, nUp:5, perBreath:3},
+  vintage:     {gm:4,   name:'Rhodes / Wurlitzer',      nOct:2, nUp:4, perBreath:3},
+  indian:      {gm:104, name:'Sitar / Santoor',         nOct:2, nUp:5, perBreath:1.5},
+  tibetan:     {gm:14,  name:'Tubular Bells (성기게)',   nOct:1, nUp:3, perBreath:4},
+  bali:        {gm:12,  name:'Gamelan Marimba',         nOct:2, nUp:5, perBreath:1.5},
+  soundhealing:{gm:14,  name:'Crystal Bowl Mallet',     nOct:1, nUp:3, perBreath:4}
 };
 function buildAmbientArp(ev, breath, lengthSec){
   const SP=ARP_SPEC[state.aes]; if(!SP) return [];
@@ -31197,8 +31178,9 @@ function buildAmbientArp(ev, breath, lengthSec){
       w.push(Math.max(0.45,x)); sum+=w[i];
     }
     /* 한 호흡에 몇 번 도는지 — 인디언·발리는 두 번 돌아 촘촘하다 */
+    /* perBreath가 3이면 한 바퀴가 세 호흡에 걸친다 — 나누는 게 아니라 곱한다 */
     const per=SP.perBreath||1;
-    const cyc=B/per;
+    const cyc=B*per;
     const nB=Math.max(1, Math.round(span/cyc));
     for(let r=0; r<nB; r++){
       const t0=cd.t + r*cyc;
@@ -31602,6 +31584,7 @@ function renderAes(){
   ).join('');
 }
 function pickAes(k){
+  if(typeof medStepTo==='function') medStepTo(99);   // 미학까지 고르면 나머지를 모두 연다
   state.aes = state.aes===k?null:k;
   // 멜로디 없는 에스테틱(앰비언트·티벳·사운드힐링)이면 멜로디 레이어 자동 OFF, 있으면 ON
   if(state.aes && LOGIC_INST[state.aes]){
@@ -31626,7 +31609,8 @@ function renderKeys(){
     `<span class="opt ${state.key===k?'active':''}" onclick="setKey('${k}')">${k}</span>`
   ).join('');
 }
-function pickPurpose(k){ stopBGM(); state.purpose = k; state.selProg=null; showRandom=false; randomProgs=[]; randomMelodies=[]; render(); if(typeof renderStageSeq==='function')renderStageSeq(); if(window.sumOpenSection)sumOpenSection(1); }
+function pickPurpose(k){
+  if(typeof medStepTo==='function') medStepTo(2); stopBGM(); state.purpose = k; state.selProg=null; showRandom=false; randomProgs=[]; randomMelodies=[]; render(); if(typeof renderStageSeq==='function')renderStageSeq(); if(window.sumOpenSection)sumOpenSection(1); }
 function updatePurposeHint(){
   const el=document.getElementById('purposeHint'); if(!el) return;
   if(!state.purpose){ el.textContent=''; return; }
@@ -33477,6 +33461,39 @@ function setPulse(v){ _stopIfPlaying(); state.pulse=v;
 function setCue(v){ _stopIfPlaying(); state.cue=v;
   document.querySelectorAll('#cueToggle .opt').forEach(e=>e.classList.toggle('active',e.dataset.cu===v));
   if(typeof updateSoundHint==='function') updateSoundHint(); }
+
+/* ── 단계별 열림 ──
+   처음 열면 [1. 목적 선택]만 보인다. 목적을 고르면 2단계가, 에스테틱을 고르면 3단계가 열린다.
+   토글이 열여덟 줄이라 한꺼번에 보이면 어디부터 손대야 할지 알기 어렵다 —
+   고른 만큼만 열어 순서를 눈으로 따라가게 한다.
+   한 번 열린 단계는 닫지 않는다. 되돌아가 고쳐도 아래가 사라지면 흐름이 끊긴다. */
+let _medStep = 1;
+function medStepBlocks(){
+  const wrap=document.querySelector('#app-med .wrap') || document.querySelector('.wrap');
+  if(!wrap) return [];
+  const kids=[...wrap.children];
+  const marks=[];
+  kids.forEach(function(e,i){ if(e.classList && e.classList.contains('section-t')) marks.push(i); });
+  const out=[];
+  marks.forEach(function(mi, k){
+    const end=(k+1<marks.length)? marks[k+1] : kids.length;
+    out.push(kids.slice(mi, end));
+  });
+  return out;
+}
+function applyMedStep(){
+  const B=medStepBlocks();
+  if(!B.length) return;
+  B.forEach(function(blk, i){
+    const show=(i < _medStep);
+    blk.forEach(function(e){ e.style.display = show ? '' : 'none'; });
+  });
+  /* 재생·추출 도크는 언제나 보인다 — 마지막 단계까지 가지 않아도 들어 볼 수 있어야 한다 */
+  const dk=document.getElementById('playDock'); if(dk) dk.style.display='';
+}
+function medStepTo(n){
+  if(n>_medStep){ _medStep=n; applyMedStep(); }
+}
 function setTuning(v){ _stopIfPlaying(); state.tuning=v; document.querySelectorAll('#tuneToggle .opt').forEach(e=>e.classList.toggle('active',+e.dataset.tn===v)); updateSoundHint(); }
 function setSolf(v){ _stopIfPlaying(); state.solfeggio=v; document.querySelectorAll('#solfToggle .opt').forEach(e=>e.classList.toggle('active',e.dataset.sf===v)); updateSoundHint(); }
 function toggleLayerP(k){ _stopIfPlaying(); state.layersOn[k]=!state.layersOn[k]; syncLayerChips(); updateSoundHint(); }
@@ -33540,6 +33557,7 @@ window.sumOpenSection=function(idx){
 
 render();
 renderStageSeq();
+try{ applyMedStep(); }catch(e){}
 /* ═══ 추천 조합 (한 번에 세팅) ═══ */
 const B_RECIPES=[
  {name:'깊은 밤 수면 드론',purpose:'sleep',aes:'ambient',seq:null,dur:20,loop:true,feel:'하강 드론 · 루프 ON — 침대 옆에서 밤새 돌려도 이음새 없음.'},
@@ -33760,6 +33778,8 @@ try{window.sumPlayArc=sumPlayArc;}catch(e){}
 try{window.setTuning=setTuning;}catch(e){}
 try{window.setPulse=setPulse;}catch(e){}
 try{window.setRubato=setRubato;}catch(e){}
+try{window.applyMedStep=applyMedStep;}catch(e){}
+try{window.medStepTo=medStepTo;}catch(e){}
 try{window.setCue=setCue;}catch(e){}
 try{window.setScaleType=setScaleType;}catch(e){}
 try{window.setMode=setMode;}catch(e){}
