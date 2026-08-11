@@ -2188,20 +2188,6 @@ input[type=range]{accent-color:var(--teal)}
 
   <div class="section-t">5. 사운드 엔진 (재생·WAV·MIDI 공통)</div>
   <div class="toggle-row">
-    <span class="toggle-label">공간감</span>
-    <div class="opts" style="flex:1;align-items:center;display:flex;gap:8px">
-      <input type="range" id="spaceSlider" min="0" max="100" value="55" style="flex:1;max-width:180px" oninput="setSpace(this.value)">
-      <span class="opt" id="spaceAuto" onclick="setSpaceAuto()">자동</span>
-    </div>
-  </div>
-  <div class="toggle-row">
-    <span class="toggle-label">밝기</span>
-    <div class="opts" style="flex:1;align-items:center;display:flex;gap:8px">
-      <input type="range" id="brightSlider" min="0" max="100" value="46" style="flex:1;max-width:180px" oninput="setBright(this.value)">
-      <span class="opt" id="brightAuto" onclick="setBrightAuto()">자동</span>
-    </div>
-  </div>
-  <div class="toggle-row">
     <span class="toggle-label">루바토</span>
     <div class="opts" id="rubToggle">
       <span class="opt active" onclick="setRubato('off')" data-rb="off">끔</span>
@@ -2231,16 +2217,6 @@ input[type=range]{accent-color:var(--teal)}
     <div class="opts" id="tuneToggle">
       <span class="opt active" onclick="setTuning(440)" data-tn="440">A=440</span>
       <span class="opt" onclick="setTuning(432)" data-tn="432">A=432</span>
-    </div>
-  </div>
-  <div class="toggle-row">
-    <span class="toggle-label">솔페지오</span>
-    <div class="opts" id="solfToggle">
-      <span class="opt active" onclick="setSolf('off')" data-sf="off">끔</span>
-      <span class="opt" onclick="setSolf('396')" data-sf="396">396</span>
-      <span class="opt" onclick="setSolf('528')" data-sf="528">528</span>
-      <span class="opt" onclick="setSolf('639')" data-sf="639">639</span>
-      <span class="opt" onclick="setSolf('852')" data-sf="852">852</span>
     </div>
   </div>
   <div class="toggle-row">
@@ -23957,14 +23933,23 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     if(!barOct || !barOct.length) return ev;
     if(gkey==='melody' || gkey==='counter') return ev;
     if(!octaveEditable(gkey)) return ev;       // 팀파니까지 포함 — 옥타브를 옮기면 실주법 음역을 벗어난다
+    /* 바닥은 편이 바뀌어도 그 자리에 있어야 한다.
+       편별 음역 이동은 그 위 성부가 하는 것이지 바닥이 따라 흔들리면 안 된다.
+       soloBassSpread 가 24~47 로 내려놓은 왼손을 여기서 다시 올리면
+       그 마디는 바닥이 사라져 붕 뜬다
+       (실측: lofi 라운지 마디4 가 43~47 로 내려간 뒤 55~59 로 되올라가
+        양손 갖춘 마디 판정에서 저역만 남은 마디로 잡혔다). */
+    const floorTop=(soloPiano||loungeMode)?47:36;
     const open={};
     ev.forEach(function(e){
       if(e.cc!=null || e.note==null || e.tick==null) return;
       if(e.on===1){
+        if(e.note<=floorTop){ (open[e.note]=open[e.note]||[]).push(e.note); return; }
         const bi=Math.floor((e.tick-padTick)/barLen);
         const o=barOct[bi]||0;
         let n=e.note+o;
-        while(n>96) n-=12; while(n<28) n+=12;
+        while(n>96) n-=12;
+        while(n<=floorTop) n+=12;              // 이동 결과가 바닥 음역으로 내려가도 안 된다
         (open[e.note]=open[e.note]||[]).push(n);
         e.note=n;
       } else if(e.on===0){
@@ -23985,26 +23970,35 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      · 세기는 오른손보다 여리게 — 받쳐 주는 층이지 앞에 나오는 층이 아니다 */
   function pianoLeftHand(ev, gkey, barRoot, barLen, padTick, tpq){
     if(gkey!=='piano' || !barRoot || !barRoot.length) return ev;
+    /* 마디 전체를 본다. 첫박 15% 구간만 보면 아르페지오나 신코페이션으로
+       시작하는 마디가 통째로 빠진다
+       (실측: quartal 라운지 69마디 · gugak 69마디 · gukvocal 88마디가
+        왼손 없이 고역만 남아 있었다).
+       왼손이 있는지도 60 미만이 아니라 실제 목표 음역으로 판정한다.
+       라운지의 왼손 자리는 24~47인데 60 미만으로 보면
+       48~59에 음 하나만 있어도 바닥이 있다고 세어 근음을 안 깐다. */
+    const deep=(soloPiano||loungeMode);
+    const lowLim=deep?24:36, hiLim=deep?47:59;
     const bars={};
     ev.forEach(function(e){
       if(e.cc!=null || e.note==null || e.on!==1) return;
       const bi=Math.floor((e.tick-padTick)/barLen);
-      const b=bars[bi]=bars[bi]||{low:false, firstTick:null, vel:0};
+      const b=bars[bi]=bars[bi]||{low:false, firstTick:null, vel:0, cnt:0};
       const inBar=e.tick-(padTick+bi*barLen);
+      b.cnt++;
+      if(e.note<=hiLim) b.low=true;                      // 목표 음역 안에 있으면 왼손이 있는 것
       if(inBar < tpq*0.15){
-        if(b.firstTick==null || e.tick<b.firstTick) b.firstTick=e.tick;
         if(e.vel>b.vel) b.vel=e.vel;
-        if(e.note<60) b.low=true;
       }
+      if(b.firstTick==null || e.tick<b.firstTick) b.firstTick=e.tick;
     });
     const add=[];
     Object.keys(bars).forEach(function(k){
       const bi=+k, b=bars[k];
       if(b.low || b.firstTick==null) return;             // 이미 왼손이 있으면 둔다
+      if(b.cnt<3) return;                                // 거의 빈 마디는 그대로 둔다 — 브레이크는 브레이크다
       const pc=barRoot[bi]; if(pc==null) return;
       let n=28+pc;                                        // 독주 편성은 더 아래에서 시작한다
-      const deep=(soloPiano||loungeMode);
-      const lowLim=deep?24:36, hiLim=deep?47:59;
       while(n<lowLim) n+=12; while(n>hiLim) n-=12;
       const t0=padTick+bi*barLen;
       add.push({tick:t0, on:1, note:n, vel:Math.max(28, Math.min(78, Math.round((b.vel||70)*0.72)))});
@@ -25462,7 +25456,10 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
          (실측: 반주 마디의 7.2%가 그랬다).
          그 음을 옥타브 올려 위쪽에서 울리게 한다 — 화음음은 그대로다. */
   const SEVENTHS=[10,11];
-  function seventhDiscipline(ev, gkey, barPcs, barRoot, barLen, padTick, tpq){
+  /* 선을 이끄는 트랙 — 반주가 아니라 선율 규칙을 받는다.
+     듀엣 여성 보컬(vocal2)은 노래인데도 반주 가지로 흘러 최저음 규칙을 받고 있었다. */
+  const MELODIC_KEY=new Set(['melody','counter','vocal','vocal2']);
+  function seventhDiscipline(ev, gkey, barPcs, barRoot, barLen, padTick, tpq, strict){
     if(!barPcs || !barPcs.length || !barRoot || !barRoot.length) return ev;
     if(!pitchEditable(gkey)) return ev;
     const open={}; const seq=[];
@@ -25474,62 +25471,168 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     });
     seq.sort(function(x,y){ return x.a-y.a; });
 
-    /* ① 선율: 7도를 한 박 넘게 끌지 않는다 */
-    if(gkey==='melody' || gkey==='counter'){
+    /* 뼈대음 = 근음, 단3도, 장3도, 완전5도.
+       감5도와 증5도는 뼈대음이 아니다. m7b5, 감7, 증3화음에서
+       그 음이 화음의 5도 자리라도 바닥이나 긴 음으로 나오면 부딪혀 들린다. */
+    const BASS_CORE=[0,3,4,7];
+    /* 화음 안에서 그 음에 가장 가까운 뼈대음을 찾는다.
+       화음에 3도도 5도도 없으면(콰탈, sus, 감, 증) 근음이 남는다. */
+    const nearCore=function(note, root, pcs){
+      let best=null, bd=999;
+      for(let k=0;k<BASS_CORE.length;k++){
+        const want=((((root+BASS_CORE[k])%12)+12)%12);
+        if(pcs && pcs.length && pcs.indexOf(want)<0) continue;
+        let m=note-((((note%12)+12)%12))+want;
+        while(m<note-6) m+=12;
+        while(m>note+6) m-=12;
+        const dd=Math.abs(m-note);
+        if(dd<bd){ bd=dd; best=m; }
+      }
+      if(best==null){
+        let m=note-((((note%12)+12)%12))+root;
+        while(m<note-6) m+=12;
+        while(m>note+6) m-=12;
+        best=m;
+      }
+      return best;
+    };
+
+    /* ① 선율: 뼈대음이 아닌 음은 스쳐 지나가야 한다.
+       6도, 7도, 9도, 11도, 13도, 감5도, 증5도가 마디 첫박에 앉거나
+       한 박을 넘겨 끌면 그 음이 화음의 성격보다 먼저 들린다.
+       없애지 않는다. 짧게 만들거나, 끊을 자리가 없을 때만 뼈대음으로 옮긴다.
+       한 박 이내로 지나가는 것은 그대로 둔다 — 그것이 색이다. */
+    if(MELODIC_KEY.has(gkey)){
       seq.forEach(function(n,ix){
         const bi=Math.floor((n.a-padTick)/barLen);
         const root=barRoot[bi], pcs=barPcs[bi];
         if(root==null || !pcs || !pcs.length) return;
         const iv=(((n.note-root)%12)+12)%12;
-        if(SEVENTHS.indexOf(iv)<0) return;
+        if(BASS_CORE.indexOf(iv)>=0) return;        // 뼈대음이면 길이와 자리를 묻지 않는다
         const dur=n.b-n.a;
         const off=((n.a-padTick)%barLen+barLen)%barLen;
         const onDown=(off < tpq*0.15);              // 마디 첫박
-        /* 첫박에 7음이 앉으면 그 마디가 7도로 시작해 화음의 성격이 흐려진다.
-           길이와 무관하게 내린다. 그 외에는 한 박 이내면 둔다. */
+        /* 첫박에 앉으면 그 마디가 그 음정으로 시작해 화음의 성격이 흐려진다.
+           길이와 무관하게 옮긴다. 그 외에는 한 박 이내면 둔다. */
         if(!onDown && dur<=tpq*1.0) return;
         /* 먼저 한 박으로 끊는다 — 다음 음까지 여유가 있으면 그대로 */
         const nxt=seq[ix+1];
         const cut=n.a+Math.round(tpq*1.0);
         if(!onDown && (!nxt || nxt.a>=cut)){ ev[n.off].tick=cut; return; }
-        /* 끊을 자리가 없으면 화음의 뼈대음으로 내린다 — 근음·3도·5도 중 가까운 것 */
-        const CORE=[0,3,4,7];
-        let best=null, bd=99;
-        for(let k=0;k<CORE.length;k++){
-          const want=(((root+CORE[k])%12)+12)%12;
-          if(pcs.indexOf(want)<0) continue;
-          let m=n.note-((((n.note%12)+12)%12))+want;
-          while(m<n.note-6) m+=12;
-          while(m>n.note+6) m-=12;
-          const dd=Math.abs(m-n.note);
-          if(dd<bd){ bd=dd; best=m; }
-        }
+        /* 끊을 자리가 없으면 뼈대음으로 옮긴다 */
+        const best=nearCore(n.note, root, pcs);
         if(best!=null){ ev[n.on].note=best; ev[n.off].note=best; }
       });
       return ev;
     }
 
-    /* ② 반주: 마디의 최저음이 7도이면 옥타브 올린다 */
+    /* ② 반주: 마디의 최저음은 화음의 뼈대음이어야 한다.
+       허용은 근음·단3도·장3도·완전5도 넷뿐이다.
+       6도·7도·9도·11도·13도·감5도·증5도가 바닥에 깔리면
+       그 음정이 화음의 성격보다 먼저 들리고 위 성부와 부딪혀 들린다.
+       그 음을 없애지 않는다 — 위로 올린다. 색은 위 성부에서 그대로 난다.
+
+       옥타브 이동은 음정 클래스를 바꾸지 않는다.
+       예전 규칙은 '최저음이 7도이면 그 마디의 7도를 전부 +12'였는데,
+       7도가 여러 옥타브로 쌓인 마디에서는 전체가 한 옥타브씩 올라갈 뿐
+       최저음은 계속 7도로 남았다
+       (실측: jazz 라운지 마디 23에서 [35,47,59,61,65] → [47,59,61,65,71] → [59,61,65,71,83],
+        두 번 불러도 최저음이 계속 단7도).
+       그래서 '허용음을 넘길 때까지' 올린다. 한 번에 확정된다.
+
+       strict=false 는 베이스를 맡지 않는 반주 트랙이다.
+       안쪽 성부까지 뼈대음으로 묶으면 화음이 뻣뻣해지므로 7도만 본다. */
+    const okIv=function(iv){ return strict ? (BASS_CORE.indexOf(iv)>=0) : (SEVENTHS.indexOf(iv)<0); };
     const bars={};
     seq.forEach(function(n){
       const bi=Math.floor((n.a-padTick)/barLen);
       (bars[bi]=bars[bi]||[]).push(n);
     });
+    /* 마디 전체가 금지음일 때 쓰는 대체음 — 반드시 원음보다 낮은 뼈대음을 고른다.
+       위로 올리면 같은 높이의 다른 금지음이 그대로 남아 다시 바닥이 된다
+       (실측: lofi 라운지 마디191에서 [64,64] 중 하나만 65로 올려 [64,65]가 되었고
+        바닥은 여전히 장7도였다). 아래로 내리면 그 음이 확실히 새 바닥이 된다. */
+    /* 저역 하한은 편성에 맞춘다. 라운지와 솔로 피아노의 왼손 자리는 24부터인데
+       (soloBassSpread 의 lowLim 과 같은 값) 여기만 28로 잡혀 있어
+       24~27 에 놓아야 할 대체음이 하한 밖으로 걸러지고, 그러면 위로 되올라가
+       원음보다 높아져 아예 적용되지 않았다
+       (실측: quartal 라운지 마디5 에서 근음 26 이 걸러져 38 이 나왔고,
+        38 은 원음 31 보다 높아 대체가 취소됐다). */
+    const coreFloor=(soloPiano||loungeMode)?24:28;
+    const coreBelow=function(note, root, pcs){
+      const cands=[];
+      for(let k=0;k<BASS_CORE.length;k++){
+        const want=((((root+BASS_CORE[k])%12)+12)%12);
+        if(pcs && pcs.length && pcs.indexOf(want)<0) continue;
+        cands.push(want);
+      }
+      if(!cands.length) cands.push(((root%12)+12)%12);   // 화음에 뼈대음이 없으면 근음
+      let best=null, bd=999;
+      /* ① 아래쪽에서 가장 가까운 뼈대음 — 내리면 그 음이 확실히 새 바닥이 된다 */
+      cands.forEach(function(want){
+        let m=note-((((note%12)+12)%12))+want;
+        while(m>note) m-=12;
+        if(m<coreFloor) return;
+        const dd=note-m;
+        if(dd<bd){ bd=dd; best=m; }
+      });
+      if(best!=null) return best;
+      /* ② 아래에 없으면 위쪽에서 가장 가까운 뼈대음.
+         저역 하한에 걸린 경우다. 그냥 두면 금지음이 바닥에 그대로 남는다
+         (실측: quartal 라운지에서 근음 후보가 하한 밖 22로만 나와
+          최저음 32가 단7도인 채 27건 남았다).
+         위로 가도 가장 가까운 뼈대음이므로 저역은 그대로 저역에 있다. */
+      bd=999;
+      cands.forEach(function(want){
+        let m=note-((((note%12)+12)%12))+want;
+        while(m<=note) m+=12;
+        const dd=m-note;
+        if(dd<bd){ bd=dd; best=m; }
+      });
+      return best!=null?best:note;
+    };
     Object.keys(bars).forEach(function(k){
-      const bi=+k, root=barRoot[bi];
+      const bi=+k, root=barRoot[bi], pcs=barPcs[bi];
       if(root==null) return;
       const L=bars[k];
       let lo=null;
       L.forEach(function(n){ if(lo==null || n.note<lo.note) lo=n; });
       if(!lo) return;
-      const iv=(((lo.note-root)%12)+12)%12;
-      if(SEVENTHS.indexOf(iv)<0) return;
-      /* 그 마디에서 7도인 음을 모두 한 옥타브 올린다 — 바닥이 3전위가 되지 않게 */
+      if(okIv((((lo.note-root)%12)+12)%12)) return;      // 바닥이 이미 뼈대음이면 둔다
+      /* 기준음 = 그 마디에서 허용되는 음 중 가장 낮은 것.
+         이 음보다 낮은 금지음을 전부 이 음 위로 올리면 바닥이 기준음이 된다. */
+      let ref=null;
       L.forEach(function(n){
-        const v=(((n.note-root)%12)+12)%12;
-        if(SEVENTHS.indexOf(v)<0) return;
-        if(n.note+12>96) return;
-        ev[n.on].note=n.note+12; ev[n.off].note=n.note+12; n.note+=12;
+        if(!okIv((((n.note-root)%12)+12)%12)) return;
+        if(ref==null || n.note<ref) ref=n.note;
+      });
+      /* 마디 전체가 금지음이거나, 허용음이 한 옥타브 넘게 위에 있을 때는
+         올리지 않고 바닥 하나만 바꾼다.
+         멀리 있는 허용음 위로 밀어 올리면 저역이 통째로 사라져 바닥이 붕 뜬다
+         (실측: quartal 라운지 마디5 는 허용음이 근음 하나뿐이고 그것이 74 에 있어
+          31·36·60 이 79·84·84 로 올라갔다. 왼손이 사라지고 최저음이 74 가 됐다). */
+      if(ref==null || ref-lo.note>12){
+        const m=coreBelow(lo.note, root, pcs);
+        ev[lo.on].note=m; ev[lo.off].note=m; lo.note=m;
+        /* 위쪽 뼈대음으로 바꿨다면 그보다 아래에 금지음이 남아 새 바닥이 될 수 있다.
+           남은 것만 그 위로 올린다. */
+        L.forEach(function(n){
+          if(n===lo || n.note>=m) return;
+          if(okIv((((n.note-root)%12)+12)%12)) return;
+          let q=n.note;
+          while(q<=m) q+=12;
+          if(q>96) q=m;
+          ev[n.on].note=q; ev[n.off].note=q; n.note=q;
+        });
+        return;
+      }
+      L.forEach(function(n){
+        if(n.note>=ref) return;
+        if(okIv((((n.note-root)%12)+12)%12)) return;
+        let m=n.note;
+        while(m<=ref) m+=12;                              // 기준음을 넘길 때까지 올린다
+        if(m>96) m=nearCore(n.note, root, pcs);           // 올릴 자리가 없으면 가까운 뼈대음으로
+        ev[n.on].note=m; ev[n.off].note=m; n.note=m;
       });
     });
     return ev;
@@ -26359,6 +26462,17 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ['bass','drums','strings','winds','brass','harp','choir'].forEach(function(k){ if(INST[k]) INST[k].on=false; });
       for(let _gi=groups.length-1;_gi>=0;_gi--){ const _k=groups[_gi].key; if(_k!=='piano' && !(_k==='melody'&&INST.melody.on)) groups.splice(_gi,1); }
     }   // 솔로: 피아노만 (선율악기 켜지면 그 악기+피아노반주=기악 독주)
+    /* 최저음 규칙은 그 편성에서 실제로 바닥을 맡는 트랙에만 건다.
+       베이스 트랙이 따로 있으면 피아노 왼손은 바닥이 아니므로 대상이 아니다
+       (재즈 쉘 보이싱처럼 왼손이 3도·7도를 짚는 어법이 정상이다).
+       베이스 트랙이 없는 편성(솔로 피아노·라운지·기악 독주곡)은 피아노가 곧 베이스다. */
+    const __isBassTrk=(function(){
+      const hasBass=groups.some(function(g){ return g.key==='bass' || g.key==='cbass'; });
+      return function(k){
+        if(k==='bass' || k==='cbass' || k==='sub') return true;
+        return (k==='piano' || k==='piano2') && !hasBass;
+      };
+    })();
     groups.forEach(grp=>{
       let ev=[], tick=PAD; let soloPrevV=null;   // 솔로 피아노 자리바꿈 연속용
       const secOcc=(function(){ const cnt={},o=[]; currentSong.forEach(function(s2){ const L=(s2.label||''); o.push(cnt[L]||0); cnt[L]=(cnt[L]||0)+1; }); return o; })(); // 같은 유형 섹션의 n번째 등장(벌스1·2·3…) — 구조 인식 필인 선택
@@ -27060,7 +27174,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          그래서 그 뒤에 건다. 여기가 음높이를 바꾸는 마지막 자리다. */
       ev=finalChordSnap(ev, grp.key, __barPcs, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       /* 7도는 색을 내는 음이지 머무는 음이 아니다 — 자리와 길이를 정리한다 */
-      ev=seventhDiscipline(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
+      ev=seventhDiscipline(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, TPQ, __isBassTrk(grp.key)); ev=coalesceNotes(ev);
       /* 노래가 있는 장르는 반주를 선율 아래로 — 위로 올라가면 노래가 묻힌다 */
       ev=accompBelowMelody(ev, grp.key, __melEv, TPQ); ev=coalesceNotes(ev);
       /* 반주 꼭대기는 화음 뼈대 중 선율과 다른 음으로 — 회피음이 앉지 않게 */
@@ -27070,6 +27184,11 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       /* 옥타브를 내리면서 서로 다른 음이 같은 음이 되어 쉼표를 삼킬 수 있다
          (실측: 과잉 연장 5건). 음역 규칙을 다시 태워 길이를 정리한다. */
       ev=famArticulate(grp.key, ev, grp.gm); ev=coalesceNotes(ev);
+      /* 7도 정리를 한 번 더 — 위 단계들(선율 아래로 접기·꼭대기 보이싱)이 음을 옮기면서
+         최저음이 다시 7도가 될 수 있다
+         (실측: 재즈 라운지에서 피아노 최저음 7도가 9%, 선율이 12% 남았다).
+         음높이를 바꾸는 마지막 자리에서 확정한다. */
+      ev=seventhDiscipline(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, TPQ, __isBassTrk(grp.key)); ev=coalesceNotes(ev);
       /* 4중주 성부 정리 — 위 성부가 완료된 뒤에 걸어야 비교 대상이 있다 */
       ev=quartetVoiceFix(ev, grp.key, TPQ, doneNotes);
       ev.sort((a,b)=>(a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on))); doneNotes[grp.key]={ch:grp.ch, iv:pairIv(ev)};
@@ -29129,7 +29248,32 @@ function applyPreset(solo){
       prodTracks = !soloPiano;   // 솔로 피아노면 패드·서브·라이저·가이드를 빼고 피아노만 남긴다
       if(currentSong && currentSong.length && typeof buildSong==='function'){ buildSong(); } }); }
   $('playSong').addEventListener('click',()=>playSong());
-  $('songMidi').addEventListener('click',downloadSongMIDI);
+  /* 긴 라운지(60분)는 MIDI를 만드는 데 몇 초가 걸린다 —
+     실측: 60분 12,178음에서 9.2초. 그동안 아무 표시가 없으면 멈춘 것으로 보인다.
+     버튼 글자를 바꿔 진행을 알린다. 브라우저가 화면을 그릴 틈을 주려고
+     한 프레임 뒤에 실제 작업을 시작한다. */
+  $('songMidi').addEventListener('click', function(){
+    const btn=$('songMidi'); if(!btn) { downloadSongMIDI(); return; }
+    const org=btn.textContent, msg=$('themeMsg');
+    const bars=(currentSong||[]).reduce(function(a,s2){ return a+((s2.prog&&s2.prog.steps)?s2.prog.steps.length*(s2.reps||1):0); },0);
+    const heavy=bars>=400;
+    if(heavy){
+      btn.textContent='MIDI 만드는 중…';
+      btn.disabled=true;
+      if(msg) msg.textContent='MIDI를 만들고 있습니다 — '+bars+'마디. 길이에 따라 몇 초 걸립니다.';
+    }
+    const run=function(){
+      try{ downloadSongMIDI(); }
+      finally{
+        if(heavy){
+          btn.textContent=org; btn.disabled=false;
+          if(msg) msg.textContent='MIDI 저장 완료 ✓  ·  '+bars+'마디';
+        }
+      }
+    };
+    if(heavy) requestAnimationFrame(function(){ setTimeout(run, 20); });
+    else run();
+  });
   { const sb=$('setupSheet'); if(sb) sb.addEventListener('click',downloadSetupSheet); }
 
   { const sm=$('skeletonMode'); if(sm) sm.addEventListener('change',e=>{ skeletonMode=e.target.checked;
@@ -33092,11 +33236,11 @@ function buildSongSheet(prog){
   L.push('');
   L.push('STEP 5 [선택] 더 얹으면 좋은 레이어 → 아래 ⑤');
   L.push('');
-  L.push('STEP 6 [선택] 구간(빌드업 단계)에 맞춰 밝기 오토메이션 → 아래 ⑥');
+  L.push('STEP 5 [선택] 구간(빌드업 단계)에 맞춰 밝기 오토메이션 → 아래 ⑤');
   L.push('');
   L.push('');
   L.push('');
-  L.push('■ ② 트랙별 셋업 — 이 파일에 든 트랙 전부   [핵심 · STEP 2]');
+  L.push('■ ① 트랙별 셋업 — 이 파일에 든 트랙 전부   [핵심 · STEP 1]');
   L.push('');
   trackSetupBlocks(piece, prog).forEach(function(x){ L.push(x); });
   L.push('◆ 전 트랙 공통 — 같은 음이 다시 울릴 때는 앞 음이 그 직전에 끝나도록 적어 두었습니다.');
@@ -33105,6 +33249,44 @@ function buildSongSheet(prog){
   L.push('◆ 싱잉볼·띵샤·핸드팬·탐푸라·가믈란은 로직 기본 음원에 없습니다.');
   L.push('   직접 녹음·구입한 샘플을 Quick Sampler에 올려 쓰거나, 임시음을 그대로 두고 Release만 길게 하세요.');
   L.push('');
+  L.push('');
+  L.push('■ ② 공통 설정 · 센드 버스 만들기   [핵심 · STEP 2]');
+  L.push('');
+  try{ L.push(logicFxText()); }catch(e){ L.push('(이펙트 설정 생성 실패: 목적을 선택했는지 확인하세요)'); }
+  L.push('');
+  L.push('');
+  L.push('■ ③ 마스터   [핵심 · STEP 3]');
+  L.push('· 마스터 버스: −14 LUFS 목표 / 트루피크 −1 dBTP 리미터');
+  L.push('· 멜로디·포인트는 여운형 — 음원 쪽 어택을 부드럽게, 릴리스를 길게 두세요');
+  L.push('');
+  L.push('');
+  L.push('■ ④ 더 얹으면 좋은 레이어   [선택 · STEP 4]');
+  L.push('.mid에는 없습니다. 필요하면 로직에서 트랙을 새로 만들어 얹으세요 — 안 해도 곡은 완성입니다.');
+  L.push('');
+  MIDI_GUIDE_TRACKS.forEach(function(g){ L.push('▸ '+g.short); });
+  L.push('');
+  L.push('');
+  L.push('■ ⑤ 구간(빌드업 단계) 지도 — 밝기 오토메이션용   [선택 · STEP 5]');
+  L.push('아래 시각은 로직 눈금 그대로입니다(앞 4마디 여백 포함, 60BPM = 1마디 4초).');
+  L.push('밝기를 움직이고 싶을 때만 이 경계에 맞춰 Chord 트랙의 Channel EQ 「High Cut」 또는');
+  L.push('음원 Cutoff를 오토메이션으로 그리세요. 안 그려도 곡은 그대로 재생됩니다.');
+  L.push('');
+  try{
+    const _sq=piece.stageSeq||[], _body=piece.loops*piece.chordNames.length*piece.chordDur;
+    const _mmss=function(sec){ const m=Math.floor(sec/60), q=Math.round(sec%60); return m+':'+(q<10?'0':'')+q; };
+    _sq.forEach(function(id,k){
+      const st=BUILD_STAGES[id]||BUILD_STAGES[2];
+      const t0=16+_body*k/_sq.length, t1=16+_body*(k+1)/_sq.length;   // 앞 여백 4마디=16초
+      L.push('   구간'+(k+1)+'/6  '+_mmss(t0)+' ~ '+_mmss(t1)+'   '+st.name+' — '+st.desc);
+    });
+    L.push('   (같은 이름이 이어지면 그 성격이 그대로 유지된다는 뜻입니다)');
+  }catch(e){}
+  L.push('');
+    L.push('');
+  L.push('════════════════════════════════════════════════════════════');
+  L.push('  아래는 참고 — 이 MIDI에 구워진 음악 규칙');
+  L.push('  로직 작업에 필요한 내용은 위쪽까지입니다.');
+  L.push('════════════════════════════════════════════════════════════');
   L.push('');
   L.push('■ 앰비언트 질감 — MIDI에 구워진 것   [읽기]');
   L.push('   맥놀이 : 드론·화음에 아주 미세한 피치벤드가 들어 있습니다(3~4센트, 세 호흡에 한 번).');
@@ -33199,39 +33381,7 @@ function buildSongSheet(prog){
   L.push('   호흡   : 위 모두 호흡 주기 위에 얹혀 있습니다 — 새 주기를 만들지 않습니다.');
   L.push('            화음 전환은 한 호흡과 같은 길이입니다. 호흡을 바꾸면 함께 바뀝니다.');
   L.push('');
-  L.push('■ ③ 공통 설정 · 센드 버스 만들기   [핵심 · STEP 3]');
-  L.push('');
-  try{ L.push(logicFxText()); }catch(e){ L.push('(이펙트 설정 생성 실패: 목적을 선택했는지 확인하세요)'); }
-  L.push('');
-  L.push('');
-  L.push('■ ④ 마스터   [핵심 · STEP 4]');
-  L.push('· 마스터 버스: −14 LUFS 목표 / 트루피크 −1 dBTP 리미터');
-  L.push('· 멜로디·포인트는 여운형 — 음원 쪽 어택을 부드럽게, 릴리스를 길게 두세요');
-  L.push('');
-  L.push('');
-  L.push('■ ⑤ 더 얹으면 좋은 레이어   [선택 · STEP 5]');
-  L.push('.mid에는 없습니다. 필요하면 로직에서 트랙을 새로 만들어 얹으세요 — 안 해도 곡은 완성입니다.');
-  L.push('');
-  MIDI_GUIDE_TRACKS.forEach(function(g){ L.push('▸ '+g.short); });
-  L.push('');
-  L.push('');
-  L.push('■ ⑥ 구간(빌드업 단계) 지도 — 밝기 오토메이션용   [선택 · STEP 6]');
-  L.push('아래 시각은 로직 눈금 그대로입니다(앞 4마디 여백 포함, 60BPM = 1마디 4초).');
-  L.push('밝기를 움직이고 싶을 때만 이 경계에 맞춰 Chord 트랙의 Channel EQ 「High Cut」 또는');
-  L.push('음원 Cutoff를 오토메이션으로 그리세요. 안 그려도 곡은 그대로 재생됩니다.');
-  L.push('');
-  try{
-    const _sq=piece.stageSeq||[], _body=piece.loops*piece.chordNames.length*piece.chordDur;
-    const _mmss=function(sec){ const m=Math.floor(sec/60), q=Math.round(sec%60); return m+':'+(q<10?'0':'')+q; };
-    _sq.forEach(function(id,k){
-      const st=BUILD_STAGES[id]||BUILD_STAGES[2];
-      const t0=16+_body*k/_sq.length, t1=16+_body*(k+1)/_sq.length;   // 앞 여백 4마디=16초
-      L.push('   구간'+(k+1)+'/6  '+_mmss(t0)+' ~ '+_mmss(t1)+'   '+st.name+' — '+st.desc);
-    });
-    L.push('   (같은 이름이 이어지면 그 성격이 그대로 유지된다는 뜻입니다)');
-  }catch(e){}
-  L.push('');
-  return L.join('\n');
+return L.join('\n');
 }
 
 
