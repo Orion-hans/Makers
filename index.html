@@ -10132,6 +10132,22 @@ function exportAll(){arrange();
         if(nx) put(en-0.5, WD.crash, 108, 1.0);
       });
       /* 악기별로 나눠 내보낸다 — 한 트랙에 섞이면 로직에서 샘플 교체가 어렵다 */
+      /* 보강 타악은 MODEL.tracks 밖에서 여기서 만들어진다.
+         그래서 compoundGridBand 의 셋잇단 정렬을 받지 못했다
+         (실측: Band/worship 6/8 중북 50% · Band/kband 6/8 중북 50%).
+         복합박이면 여기서 같은 격자로 맞춘다. 같은 자리로 모인 음은 하나만 남긴다. */
+      if(out.length && isCompoundMeterBand()){
+        const T6=1/6;
+        out.forEach(function(n){ if(n && n.t!=null) n.t=Math.round(n.t/T6)*T6; });
+        out.sort((a,b)=>a.t-b.t);
+        const seen6={};
+        for(let i=out.length-1;i>=0;i--){
+          const n=out[i]; if(!n) continue;
+          const key=(n.midi!=null?n.midi:'d')+'@'+n.t.toFixed(4);
+          if(seen6[key]){ out.splice(i,1); continue; }
+          seen6[key]=1;
+        }
+      }
       if(out.length){ out.sort((a,b)=>a.t-b.t);
         [{nm:'Orch Perc 1 — 대고(큰북) [41·43·35]', set:[41,43,35]},
          {nm:'Orch Perc 2 — 중북 [45·47·48]',       set:[45,47,48]},
@@ -21796,6 +21812,14 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     }
   }
   let scoreMode='theme';
+  /* ── 악보는 소리와 같은 데이터를 그린다 ──
+     예전에는 악보가 원본 선율을 그리고 MIDI는 buildSongMIDI의 관문을 거쳐
+     둘이 갈렸다. 규칙 하나(7도)만 악보 쪽에 복사해 막았는데,
+     그 뒤 선율 음높이를 바꾸는 관문이 다섯으로 늘어 다시 어긋났다
+     (실측: jazz 에서 같은 마디 같은 자리 15곳 중 8곳이 달랐고 최대 한 옥타브 차이였다).
+     규칙을 복사하는 방식은 관문이 늘 때마다 깨진다.
+     그래서 buildSongMIDI 가 만든 선율을 그대로 받아 그린다. */
+  let __scoreMelFromMidi=null;
   function collectSongMelody(){
     if(!currentSong||!currentSong.length) return [];
     const all=[], chords=[], secs=[]; let barOff=0; const savedTonic=tonic;
@@ -21816,6 +21840,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
          · 첫박에 7도·장7을 두지 않는다 — 화음의 뼈대음으로 내린다
          · 그 외 자리에서도 한 박을 넘게 끌지 않는다 */
     try{
+      if(__scoreMelFromMidi && __scoreMelFromMidi.length) throw 0;   // 확정본이 있으면 복사 규칙은 쓰지 않는다
       const SEV=[10,11], CORE=[0,3,4,7];
       const bq=meterQuarters();
       const savedT=tonic; let bo=0;
@@ -21861,7 +21886,16 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         });
       });
     }catch(e){}
-    all._chords=chords; all._sections=secs; return all;
+    /* 확정본이 있으면 그것으로 바꿔 그린다 — 쉼표 마디(인트로)는 그대로 두고
+       음이 있는 자리만 MIDI 가 만든 음으로 교체한다. */
+    let out=all;
+    if(__scoreMelFromMidi && __scoreMelFromMidi.length){
+      const rests=all.filter(function(x){ return x.midi==null; });
+      out=rests.concat(__scoreMelFromMidi.map(function(x){
+        return {bar:x.bar, pos:x.pos, midi:x.midi, dur:x.dur};
+      })).sort(function(a2,b2){ return (a2.bar-b2.bar)||(a2.pos-b2.pos); });
+    }
+    out._chords=chords; out._sections=secs; return out;
   }
   function exportScorePNG(){ const inner=$('scoreInner'); if(!inner){ return; }
     const svgs=[...inner.querySelectorAll('svg')]; if(!svgs.length){ if($('themeMsg'))$('themeMsg').textContent='악보를 먼저 표시하세요.'; return; }
@@ -21888,7 +21922,11 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     if(scoreMode==='full'&&!hasSong) scoreMode='theme';
     if(scoreMode==='theme'&&!hasTheme) scoreMode='full';
     let barChords=null, mel;
-    if(scoreMode==='full'){ mel=collectSongMelody(); barChords=mel._chords; }
+    if(scoreMode==='full'){
+      /* 악보는 소리와 같은 데이터를 그린다 — 확정본이 없으면 한 번 만들어 채운다.
+         라운지는 곡이 길어 만드는 데 시간이 걸리므로 자동으로 만들지 않는다. */
+      if(!__scoreMelFromMidi && !loungeMode){ try{ buildSongMIDI(); }catch(e){} }
+      mel=collectSongMelody(); barChords=mel._chords; }
     else { mel=themeMelody; barChords=themeSteps?themeSteps.map(st=>chordLabel(st[1],st[2],st[0])+bassSlashSemi(st[1],st[3])):null; }
     const tog='<div class="score-toggle">'+(hasTheme?'<button data-sm="theme" class="'+(scoreMode==='theme'?'on':'')+'">테마</button>':'')+(hasSong?'<button data-sm="full" class="'+(scoreMode==='full'?'on':'')+'">전체 곡</button>':'')+'<button data-img="1" class="score-img" style="margin-left:auto">🖼 이미지 저장</button></div>';
     el.innerHTML=tog+'<div id="scoreInner"></div>';
@@ -22005,6 +22043,22 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     const introSteps = buildIntroArc(A, introBars); // 기승전결 아치(마디 수와 무관하게 기→승→전→결)
     const intro={steps:introSteps, name:(introBars>=6?'전주 (기·승·전·결)':(LYRIC_G.has(gsel)?'도입 (으뜸 확립 → 유도)':A.name)), scale:A.scale};
     let outroSteps=A.steps.slice(); while(outroSteps.length<4) outroSteps=outroSteps.concat(A.steps); outroSteps=outroSteps.slice(0,4);
+    /* 종지 — 아웃트로가 진행 A 의 앞 네 마디를 그대로 쓰고 있어 으뜸화음으로 닫히지 않았다
+       (실측: jazz 아웃트로 화음 근음이 4, 9, 7 로 끝나 으뜸음 0 이 없었다).
+       마지막 마디는 으뜸화음, 그 앞은 딸림화음으로 닫는다.
+       화음은 그 장르가 실제로 쓰는 진행에서 골라 온다 —
+       새로 만들면 선법 장르에서 그 장르에 없는 화음이 들어간다
+       (도리안의 딸림은 단화음이고, 프리지안은 bII 가 정체성이다).
+       그 장르에 딸림화음이 없으면 하위딸림으로, 그것도 없으면 앞 마디를 그대로 둔다. */
+    outroSteps=(function(st){
+      const pool=[]; [A,B,C].forEach(function(pg){ if(pg&&pg.steps) pg.steps.forEach(function(s){ pool.push(s); }); });
+      const find=function(pc){ for(let i=0;i<pool.length;i++){ if(((((pool[i][1])%12)+12)%12)===pc) return pool[i].slice(); } return null; };
+      const T=find(0), D=find(7), S=find(5);
+      const out=st.map(function(s){ return s.slice(); });
+      if(T) out[out.length-1]=T.slice();
+      if(out.length>=2){ if(D) out[out.length-2]=D.slice(); else if(S) out[out.length-2]=S.slice(); }
+      return out;
+    })(outroSteps);
     const outro={steps:outroSteps, name:A.name, scale:A.scale}; // 아웃트로=4마디 + 엔딩 롤·페르마타
     const modShift = (modChoice==="auto") ? modPrefPick(false) : (parseInt(modChoice,10)||0); // 전조: 자동=장르 관례(MOD_PREF) / 사용자 선택 우선
     const noDrum=l=>l==='인트로'||l==='아웃트로'||l==='간주';
@@ -22329,8 +22383,32 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       let pool = ES.type==='hit' ? ['tutti','push','button','soloTail']
                : ES.type==='tail' ? ['fade','soloTail','tutti','push']
                : ['tutti','soloTail','fade'];
-      let pick=pool[Math.floor(Math.random()*pool.length)];
+      /* 마무리는 장르의 성격이 정한다. 난수로 뽑으면 같은 장르가 만들 때마다
+         다른 방식으로 끝나고, 그 장르에 맞지 않는 마무리가 걸린다.
+           push     끝까지 밀고 마침표 — 에너지 유지가 정체성인 장르
+           tutti    전원 합주로 닫음 — 후렴이 결론인 구조
+           fade     메아리처럼 잦아듦 — 결론을 내지 않고 여운을 남기는 결
+           soloTail 독주가 꼬리를 남김 — 즉흥이 중심인 장르의 관습
+           button   으뜸음 한 음으로 딱 — 종지가 형식의 일부인 장르 */
+      const END_BY_GENRE={
+        rock:'push', edm:'push', epicaeol:'push', hooksong:'push', global:'push', cineWar:'push',
+        pop:'tutti', citypop:'tutti', kids:'tutti', celtic:'tutti', folk:'tutti', shanty:'tutti',
+        marusa:'tutti', cineJoy:'tutti', cineSoar:'tutti', ballad:'tutti',
+        lofi:'fade', newage:'fade', lyric:'fade', lyricPenta:'fade', lyricMid:'fade', lyricMinyo:'fade',
+        joypiano:'fade', chanbul:'fade', quartal:'fade', phrygian:'fade', phrygdom:'fade',
+        cineSorrow:'fade', lydian:'fade', mixolydian:'fade', dorian:'fade',
+        jazz:'soloTail', blues:'soloTail', bossa:'soloTail', neosoul:'soloTail',
+        gypsy:'soloTail', tango:'soloTail', rumba:'soloTail', gukvocal:'soloTail', gugak:'soloTail',
+        classic:'button', cineSuite:'button', cineTension:'button',
+        doubleharm:'button', hungarian:'button'
+      };
+      let pick=END_BY_GENRE[gsel];
+      /* 장르 배정이 우선이다. pool 은 난수로 뽑던 시절의 후보 목록이라
+         배정된 마무리가 거기 없다고 되돌리면 배정이 무의미해진다
+         (예: classic 은 button 인데 roll 형태의 pool 에는 button 이 없다). */
+      if(!pick) pick=pool[0];                          // 배정이 없는 장르만 형태 기본값
       if(pick==='push' && !INST.drums.on) pick='tutti'; // 드럼 없으면 밀 수 없음
+      if(pick==='soloTail' && !INST.melody.on && !INST.strings.on && !INST.winds.on) pick='tutti'; // 꼬리를 남길 악기가 없으면
       currentSong.endingVar=pick;
       const leads=[]; if(INST.melody.on) leads.push(melVoiceOf()); if(INST.strings.on) leads.push('strings'); if(INST.winds.on) leads.push('winds'); if(INST.piano.on) leads.push('piano');
       const uniq=[...new Set(leads.length?leads:['piano'])];
@@ -22397,6 +22475,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     });
   }
   function buildSong(structKey){
+    __scoreMelFromMidi=null;               // 곡이 바뀌면 확정본을 버린다
     newMotif(); isThemeMode=false;
     const ps=G[gsel].progs.filter(p=>p.mode===keyMode);
     if(!ps.length){ currentSong=null; renderSong(); return; }
@@ -23466,7 +23545,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
   function markSong(){ const b=$('playSong'); if(b){ b.classList.toggle('on',!!songState); b.textContent=songState?'⏹ 정지':'▶ 곡 전체 재생'; b.setAttribute('aria-label',songState?'정지':'재생'); } const tb=$('themePlayBtn'); if(tb){ const on=!!songState; tb.classList.toggle('on',on); tb.textContent=on?'⏹':'▶'; tb.setAttribute('aria-label',on?'정지':'재생'); }
     const pp=$('pcPlay'); if(pp){ const on=!!songState; pp.classList.toggle('playing',on); pp.innerHTML='<span class="pc-dot"></span>'+(on?'정지':'전체 재생'); } }
   function ensureProgCopy(sec){ if(!sec.progEdited){ sec.prog={name:(sec.prog.name||'내 코드'),mode:sec.prog.mode||keyMode,steps:sec.prog.steps.map(function(x){return x.slice();})}; sec.progEdited=true; } }
-  function refreshSong(){ renderSong(); if($('scoreView')&&$('scoreView').style.display!=='none') renderScore(); if($('harmonyPanel')&&$('harmonyPanel').style.display!=='none') renderHarmony(); if(typeof songState!=='undefined'&&songState){ stopSong(); playSong(); } }
+  function refreshSong(){ __scoreMelFromMidi=null; renderSong(); if($('scoreView')&&$('scoreView').style.display!=='none') renderScore(); if($('harmonyPanel')&&$('harmonyPanel').style.display!=='none') renderHarmony(); if(typeof songState!=='undefined'&&songState){ stopSong(); playSong(); } }
   // 인라인 코드 편집 패널 — prompt는 iframe·미리보기에서 차단되므로 자체 UI 사용
   let chEditEl=null;
   function closeChordEditor(){ if(chEditEl){ chEditEl.remove(); chEditEl=null; document.removeEventListener('pointerdown',chEditOutside,true); } }
@@ -25153,6 +25232,9 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
 
      화음음은 바꾸지 않는다 — 선율 아래로 옥타브만 내린다. */
   const COMP_SPLIT=new Set(['jazz','neosoul','bossa','blues','lofi','citypop']);
+  /* 선율과의 반음 충돌을 정리할 층 — 화음을 짚는 반주 전부.
+     대선율은 스스로 선을 그리는 층이라 뺀다. 타악은 음높이가 아니라 악기 번호다. */
+  const CLASHFIX_KEY=['piano','piano2','harp','pad','strings','winds','brass','organ','guitar'];
   function compingSplit(ev, gkey, melLo, tpq){
     if(gkey!=='piano' && gkey!=='piano2') return ev;
     if(!COMP_SPLIT.has(gsel)) return ev;
@@ -25181,8 +25263,13 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      그 마디 화음의 다른 구성음으로 옮기고, 옮길 자리가 없으면 그 음만 뺀다.
      화음의 뼈대(근음·3도·7도)는 건드리지 않는다. */
   function compingClashFix(ev, gkey, melNotes, barPcs, barLen, padTick, tpq){
-    if(gkey!=='piano' && gkey!=='piano2') return ev;
-    if(!COMP_SPLIT.has(gsel)) return ev;
+    /* 반음 충돌은 악기를 가리지 않는다. 피아노만 정리하고 있어
+       하프·패드·현이 선율과 반음으로 부딪히는 것이 그대로 남았다
+       (실측: 벌스 충돌 138건 중 트랙 사이가 102건이고
+        상위 조합이 보컬과 패드 14 · 현과 하프 11 · 하프와 패드 8 · 하프와 피아노 8 이었다).
+       화음을 짚는 층은 모두 대상으로 삼는다.
+       장르 제한도 뺀다 — 충돌은 장르를 가리지 않는다. */
+    if(CLASHFIX_KEY.indexOf(gkey)<0) return ev;
     if(!melNotes || !melNotes.length) return ev;
     /* 시각순 선율 — 포인터로 훑는다 */
     const M=melNotes.slice().sort(function(a,b){ return a.a-b.a; });
@@ -25697,11 +25784,15 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
        · 교회 선법·명상 월드 — 11도·♭13이 선법의 정체성이라 회피하면 색이 사라진다 */
   const SING_G=new Set(['pop','ballad','citypop','kids','chanbul','epicaeol','gukvocal','rock','folk','shanty',
                         'classic','celtic','gypsy','tango','rumba','edm','gugak','quartal']);
+  const ACCOMP_BELOW_KEY=['piano','piano2','harp','pad','strings','organ','guitar'];
   function accompBelowMelody(ev, gkey, melEv, tpq){
     if(!SING_G.has(gsel)) return ev;
-    /* 현은 선율 위에서 얇게 깔리는 층으로 쓰이는 일이 많다(하이 스트링) —
-       무조건 내리면 그 결이 사라지므로 건반·발현만 대상으로 둔다. */
-    if(gkey!=='piano' && gkey!=='piano2' && gkey!=='harp') return ev;
+    /* 노래가 있는 장르에서는 선율이 맨 위여야 한다.
+       건반과 발현만 내리고 있어 화음을 통째로 짚는 패드와 현이 선율 위에 그대로 있었다
+       (실측: 선율이 반주 꼭대기보다 아래인 비율이 pop 89% · gukvocal 94% · citypop 86%).
+       현은 선율 위에서 얇게 깔리는 결도 있지만, 그것은 대선율이 맡는 층이다.
+       화음을 짚는 층은 선율 아래로 둔다. */
+    if(ACCOMP_BELOW_KEY.indexOf(gkey)<0) return ev;
     if(!melEv || !melEv.length) return ev;
     const M=melEv.slice().sort(function(a,b){ return a.a-b.a; });
     let mi=0; const live=[];
@@ -26516,7 +26607,12 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
 
             if(melVoiceOf()==='piano' && pedalOn){ // 피아노 선율도 서스테인 페달(마디마다 교체 — 울림은 살고 화성은 안 섞임)
               pushPedal(ev, T, st, measure, T===PAD); }
-            const themeHold = songTheme && INST.piano.on && ['아웃트로','간주'].indexOf(sec.label)>=0; // 테마만 남는 구간(아웃트로·간주 브레이크) → 멜로디 쉼
+            /* 간주는 브레이크라 선율을 쉬는 것이 맞다. 아웃트로는 다르다.
+               곡의 마무리인데 선율이 통째로 빠지면 노래가 코러스 끝에서 뚝 끊기고
+               반주만 몇 마디 흐르다 멈춘다 — 뜬금없이 끝나는 소리가 된다
+               (실측: 전 장르 아웃트로 구간의 선율 음이 0개였다).
+               아웃트로는 선율을 남긴다. */
+            const themeHold = songTheme && INST.piano.on && sec.label==='간주';
             const dPart = duetOn ? (duetMap[secIdx]==='alt' ? (((r*nsteps.length+si) < (nsteps.length*sec.reps)/2)?'m':'f') : duetMap[secIdx]) : 'both'; // 벌스 앞 절반=남, 뒤 절반=여
             const duetSkip = duetOn && (dPart==='f'); // 듀엣: 여성 파트 구간은 남성(ch5) 쉼
             if((sec.label!=='인트로' || compStyle!=='auto' || sec.introMelOn) && !themeHold && !duetSkip){
@@ -27193,7 +27289,12 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ev=quartetVoiceFix(ev, grp.key, TPQ, doneNotes);
       ev.sort((a,b)=>(a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on))); doneNotes[grp.key]={ch:grp.ch, iv:pairIv(ev)};
       /* 선율이 끝나면 컴핑이 피할 수 있게 그 음들을 모아 둔다 */
-      if(grp.key==='melody'){ __melEv=pairIv(ev).map(function(x){ return {a:x.on, b:x.off, n:x.note}; }); } // 교차 트랙 반음 정리 + 완료 트랙 등록
+      if(grp.key==='melody'){ __melEv=pairIv(ev).map(function(x){ return {a:x.on, b:x.off, n:x.note}; });
+        /* 악보가 그릴 선율 — 관문을 모두 거친 확정본이다 */
+        try{ __scoreMelFromMidi=pairIv(ev).map(function(x){
+          const bi=Math.floor((x.on-PAD)/__barLen);
+          return {bar:bi, pos:(x.on-PAD-bi*__barLen)/TPQ, midi:x.note, dur:Math.max(0.05,(x.off-x.on)/TPQ)};
+        }); }catch(e){ __scoreMelFromMidi=null; } } // 교차 트랙 반음 정리 + 완료 트랙 등록
       let bytes=[];
       const __melMuted=(grp.key==='melody' && window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length && (!window.SO_HUB.melSrc||window.SO_HUB.melSrc.play!=='own'));   // 가져온 멜로디 선택 시 자체 멜로디 뮤트
       /* 현악 4중주는 성부 이름이 곧 악기 이름이다 — 로직에서 그 이름으로 음원을 찾을 수 있게 한다 */
