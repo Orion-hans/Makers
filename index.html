@@ -25669,8 +25669,117 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      선율은 맨 위에 그대로 두고, 채우는 음은 반드시 선율보다 낮게 둔다 — 묻히면 안 된다.
      newage 는 여백이 어법이므로 넣지 않는다. */
   const SOLO_RICH=new Set(['lyric','lyricPenta','lyricMid','lyricMinyo','joypiano']);
+  /* ── 피아노 반주 가볍게 ──
+     실측: 일반 모드 피아노가 C3~C5 가운데에 96~100% 몰려 있었다
+     (ballad 99% · citypop 100% · lofi 100% · pop 98% · jazz 96%).
+     저역도 고역도 거의 0이고 왼손 옥타브 벌림이 0~6%, 16분이 2~10% 였다.
+     가운데가 차면 무겁게 들린다. 저역 옥타브와 고역 아르페지오로 나누고
+     가운데를 비운다.
+     newage 는 여백이 어법이라 제외한다.
+     classic·cineSuite 계열은 이미 고역 29% 로 벌어져 있고 양식이 있으므로 제외한다. */
+  const AIRY_PIANO=new Set(['ballad','pop','citypop','kids','lofi','neosoul','jazz','bossa',
+    'blues','rumba','tango','gypsy','celtic','folk','shanty','gukvocal','rock','hooksong',
+    'marusa','chanbul','worship','epicaeol']);
+  /* 밀도 1 은 아르페지오가 안 들어가 왼손 옥타브만 남는다.
+     실측에서 벌스가 마디당 자리 두세 곳뿐이라 밋밋했다.
+     벌스도 8분 아르페지오는 흐르게 하고, 진짜 성긴 자리는 인트로와 아웃트로만 둔다. */
+  const AIRY_DENS={'벌스':2,'프리코러스':3,'코러스':3,'하이라이트':4,'코러스변주':3,
+                   '브릿지':2,'간주':2,'솔로':2,'아웃트로':1,'인트로':1};
   const RICH_DENS={'벌스':0,'프리코러스':1,'코러스':2,'하이라이트':3,'코러스변주':2,
                    '브릿지':1,'간주':1,'솔로':1,'아웃트로':0,'인트로':0};
+  function airyPiano(ev, gkey, barPcs, barRoot, barLab, melEv, barLen, padTick, tpq){
+    if(gkey!=='piano' || !AIRY_PIANO.has(gsel)) return ev;
+    if(!barLab || !barLab.length || !barRoot) return ev;
+    /* 그 마디에서 선율이 짚는 가장 낮은 음 — 아르페지오 천장을 정한다 */
+    const melLoAt=function(t0,t1){
+      let lo=null;
+      for(let i=0;i<melEv.length;i++){ const m=melEv[i];
+        if(m.b<=t0 || m.a>=t1) continue;
+        if(lo==null || m.n<lo) lo=m.n; }
+      return lo;
+    };
+    /* ① 가운데 비우기 — C3(48)~C5(72) 사이의 기존 음을 아래위로 나눈다.
+       근음·5도는 저역으로 내리고 나머지는 고역으로 올린다. 가운데를 남기지 않는다. */
+    const MIDLO=48, MIDHI=72;
+    const open={};
+    ev.forEach(function(e){
+      if(e.cc!=null || e.note==null || e.tick==null) return;
+      if(e.on===1){
+        const bi=Math.floor((e.tick-padTick)/barLen);
+        const root=barRoot[bi];
+        let m=e.note;
+        if(root!=null && m>MIDLO && m<MIDHI){
+          const iv=(((m-root)%12)+12)%12;
+          if(iv===0 || iv===7){ while(m>=MIDLO) m-=12; if(m<28) m+=12; }   // 뼈대는 아래로
+          else { while(m<=MIDHI) m+=12; if(m>96) m-=12; }                   // 색은 위로
+        }
+        (open[e.note]=open[e.note]||[]).push(m);
+        e.note=m;
+      } else if(e.on===0){ const q=open[e.note]; if(q&&q.length) e.note=q.shift(); }
+    });
+    /* ② 왼손 근음 옥타브 + ③ 고역 16분 아르페지오 */
+    const add=[];
+    for(let bi=0; bi<barLab.length; bi++){
+      const L=barLab[bi], d=AIRY_DENS[L.lab]||1;
+      const root=barRoot[bi], pcs=barPcs[bi];
+      if(root==null || !pcs || !pcs.length) continue;
+      const t0=padTick+bi*barLen, t1=t0+barLen;
+      /* 왼손 — 근음과 한 옥타브 위. 그 사이는 비운다 */
+      let lb=24+(((root%12)+12)%12); while(lb<28) lb+=12; while(lb>43) lb-=12;
+      const beats=(d>=3)?4:2, bs=barLen/beats;
+      /* 왼손 자리를 비운다 — 근음과 그 옥타브 위 사이에 다른 음이 끼면
+         '최저음과 그 위 음의 간격'이 옥타브가 되지 않는다.
+         노트온만 옮기면 노트오프가 남아 짝이 깨지므로 짝을 함께 옮긴다.
+         이 루프는 왼손을 놓기 전에 돌아야 한다 — 뒤에 돌면 방금 놓은 lb+12 까지 올린다. */
+      (function(){
+        const mv={};
+        ev.forEach(function(e){
+          if(e.cc!=null || e.note==null) return;
+          if(e.tick<t0 || e.tick>=t1) return;
+          if(e.on===1){
+            if(e.note>lb && e.note<lb+12){ let m=e.note; while(m<=MIDHI) m+=12;
+              if(m<=96){ (mv[e.note]=mv[e.note]||[]).push(m); e.note=m; } }
+          } else if(e.on===0){ const q=mv[e.note]; if(q&&q.length) e.note=q.shift(); }
+        });
+      })();
+      for(let s=0;s<beats;s++){
+        const tk=Math.round(t0+s*bs);
+        add.push([tk,lb,s===0?76:64]);
+        add.push([tk,lb+12,s===0?62:52]);
+      }
+      /* 오른손 — C5 위에서 16분을 하나씩 흩는다. 9도·13도로 색을 낸다 */
+      if(d>=2){
+        const mlo=melLoAt(t0,t1);
+        const ceil=(mlo!=null?Math.min(94,mlo-2):90);
+        const col=pcs.slice();
+        [2,9].forEach(function(iv){ const pc=(((root+iv)%12)+12)%12; if(col.indexOf(pc)<0) col.push(pc); });
+        col.sort(function(a,b2){ return a-b2; });
+        const lad=[];
+        for(let oc=0;oc<3;oc++) col.forEach(function(pc){
+          let m=72+pc; while(m<72) m+=12; m+=oc*12;
+          if(m>72 && m<=ceil && lad.indexOf(m)<0) lad.push(m); });
+        lad.sort(function(a,b2){ return a-b2; });
+        if(lad.length>=3){
+          const slots=(d>=3)?16:8;
+          const step=barLen/slots;
+          for(let s=0;s<slots;s++){
+            let m=lad[s%lad.length];
+            add.push([Math.round(t0+s*step), m, 54+(s%4===0?12:0)]);
+            if(d>=4){ const m2=m-12; if(m2>72) add.push([Math.round(t0+s*step), m2, 44]); }
+          }
+        }
+      }
+    }
+    if(add.length){
+      const dur=Math.max(20, Math.round(tpq/8));
+      add.forEach(function(x){
+        ev.push({tick:x[0], on:1, note:x[1], vel:Math.max(30,Math.min(110,x[2]))});
+        ev.push({tick:x[0]+dur, on:0, note:x[1]});
+      });
+      ev.sort(function(a,b2){ return (a.tick-b2.tick)||((a.on?1:0)-(b2.on?1:0)); });
+    }
+    return ev;
+  }
   function soloPianoRich(ev, gkey, barPcs, barRoot, barLab, melEv, barLen, padTick, tpq){
     if(gkey!=='piano' || !SOLO_RICH.has(gsel)) return ev;
     if(!barLab || !barLab.length) return ev;
@@ -27422,6 +27531,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ev=compingSplit(ev, grp.key, __melLo, TPQ);
       ev=swingBassFill(ev, grp.key, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       ev=soloPianoRich(ev, grp.key, __barPcs, __barRoot, __barLab, __melEv, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
+      ev=airyPiano(ev, grp.key, __barPcs, __barRoot, __barLab, __melEv, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       ev=harmGate(ev, grp.key, __barPcs, __barLen, PAD); ev=coalesceNotes(ev);
       /* 병행 보이싱은 음역 조정과 화음음 관문이 끝난 뒤에 건다.
          앞에 두면 뒤 단계가 음을 다시 옮겨 벌려 놓은 간격이 도로 좁아진다
