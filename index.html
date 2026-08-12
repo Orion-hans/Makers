@@ -23974,6 +23974,61 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      트랙이 완성된 뒤 한 곳에서, 그 시점 화음이 정한 음만 남긴다.
      실측: 이 관문 이전 반주 음의 18%가 9·11·13이었다(재즈는 27%).
      선율·대선율은 대상이 아니다 — 텐션의 색은 거기서 나와야 한다. */
+  /* ── 구간 이음 관문 ──────────────────────────────────────────
+     인트로가 끝나고 다음 구간이 시작할 때 두 가지만 손본다. 경계 앞 한 마디 안에서만 움직인다.
+
+     ① 구멍 메움  경계 앞 마지막 음이 끝나고 경계까지 0.25박 이상 비면 그 음을 경계까지 늘린다
+                 (실측: folk·shanty 가 1.35박, cineWar 가 0.39박 비어 있었다).
+     ② 화성 앵커  경계 앞 마디가 다음 화음과 음 하나도 공유하지 않으면
+                 그 마디 마지막 음을 다음 화음의 음으로 ±2반음 안에서 당겨 준다
+                 (실측: 일반 42장르 중 18장르가 공통음 0이었다).
+
+     노트온과 노트오프는 반드시 짝으로 옮긴다. 온만 건드리면 뒤의 selfDeclash 가 터진다. */
+  function seamGate(ev, gkey, barPcs, secTicks, barLen, padTick, tpq){
+    if(!secTicks || secTicks.length<2) return ev;
+    if(!pitchEditable(gkey)) return ev;          // 드럼맵·효과음은 숫자가 악기 번호다
+    const open={}, pairs=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null || e.tick==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push(i); }
+      else if(e.on===0){
+        const q=open[e.note]; if(!q||!q.length) return;
+        const oi=q.shift();
+        pairs.push({oi:oi, fi:i, tick:ev[oi].tick, off:e.tick, note:e.note});
+      }
+    });
+    if(!pairs.length) return ev;
+    const GAP=tpq*0.25;
+    for(let k=1;k<secTicks.length;k++){
+      const T=secTicks[k];
+      const pre=pairs.filter(function(x){ return x.tick>=T-barLen && x.tick<T; });
+      if(!pre.length) continue;
+
+      /* ① 구멍 메움 — 경계 직전에 끝나는 음 두 개까지 경계까지 늘린다 */
+      const tail=pre.filter(function(x){ return x.off<=T-GAP; })
+                    .sort(function(a,b){ return b.off-a.off; }).slice(0,2);
+      tail.forEach(function(x){
+        // 같은 음이 그 사이에 다시 나면 늘리지 않는다 — 늘리면 제 소리와 겹친다
+        const clash=pairs.some(function(y){ return y.note===x.note && y.tick>x.off && y.tick<=T; });
+        if(!clash) ev[x.fi].tick=T;
+      });
+
+      /* ② 화성 앵커 — 다음 마디 화음과 공통음이 없을 때만 */
+      const bi=Math.floor((T-padTick)/barLen);
+      const pcs=barPcs&&barPcs[bi];
+      if(!pcs || !pcs.length) continue;
+      const has=pre.some(function(x){ return pcs.indexOf(((x.note%12)+12)%12)>=0; });
+      if(has) continue;
+      const last=pre.slice().sort(function(a,b){ return b.tick-a.tick; })[0];
+      for(const d of [-1,1,-2,2]){
+        if(pcs.indexOf((((last.note+d)%12)+12)%12)>=0){
+          ev[last.oi].note=last.note+d; ev[last.fi].note=last.note+d; break;
+        }
+      }
+    }
+    return ev;
+  }
+
   function harmGate(ev, gkey, barChords, barLen, padTick){
     if(!barChords || !barChords.length) return ev;
     if(gkey==='melody' || gkey==='counter') return ev;
@@ -26536,6 +26591,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         for(let r=0;r<(sec.reps||1);r++) st.forEach(function(){ out.push(g); });
       }); }catch(e){}
       return out; })();
+    const __SEC_TICKS=SEC_TK.map(function(x){ return x.start; });
     const __barOct=(function(){ const out=[];
       try{ currentSong.forEach(function(sec){
         const st=(sec.prog&&sec.prog.steps)||[]; const o=sec.loungeOct||0;
@@ -27635,6 +27691,9 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ev=coalesceNotes(ev);
       /* 복합박이면 격자를 맞춘다 — 4/4의 16분 자리가 6/8에 섞이면 박자표와 어긋나 들린다 */
       ev=compoundGrid(ev, grp.key, currentSig, TPQ); ev=coalesceNotes(ev);
+      /* 구간 이음 — 길이를 바꾸는 단계(spillGate·famArticulate)가 모두 끝난 뒤에 건다.
+         앞에 두면 늘린 길이를 뒤 단계가 도로 자른다. */
+      ev=seamGate(ev, grp.key, __barPcs, __SEC_TICKS, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       ev=selfDeclash(ev, grp.key, TPQ); ev=crossDeclash(grp.key, ev);
       /* 반음 회피(declash)가 음을 옮기면서 화음 밖으로 나갈 수 있다 —
          그래서 그 뒤에 건다. 여기가 음높이를 바꾸는 마지막 자리다. */
