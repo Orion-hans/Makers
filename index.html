@@ -8455,6 +8455,18 @@ function introArpSeq(ps){
     _INTROARP_FIXED = P==='desc'?[oc,ff,th,base] : P==='wave'?[base,th,ff,oc,ff,th] : P==='pend'?[base,ff,th,oc]
                     : P==='pedal'?[oc,base,oc,th] : P==='duo'?[base,ff] : [base,th,ff,oc];
   }
+  /* 인트로 음역 상한 — 음형은 그대로 두고 통째로 옥타브를 내린다.
+     아르페지오는 화음 음(ps)에 +12, 옥타브음은 +24로 잡혀 있어
+     인트로 무게중심이 벌스보다 12~24반음 높았다
+     (실측: 28스타일 중 19스타일이 10반음 이상 하강. worship -22.2 · jazz -22.0).
+     반음으로 옮기면 화성이 깨지므로 옥타브 단위로만 접는다.
+     상한 7반음은 반옥타브 — 인트로가 조금 높은 것은 어법이고 그 위부터 계단으로 들린다. */
+  const _avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+  const _psAvg=_avg(u), _psLo=u[0];
+  let _guard=0;
+  while(_avg(_INTROARP_FIXED)-_psAvg>7 && Math.min(..._INTROARP_FIXED)-12>=_psLo && _guard++<4){
+    _INTROARP_FIXED=_INTROARP_FIXED.map(x=>x-12);
+  }
   return _INTROARP_FIXED;
 }
 /* 인트로 리듬: 마디 안에서 반복되는 온셋 패턴(per=주기 박) — 8분/4분/점8/신코/갤럽 */
@@ -14850,6 +14862,21 @@ function arrange(){
   state.sections.forEach((sc,i)=>{if(sc.buildStage==null)return;const bs=+sc.buildStage;if(bs>=6)return;
     const mask=STAGE_LAYERS[bs],sv=sview[i];if(!mask||!sv)return;
     STAGE_MASK_KEYS.forEach(k=>{if(mask[k])return;tr[k]=tr[k].filter(n=>n.t<sv.startQ-1e-6||n.t>=sv.endQ-1e-6);});});
+  /* ===== 하우스 인트로: 킥이 들어올 자리를 예고 =====
+     하우스 인트로는 킥·클랩·오픈햇·퍼크·스네어를 통째로 끈다(위 introArc).
+     그래서 다음 구간 첫박에 킥 넷이 예고 없이 들어와 벽처럼 들렸다
+     (실측: deephouse 인트로 마지막 마디 킥 0 → 다음 마디 킥 4 · melodichouse 동일).
+     인트로 마지막 마디 뒤 두 박에 오픈햇을 얹어 킥이 돌아올 자리를 가리킨다.
+     이 장르가 이미 쓰는 오픈햇 자리(6·14 = 뒷박)라 어법에서 벗어나지 않는다. */
+  {const g0=curGenre();
+   if(g0&&isHouse(g0.id)&&state.sections[0]&&state.sections[0].type==='Intro'&&sview[0]){
+     const sv0=sview[0], b0=sv0.endQ-4;                 // 인트로 마지막 마디 첫박
+     if(b0>=sv0.startQ-1e-6){
+       tr.ohat.push({t:b0+2.5, vel:64});                // 3박 뒷박 — 예고 시작
+       tr.ohat.push({t:b0+3.5, vel:86});                // 4박 뒷박 — 킥 직전
+       tr.crash.push({t:sv0.endQ, vel:104});            // 다음 구간 첫박 착지
+     }
+   }}
   // ===== 빌드 전환 오토메이션 — 실제 관례: 상승 경계 크래시 + 드롭 진입 직전 스네어 롤 가속·라이저(스위핑) =====
   {const stOf=i=>{const s=state.sections[i];if(!s)return null;
      return s.buildStage!=null?+s.buildStage:(STYPES[s.type].energy>=5?6:null);};
@@ -15017,6 +15044,33 @@ function arrange(){
      루트리스 보이싱에서는 7도가 바닥에 오는 것도 정상이다.
      함수는 남겨 두되 호출하지 않는다 — 나중에 겹침 처리를 갖춘 뒤 켠다. */
   // try{ seventhDisciplineBeat(MODEL.tracks, MODEL.sections); }catch(e){}
+  /* ===== 구간 경계 선등장 — 한꺼번에 들어오지 않게 지속층만 한 박 먼저 =====
+     경계에서 유율 층 셋 이상이 동시에 들어오면 벽처럼 들린다
+     (실측: deephouse 트랙 1→5 · 밀도 5.80배 · melodichouse 2→6 · 밀도 3.00배).
+     패드·드론은 마디를 덮는 층이라 한 박 먼저 들어와도 앞 구간을 흐리지 않고
+     다음 구간의 바닥을 미리 깔아 준다. 패드가 없으면 코드가 그 역할을 한다.
+     베이스는 대개 인트로부터 이미 흐르고 있어 대상이 아니다
+     (실측: deephouse 인트로에 베이스 4음이 이미 있었다).
+
+     반드시 모든 필터가 끝난 뒤에 건다 — 앞에 두면 인트로에서 나중에 지워질 음을
+     '이미 있다'고 읽어 관문이 통째로 걸리지 않는다(실측: 앞에 두었을 때 효과 0). */
+  try{ (function(){
+    /* 유율 레인 전부를 센다. 처음에 네 개만 세었더니 드론·피아노·아르페지오로 들어오는
+       하우스 계열이 '셋 미만'으로 걸러져 관문이 돌지 않았다(실측: 효과 0). */
+    const KEYS=['bass','chords','pad','lead','arpseq','drone','piano','topmel'];
+    const TRK=MODEL.tracks||{}, SEC=MODEL.sections||[];
+    const has=(k,a,b)=>(TRK[k]||[]).some(n=>n.t>=a-1e-6&&n.t<b-1e-6);
+    for(let i=0;i+1<SEC.length;i++){
+      const T=SEC[i+1].startQ; if(T==null||T-1<(SEC[i].startQ||0))continue;
+      const ent=KEYS.filter(k=>!has(k,T-4,T)&&has(k,T,T+4));
+      if(ent.length<3)continue;
+      const k0=['pad','drone','chords','arpseq'].find(k=>ent.indexOf(k)>=0);
+      if(!k0)continue;
+      (TRK[k0]||[]).forEach(n=>{ if(Math.abs(n.t-T)>1e-6)return;
+        n.t=T-1; if(n.dur!=null)n.dur=n.dur+1;
+        n.vel=Math.max(18,Math.round((n.vel||70)*0.8)); });
+    }
+  })(); }catch(e){}
   try{ compoundGridAll(MODEL.tracks); }catch(e){}   // 복합박이면 셋잇단 격자로 정렬
   return MODEL;
 }
@@ -26905,6 +26959,10 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
        (실측: lyricMid·lyricMinyo·joypiano 세 장르에서 피아노 트랙 하나만 나옴).
        라운지에서는 편성 상태와 무관하게 켠다. */
     if(loungeMode && INST.melody && !INST.melody.on){ INST.melody.on=true; INST.melody.gm=0; }
+    /* 라운지는 피아노 한 대가 어법인데 피아노가 없는 편성 장르는 반주 트랙 자체가 없었다
+       (실측: folk·shanty·rumba 세 장르에서 GUARD 가 '라운지인데 피아노 트랙 없음'으로 잡았다).
+       선율과 같은 방식으로 편성 상태와 무관하게 켠다. */
+    if(loungeMode && INST.piano && !INST.piano.on){ INST.piano.on=true; INST.piano.gm=0; }
     if(INST.melody.on) groups.push({gm:INST.melody.gm,ch:5,role:'melody',key:'melody'});
     if(counterOn) groups.push({gm:counterGm(),ch:6,role:'counter',key:'counter'}); // 대선율=솔로 현(현 섹션과 다른 악기) — 이름과 실제 음색 일치
     if(INST.piano.on) groups.push({gm:INST.piano.gm,ch:0,role:'chord',key:'piano'});
@@ -27430,7 +27488,14 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             const bn=[c.notes[0],c.notes[2]||c.notes[0]+7].map(m=>{let x=m;while(x>72)x-=12;while(x<52)x+=12;return x;});
             bn.forEach(m=>{ ev.push({tick:T,on:1,note:m,vel:Math.round((56+(stg>=5?14:0))*inA)}); ev.push({tick:T+measure-10,on:0,note:m}); });
             [[0.0,52],[0.4,84],[0.85,58]].forEach(pv=>ev.push({tick:T+Math.round(measure*pv[0]),cc:11,val:pv[1]})); } } // 금관도 스웰
-          else if(grp.role==='harpArp'){ const stg=sec.stage||3; if(stg>=2){ ev.push({tick:T,cc:64,val:127}); ev.push({tick:T+measure-6,cc:64,val:0}); // 하프: 페달로 아르페지오가 울려 퍼지게(발현 특성) + 발현 아르페지오
+          else if(grp.role==='harpArp'){ const stg=sec.stage||3;
+            /* 단계 1(인트로)은 드럼·베이스·대선율을 끄고 피아노가 '최소 반주'를 맡는 설계다.
+               그런데 피아노가 없는 편성에서는 맡을 트랙이 없어 인트로가 통째로 비었다
+               (실측: rumba 인트로 4마디 전부 0음 · folk·shanty 는 관악 2음만 남았다).
+               그 경우에만 발현 화음 트랙이 최소 반주를 대신한다. 벌스에서 이미 화음을 치는
+               같은 악기라 편성이 이질적이지 않고, 벌스와 같은 소리가 먼저 나와 이음이 된다. */
+            const _noChordInst=!INST.piano.on && !INST.strings.on;
+            if(stg>=2 || _noChordInst){ ev.push({tick:T,cc:64,val:127}); ev.push({tick:T+measure-6,cc:64,val:0}); // 하프: 페달로 아르페지오가 울려 퍼지게(발현 특성) + 발현 아르페지오
             /* 발현 악기도 화음을 한 번에 뜯는 주법을 쓴다 — 아르페지오만 흐르면 단음 흐름만 남는다.
                구간 첫 마디와 마무리에서 화음을 굴려 뜯는다. */
             { const pluckBar=(si===0) || (sec.label==='아웃트로') || (lastBarM && (sec.label==='간주'||sec.label==='브릿지'));
@@ -31592,7 +31657,9 @@ function generatePiece(prog, capMin){
     const k=Math.min(5,Math.max(0,Math.floor(t01*6)));
     const cur=BUILD_STAGES[_seq[k]]||BUILD_STAGES[2];
     const pos=Math.min(1,Math.max(0,t01*6-k));
-    const nk=(k+1<_seq.length)?k+1:0;                       // 랩: 마지막→첫 구간
+    /* 랩(마지막→첫 구간)은 루프 모드에서만 맞다. 추출 곡에서 마지막 칸이 첫 칸으로 번지면
+       끝에서 다시 차오르며 종지가 흐려진다. 루프가 아니면 마지막 칸은 제 성격을 지킨다. */
+    const nk=(k+1<_seq.length)?k+1:(_loop?0:k);
     const nxt=BUILD_STAGES[_seq[nk]]||cur;
     const Z=0.35, w=pos>1-Z?((pos-(1-Z))/Z)*0.85:0;         // 끝 35%에서 최대 85%까지 섞임
     const mix=(a,b)=>a+(b-a)*w;
@@ -31601,16 +31668,28 @@ function generatePiece(prog, capMin){
       n2:mix(cur.n2,nxt.n2), n3:mix(cur.n3,nxt.n3),
       gap:mix(cur.gap,nxt.gap), regHi:Math.round(mix(cur.regHi,nxt.regHi))};
   };
-  const _stEff=t01=>_loop?_stSmooth(t01):_stAt(t01);
+  /* 단계 전환은 루프 모드가 아니어도 번지게 한다.
+     명상은 서서히 바뀌어야 하는데 _stAt 는 칸 경계에서 값이 통째로 갈아탄다
+     (실측: 단계 4→2 처럼 두 칸을 건너뛰는 자리에서 세기가 20 이상 떨어졌다).
+     _stSmooth 는 각 칸 끝 35%에서 다음 칸 성격으로 85%까지 섞는다. */
+  const _stEff=t01=>_stSmooth(t01);
   const _arcEff=t01=>{const a=arcIntensity(state.purpose,t01); if(!_loop)return a;
     const Z=0.18; if(t01>1-Z){const w2=((t01-(1-Z))/Z)*0.85; return a+(arcIntensity(state.purpose,0)-a)*w2;} return a;};
+  /* 빌드업 단계는 코드 슬롯 단위로 정한다.
+     루프 인덱스로 정하면 루프가 6개 미만인 곡에서 지정한 6단계가 통째로 누락된다
+     (실측: sleep 은 루프 4개라 [3,2,2,1,1,1] 중 3·2·1·1 네 칸만 소리에 나왔고
+      두 번째 2와 네 번째·다섯 번째 1은 아예 나타나지 않았다.
+      t01=L/(loops-1) 이 0·0.33·0.67·1.0 이 되어 6칸 중 2·3번 칸을 건너뛴다).
+     슬롯 단위로 잡으면 코드 길이가 느린 곡에서도 여섯 단계가 모두 지나간다.
+     sleep 은 4루프×4코드=16슬롯이라 여섯 칸이 다 나온다. */
+  const _NSLOT = Math.max(1, loops*chords.length);
   for(let L=0; L<loops; L++){
-    const t01 = loops>1 ? L/(loops-1) : 0.5;           // 이 loop의 전체 위치
-    const st = _stEff(t01);                             // 빌드업 단계 (루프면 전환 구간 보간)
-    const inten = st.inten*0.65 + _arcEff(t01)*0.35; // 단계 주도 + 아크로 부드럽게
     chords.forEach((name,i)=>{
       const t=(L*chords.length+i)*chordDur;
       const slot=L*chords.length+i;
+      const t01 = _NSLOT>1 ? slot/(_NSLOT-1) : 0.5;     // 곡 전체에서 이 슬롯의 위치
+      const st = _stEff(t01);                            // 빌드업 단계 (루프면 전환 구간 보간)
+      const inten = st.inten*0.65 + _arcEff(t01)*0.35;  // 단계 주도 + 아크로 부드럽게
       if(st.hold && i%2===1){ ev.slotNames[slot]=ev.slotNames[slot-1]; return; } // 화성 홀드: 코드를 다음 슬롯까지 끌고 감
       const dur = st.hold ? chordDur*2 : chordDur;
       // ── 구간 성격의 화성 기능 반영 ──
