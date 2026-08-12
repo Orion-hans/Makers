@@ -25690,6 +25690,8 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
   function airyPiano(ev, gkey, barPcs, barRoot, barLab, melEv, barLen, padTick, tpq){
     if(gkey!=='piano' || !AIRY_PIANO.has(gsel)) return ev;
     if(!barLab || !barLab.length || !barRoot) return ev;
+    let __songEndTick=padTick;
+    ev.forEach(function(e){ if(e.tick!=null && e.tick>__songEndTick) __songEndTick=e.tick; });
     /* 그 마디에서 선율이 짚는 가장 낮은 음 — 아르페지오 천장을 정한다 */
     const melLoAt=function(t0,t1){
       let lo=null;
@@ -25719,9 +25721,16 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     });
     /* ② 왼손 근음 옥타브 + ③ 고역 16분 아르페지오 */
     const add=[];
-    for(let bi=0; bi<barLab.length; bi++){
-      const L=barLab[bi], d=AIRY_DENS[L.lab]||1;
-      const root=barRoot[bi], pcs=barPcs[bi];
+    /* barLab·barRoot 는 구간 마디 수를 그대로 쌓은 배열이라
+       박자표가 바뀌는 라운지에서는 실제 곡 길이보다 짧다
+       (실측: gukvocal 라운지 화음 260마디 · 실제 465마디).
+       배열이 끝난 뒤의 마디는 배열을 되풀이해 쓴다 — 그러지 않으면
+       그 구간이 통째로 왼손만 남아 양손 갖춘 마디 판정이 깨진다.
+       근본 해결은 마디 인덱스 통일이고 그때까지의 임시 대응이다. */
+    const totalBars=Math.max(barLab.length, Math.ceil((__songEndTick-padTick)/barLen));
+    for(let bi=0; bi<totalBars; bi++){
+      const L=barLab[bi % barLab.length], d=AIRY_DENS[L.lab]||1;
+      const root=barRoot[bi % barRoot.length], pcs=barPcs[bi % barPcs.length];
       if(root==null || !pcs || !pcs.length) continue;
       const t0=padTick+bi*barLen, t1=t0+barLen;
       /* 왼손 — 근음과 한 옥타브 위. 그 사이는 비운다 */
@@ -25731,15 +25740,26 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
          '최저음과 그 위 음의 간격'이 옥타브가 되지 않는다.
          노트온만 옮기면 노트오프가 남아 짝이 깨지므로 짝을 함께 옮긴다.
          이 루프는 왼손을 놓기 전에 돌아야 한다 — 뒤에 돌면 방금 놓은 lb+12 까지 올린다. */
+      /* 마디 경계로 자르면 노트온과 노트오프가 갈린다 —
+         마디를 넘겨 끄는 음은 노트온만 이 마디에 있고 노트오프는 다음 마디에 있다.
+         그 상태로 노트온만 옮기면 짝이 어긋나 뒤의 selfDeclash 가 터진다
+         (실측: jazz 라운지 'Cannot set properties of undefined'). 짝을 지어 함께 옮긴다. */
       (function(){
-        const mv={};
-        ev.forEach(function(e){
+        const open={}, pairs=[];
+        ev.forEach(function(e,i){
           if(e.cc!=null || e.note==null) return;
-          if(e.tick<t0 || e.tick>=t1) return;
-          if(e.on===1){
-            if(e.note>lb && e.note<lb+12){ let m=e.note; while(m<=MIDHI) m+=12;
-              if(m<=96){ (mv[e.note]=mv[e.note]||[]).push(m); e.note=m; } }
-          } else if(e.on===0){ const q=mv[e.note]; if(q&&q.length) e.note=q.shift(); }
+          if(e.on===1){ (open[e.note]=open[e.note]||[]).push(i); }
+          else if(e.on===0){ const q=open[e.note];
+            if(q&&q.length) pairs.push([q.shift(), i]); }
+        });
+        pairs.forEach(function(pr){
+          const on=ev[pr[0]], off=ev[pr[1]];
+          if(!on || !off) return;
+          if(on.tick<t0 || on.tick>=t1) return;
+          if(!(on.note>lb && on.note<lb+12)) return;
+          let m=on.note; while(m<=MIDHI) m+=12;
+          if(m>96) return;
+          on.note=m; off.note=m;
         });
       })();
       for(let s=0;s<beats;s++){
@@ -25759,6 +25779,19 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           let m=72+pc; while(m<72) m+=12; m+=oc*12;
           if(m>72 && m<=ceil && lad.indexOf(m)<0) lad.push(m); });
         lad.sort(function(a,b2){ return a-b2; });
+        /* 선율이 낮게 내려온 마디는 천장(선율-2)이 72 아래로 떨어져
+           C5 위에 놓을 자리가 하나도 안 남는다. 그러면 그 마디는 왼손만 남아
+           오른손이 통째로 비고, 양손 갖춘 마디 판정이 깨진다
+           (실측: gukvocal 76% · chanbul 76% · gypsy 88%.
+            실패 마디가 [24,31,36,48] 처럼 전부 저역이었다).
+           그럴 때는 천장 아래에서 가장 높은 자리로 내려와 아르페지오를 놓는다. */
+        if(lad.length<3 && ceil>52){
+          const base=Math.max(52, ceil-12);
+          for(let oc=0;oc<2;oc++) col.forEach(function(pc){
+            let m=base-((base%12))+pc; while(m<base) m+=12; m+=oc*12;
+            if(m>=base && m<=ceil && lad.indexOf(m)<0) lad.push(m); });
+          lad.sort(function(a,b2){ return a-b2; });
+        }
         if(lad.length>=3){
           const slots=(d>=3)?16:8;
           const step=barLen/slots;
