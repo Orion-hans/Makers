@@ -15134,7 +15134,11 @@ function arrange(){
      비트 메이커는 화음보다 리듬·질감이 중심이고, 로파이·재즈 계열의
      루트리스 보이싱에서는 7도가 바닥에 오는 것도 정상이다.
      함수는 남겨 두되 호출하지 않는다 — 나중에 겹침 처리를 갖춘 뒤 켠다. */
-  // try{ seventhDisciplineBeat(MODEL.tracks, MODEL.sections); }catch(e){}
+  /* 7도 규율을 다시 켠다. 예전에 끈 이유는 음을 내린 자리에서 같은 음이 겹쳤기 때문이다
+     (실측: 추출 MIDI 에서 4~20건). 원인은 관문 자체가 아니라 뒤에 겹침 정리가 없던 것이다.
+     Play 에서 확인한 것과 같다 — 음높이를 바꾸는 관문 뒤에는 반드시 병합을 건다. */
+  try{ seventhDisciplineBeat(MODEL.tracks, MODEL.sections); }catch(e){}
+  try{ dedupMelodic(MODEL.tracks); }catch(e){}
   /* ===== 구간 경계 선등장 — 한꺼번에 들어오지 않게 지속층만 한 박 먼저 =====
      경계에서 유율 층 셋 이상이 동시에 들어오면 벽처럼 들린다
      (실측: deephouse 트랙 1→5 · 밀도 5.80배 · melodichouse 2→6 · 밀도 3.00배).
@@ -15163,6 +15167,32 @@ function arrange(){
     }
   })(); }catch(e){}
   try{ compoundGridAll(MODEL.tracks); }catch(e){}   // 복합박이면 셋잇단 격자로 정렬
+  /* 같은 음 겹침 정리 — 파이프라인 맨 끝. 음의 자리와 길이를 바꾸는 관문이 모두 끝난 뒤다.
+     바로 앞의 '구간 경계 선등장' 이 패드를 한 박 당기고 길이를 늘리면서
+     앞 음과 같은 음이 겹친다
+     (실측: running 3 · edm 11 · melodichouse 2 · deephouse 10 건, 모두 패드였다).
+     겹치면 앞 음의 노트오프가 뒤 음을 꺼 버린다. 앞 음을 뒤 음 직전에서 끊는다. */
+  try{ (function(){
+    const T=MODEL.tracks||{};
+    Object.keys(T).forEach(function(k){
+      const arr=T[k]; if(!arr||!arr.length) return;
+      const by={};
+      arr.forEach(function(n){ if(n.midi==null||n.t==null) return;
+        (by[n.midi]=by[n.midi]||[]).push(n); });
+      Object.keys(by).forEach(function(m){
+        const L=by[m].sort(function(x,y){ return x.t-y.t; });
+        for(let i=0;i<L.length-1;i++){
+          const a2=L[i], b2=L[i+1];
+          if(a2.dur==null) continue;
+          const end=a2.t+a2.dur;
+          if(end>b2.t+1e-6){
+            const nd=b2.t-a2.t-0.02;
+            a2.dur=(nd>0.02)?nd:0.02;
+          }
+        }
+      });
+    });
+  })(); }catch(e){}
   return MODEL;
 }
 function qToSec(q){const S=(MODEL&&MODEL.tempoMap)||[];if(!S.length)return q*(60/MODEL.bpm);
