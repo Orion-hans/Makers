@@ -24083,6 +24083,238 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     return ev;
   }
 
+  /* ── 재즈 계열 어법 관문 ─────────────────────────────────────
+     '텐션 허용'은 검사를 안 한다는 뜻이라 아무 음이나 통과한다. 실측 결과는 정반대였다.
+     텐션이 넘친 게 아니라 아예 없었고, 반주는 근음을 겹쳐 치며 선율을 비켜 주지 않았다.
+
+       실측(적용 전)   jazz 선율 텐션 7% · 화음밖 0% · 루트리스 0% · 근음중복 100%
+                      선율이 울리는 동안 반주 타점 90%
+                      bossa 텐션 해결 0/8
+
+     그래서 '허용'이 아니라 '이 텐션은 이 자리에 이렇게'로 적는다.
+
+       9도    거의 모든 7화음에 얹힌다. 근음 자리를 대신하는 색
+       ♭9·♯9  도미넌트에서만. ♯9는 장3도와 같이 울릴 때 옥타브를 벌린다
+       11도   장3화음에서는 회피(3도와 반음). sus·마이너에서만
+       ♯11    리디안·도미넌트. 5도와 반음이라 5도를 빼고 쓴다
+       13도   도미넌트·마이너. 5도 위에 놓는다
+       ♭13    도미넌트 얼터드. 5도·13도와 섞지 않는다
+       가이드톤 3도와 7도가 화음의 성격을 정한다. 강박과 긴 음은 여기에 놓는다
+       루트리스 베이스가 근음을 맡으므로 피아노는 근음을 빼고 3-7 위에 색만 얹는다
+       컴핑   선율이 울릴 때 비키고 쉴 때 채운다
+
+     장르마다 어법이 다르므로 항목을 따로 켠다.
+       jazz·neosoul  루트리스 · 컴핑 비우기 · 가이드톤 · 텐션
+       bossa         컴핑은 고정 패턴이 어법이라 비우지 않는다
+       blues         피아노가 근음을 짚는 것이 어법이라 루트리스를 걸지 않는다 */
+  const JAZZFAM={ jazz:{rootless:1,thin:1,guide:1,tension:1},
+                  neosoul:{rootless:1,thin:1,guide:1,tension:1},
+                  bossa:{rootless:1,thin:0,guide:1,tension:1},
+                  blues:{rootless:0,thin:0,guide:1,tension:1} };
+  const JZ_OKTEN={ dom:[1,2,3,6,8,9], min7:[2,5,9], maj7:[2,6,9],
+                   half:[5,8], minmaj:[2,5], sus:[2,5,9], tri:[2,9] };
+  const JZ_AVOID={ dom:[5], maj7:[5,8], tri:[5], min7:[8], half:[], minmaj:[], sus:[] };
+  function jzQual(pcs, root){
+    const s={}; (pcs||[]).forEach(function(p){ s[((p-root)%12+12)%12]=1; });
+    const third=s[4]?4:(s[3]?3:0), sev=s[10]?10:(s[11]?11:0);
+    if(third===4&&sev===10) return 'dom';
+    if(third===3&&sev===10) return s[6]?'half':'min7';
+    if(third===4&&sev===11) return 'maj7';
+    if(third===3&&sev===11) return 'minmaj';
+    if(!third) return 'sus';
+    return 'tri';
+  }
+  function jzPairs(ev){
+    const open={}, out=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null||e.note==null||e.tick==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push(i); }
+      else if(e.on===0){ const q=open[e.note]; if(!q||!q.length) return;
+        const oi=q.shift(); out.push({oi:oi,fi:i,tick:ev[oi].tick,off:e.tick,note:e.note}); }
+    });
+    return out.sort(function(a,b){ return a.tick-b.tick; });
+  }
+  function jazzIdiom(ev, gkey, grole, barPcs, barRoot, barLen, padTick, tpq, melIv){
+    const cfg=JAZZFAM[gsel]; if(!cfg) return ev;
+    if(!pitchEditable(gkey)) return ev;
+    const isPiano=(gkey==='piano'||gkey==='piano2');
+    /* 선율은 키가 아니라 역할로 고른다. 장르마다 선율을 맡는 악기가 달라
+       키 목록으로 잡으면 그 장르만 관문을 못 받는다
+       (실측: bossa 선율이 목록에 없는 키로 나와 텐션 해결이 0/8 그대로였다). */
+    const isMel=(grole==='melody'||grole==='vocal'||
+                 gkey==='melody'||gkey==='vocal'||gkey==='vocal2'||gkey==='counter'||
+                 gkey==='winds'||gkey==='winds2'||gkey==='winds3'||gkey==='brass3'||gkey==='harp');
+    if(!isPiano&&!isMel) return ev;
+    const P=jzPairs(ev); if(!P.length) return ev;
+    const bAt=t=>{ const b=Math.floor((t-padTick)/barLen); return (b>=0&&b<barPcs.length)?b:-1; };
+    const move=(x,d)=>{ ev[x.oi].note+=d; ev[x.fi].note+=d; x.note+=d; };
+
+    if(isPiano&&cfg.rootless){
+      /* 근음을 9도로 올린다. 지우지 않는 이유는 음 수가 줄면 컴핑이 얇아지기 때문이고,
+         9도로 올리는 이유가 루트리스 A형(3-5-7-9)의 그 자리이기 때문이다.
+         45(A2) 아래는 왼손 저역이라 그대로 둔다 — 베이스가 없을 때 곡이 바닥을 잃는다. */
+      P.forEach(function(x){
+        const b=bAt(x.tick); if(b<0) return;
+        const r=barRoot[b]; if(r==null) return;
+        if(((x.note-r)%12+12)%12!==0) return;
+        if(x.note>=45){ move(x,2); return; }                 // 위쪽 근음 → 9도 (루트리스 A형의 그 자리)
+        /* 왼손 근음은 가이드톤으로 바꾼다. 베이스가 근음을 맡으므로 피아노가 겹칠 이유가 없다.
+           지우지 않는 이유는 왼손이 비면 화음이 공중에 뜨기 때문이다.
+           3도와 7도 중 그 자리에서 더 가까운 쪽으로, 옥타브를 넘기지 않고 옮긴다. */
+        const pcs=barPcs[b]||[];
+        const th=(pcs.indexOf((r+4)%12)>=0)?4:((pcs.indexOf((r+3)%12)>=0)?3:null);
+        const sv=(pcs.indexOf((r+10)%12)>=0)?10:((pcs.indexOf((r+11)%12)>=0)?11:null);
+        let best=null,bd=99;
+        [th,sv].forEach(function(g){ if(g==null)return;
+          [g,g-12].forEach(function(m){ if(Math.abs(m)<=11&&Math.abs(m)<bd&&m!==0){bd=Math.abs(m);best=m;} }); });
+        if(best!=null) move(x,best);
+      });
+      /* 그 화음에서 안 쓰는 텐션과 회피음은 반주에서 뺀다.
+         (실측: bossa 반주 자리 틀린 텐션 12% — 장3화음에 11도가 얹히면 3도와 반음으로 부딪힌다) */
+      P.forEach(function(x){
+        const b=bAt(x.tick); if(b<0) return;
+        const r=barRoot[b]; if(r==null) return;
+        const pcs=barPcs[b]||[]; const q=jzQual(pcs,r);
+        const rel=((x.note-r)%12+12)%12;
+        const bad=((JZ_AVOID[q]||[]).indexOf(rel)>=0) ||
+                  ([1,2,3,5,6,8,9].indexOf(rel)>=0 && (JZ_OKTEN[q]||[]).indexOf(rel)<0);
+        if(!bad) return;
+        let best=null,bd=99;
+        [0,3,4,7,10,11].forEach(function(g){ if(pcs.indexOf((r+g)%12)<0&&g!==0)return;
+          const st=((g-rel+12)%12); [st,st-12].forEach(function(m){
+            if(Math.abs(m)<=2&&Math.abs(m)<bd&&m!==0){bd=Math.abs(m);best=m;} }); });
+        if(best!=null) move(x,best);
+      });
+    }
+    if(isPiano&&melIv&&melIv.length){
+      /* 선율과 반음으로 부딪히는 반주음은 옥타브를 내린다. 재즈에서 반음 자체는 색이지만
+         선율 바로 옆에서 울리면 선율이 묻힌다. 옮겨도 화성은 그대로다.
+         (실측: 어법 관문을 넣은 뒤 반음충돌이 6%→10%로 늘었다 — 텐션이 선율 옆에 붙은 것이다) */
+      const P3=jzPairs(ev);
+      P3.forEach(function(x){
+        /* 두 구간이 겹치는지로 본다. 반주 타점이 선율 안에 들어가는지만 보면
+           반주가 먼저 울리고 그 위로 선율이 들어오는 경우를 놓친다
+           (실측: 그 조건만으로는 jazz 충돌이 19건 그대로였다). */
+        const clash=function(){ return melIv.some(function(m){
+          return m.on<x.off && x.tick<m.off &&
+                 Math.abs(m.note-x.note)<=13 && Math.abs(m.note-x.note)%12===1; }); };
+        if(!clash()) return;
+        if(x.note-12>=36){ move(x,-12); if(!clash()) return; move(x,12); }   // 아래 옥타브로 피한다
+        if(x.note+12<=96){ move(x,12); if(!clash()) return; move(x,-12); }   // 안 되면 위 옥타브
+        /* 옥타브로 못 피하면 화음음으로 옮긴다. 반음 자체는 재즈의 색이지만
+           선율 바로 옆에서 울리면 선율이 묻힌다. 화성은 그대로 남는다. */
+        const b=bAt(x.tick); if(b<0) return;
+        const r=barRoot[b]; if(r==null) return;
+        const pcs=barPcs[b]||[]; const rel=((x.note-r)%12+12)%12;
+        let best=null,bd=99;
+        [0,3,4,7,10,11].forEach(function(g){ if(pcs.indexOf((r+g)%12)<0)return;
+          const st=((g-rel+12)%12); [st,st-12].forEach(function(m){
+            if(Math.abs(m)<=2&&Math.abs(m)<bd&&m!==0){bd=Math.abs(m);best=m;} }); });
+        if(best!=null){ move(x,best); if(!clash()) return; move(x,-best); }
+      });
+    }
+    if(isPiano&&cfg.thin&&melIv&&melIv.length){
+      /* 선율이 막 시작한 자리의 반주 타점을 뺀다. 마디 첫박과, 앞 타점에서 한 박 넘게 빈 자리는 남긴다.
+         마디마다 최소 두 타점은 지킨다 — 다 빼면 화성이 사라진다. */
+      const kill={}, perBar={};
+      P.forEach(function(x){ const b=bAt(x.tick); if(b>=0)(perBar[b]=perBar[b]||[]).push(x); });
+      Object.keys(perBar).forEach(function(b){
+        const L=perBar[b].slice().sort(function(a,c){ return a.tick-c.tick; });
+        let keep=L.length, prev=-1e9;
+        L.forEach(function(x){
+          if(keep<=2) return;
+          const inBar=(x.tick-padTick)%barLen;
+          if(inBar<tpq*0.08){ prev=x.tick; return; }              // 마디 첫박은 남긴다
+          if(x.tick-prev>tpq*1.0){ prev=x.tick; return; }          // 오래 빈 자리는 남긴다
+          const just=melIv.some(function(m){ return m.on<=x.tick && x.tick<m.on+tpq*0.5; });
+          if(just){ kill[x.oi]=1; kill[x.fi]=1; keep--; return; }
+          prev=x.tick;
+        });
+      });
+      if(Object.keys(kill).length) ev=ev.filter(function(e,i){ return !kill[i]; });
+    }
+    if(isMel&&(cfg.guide||cfg.tension)){
+      const P2=jzPairs(ev);
+      P2.forEach(function(x,k){
+        const b=bAt(x.tick); if(b<0) return;
+        const r=barRoot[b]; if(r==null) return;
+        const pcs=barPcs[b]||[]; const q=jzQual(pcs,r);
+        const rel=((x.note-r)%12+12)%12;
+        const dur=x.off-x.tick;
+        const inBar=(x.tick-padTick)%barLen;
+        const beat=Math.floor(inBar/tpq);
+        const onBeat=(inBar%tpq)<tpq*0.08;
+        const strong=onBeat&&(beat%2===0);
+        const isLong=dur>=tpq*0.9;
+        const third=(pcs.indexOf((r+4)%12)>=0)?4:((pcs.indexOf((r+3)%12)>=0)?3:null);
+        const sev=(pcs.indexOf((r+10)%12)>=0)?10:((pcs.indexOf((r+11)%12)>=0)?11:null);
+        if(cfg.guide&&(strong||isLong)&&(rel===0||rel===7)){
+          /* 강박과 긴 음은 가이드톤에 놓는다. 근음·5도는 화음의 성격을 말해 주지 않는다.
+             2반음 안에서만 옮긴다 — 그 이상 옮기면 선율선이 끊긴다. */
+          const cand=[]; if(third!=null)cand.push(third); if(sev!=null)cand.push(sev);
+          let best=null, bd=99;
+          cand.forEach(function(g){
+            for(const oct of [-12,0,12]){ const d=((r+g+oct)-x.note)%12;
+              const dd=((x.note+((g-rel+12)%12))-x.note);
+              const step=((g-rel+12)%12); const alt=step-12;
+              [step,alt].forEach(function(m){ if(Math.abs(m)<=2&&Math.abs(m)<bd&&m!==0){ bd=Math.abs(m); best=m; } });
+              break; }
+          });
+          if(best!=null) move(x,best);
+        } else if((strong||isLong)&&[1,2,3,5,6,8,9].indexOf(rel)>=0){
+          /* 강박·긴 음에 떠 있는 텐션은 화음음으로 내린다.
+             텐션은 스쳐 가는 자리의 색이지 머무는 자리의 음이 아니다
+             (실측: bossa 텐션 해결 0/8 — 전부 긴 음에 얹혀 해결되지 않고 떠 있었다). */
+          const pcs2=barPcs[b]||[];
+          let best2=null,bd2=99;
+          [0,3,4,7,10,11].forEach(function(g){ if(pcs2.indexOf((r+g)%12)<0)return;
+            const st=((g-rel+12)%12); [st,st-12].forEach(function(m){
+              if(Math.abs(m)<=2&&Math.abs(m)<bd2&&m!==0){bd2=Math.abs(m);best2=m;} }); });
+          if(best2!=null) move(x,best2);
+        } else if(cfg.tension&&!strong&&!isLong&&dur<tpq*0.5&&(rel===0||rel===7)){
+          /* 텐션은 약박의 짧은 자리에 놓고, 다음 음이 화음음이면 그대로 해결된다.
+             근음 → 9도, 5도 → 13도. 둘 다 그 화음에서 허용되는 자리일 때만. */
+          const nx=P2[k+1];
+          if(!nx||nx.tick-x.tick>tpq*1.2) return;
+          const nb=bAt(nx.tick); if(nb<0) return;
+          const nrel=((nx.note-barRoot[nb])%12+12)%12;
+          const ok=[0,3,4,7,10,11].indexOf(nrel)>=0;
+          if(!ok||Math.abs(nx.note-x.note)>2) return;
+          const want=(rel===0)?2:9;
+          if((JZ_OKTEN[q]||[]).indexOf(want)<0) return;
+          if((JZ_AVOID[q]||[]).indexOf(want)>=0) return;
+          move(x,(want-rel));
+        }
+      });
+      /* 마지막 훑기 — 해결되지 않고 떠 있는 텐션은 화음음으로 내린다.
+         텐션은 다음 음이 2반음 안의 화음음일 때만 텐션으로 들린다.
+         뒤가 도약이면 그냥 빗나간 음으로 들린다
+         (실측: bossa 텐션 8개가 전부 해결되지 않은 채 떠 있었다). */
+      const P4=jzPairs(ev);
+      P4.forEach(function(x,k){
+        const b=bAt(x.tick); if(b<0) return;
+        const r=barRoot[b]; if(r==null) return;
+        const rel=((x.note-r)%12+12)%12;
+        if([1,2,3,5,6,8,9].indexOf(rel)<0) return;
+        let done=false;
+        for(let j=k+1;j<Math.min(k+4,P4.length);j++){
+          const y=P4[j]; if(y.tick-x.tick>tpq*1.5) break;
+          const b2=bAt(y.tick); if(b2<0) continue;
+          const rel2=((y.note-barRoot[b2])%12+12)%12;
+          if(Math.abs(y.note-x.note)<=2&&[0,3,4,7,10,11].indexOf(rel2)>=0){ done=true; break; }
+        }
+        if(done) return;
+        const pcs3=barPcs[b]||[];
+        let best3=null,bd3=99;
+        [0,3,4,7,10,11].forEach(function(g){ if(pcs3.indexOf((r+g)%12)<0)return;
+          const st=((g-rel+12)%12); [st,st-12].forEach(function(m){
+            if(Math.abs(m)<=2&&Math.abs(m)<bd3&&m!==0){bd3=Math.abs(m);best3=m;} }); });
+        if(best3!=null) move(x,best3);
+      });
+    }
+    return ev;
+  }
+
   function harmGate(ev, gkey, barChords, barLen, padTick){
     if(!barChords || !barChords.length) return ev;
     if(gkey==='melody' || gkey==='counter') return ev;
@@ -27758,6 +27990,11 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ev=compoundGrid(ev, grp.key, currentSig, TPQ); ev=coalesceNotes(ev);
       /* 구간 이음 — 길이를 바꾸는 단계(spillGate·famArticulate)가 모두 끝난 뒤에 건다.
          앞에 두면 늘린 길이를 뒤 단계가 도로 자른다. */
+      /* 재즈 계열 어법 — 뼈대 강제 관문(harmGate·melTensionGate) 뒤에 둔다.
+         앞에 두면 텐션을 얹은 자리를 뒤에서 화음음으로 도로 스냅한다. */
+      ev=jazzIdiom(ev, grp.key, grp.role, __barPcs, __barRoot, __barLen, PAD, TPQ,
+                   (doneNotes['melody']&&doneNotes['melody'].iv)||null);
+      ev=coalesceNotes(ev);
       ev=seamGate(ev, grp.key, __barPcs, __SEC_TICKS, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       ev=selfDeclash(ev, grp.key, TPQ); ev=crossDeclash(grp.key, ev);
       /* 반음 회피(declash)가 음을 옮기면서 화음 밖으로 나갈 수 있다 —
@@ -29356,6 +29593,36 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
     L.push('  로직 작업에 필요한 내용은 위쪽까지입니다.');
     L.push('════════════════════════════════════════════════════════════');
     L.push('');
+    if(JAZZFAM[gsel]){
+      const _jz=JAZZFAM[gsel];
+      L.push('■ 재즈 계열 어법 — 이 곡에 적용된 것');
+      L.push('   가이드톤 : 3도와 7도가 화음의 성격을 정합니다. 근음과 5도는 성격을 말해 주지 않습니다.');
+      L.push('              강박(1·3박)과 한 박 넘게 끄는 음은 3도나 7도에 놓습니다.');
+      L.push('              2반음 안에서만 옮기므로 선율선은 그대로 이어집니다.');
+      L.push('   텐션     : 스쳐 가는 자리의 색입니다. 약박의 짧은 음에 놓고 다음 음이 화음음이면 해결됩니다.');
+      L.push('              해결되지 않고 떠 있는 텐션은 화음음으로 내립니다.');
+      L.push('              화음마다 쓰는 텐션이 다릅니다 —');
+      L.push('              도미넌트 ♭9·9·♯9·♯11·13·♭13 / 마이너7 9·11·13 / 메이저7 9·♯11·13');
+      L.push('   회피음   : 장3화음과 도미넌트에서 11도는 장3도와 반음이라 쓰지 않습니다.');
+      L.push('              메이저7에서 ♭13은 5도와 반음이라 쓰지 않습니다.');
+      if(_jz.rootless){
+        L.push('   루트리스 : 피아노가 근음을 빼고 쌓습니다. 근음은 베이스가 맡습니다.');
+        L.push('              왼손 근음은 3도나 7도로, 오른손 근음은 9도로 바뀝니다 — 루트리스 A형의 자리입니다.');
+        L.push('              로직: 베이스 트랙을 지우면 근음이 사라지므로 베이스는 켜 두십시오.');
+      } else {
+        L.push('   근음     : 블루스는 피아노가 근음을 짚는 것이 어법이라 루트리스를 걸지 않습니다.');
+      }
+      if(_jz.thin){
+        L.push('   컴핑     : 선율이 막 시작한 자리의 화음을 뺍니다. 선율이 쉴 때 채우고 울릴 때 비킵니다.');
+        L.push('              마디 첫박과 오래 빈 자리는 남기고, 마디마다 최소 두 타점은 지킵니다.');
+      } else {
+        L.push('   컴핑     : 고정 패턴이 정체성이라 비우지 않습니다. 패턴 그대로 유지합니다.');
+      }
+      L.push('   로직     : 피아노 트랙 Channel EQ 로 200Hz 아래를 -3dB 깎으면 베이스와 겹치지 않습니다.');
+      L.push('              선율 트랙을 피아노보다 2~3dB 올리면 가이드톤이 분명히 들립니다.');
+      L.push('              ※ 피아노에 저역 부스트를 걸지 마십시오 — 루트리스 보이싱이 탁해집니다.');
+      L.push('');
+    }
     if(SING_G.has(gsel)){
       L.push('■ 노래와 반주의 자리');
       L.push('   선율   : 첫박이 근음으로만 이어지지 않게 일부를 3도로 올립니다.');
