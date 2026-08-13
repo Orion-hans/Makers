@@ -10008,6 +10008,88 @@ function seventhDisciplineBand(cells){
     });
   });
 }
+/* ── 텐션은 제 자리(옥타브 위)에 둔다 (Band) ──
+   Play 에서 확정한 규칙을 그대로 옮긴다(어법정리.md).
+   9도·11도·13도는 이름 그대로 옥타브 위 자리의 음이다.
+   2도·4도·6도 자리에 놓으면 아래 화음음과 반음으로 붙는다. 장7도도 같다.
+   둘 다 화음 구성음이라 마디 단위 화음음 검사는 전부 통과한다 — 자리의 문제다.
+   (Play 실측: 이 관문으로 순간 충돌이 평균 1.4%에서 0.9%로 내려갔다.
+    9도만 옮긴 앞 시도는 1.6%로 오히려 나빠졌다 — 네 가지를 한꺼번에 봐야 한다.) */
+const TENSION_DEG_B=new Set([1,2,5,6,8,9,11]);
+function tensionPlaceBand(cells){
+  if(!cells||!cells.length) return;
+  const at=function(t){ for(let i=0;i<cells.length;i++){ const c=cells[i];
+    if(c.s-1e-6<=t && t<c.s+c.d-1e-6) return c; } return null; };
+  const T=MODEL.tracks||{};
+  /* 그 순간 울리는 모든 유율 음을 모은다 — 베이스와 타악은 제외 */
+  const all=[];
+  Object.keys(T).forEach(function(k){
+    if(/drum|perc|fx/i.test(k)) return;
+    (T[k]||[]).forEach(function(n){ if(n&&n.midi!=null&&n.t!=null)
+      all.push({k:k, n:n, a:n.t, b:n.t+(n.dur||0.25)}); });
+  });
+  if(!all.length) return;
+  all.sort(function(x,y){ return x.a-y.a; });
+  const sounding=function(a,b,skip){
+    const out=[];
+    for(let z=0;z<all.length;z++){ const o=all[z];
+      if(o.a>=b-1e-6) break;
+      if(o.b<=a+1e-6) continue;
+      if(o.n===skip) continue;
+      out.push(o.n.midi); }
+    return out;
+  };
+  /* 반음(1)은 언제나 충돌. 장7도(11)는 상대가 화음 밖일 때만 충돌이다
+     (둘 다 화음 구성음이면 maj7 의 정의음이다). */
+  const clash=function(m,list,pcs){
+    for(let z=0;z<list.length;z++){
+      const d3=Math.abs(list[z]-m);
+      if(d3===1) return true;
+      if(d3===11){
+        const inA=pcs.indexOf((((m%12)+12)%12))>=0;
+        const inB=pcs.indexOf((((list[z]%12)+12)%12))>=0;
+        if(!(inA&&inB)) return true;
+      }
+    }
+    return false;
+  };
+  Object.keys(T).forEach(function(k){
+    if(/bass|drum|perc|fx/i.test(k)) return;      /* 바닥과 타악은 건드리지 않는다 */
+    const arr=T[k]||[];
+    let hi=0, lo=127;
+    arr.forEach(function(n){ if(n&&n.midi!=null){ if(n.midi>hi)hi=n.midi; if(n.midi<lo)lo=n.midi; } });
+    if(hi<=lo) return;
+    arr.forEach(function(n){
+      if(!n||n.midi==null||n.t==null) return;
+      const c=at(n.t); if(!c||!c.pcs||!c.pcs.length||c.pc==null) return;
+      const deg=(((n.midi-c.pc)%12)+12)%12;
+      if(!TENSION_DEG_B.has(deg)) return;
+      const pcsN=[...new Set(c.pcs.map(function(x){ return ((x%12)+12)%12; }))];
+      const co=sounding(n.t, n.t+(n.dur||0.25), n);
+      if(!clash(n.midi, co, pcsN)) return;
+      let m=null;
+      for(let j=1;j<=2;j++){ const c2=n.midi+12*j;
+        if(c2>hi+12) break; if(!clash(c2,co,pcsN)){ m=c2; break; } }
+      if(m==null) for(let j=1;j<=2;j++){ const c2=n.midi-12*j;
+        if(c2<lo-12) break; if(!clash(c2,co,pcsN)){ m=c2; break; } }
+      if(m==null){
+        /* 자리를 못 찾으면 가까운 화음 뼈대음으로 내린다 — 텐션은 양념이다 */
+        let best=null;
+        for(let d2=1;d2<=4 && best==null;d2++){
+          [n.midi-d2, n.midi+d2].forEach(function(s){
+            if(best!=null) return;
+            if(pcsN.indexOf((((s%12)+12)%12))<0) return;
+            if(clash(s,co,pcsN)) return;
+            best=s; });
+        }
+        m=best;
+      }
+      if(m==null||m===n.midi) return;
+      n.midi=m;
+    });
+  });
+}
+
 function harmGateBand(cells){
   if(!cells||!cells.length) return;
   const at=function(t){ for(let i=0;i<cells.length;i++){ const c=cells[i];
@@ -10117,6 +10199,12 @@ function exportAll(){arrange();
     if(T.guitar&&T.guitar.length){ famArticBand(T.guitar.filter(n=>n.cine), 61);            // 관악 히트
                                    famArticBand(T.guitar.filter(n=>n.trem), 44);            // 현 트레몰로
                                    famArticBand(T.guitar.filter(n=>!n.cine&&!n.trem), gmOf('guitar')); } }
+  /* 텐션 자리 정리 — 음역 접기(fold)와 아티큘레이션 뒤에 건다.
+     앞에 두면 fold 가 옥타브를 옮기면서 방금 푼 자리를 다시 만든다
+     (실측: 앞에 두었을 때 관문이 funk 기타 98건·billie 장르 23건을 옮겼는데도
+      billie 24.1% · funk 10.5% 가 그대로였다).
+     세 앱에서 다섯 번째 겪는 같은 실패다 — 뒤 단계가 결과를 덮는지 반드시 확인한다. */
+  try{ tensionPlaceBand(MODEL._cells||[]); }catch(e){}
   const im=p=>{const m=instMeta(p);if(!m)return m;const f=instFeel(p);return (f&&f!=='—')?{n:'['+f+'] '+m.n,p:m.p}:m;};   // 트랙명 앞에 음색 느낌(로딩 가이드) 부착
   /* ── 채널 배정기 ──────────────────────────────────────────
      한 채널에 프로그램 체인지가 두 번 들어가면 나중 것이 이겨 두 트랙이 같은 소리로 난다.
@@ -15138,6 +15226,8 @@ function arrange(){
      (실측: 추출 MIDI 에서 4~20건). 원인은 관문 자체가 아니라 뒤에 겹침 정리가 없던 것이다.
      Play 에서 확인한 것과 같다 — 음높이를 바꾸는 관문 뒤에는 반드시 병합을 건다. */
   try{ seventhDisciplineBeat(MODEL.tracks, MODEL.sections); }catch(e){}
+  /* 텐션 자리 정리 — 7도 규율 뒤에 둔다. 자리가 확정된 뒤에 판정해야 한다 */
+  try{ tensionPlaceBeat(MODEL.tracks, MODEL.sections); }catch(e){}
   try{ dedupMelodic(MODEL.tracks); }catch(e){}
   /* ===== 구간 경계 선등장 — 한꺼번에 들어오지 않게 지속층만 한 박 먼저 =====
      경계에서 유율 층 셋 이상이 동시에 들어오면 벽처럼 들린다
@@ -15694,6 +15784,85 @@ function seventhDisciplineBeat(tr,sview){
      근음을 베이스에 맡기고 화음이 7도부터 쌓는 루트리스 보이싱이 정상이다.
      선율 규칙만 적용한다. */
 }
+/* ── 텐션은 제 자리(옥타브 위)에 둔다 (Beat) ──
+   Play·Band 에서 확정한 규칙을 그대로 옮긴다(어법정리.md).
+   9도·11도·13도는 옥타브 위 자리의 음이고, 2도·4도·6도 자리에 놓으면
+   아래 화음음과 반음으로 붙는다. 장7도도 근음 아래 반음에 놓으면 충돌이다.
+   둘 다 화음 구성음이라 마디 단위 검사는 전부 통과한다 — 자리의 문제다.
+   (Play 실측 1.4%->0.9% · Band 실측 6.8%->2.9%) */
+const TENSION_DEG_BT=new Set([1,2,5,6,8,9,11]);
+function tensionPlaceBeat(tr,sview){
+  const map=chordMapQ(sview); if(!map||!map.length)return;
+  const at=t=>{for(let i=0;i<map.length;i++)if(t>=map[i].q0-0.001&&t<map[i].q1-0.001)return i;return -1;};
+  const all=[];
+  Object.keys(tr||{}).forEach(function(k){
+    if(/drum|perc|fx|riser/i.test(k)) return;
+    (tr[k]||[]).forEach(function(n){ if(n&&n.midi!=null&&n.t!=null)
+      all.push({n:n, a:n.t, b:n.t+(n.dur||0.25)}); });
+  });
+  if(!all.length) return;
+  all.sort(function(x,y){ return x.a-y.a; });
+  const sounding=function(a,b,skip){
+    const out=[];
+    for(let z=0;z<all.length;z++){ const o=all[z];
+      if(o.a>=b-1e-6) break;
+      if(o.b<=a+1e-6) continue;
+      if(o.n===skip) continue;
+      out.push(o.n.midi); }
+    return out;
+  };
+  /* 반음(1)은 언제나 충돌. 장7도(11)는 상대가 화음 밖일 때만 충돌이다
+     (둘 다 화음 구성음이면 maj7 의 정의음이다). */
+  const clash=function(m,list,pcs){
+    for(let z=0;z<list.length;z++){
+      const d3=Math.abs(list[z]-m);
+      if(d3===1) return true;
+      if(d3===11){
+        const inA=pcs.indexOf((((m%12)+12)%12))>=0;
+        const inB=pcs.indexOf((((list[z]%12)+12)%12))>=0;
+        if(!(inA&&inB)) return true;
+      }
+    }
+    return false;
+  };
+  Object.keys(tr||{}).forEach(function(k){
+    if(/bass|sub|drum|perc|fx|riser/i.test(k)) return;   /* 바닥과 타악은 건드리지 않는다 */
+    const arr=tr[k]||[];
+    let hi=0, lo=127;
+    arr.forEach(function(n){ if(n&&n.midi!=null){ if(n.midi>hi)hi=n.midi; if(n.midi<lo)lo=n.midi; } });
+    if(hi<=lo) return;
+    arr.forEach(function(n){
+      if(!n||n.midi==null||n.t==null) return;
+      const i=at(n.t); if(i<0) return;
+      const M=map[i]; const pcs=M.pcs; if(!pcs||!pcs.length) return;
+      const root=(M.root!=null)?M.root:pcs[0];
+      const deg=(((n.midi-root)%12)+12)%12;
+      if(!TENSION_DEG_BT.has(deg)) return;
+      const pcsN=pcs.map(function(x){ return ((x%12)+12)%12; });
+      const co=sounding(n.t, n.t+(n.dur||0.25), n);
+      if(!clash(n.midi, co, pcsN)) return;
+      let m=null;
+      for(let j=1;j<=2;j++){ const c2=n.midi+12*j;
+        if(c2>hi+12) break; if(!clash(c2,co,pcsN)){ m=c2; break; } }
+      if(m==null) for(let j=1;j<=2;j++){ const c2=n.midi-12*j;
+        if(c2<lo-12) break; if(!clash(c2,co,pcsN)){ m=c2; break; } }
+      if(m==null){
+        let best=null;
+        for(let d2=1;d2<=4 && best==null;d2++){
+          [n.midi-d2, n.midi+d2].forEach(function(s){
+            if(best!=null) return;
+            if(pcsN.indexOf((((s%12)+12)%12))<0) return;
+            if(clash(s,co,pcsN)) return;
+            best=s; });
+        }
+        m=best;
+      }
+      if(m==null||m===n.midi) return;
+      n.midi=m;
+    });
+  });
+}
+
 function harmGateBeat(tr,sview){
   const map=chordMapQ(sview); if(!map.length)return;
   const at=t=>{for(let i=0;i<map.length;i++)if(t>=map[i].q0-0.001&&t<map[i].q1-0.001)return i;return -1;};
@@ -24632,6 +24801,208 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
   function octaveEditable(k){ return !NO_OCTAVE_EDIT.has(k); }
   const SPILL_SKIP=NO_OCTAVE_EDIT;
   function spillTarget(k){ return !SPILL_SKIP.has(k); }
+  /* ── 층 나눔 (유니슨 해소) ──
+     각 트랙이 저마다 화음음을 짚으면 마디 단위 검사는 모두 통과한다.
+     그런데 서로 다른 트랙이 같은 음높이를 동시에 울리면 층이 사라지고 탁해진다.
+     (순간 단위 실측 42장르: 유니슨이 울리는 시간이 평균 58.3%.
+      rock 93.2% · cineSorrow 93.2% · citypop 92.7% · gukvocal 92.7%.
+      같은 조건에서 joypiano 0.0% · newage 4.7% · rumba 11.8% 였다 —
+      트랙이 많다고 필연이 아니라는 뜻이다.)
+     3도 중복도 같은 뿌리다(평균 43.5% · gukvocal 91.2%).
+     3도는 화음의 성격을 정하는 음이라 편성에서 가장 적게 겹쳐야 한다.
+
+     규칙
+       선율·대선율·베이스 계열은 옮기지 않는다 — 주역과 바닥은 제자리에 있어야 한다
+       나중에 만들어지는 트랙을 옥타브로 옮긴다. 음정 클래스가 그대로라 화성은 바뀌지 않는다
+       옮길 자리가 그 계열 음역을 벗어나면 그대로 둔다 — 실주법을 깨는 것이 더 나쁘다
+     타악은 대상이 아니다(채널 9는 악기 번호다). */
+  const LAYER_KEEP=new Set(['melody','counter','vocal','vocal2','bass','sub','cbass','timpani']);
+  function layerSplit(ev, gkey, gm, doneNotes, tpq){
+    if(!pitchEditable(gkey)) return ev;
+    if(LAYER_KEEP.has(gkey)) return ev;
+    if(!doneNotes) return ev;
+    /* 이미 확정된 트랙의 음을 시간순으로 모은다 */
+    const other=[];
+    Object.keys(doneNotes).forEach(function(k){
+      if(k===gkey) return;
+      const d=doneNotes[k]; if(!d||!d.iv) return;
+      d.iv.forEach(function(x){ if(x.note!=null) other.push(x); });
+    });
+    if(!other.length) return ev;
+    other.sort(function(a,b){ return a.on-b.on; });
+    const ons=other.map(function(x){ return x.on; });
+    /* 그 트랙이 이미 쓰고 있는 음역 안에서만 옮긴다.
+       편곡이 배치한 음역을 벗어나면 실주법을 깨는 것이라 유니슨보다 나쁘다.
+       (Play 에는 악기별 음역 표가 없다 — Band 의 __instRange 는 그 앱 전용이다) */
+    let lo=127, hi=0;
+    ev.forEach(function(e){ if(e.cc!=null||e.note==null) return;
+      if(e.note<lo) lo=e.note; if(e.note>hi) hi=e.note; });
+    if(hi-lo<12) return ev;                     // 한 옥타브도 안 되면 옮길 자리가 없다
+    /* pairIv 는 인덱스를 주지 않으므로 여기서 직접 짝짓는다.
+       열린 음을 추적해 짝지어야 개수가 어긋나도 짝이 밀리지 않는다(어법정리.md). */
+    const iv=[]; { const open={};
+      ev.forEach(function(e,i){
+        if(e.cc!=null||e.note==null||e.tick==null) return;
+        if(e.on===1){ (open[e.note]=open[e.note]||[]).push(i); }
+        else { const q=open[e.note];
+          if(q&&q.length){ const oi=q.shift();
+            iv.push({note:e.note, on:ev[oi].tick, off:e.tick, onIdx:oi, offIdx:i}); } }
+      });
+      iv.sort(function(a,b){ return a.on-b.on; }); }
+    if(!iv.length) return ev;
+    let moved=0;
+    iv.forEach(function(x){
+      /* 같은 순간에 같은 음높이가 다른 트랙에 있는가 */
+      let k=0, n=ons.length, lo2=0, hi2=n-1, st=n;
+      while(lo2<=hi2){ const m=(lo2+hi2)>>1; if(ons[m]>=x.on-tpq*4){ st=m; hi2=m-1; } else lo2=m+1; }
+      let hit=false;
+      for(let z=st; z<n; z++){
+        const o=other[z];
+        if(o.on>=x.off) break;
+        if(o.off<=x.on) continue;
+        if(o.note===x.note){ hit=true; break; }
+      }
+      if(!hit) return;
+      /* 옮길 자리를 고른다. 한 방향만 보면 대부분 막힌다
+         (실측: rock 하프 337건 중 206건, citypop 패드 86건 중 82건이
+          '옥타브 자리에도 이미 다른 트랙 음이 있음' 으로 포기했다).
+         위·아래 옥타브를 모두 시도하고, 둘 다 막히면 두 옥타브까지 본다.
+         음정 클래스는 끝까지 그대로다 — 화성은 바뀌지 않는다. */
+      const cand=[x.note+12, x.note-12, x.note+24, x.note-24];
+      let m2=null;
+      for(let ci=0; ci<cand.length; ci++){
+        const c2=cand[ci];
+        if(c2<lo || c2>hi) continue;
+        let busy=false;
+        for(let z=st; z<n; z++){
+          const o=other[z];
+          if(o.on>=x.off) break;
+          if(o.off<=x.on) continue;
+          if(o.note===c2){ busy=true; break; }
+        }
+        if(!busy){ m2=c2; break; }
+      }
+      if(m2==null) return;
+      if(ev[x.onIdx]) ev[x.onIdx].note=m2;
+      if(ev[x.offIdx]) ev[x.offIdx].note=m2;
+      moved++;
+    });
+    return ev;
+  }
+  /* ── 텐션은 제 자리(옥타브 위)에 둔다 ──
+     9도·11도·13도는 이름 그대로 옥타브 위 자리의 음이다.
+     그것을 2도·4도·6도 자리에 놓으면 아래 화음음과 반음으로 붙는다.
+     장7도도 같다 — 근음 아래 반음에 놓으면 maj7 이 아니라 충돌이다.
+
+     실측(순간 단위, 겹쳐 울리는 음 쌍)에서 남은 충돌은 네 모양뿐이었다.
+       근음과 장7도가 같은 옥타브   citypop 123건 · neosoul 30건
+       3도와 9도                  neosoul 70건 · gukvocal 22건
+       3도와 11도                 gukvocal 32건
+       5도와 ♯11                  citypop 22건
+     전부 텐션이 자기 자리보다 아래에 있어서 생긴다.
+
+     9도만 올렸던 앞 시도(ninthAbove)는 평균 1.4%에서 1.6%로 나빠졌다.
+     올린 자리에서 장7도·11도와 새로 부딪혔기 때문이다.
+     네 가지를 한꺼번에 처리하고, 옮긴 뒤 다시 검사해 여전히 부딪히면
+     그 음을 가까운 화음 뼈대음으로 내린다. */
+  const TENSION_DEG={1:0, 2:0, 5:0, 6:0, 8:0, 9:0, 11:0};   /* ♭9·9·11·♯11·♭13·13·장7 */
+  function tensionPlace(ev, gkey, barPcs, barRoot, barLen, padTick, doneNotes, tpq){
+    if(!barPcs || !barPcs.length) return ev;
+    if(!pitchEditable(gkey)) return ev;
+    if(gkey==='bass' || gkey==='sub' || gkey==='cbass') return ev;   /* 바닥은 건드리지 않는다 */
+    const other=[];
+    if(doneNotes) Object.keys(doneNotes).forEach(function(k){
+      if(k===gkey) return;
+      const d=doneNotes[k]; if(!d||!d.iv) return;
+      d.iv.forEach(function(x){ if(x.note!=null) other.push(x); });
+    });
+    other.sort(function(a,b){ return a.on-b.on; });
+
+    const iv=[]; { const open={};
+      ev.forEach(function(e,i){
+        if(e.cc!=null||e.note==null||e.tick==null) return;
+        if(e.on===1){ (open[e.note]=open[e.note]||[]).push(i); }
+        else { const q=open[e.note];
+          if(q&&q.length){ const oi=q.shift();
+            iv.push({note:e.note, on:ev[oi].tick, off:e.tick, onIdx:oi, offIdx:i}); } }
+      });
+      iv.sort(function(a,b){ return a.on-b.on; }); }
+    if(!iv.length) return ev;
+    let hiT=0, loT=127;
+    ev.forEach(function(e){ if(e.cc==null&&e.note!=null){ if(e.note>hiT)hiT=e.note; if(e.note<loT)loT=e.note; } });
+
+    /* 그 순간에 함께 울리는 음(다른 트랙 + 이 트랙)을 모은다 */
+    const sounding=function(a,b,skip){
+      const out=[];
+      for(let z=0;z<other.length;z++){ const o=other[z];
+        if(o.on>=b) break; if(o.off<=a) continue; out.push(o.note); }
+      for(let z=0;z<iv.length;z++){ const o=iv[z];
+        if(o===skip) continue;
+        if(o.on>=b) break; if(o.off<=a) continue; out.push(o.note); }
+      return out;
+    };
+    /* 반음(1)은 언제나 충돌. 장7도(11)는 상대가 화음 밖일 때만 충돌이다
+       (둘 다 화음 구성음이면 maj7 의 정의음이다).
+       반음만 보면 '11도+장3 간격11' 같은 자리가 그대로 남는다
+       (실측 Band: billie 6건 · funk 4건이 그 모양이었다). */
+    const clashes=function(m, list, pcs){
+      for(let z=0;z<list.length;z++){
+        const d3=Math.abs(list[z]-m);
+        if(d3===1) return true;
+        if(d3===11){
+          const inA=pcs.indexOf((((m%12)+12)%12))>=0;
+          const inB=pcs.indexOf((((list[z]%12)+12)%12))>=0;
+          if(!(inA&&inB)) return true;
+        }
+      }
+      return false;
+    };
+
+    iv.forEach(function(x){
+      const bi=barAtTick(x.on, padTick, barLen);
+      const pcs=barPcs[bi]; const root=(barRoot&&barRoot[bi]!=null)?barRoot[bi]:null;
+      if(!pcs||!pcs.length||root==null) return;
+      const deg=(((x.note-root)%12)+12)%12;
+      if(!(deg in TENSION_DEG)) return;                  /* 텐션·장7도만 대상 */
+      const co=sounding(x.on, x.off, x);
+      if(!clashes(x.note, co, pcs)) return;                   /* 부딪히지 않으면 둘 일이 없다 */
+      /* ① 옥타브 위로 올려 본다 */
+      let m=null;
+      for(let k=1;k<=2;k++){
+        const c2=x.note+12*k;
+        if(c2>hiT+12) break;
+        if(!clashes(c2, co, pcs)){ m=c2; break; }
+      }
+      /* ② 아래로도 본다 */
+      if(m==null){
+        for(let k=1;k<=2;k++){
+          const c2=x.note-12*k;
+          if(c2<loT-12) break;
+          if(!clashes(c2, co, pcs)){ m=c2; break; }
+        }
+      }
+      /* ③ 그래도 부딪히면 가까운 화음 뼈대음으로 내린다 —
+            텐션은 양념이라 자리를 못 찾으면 뼈대로 돌아가는 것이 옳다 */
+      if(m==null){
+        let best=null, bd=99;
+        for(let d2=1;d2<=4;d2++){
+          for(const s of [x.note-d2, x.note+d2]){
+            const pc2=(((s%12)+12)%12);
+            if(pcs.indexOf(pc2)<0) continue;
+            if(clashes(s, co, pcs)) continue;
+            if(d2<bd){ bd=d2; best=s; }
+          }
+          if(best!=null) break;
+        }
+        m=best;
+      }
+      if(m==null || m===x.note) return;
+      if(ev[x.onIdx]) ev[x.onIdx].note=m;
+      if(ev[x.offIdx]) ev[x.offIdx].note=m;
+      x.note=m;
+    });
+    return ev;
+  }
   function spillGate(ev, gkey, barPcs, barLen, padTick, tpq, melEv){
     if(!barPcs || !barPcs.length) return ev;
     if(!spillTarget(gkey)) return ev;
@@ -24641,8 +25012,16 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
        관과 합창은 호흡을 바꾼다.
        (실측: KEEP 이 한 박(480틱)이라 cineSoar 하프가 마디 4 에서 시작한 F 를
         마디 5(근음 C)까지 끌어 선율 E 와 반음으로 부딪혔다. 이런 것이 18건이었다.) */
-    const isSus=(gkey!=='melody' && gkey!=='counter');
-    const KEEP=Math.round(tpq*(isSus?0.18:0.12));
+    const isMel=(gkey==='melody'||gkey==='counter'||gkey==='vocal'||gkey==='vocal2');
+    /* 선율은 __melEv 로 판정할 수 없다 — 그 배열은 선율 트랙이 만들어진 뒤에 채워지므로
+       선율 자신을 처리할 때는 늘 비어 있다. 그래서 걸침 허용치를 그대로 받아 왔다
+       (실측: 마디를 넘은 음 2,647건 중 화음 밖 801건이었고, 그중 564건이 선율 계열이었다.
+        보컬 가이드 359건 중 235건 · 플루트 선율 261건 중 153건 · 오보에 152건 중 105건.
+        같은 시점에 현은 390건 중 3건, 금관은 182건 중 0건이었다 — 지속층은 이미 잡혀 있었다).
+       선율이 화음 바뀐 자리를 넘어 끌면 그 아래 반주가 반드시 울리고 있다.
+       그러므로 선율에는 걸침을 거의 주지 않는다. */
+    const isSus=!isMel;
+    const KEEP=Math.round(tpq*(isSus?0.18:0.04));
     const open={};
     ev.forEach(function(e){
       if(e.cc!=null || e.note==null || e.tick==null) return;
@@ -24678,7 +25057,9 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
               if(mv.b>edge){ melOn=true; break; }
             }
           }
-          if(!melOn && e.tick <= edge+KEEP) return;
+          /* 선율은 반주가 늘 울리고 있으므로 걸침을 인정하지 않는다 */
+          if(!isMel && !melOn && e.tick <= edge+KEEP) return;
+          if(isMel && e.tick <= edge+KEEP) return;
           const cut=Math.max(on.tick+Math.round(tpq*0.12), edge-2);
           if(cut < e.tick) e.tick=cut;
           return;                                   // 처음 어긋나는 마디에서 끊는다
@@ -28309,6 +28690,11 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ev=seventhDiscipline(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, TPQ, __isBassTrk(grp.key)); ev=coalesceNotes(ev);
       /* 4중주 성부 정리 — 위 성부가 완료된 뒤에 걸어야 비교 대상이 있다 */
       ev=quartetVoiceFix(ev, grp.key, TPQ, doneNotes);
+      /* 층 나눔 — 화음음 스냅이 끝난 뒤에 건다. 옥타브만 옮기므로 화성은 그대로다.
+         옮긴 결과가 마디를 넘길 수 있으므로 spillGate 앞에 둔다 */
+      ev=layerSplit(ev, grp.key, grp.gm, doneNotes, TPQ); ev=coalesceNotes(ev);
+      /* 텐션 자리 정리 — 층 나눔 뒤에 건다. 층이 옮겨진 결과 위에서 판정해야 한다 */
+      ev=tensionPlace(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, doneNotes, TPQ); ev=coalesceNotes(ev);
       /* 마디를 넘어 끌리는 음 정리 — 길이를 바꾸는 관문이 모두 끝난 뒤에 건다.
          앞에 두면 famArticulate 가 세 번, brassFinalHold 가 한 번 더 걸리며
          잘라 놓은 지속음을 계열 규칙대로 다시 늘린다
