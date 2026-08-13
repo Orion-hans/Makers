@@ -7886,7 +7886,10 @@ function arrange(){
     groups.forEach(g=>{
       const t0=g.items[0].t,tEnd=g.items[g.items.length-1].t+(0.25);
       const e=eT(t0),bi=idxT(t0)+':'+Math.floor((t0-secsT[idxT(t0)].startQ)/barQt(idxT(t0)));
-      const isRoll=g.items.length>=4;
+      /* 롤 판정 — 넷 이상이던 문턱을 셋으로 내린다.
+         epic 은 팀파니가 셋잇단 묶음이라 넷을 못 채워 롤이 하나도 안 나왔다
+         (실측: epic 롤 0개 · animeost 12개). 셋잇단 한 묶음도 손이 굴러가는 자리다. */
+      const isRoll=g.items.length>=3;
       // 밀도 제한: 마디당 단타는 에너지에 따라(후반부일수록 조금 더), 롤은 항상 허용
       const cap=(e<=1)?0:(e===2)?1:(e===3)?2:(e===4)?3:4;
       if(!isRoll){
@@ -9331,7 +9334,13 @@ function __instRange(prog){
 }
 function noteTrack(notes,ch,prog,isDrum,ctrl,name,fxNote){const PPQ=480,ev=[],padT=Math.round(exportPadQ()*PPQ);
 
-  notes.forEach(n=>{const midi=isDrum?DRUMMIDI[n.type]:n.midi,dur=isDrum?0.12:n.dur;ev.push({t:padT+Math.round(n.t*PPQ),k:1,on:1,midi,vel:n.vel});ev.push({t:padT+Math.round((n.t+dur)*PPQ),k:1,on:0,midi,vel:0});});
+  /* 타악 길이 — 한 줄로 0.12박을 주면 심벌과 공이 스타카토로 잘린다.
+     로직의 샘플 악기는 노트오프에서 감쇠를 끊는 것이 많아 실제로 짧게 들린다
+     (실측: Band 심벌 평균 0.12박 · 공 0.61~0.86박. 공은 아주 길게 울려야 하는 악기다).
+     금속 계열은 여운을 노트 길이로 적어 준다. 나머지 타격은 그대로 짧게 둔다. */
+  const DRUMRING={crash:8, openhat:1};
+  notes.forEach(n=>{const midi=isDrum?DRUMMIDI[n.type]:n.midi,
+      dur=isDrum?(DRUMRING[n.type]!=null?DRUMRING[n.type]:0.12):n.dur;ev.push({t:padT+Math.round(n.t*PPQ),k:1,on:1,midi,vel:n.vel});ev.push({t:padT+Math.round((n.t+dur)*PPQ),k:1,on:0,midi,vel:0});});
   if(ctrl)ctrl.forEach(c=>ev.push({t:padT+Math.round(c.t*PPQ),k:0,cc:c.ctrl,val:c.val}));   // CC: 노트보다 먼저(k:0) — 페달이 음을 미리 받게
   if(!isDrum) __softenEntry(ev, prog, e=>e.t, e=>e.cc, e=>e.val, (e,v)=>{e.val=v;},
     e=>(e.k===1&&e.on===1), e=>(e.k===1&&e.on===0), e=>(e.vel||80),
@@ -10067,9 +10076,21 @@ function exportAll(){arrange();
                                    famArticBand(T.guitar.filter(n=>n.trem), 44);            // 현 트레몰로
                                    famArticBand(T.guitar.filter(n=>!n.cine&&!n.trem), gmOf('guitar')); } }
   const im=p=>{const m=instMeta(p);if(!m)return m;const f=instFeel(p);return (f&&f!=='—')?{n:'['+f+'] '+m.n,p:m.p}:m;};   // 트랙명 앞에 음색 느낌(로딩 가이드) 부착
+  /* ── 채널 배정기 ──────────────────────────────────────────
+     한 채널에 프로그램 체인지가 두 번 들어가면 나중 것이 이겨 두 트랙이 같은 소리로 난다.
+     (실측: animeost·disney 에서 트레몰로 현(prog 44)과 팀파니(prog 47)가 둘 다 ch12 였다.
+      팀파니가 음정 악기인데 현 소리로 나거나 그 반대가 됐다.)
+     요청 채널이 이미 쓰였으면 빈 채널을 준다. 9는 GM 드럼이라 타악 전용으로 비워 둔다.
+     트랙을 쌓는 순서가 정해져 있으므로 결과는 결정적이다. */
+  const __usedCh=new Set([9]);
+  const __ch=(want)=>{
+    if(!__usedCh.has(want)){ __usedCh.add(want); return want; }
+    for(let c=15;c>=0;c--){ if(c===9)continue; if(!__usedCh.has(c)){ __usedCh.add(c); return c; } }
+    return want;
+  };
   const tr=[tempoTrack(),
-    noteTrack(MODEL.tracks.piano,0,im('piano').p,false,pianoExpr(),im('piano').n,trackFX('piano')),
-    noteTrack(MODEL.tracks.bass,1,im('bass').p,false,bassExpr(MODEL.tracks.bass),im('bass').n,trackFX('bass')),
+    noteTrack(MODEL.tracks.piano,__ch(0),im('piano').p,false,pianoExpr(),im('piano').n,trackFX('piano')),
+    noteTrack(MODEL.tracks.bass,__ch(1),im('bass').p,false,bassExpr(MODEL.tracks.bass),im('bass').n,trackFX('bass')),
     ];
   // 기타 트랙: 오케 스타일은 기타/브라스 스탭/현 트레몰로 3분리(로직에서 각각 악기 로드)
   {
@@ -10079,16 +10100,16 @@ function exportAll(){arrange();
       const base=G.filter(n=>!n.cine&&!n.trem);
       const brass=G.filter(n=>n.cine);
       const trem=G.filter(n=>n.trem);
-      if(base.length)tr.push(noteTrack(base,2,im('guitar').p,false,guitarOrBrassExpr(base),im('guitar').n,trackFX('guitar')));
-      if(brass.length)tr.push(noteTrack(brass,11,61,false,null,'[파워풀 관악 히트(폭발·피날레)] Brass Section - Stabs',trackFX('guitar')));
-      if(trem.length)tr.push(noteTrack(trem,12,44,false,null,'[긴장 고조 현(빌드업)] Strings - Tremolo',trackFX('melody')));
+      if(base.length)tr.push(noteTrack(base,__ch(2),im('guitar').p,false,guitarOrBrassExpr(base),im('guitar').n,trackFX('guitar')));
+      if(brass.length)tr.push(noteTrack(brass,__ch(11),61,false,null,'[파워풀 관악 히트(폭발·피날레)] Brass Section - Stabs',trackFX('guitar')));
+      if(trem.length)tr.push(noteTrack(trem,__ch(12),44,false,null,'[긴장 고조 현(빌드업)] Strings - Tremolo',trackFX('melody')));
     } else if(state.style==='rumba'&&G.length){   // 룸바: 메인 라스게아도 / 세군다(둘째 기타) / 골페(바디 타격) 3분리 — 로직에서 좌·우 팬, 골페는 퍼커션
       const main=G.filter(n=>!n.seg&&!n.golpe), seg=G.filter(n=>n.seg), golpe=G.filter(n=>n.golpe);
-      if(main.length)tr.push(noteTrack(main,2,im('guitar').p,false,guitarOrBrassExpr(main),im('guitar').n,trackFX('guitar')));
-      if(seg.length)tr.push(noteTrack(seg,13,im('guitar').p,false,null,'[둘째 기타(세군다)·옥타브 위 라스게아도 — 반대쪽 팬] Nylon Guitar 2 - Segunda',trackFX('guitar')));
-      if(golpe.length)tr.push(noteTrack(golpe,14,115,false,null,'[골페(기타 바디 타격) — 퍼커션/바디탭 음색로 교체] Golpe - Guitar Body Tap'));
+      if(main.length)tr.push(noteTrack(main,__ch(2),im('guitar').p,false,guitarOrBrassExpr(main),im('guitar').n,trackFX('guitar')));
+      if(seg.length)tr.push(noteTrack(seg,__ch(13),im('guitar').p,false,null,'[둘째 기타(세군다)·옥타브 위 라스게아도 — 반대쪽 팬] Nylon Guitar 2 - Segunda',trackFX('guitar')));
+      if(golpe.length)tr.push(noteTrack(golpe,__ch(14),115,false,null,'[골페(기타 바디 타격) — 퍼커션/바디탭 음색로 교체] Golpe - Guitar Body Tap'));
     } else if(G.length>=3 && !/미사용/.test((im('guitar')||{}).n||'')){   // 이름이 '미사용'이거나 음 3개 미만이면 미디에 트랙을 만들지 않는다(빈 껍데기 방지)
-      tr.push(noteTrack(G,2,im('guitar').p,false,guitarOrBrassExpr(G),im('guitar').n,trackFX('guitar')));
+      tr.push(noteTrack(G,__ch(2),im('guitar').p,false,guitarOrBrassExpr(G),im('guitar').n,trackFX('guitar')));
     }
   }
   // 드럼: 오케 스타일은 악기별 트랙 분리(로직에서 팀파니·그란카사·심벌·스네어에 각각 악기 로드) / 일반 스타일은 단일 킷
@@ -10100,9 +10121,34 @@ function exportAll(){arrange();
       const cassa=grp(['kick']);
       const cym=grp(['crash','openhat']);
       const kit=grp(['snare','hat']);
+      /* ── 오케스트라 관례: 크래시는 구간 첫박에 놓는다 ──
+         크래시는 새 구간이 열리는 자리를 알리는 악기다. 아무 자리에나 흩어지면
+         구간이 열리는 느낌이 없어진다
+         (실측: epic 심벌 93음 중 구간 첫박은 10음(11%) · animeost 7% · disney 9%).
+         에너지가 올라가는 경계에만 놓는다. 내려가는 경계에 치면 착지가 아니라 방해가 된다. */
+      {const SV=MODEL.sections||[];
+       SV.forEach((sv,i)=>{
+         if(i===0) return;
+         if((sv.energy||0)<=(SV[i-1].energy||0)) return;      // 올라가는 경계에만
+         const start=sv.startQ;
+         if(cym.some(n=>Math.abs(n.t-start)<0.3)) return;     // 이미 있으면 두 번 치지 않는다
+         cym.push({t:start, type:'crash', vel:Math.min(112, 88+(sv.energy||3)*4)});
+       });
+       cym.sort((a,b)=>a.t-b.t);}
+      /* ── 공(탐탐)은 큰 전환에만 ──
+         공은 아주 길게 울리는 악기라 자주 치면 소리가 겹쳐 탁해진다.
+         에너지가 두 칸 이상 뛰는 경계만 남기고 나머지는 크래시로 내린다
+         (실측: epic 공 31음 중 구간 첫박은 11음(35%) — 나머지는 곡 한복판이었다). */
+      {const SV=MODEL.sections||[]; const bigT=[];
+       SV.forEach((sv,i)=>{ if(i>0 && (sv.energy||0)-(SV[i-1].energy||0)>=2) bigT.push(sv.startQ); });
+       for(let k=cym.length-1;k>=0;k--){
+         if(cym[k].type!=='openhat') continue;             // openhat 자리가 탐탐으로 나간다
+         if(bigT.some(t=>Math.abs(cym[k].t-t)<0.3)) continue;
+         cym[k]={t:cym[k].t, type:'crash', vel:Math.max(60,Math.round((cym[k].vel||80)*0.85))};
+       }}
       // 팀파니: 코드에 맞춘 '음정 트랙'(ch12, GM 47). 롤은 롱노트 1개 + CC11 크레셴도로 기록
       if(MODEL.tracks.timp&&MODEL.tracks.timp.length)
-        tr.push(noteTrack(MODEL.tracks.timp,12,47,false,(MODEL.timpCC||null),'[웅장한 홀 팀파니(음정·롤은 CC11 크레셴도)] Timpani',trackFX('drums')));
+        tr.push(noteTrack(MODEL.tracks.timp,__ch(12),47,false,(MODEL.timpCC||null),'[웅장한 홀 팀파니(음정·롤은 CC11 크레셴도)] Timpani',trackFX('drums')));
       if(cassa.length)tr.push(noteTrack(cassa,9,null,true,null,'[초저역 대북(임팩트)] Gran Cassa (Concert Bass Drum)',trackFX('drums')));
       if(cym.length)tr.push(noteTrack(cym,9,null,true,null,'[금속 광채·긴 여운] Cymbals / Tam-tam',trackFX('drums')));
       /* 조곡 모드에서는 하이브리드 킷(스네어·햇)을 빼고 오케스트라 타악만 남긴다 —
@@ -10112,18 +10158,18 @@ function exportAll(){arrange();
       tr.push(noteTrack(D.filter(n=>!n.noMidi),9,null,true,null,im('drums').n,trackFX('drums')));
     }
   }
-  if(state.enabled.piano&&MODEL.tracks.piano2&&MODEL.tracks.piano2.length)tr.push(noteTrack(MODEL.tracks.piano2,8,0,false,ped64(),'[은은한 배경 오스티나토] 2nd Piano - Arp Theme (soft)',trackFX('piano')));   // 2nd 피아노(ch8) — 서스테인 페달(CC64) 동일 적용(코드마다 밟고 바뀌기 직전 뗌)
+  if(state.enabled.piano&&MODEL.tracks.piano2&&MODEL.tracks.piano2.length)tr.push(noteTrack(MODEL.tracks.piano2,__ch(8),0,false,ped64(),'[은은한 배경 오스티나토] 2nd Piano - Arp Theme (soft)',trackFX('piano')));   // 2nd 피아노(ch8) — 서스테인 페달(CC64) 동일 적용(코드마다 밟고 바뀌기 직전 뗌)
   const __imp=(window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length)?window.SO_HUB.importedMelody:null;
   const __impSel=__imp&&(!window.SO_HUB.melSrc||window.SO_HUB.melSrc.band!=='own');   // 선택된 멜로디 소스(가져온=기본)
   const vocal=state.enabled.melody?MODEL.tracks.melody.filter(n=>!n.theme):[];
   if(vocal.length){ const __vm=__imp&&__impSel;   // 가져온 쪽 선택이면 자체는 뮤트
     const __vc=__vm?[{t:0,ctrl:7,val:0}].concat(exprEvents(vocal)||[]):exprEvents(vocal);
-    tr.push(noteTrack(vocal,4,im('melody').p,false,__vc,(__vm?'[뮤트] ':'')+im('melody').n,trackFX('melody'))); }
+    tr.push(noteTrack(vocal,__ch(4),im('melody').p,false,__vc,(__vm?'[뮤트] ':'')+im('melody').n,trackFX('melody'))); }
   const lead=state.enabled.lead?MODEL.tracks.melody.filter(n=>n.theme):[];
-  if(lead.length)tr.push(noteTrack(lead,5,im('lead').p,false,exprEvents(lead),im('lead').n,trackFX('melody')));
-  if(state.enabled.counter&&MODEL.tracks.counter.length)tr.push(noteTrack(MODEL.tracks.counter,7,im('counter').p,false,exprEvents(MODEL.tracks.counter),im('counter').n,trackFX('melody')));
-  if(state.enabled.drone&&MODEL.tracks.drone.length)tr.push(noteTrack(MODEL.tracks.drone,6,im('drone').p,false,droneExpr(MODEL.tracks.drone),im('drone').n,(styleFX().bus||'')));
-  if(state.enabled.genre&&GENRE_TRK[state.style]&&MODEL.tracks.genre.length)tr.push(noteTrack(MODEL.tracks.genre,10,im('genre').p,false,genreExpr(MODEL.tracks.genre),im('genre').n,(trackFX('genre')||trackFX('melody'))));   // 전용 트랙(ch10) — 지속현은 스웰, 발현은 생략
+  if(lead.length)tr.push(noteTrack(lead,__ch(5),im('lead').p,false,exprEvents(lead),im('lead').n,trackFX('melody')));
+  if(state.enabled.counter&&MODEL.tracks.counter.length)tr.push(noteTrack(MODEL.tracks.counter,__ch(7),im('counter').p,false,exprEvents(MODEL.tracks.counter),im('counter').n,trackFX('melody')));
+  if(state.enabled.drone&&MODEL.tracks.drone.length)tr.push(noteTrack(MODEL.tracks.drone,__ch(6),im('drone').p,false,droneExpr(MODEL.tracks.drone),im('drone').n,(styleFX().bus||'')));
+  if(state.enabled.genre&&GENRE_TRK[state.style]&&MODEL.tracks.genre.length)tr.push(noteTrack(MODEL.tracks.genre,__ch(10),im('genre').p,false,genreExpr(MODEL.tracks.genre),im('genre').n,(trackFX('genre')||trackFX('melody'))));   // 전용 트랙(ch10) — 지속현은 스웰, 발현은 생략
   /* ── 웅장 타악 합주 (오케스트라 계열) ──
      대고(41·43·35)·중북(45·47·48)·징(52)·크래시(49)를 후렴·빌드업에 얹어 규모를 키운다.
      말발굽 리듬꼴은 곡마다 하나를 고른다(시드). 목탁·꽹과리는 밴드 편성에 안 맞아 뺀다. */
@@ -10201,10 +10247,10 @@ function exportAll(){arrange();
         }); }   // isDrum=false: 노트 번호를 그대로 씀(채널 9가 드럼)
     } }
   const fx=fxCueNotes();
-  if(fx.length)tr.push(noteTrack(fx,3,102,false,null,'[가이드] FX Cues - Riser/Impact/Sub — 샘플로 교체할 위치·길이 (표현 없음)'));
-  extraGuideTracks().forEach(nm=>tr.push(noteTrack([],8,null,false,null,nm)));   // 빈 가이드 트랙: 이름=악기+용도
-  if(__imp) tr.push(noteTrack(__imp,15,73,false,(__impSel?null:[{t:0,ctrl:7,val:0}]),(__impSel?'':'[뮤트] ')+'[가져온] 멜로디 — 보존됨 (Flute)',null));   // 멜로디 앵커: 넘어온 멜로디 그대로 실음(선택 안 되면 뮤트)
-  if(window.SO_motive){ const __mo=window.SO_motive('band'); if(__mo.length) tr.push(noteTrack(__mo,14,11,false,null,'[모티브] 인트로·간주·아웃트로 (멜로디 훅 기반) — Vibraphone',null)); }   // 멜로디 훅 모티브: 전환 구간에 협화로 배치
+  if(fx.length)tr.push(noteTrack(fx,__ch(3),102,false,null,'[가이드] FX Cues - Riser/Impact/Sub — 샘플로 교체할 위치·길이 (표현 없음)'));
+  extraGuideTracks().forEach(nm=>tr.push(noteTrack([],__ch(8),null,false,null,nm)));   // 빈 가이드 트랙: 이름=악기+용도
+  if(__imp) tr.push(noteTrack(__imp,__ch(15),73,false,(__impSel?null:[{t:0,ctrl:7,val:0}]),(__impSel?'':'[뮤트] ')+'[가져온] 멜로디 — 보존됨 (Flute)',null));   // 멜로디 앵커: 넘어온 멜로디 그대로 실음(선택 안 되면 뮤트)
+  if(window.SO_motive){ const __mo=window.SO_motive('band'); if(__mo.length) tr.push(noteTrack(__mo,__ch(14),11,false,null,'[모티브] 인트로·간주·아웃트로 (멜로디 훅 기반) — Vibraphone',null)); }   // 멜로디 훅 모티브: 전환 구간에 협화로 배치
   dl(tr,`band_${state.style}_${MODEL.bpm}bpm.mid`);
   /* 목차는 문서 맨 앞에 — 뒤에 붙으면 "바로 아래"라는 안내가 1부가 끝난 자리에서 나와 어긋난다.
      1부와 2부 사이에는 별도 구분선을 넣어 어디부터 2부인지 보이게 한다. */
@@ -10815,7 +10861,10 @@ function logicGuide(){
     line('※ 곡 후반 테마 복귀부에 자동 생성됨. 아래 이벤트가 기존 트랙에 얹혀 있으니 해당 트랙에서 처리:');
     line('※ 오케 타악은 MIDI에서 4트랙 분리됨: Timpani / Gran Cassa / Cymbals·Tam-tam / Drum Kit(Snare·Hat)');
     line('   → 로직에서 각 트랙에 해당 악기 로드(팀파니·대북·서스펜디드 심벌·스네어) 후 아래 EQ 적용');
-    line('※ Timpani는 드럼맵이 아니라 "음정 트랙"(ch12·GM 47)으로 나감 — 코드 근음/5도에 맞춰 조율되어 있음');
+    line('※ Timpani는 드럼맵이 아니라 "음정 트랙"(GM 47)으로 나감 — 코드 근음/5도에 맞춰 조율되어 있음');
+    line('   채널은 겹치지 않게 자동 배정됨. 트랙 이름으로 구분하고 드럼 채널(10번)에 두지 말 것');
+    line('※ Cymbals/Tam-tam은 노트 길이에 여운을 적어 뒀음(크래시 8박) — 샘플이 끝까지 울리게 두고 임의로 자르지 말 것');
+    line('※ 크래시는 에너지가 올라가는 구간 첫박에만, 탐탐은 두 칸 이상 뛰는 큰 전환에만 놓임');
     line('   · 롤은 낱음을 찍지 않고 롱노트 1개 + CC11 크레셴도로 기록됨');
     line('   · 로직 설정: 팀파니 음원을 롤(또는 서스테인) 아티큘레이션으로 두고 CC11(Expression)을 다이내믹에 연결');
     line('     → 한 음이 여리게 시작해 커지다가 다음 강타로 터지는 크레셴도 롤이 그대로 재현됨');
@@ -24315,6 +24364,42 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     return ev;
   }
 
+  /* ── 오케스트라 성부 배치 ─────────────────────────────────
+     저역(콘트라베이스·첼로·튜바·저금관)이 선율 위로 올라가면 성부가 교차한다.
+     오케스트라에서는 아래가 아래를 맡는다 — 저역이 선율보다 위에 서면
+     화음의 바닥이 사라지고 선율이 가운데 묻힌다
+     (실측: cineSuite 16회 · classic 5회 · epicaeol 4회).
+     반음으로 옮기면 화성이 깨지므로 옥타브 단위로만 내린다.
+     28(E1) 아래로는 내리지 않는다 — 콘트라베이스 최저음이다. */
+  const ORCHG=new Set(['epicaeol','cineTension','cineSoar','cineSorrow','cineJoy','cineWar',
+                       'cineSuite','classic','quartal']);
+  const ORCH_LOW=new Set(['cbass','lowbrass','sub','bass','strings2','cello']);
+  function orchVoice(ev, gkey, melIv){
+    if(!ORCHG.has(gsel)) return ev;
+    if(!ORCH_LOW.has(gkey)) return ev;
+    if(!melIv || !melIv.length) return ev;
+    if(!octaveEditable(gkey)) return ev;
+    const open={}, pairs=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null||e.note==null||e.tick==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push(i); }
+      else if(e.on===0){ const q=open[e.note]; if(!q||!q.length) return;
+        const oi=q.shift(); pairs.push({oi:oi,fi:i,tick:e.tick,on:ev[oi].tick,note:e.note}); }
+    });
+    pairs.forEach(function(x){
+      let guard=0;
+      while(guard++<3){
+        const hi=melIv.filter(function(m){ return m.on<x.tick && x.on<m.off; });
+        if(!hi.length) break;
+        const lowestMel=Math.min.apply(null, hi.map(function(m){ return m.note; }));
+        if(x.note < lowestMel) break;                 // 이미 아래에 있다
+        if(x.note-12 < 28) break;                     // 콘트라베이스 최저음
+        ev[x.oi].note-=12; ev[x.fi].note-=12; x.note-=12;
+      }
+    });
+    return ev;
+  }
+
   function harmGate(ev, gkey, barChords, barLen, padTick){
     if(!barChords || !barChords.length) return ev;
     if(gkey==='melody' || gkey==='counter') return ev;
@@ -27994,6 +28079,14 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          앞에 두면 텐션을 얹은 자리를 뒤에서 화음음으로 도로 스냅한다. */
       ev=jazzIdiom(ev, grp.key, grp.role, __barPcs, __barRoot, __barLen, PAD, TPQ,
                    (doneNotes['melody']&&doneNotes['melody'].iv)||null);
+      ev=coalesceNotes(ev);
+      /* 선율 기준선은 한 트랙이 아니다. 장르마다 선율을 맡는 악기가 달라
+         'melody' 하나만 보면 플루트가 선율을 맡는 곡에서 교차를 못 잡는다
+         (실측: cineSuite 16회가 그대로 남았다 — 위 성부가 Flute 였다). */
+      ev=orchVoice(ev, grp.key, (function(){ const o=[];
+          ['melody','counter','winds','winds2','brass3'].forEach(function(k){
+            if(doneNotes[k]&&doneNotes[k].iv) doneNotes[k].iv.forEach(function(x){ o.push(x); }); });
+          return o.length?o:null; })());
       ev=coalesceNotes(ev);
       ev=seamGate(ev, grp.key, __barPcs, __SEC_TICKS, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       ev=selfDeclash(ev, grp.key, TPQ); ev=crossDeclash(grp.key, ev);
