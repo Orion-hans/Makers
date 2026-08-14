@@ -28554,7 +28554,8 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       };
     })();
     groups.forEach(grp=>{
-      let ev=[], tick=PAD; let soloPrevV=null;   // 솔로 피아노 자리바꿈 연속용
+      let ev=[], tick=PAD;
+      let _ostRoot=null, _ostSec=-1;   /* cineTension 오스티나토 축 — 구간마다 한 번만 잡는다 */ let soloPrevV=null;   // 솔로 피아노 자리바꿈 연속용
       const secOcc=(function(){ const cnt={},o=[]; currentSong.forEach(function(s2){ const L=(s2.label||''); o.push(cnt[L]||0); cnt[L]=(cnt[L]||0)+1; }); return o; })(); // 같은 유형 섹션의 n번째 등장(벌스1·2·3…) — 구조 인식 필인 선택
       currentSong.forEach((sec,secIdx)=>{
         const savedTonic=tonic; tonic=tonic+(sec.keyShift||0); curVoicing=voicingFor(sec.label);
@@ -28982,7 +28983,14 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
               const nslots=(stg>=4)?16:8; for(let k=0;k<nslots;k++){ const st2=T+Math.round(k*measure/nslots);
                 ev.push({tick:st2,on:1,note:cell[k%4],vel:Math.round((50+(k%4===0?16:0)+(stg>=5?8:0))*inA)}); ev.push({tick:st2+Math.round(measure/nslots)-8,on:0,note:cell[k%4]}); } }
             else if(gsel==='cineTension'){ // 16분 트레몰로 다이애드 + 절정에서 반음 클러스터
-              const lo=Math.max(48,c.bass); const dy=(stg>=5)?[lo,lo+1]:[lo,lo+7];
+              /* 오스티나토는 화음이 바뀌어도 같은 음형이 버티는 것이 어법이다.
+                 다이애드를 마디마다 c.bass 로 다시 잡으면 화음을 따라 음이 바뀌어
+                 '반복' 이 되지 않는다
+                 (실측 7장르: 현 오스티나토가 Tension 12% · Sorrow 22% 로
+                  반복이 정체인 Tension 이 더 낮았다).
+                 구간의 첫 화음을 축으로 고정하고, 조성이 바뀌는 자리에서만 옮긴다. */
+              if(_ostRoot==null || _ostSec!==secIdx){ _ostRoot=Math.max(48,c.bass); _ostSec=secIdx; }
+              const lo=_ostRoot; const dy=(stg>=5)?[lo,lo+1]:[lo,lo+7];
               for(let k=0;k<16;k++){ const st2=T+Math.round(k*measure/16); const m=dy[k%2];
                 ev.push({tick:st2,on:1,note:m,vel:Math.round((40+(k%8===0?14:0))*inA)}); ev.push({tick:st2+Math.round(measure/16)-4,on:0,note:m}); } }
             else if(gsel==='cineSorrow'){ // 4-3 계류: 강박 4도 → 중간에 3도로 해결 + 근음·5도 지속
@@ -31138,7 +31146,13 @@ return L.join('\n');
       counterOn=true; { const co=$('counterOn'); if(co) co.checked=true; } // 첼로 대선율이 노래를 받침
       return; }
     if(gsel==='newage'){ INST.drums.on=false; INST.bass.on=false; INST.piano.on=true; INST.melody.on=true; INST.melody.gm=0; INST.strings.on=false; INST.winds.on=false; }
-    else if(CINE.has(gsel)){ INST.drums.on=false; INST.bass.on=false; INST.strings.on=true; INST.strings.gm=(gsel==='cineTension')?44:48; // 긴장=트레몰로 스트링
+    else if(CINE.has(gsel)){
+      /* 전투(cineWar)는 타악이 정체다 — 팀파니와 심벌이 곡을 끌고 간다.
+         오케 타악은 드럼(바탕 리듬)이 켜져 있을 때만 트랙이 생기는데
+         CINE 전체가 드럼을 꺼서 타악 비중이 0%였다
+         (실측 7장르: 타악 비중이 epicaeol 29% 외 전부 0% ·
+          War 가 가장 높아야 하는데 다른 시네마틱과 구분되지 않았다). */
+      INST.drums.on=(gsel==='cineWar'); INST.bass.on=false; INST.strings.on=true; INST.strings.gm=(gsel==='cineTension')?44:48; // 긴장=트레몰로 스트링
       INST.brass.on=true; INST.brass.gm=60; INST.harp.on=(gsel!=='cineTension'); INST.harp.gm=46;
       INST.winds.on=(gsel==='cineSorrow'||gsel==='cineJoy'); INST.winds.gm=(gsel==='cineSorrow')?68:73; // 슬픔=오보에, 행복=플루트
       INST.piano.on=(gsel==='cineSorrow'||gsel==='cineJoy');
