@@ -19189,7 +19189,15 @@ const document = __scopedDoc('app-play');
     o.textContent=(SHARP[pc]===FLAT[pc])?SHARP[pc]:(SHARP[pc]+' / '+FLAT[pc]);
     o.title=o.textContent; $('tonic').appendChild(o); }
 
-  function noteName(pc,roman){ pc=((pc%12)+12)%12; const flat = (roman&&roman.indexOf('♭')>=0) || FLAT_KEY.has(tonic) || useFlatKey(tonic,keyMode); return (flat?FLAT:SHARP)[pc]; }
+  /* 조성이 ♭ 계열이면 그 구간의 모든 음이름을 ♭ 으로 적는다.
+     예전에는 로마숫자에 ♭ 이 있을 때만 ♭ 으로 적어
+     Gm/A♯ · Fm/G♯ 처럼 화음은 ♭ 계열인데 베이스나 차용화음만 ♯ 으로 나왔다.
+     한 구간 안에서 표기는 그 조의 조표를 따라 통일해야 한다.
+     ♯ 이 로마숫자에 명시된 경우(♯IV 등)만 ♯ 을 남긴다. */
+  function noteName(pc,roman){ pc=((pc%12)+12)%12;
+    if(roman && roman.indexOf('♯')>=0) return SHARP[pc];
+    const flat = (roman&&roman.indexOf('♭')>=0) || FLAT_KEY.has(tonic) || useFlatKey(tonic,keyMode);
+    return (flat?FLAT:SHARP)[pc]; }
 
   // 화음 품질 → 음정 / 표기
   /* 코드 톤에는 텐션을 섞지 않는다.
@@ -20941,7 +20949,12 @@ const document = __scopedDoc('app-play');
     return steps.map((st,si)=>{ const p=picks[si]; return gv.bassPat.map(b=> b.s===0 ? {s:0,r:p.r,o:p.o} : b ); }); }
   function bassSemiOf(st,pick){ const iv1=Q[st[2]]?Q[st[2]].iv[1]:4; return pick.r==='third'?st[1]+iv1 : pick.r==='fifth'?st[1]+7 : st[1]; }
   function withVoiceLedBass(steps){ const picks=vlPicks(steps); return steps.map((st,si)=>{ const c=st.slice(); c[3]=bassSemiOf(st,picks[si]); return c; }); }
-  function bassSlashSemi(rootSemi,semi){ if(semi==null) return ''; const rp=((rootSemi%12)+12)%12, bp=((semi%12)+12)%12; return rp===bp?'':'/'+noteName(tonic+semi,''); }
+  /* 분수화음의 베이스음도 화음과 같은 표기를 따라야 한다.
+     roman 을 넘기지 않아 베이스만 ♯ 계열로 적혀 한 구간에 ♭ 과 ♯ 이 섞였다
+     (실측 42장르: 구간 334개 중 17개(5.1%)가 혼재.
+      Gm/A♯ · Fm/G♯ · F(4도)/A♯ 처럼 화음은 ♭ 계열인데 베이스만 ♯ 이었다.
+      B♭ 조성에서 A♯ 은 쓰지 않는다). */
+  function bassSlashSemi(rootSemi,semi,roman){ if(semi==null) return ''; const rp=((rootSemi%12)+12)%12, bp=((semi%12)+12)%12; return rp===bp?'':'/'+noteName(tonic+semi,roman||''); }
   function resolveBass(steps,variant){
     const gv=GROOVE[gsel]||GROOVE.pop;
     const pedal=chordMidis(steps[0][1],steps[0][2]).bass;
@@ -21202,7 +21215,7 @@ RHYTHMS.joypiano=[
           const _bs=((vlead[si]&&vlead[si].root!=null?vlead[si].root:cn[0])-12);
           const _seed=(((si+1)*2246822519)^((opts&&opts.compSeedBase)||0))>>>0;
           const _claP=barChordList(st); let _slotsA=null; if(_claP.length>1 && secVLa && secVLa.at[si]){ _slotsA=secVLa.at[si].map(function(cc){ const v=secVLa.vl[cc.idx]; return {f:cc.s/16, cn:declash(v.notes.slice()), bass:v.bass}; }); } // 박별 보이싱(재생, MIDI와 동일)
-          const _bar=compStyleBar(cn,_bs,{style:(_lgComp||compStyle),p:(_lgComp?loungeP(_lgComp):compIntensity),eighth:meterEighth(),beat:meterQuarterPos(),strong:meterBeatPos(),seed:_seed,inA:inten2,stage:((opts&&opts.stage)||3),pedal:pedalOn,slots:_slotsA});
+          const _bar=compStyleBar(cn,_bs,{style:(_lgComp||compStyle),p:(_lgComp?loungeP(_lgComp):compIntensity),eighth:meterEighth(),beat:meterQuarterPos(),strong:meterBeatPos(),seed:_seed,inA:inten2,stage:((opts&&opts.stage)||3),build:(loungeMode?loungeDensity((opts&&opts.t01)||0,loungePeak(opts&&opts.movement)):null),pedal:pedalOn,slots:_slotsA});
           _bar.notes.forEach(nn=>{ const mm=nn.note, dd=Math.max(0.08,nn.dur*measure), vo=nn.vel*0.13; ev.push({t:base+nn.pos*measure, play:(T)=>instVoice(mm,T,dd,vo,'piano')}); }); }
         else if((LYRIC_G.has(gsel)||pianoNA)&&!emotive){ lyricPianoPlay(ev,base,si,vlead,rh,inten2,measure,spb,at,INST.melody.on,si===steps.length-1,(opts&&opts.intro),((opts&&opts.climax)?((opts&&opts.climaxMode)||true):false),st); }
         else if(emotive){ const bassN=Math.max(36,(vlead[si]&&vlead[si].root?vlead[si].root:cn[0])-12); // 왼손 베이스(근음)
@@ -21793,6 +21806,33 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
   const LOUNGE_P={ arpeggio:0.88, newage:0.85, ballad:0.80, rumba:0.80,
                    block:0.42, stride:0.45, waltz:0.45, pop:0.50, jazz:0.50 };
   function loungeP(st2){ return (st2 && LOUNGE_P[st2]!=null) ? LOUNGE_P[st2] : 0.55; }
+  /* ── 라운지 밀도 곡선 ──
+     일본 뉴에이지 피아노처럼 한 편 안에서 밀도가 곡선을 그려야 한다.
+     처음부터 채우면 각 음이 또렷하지 않고, 끝까지 채우면 쉴 자리가 없다.
+     (실측: 라운지 15분에서 피아노 마디당 음 수가 여덟 구간 내내 1이었다.
+      ballad 는 2분음표 125개에 16분이 0개 — 곡선이 아예 없었다.)
+
+       0~20%   성김   한 음이 길게 · 4분·2분 중심 · 왼손도 화음을 길게
+      20~45%   채움   8분이 늘고 왼손에 움직임
+      45~70%   절정   16분이 흐르고 양손이 가장 촘촘
+      70~85%   덜기   다시 성기게
+      85~100%  여백   처음의 성김으로 돌아감
+
+     편마다 절정 높이가 다르다 — 어떤 편은 크게, 어떤 편은 잔잔하게. */
+  function loungeDensity(t01, peak){
+    const t=Math.max(0,Math.min(1,t01||0));
+    const pk=(peak==null?1:peak);
+    let v;
+    if(t<0.20)      v=0.18+0.35*(t/0.20);
+    else if(t<0.45) v=0.53+0.22*((t-0.20)/0.25);
+    else if(t<0.70) v=0.75+0.25*((t-0.45)/0.25);
+    else if(t<0.85) v=1.00-0.42*((t-0.70)/0.15);
+    else            v=0.58-0.40*((t-0.85)/0.15);
+    return Math.max(0.10,Math.min(1,v*pk));
+  }
+  /* 편별 절정 높이 — 편이 바뀔 때마다 크기가 달라진다 */
+  const LOUNGE_PEAK=[1.00,0.78,1.12,0.86,1.05,0.72,1.15,0.90];
+  function loungePeak(mv){ return LOUNGE_PEAK[((mv||1)-1+8)%8]; }
   function compStyleBar(cn, bass, opts){
     cn=(cn&&cn.length)?[...new Set(cn)].sort((a,b)=>a-b):[60,64,67]; // 오른손 보이싱 정리
     const E=(opts.eighth&&opts.eighth.length)?opts.eighth:[0,.125,.25,.375,.5,.625,.75,.875]; // 8분 격자
@@ -21801,6 +21841,7 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
     const p=Math.max(0,Math.min(1,opts.p==null?.3:opts.p)), inA=(opts.inA==null?1:opts.inA), pedal=!!opts.pedal; // 강도·다이내믹·페달
     const stage=(opts.stage!=null?opts.stage:3); // 구조 단계(1 인트로/씨앗 → 6 절정)
     const build=Math.max(0,Math.min(1, opts.build!=null?opts.build:((stage-1)/5)*0.9+(inA-0.8)*0.25)); // 구조 빌드업: stage 주도 + 섹션 다이내믹 미세조정
+    const _lgCurve=(opts.build!=null);   /* 라운지가 밀도 곡선을 넘겼는가 — 넘겼으면 바닥을 낮춘다 */
     let s=(opts.seed>>>0)||0x2545F491; const rnd=()=>{ s=(1664525*s+1013904223)>>>0; return s/4294967296; }; // 시드 난수(재생·MIDI 동일)
     const out=[], beatDur=B.length>1?(B[1]-B[0]):.25, endCap=.985; // endCap=마디 안에서 끊기
     const strongV=.9*inA, weakV=.58*inA, bassV=.8*inA; // 강박·약박·베이스 세기
@@ -21827,7 +21868,15 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
       if(build>0.3) add(0.5, beatDur*1.2, bassLo(bass+7), bassV*0.8);            // 빌드업 시 5도 받침
       for(let o=0;o<1-1e-6;o+=step){
         const idx=Math.round(o/step), isDown=(idx%2===0);
-        if(build<0.42 && !isDown && Math.abs((o/(beatDur/2))%1)>1e-6) continue;  // 저빌드=8분만
+        /* 라운지 곡선: 16분 스트럼은 초반에 8분·4분으로 성기게 짚는다.
+           (실측: rumba 만 build 10%에서도 마디당 30음이었다.
+            같은 조건에서 arpeggio 4.0 · ballad 3.0 · newage 4.0 · block 3.0 이었다.) */
+        if(_lgCurve){
+          if(build<0.30 && idx%4!==0) continue;          /* 성김: 4분만 */
+          else if(build<0.55 && idx%2!==0) continue;     /* 채움: 8분까지 */
+        }
+        /* 초반(build 낮음)에는 8분 뒷자리를 건너뛰어 4분 중심으로 남긴다 */
+        if(build<(_lgCurve?0.55:0.42) && !isDown && Math.abs((o/(beatDur/2))%1)>1e-6) continue;  // 저빌드=8분만
         let acc=0; for(const k in ACC){ if(Math.abs(o-(+k))<1e-6){acc=ACC[k];break;} } if(!acc) acc=isDown?0.35:0.15;
         const vel=Math.max(0.2,Math.min(0.95,(isDown?0.5:0.38)+acc*0.4));
         const spread=0.004+acc*0.009;                                            // 굴림 폭(억양 클수록 넓게)
@@ -21842,9 +21891,19 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
     const slots=(opts.slots&&opts.slots.length)?opts.slots.map(sl=>({f:sl.f, cn:(sl.cn&&sl.cn.length)?[...new Set(sl.cn)].sort((a,b)=>a-b):[60,64,67], bass:(sl.bass!=null?sl.bass:bass)})).sort((a,b)=>a.f-b.f):[{f:0,cn:cn,bass:bass}];
     const chordAt=(f)=>{ let c=slots[0]; for(let i=0;i<slots.length;i++){ if(slots[i].f<=f+1e-6) c=slots[i]; else break; } return c; }; // 위치의 활성 코드
     const topAt=(f)=>{ const c=chordAt(f).cn; return c[c.length-1]; };
-    const motionAmt=Math.max(0,Math.min(1, sm*(0.35+0.65*build)*(0.45+0.85*p)+0.06*build)); // 모션 채움량 = 스타일색 × 구조빌드업 × 강도 (+ 절정부 최소 혼합)
-    const anchorEvery=build>0.45; // 빌드업: 약박에도 블록 앵커
-    const octave=build>0.72;      // 절정: 옥타브 보강
+    /* 모션 채움량 = 스타일색 × 구조빌드업 × 강도.
+       바닥값이 0.35 라 build 가 0 이어도 늘 절반쯤 채워졌다.
+       그래서 라운지 전 구간이 16분으로 꽉 찼다
+       (실측 라운지 15분: ballad 16분 60% · jazz 68% · lyric 60%,
+        마디당 음 수가 처음부터 끝까지 17~21로 평평했다.
+        일본 뉴에이지 피아노는 초반에 4분·2분으로 여백을 두고
+        중반부터 채워 절정에서 16분이 흐른다).
+       라운지에서는 바닥을 낮추고 build 의 폭을 넓혀 곡선이 실제로 보이게 한다. */
+    const motionAmt=_lgCurve
+      ? Math.max(0,Math.min(1, sm*(0.05+0.95*build*build)*(0.45+0.85*p)))
+      : Math.max(0,Math.min(1, sm*(0.35+0.65*build)*(0.45+0.85*p)+0.06*build));
+    const anchorEvery=build>(_lgCurve?0.55:0.45); // 빌드업: 약박에도 블록 앵커
+    const octave=build>(_lgCurve?0.80:0.72);      // 절정: 옥타브 보강
     const eD=beatDur*0.5, blockDur=eD*0.9, motionDur=(style==='newage')?beatDur*1.6:eD*0.9; // 음가=8분 이하(재타건 보존, coalesce 병합 방지) · 페달 CC64가 레가토 담당
     const anchorVoicing=(atStrong,f)=>{ const C=chordAt(f).cn, tp=C[C.length-1], bss=chordAt(f).bass; // 앵커 보이싱(위치별 코드)
       /* 재즈 컴핑은 근음을 빼고(왼손이 잡으므로) 나머지를 쓴다.
@@ -21908,7 +21967,23 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
     let rhAnchors; const blockish=(style==='block'||style==='pop'); if(style==='stride') rhAnchors=[]; else if(style==='waltz') rhAnchors=B.filter(b=>!S.some(x=>near(x,b))); else rhAnchors=(anchorEvery&&blockish)?B:SA; // 블록·팝만 빌드업 시 모든 박, 그 외는 강박 앵커(고조 시 3+3+2)+모션이 빌드업 담당
     rhAnchors.forEach((b)=>{ const atStrong=SA.some(x=>near(x,b))||near(b,B[0]);
       const roll=(style==='ballad'&&atStrong)?0.012*(0.6+p):0; // 발라드 다운비트=롤 코드
-      chordToneOnly(anchorVoicing(atStrong,b), chordAt(b).cn).forEach((n,k)=>add(b+roll*k, blockDur, n, (atStrong?strongV:weakV)*(style==='ballad'?0.9:1)));
+      /* 앵커(박마다 화음 짚기)가 build 와 무관하게 매 박 화음을 통째로 짚고 있었다.
+         4박 × 화음 3~4음이면 그것만으로 마디당 12~16음이 되어
+         곡선을 넣어도 밀도가 움직이지 않는다
+         (실측 라운지: ballad 16분 62% · jazz 69% · bossa 76%,
+          마디당 음 수가 처음부터 끝까지 17~21로 평평했다).
+         라운지에서는 초반에 약박 앵커를 건너뛰고 성부도 줄인다. */
+      let _av=chordToneOnly(anchorVoicing(atStrong,b), chordAt(b).cn);
+      if(_lgCurve){
+        /* ballad(롤 코드)·newage(느린 분산)는 앵커가 곧 음 수라
+           앵커를 안 줄이면 곡선 폭이 절반으로 눌린다
+           (실측: 편1 arpeggio 4.0→25.0 인데 편2 ballad 3.0→16.3 · 편3 newage 4.0→12.0). */
+        const _thin=(style==='ballad'||style==='newage');
+        if(!atStrong && build<(_thin?0.55:0.42)) return;     /* 초반: 강박만 */
+        if(build<(_thin?0.38:0.30))      _av=_av.slice(-1);  /* 성김: 꼭대기 한 음 */
+        else if(build<(_thin?0.68:0.55)) _av=_av.slice(-2);  /* 채움: 두 음 */
+      }
+      _av.forEach((n,k)=>add(b+roll*k, blockDur, n, (atStrong?strongV:weakV)*(style==='ballad'?0.9:1)));
       if(octave && atStrong && style!=='newage') add(b, beatDur*0.6, topAt(b)+12, weakV*0.7); }); // 절정 옥타브
 
     // ── 모션 레이어(분산·브로큰·오프비트) : 앵커 없는 8분 슬롯을 빌드업만큼 채움 → 블록과 겹침 ──
@@ -22406,12 +22481,18 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     return mel;
   }
   function useFlatKey(tonic,mode){
-    /* 단조는 상대 장조로 환산해 판정한다.
-       A♭단조는 상대 장조가 B(pc 11)라 ♯ 으로 판정되지만,
-       조표는 ♭4개(G♯단조가 아니라 A♭단조로 적는 관례)라 서로 어긋났다.
-       조표 표(minSf)가 ♭ 인 조는 ♭ 으로 적는다 — 둘이 같은 답을 내야 한다. */
+    /* 표기는 실제 조표를 따라야 한다. 조표가 ♭ 이면 음이름도 ♭ 이다.
+       예전에는 major·minor 만 다뤄 선법 곡(mode==='modal')이 전부 ♯ 으로 판정됐다.
+       (실측: cineWar·mixolydian·quartal 은 keyMode 가 'modal' 이라 useFlat=false 인데
+        조표 메타는 -3(♭3개)로 나가 화면 표기와 파일 조표가 어긋났다.
+        그래서 Cm 곡에 Gm/A♯ 같은 표기가 남았다.) */
     const pc=(((tonic%12)+12)%12);
     if(mode==='minor'){ const minFlat=[8,3,10,5,0,7,2]; return minFlat.indexOf(pc)>=0; }
+    if(mode==='modal'){
+      /* 선법은 조표가 그 선법의 음계를 따른다. 조표 부호로 직접 판정한다 */
+      try{ const m=keySigMeta(); const sf=(m&&m[3]!=null)?(m[3]>127?m[3]-256:m[3]):0; if(sf<0) return true; if(sf>0) return false; }catch(e){}
+      /* 조표를 못 구하면 장조 관례로 */
+    }
     return [5,10,3,8,1,6].indexOf(pc)>=0; }
   function melodyScoreSVG(mel, tnc, mode){
     if(!mel||!mel.length) return '<div class="score-empty">🎲 테마 듣기로 선율을 먼저 만들어 주세요</div>';
@@ -22603,12 +22684,25 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     const all=[], chords=[], secs=[]; let barOff=0; const savedTonic=tonic;
     currentSong.forEach(sec=>{ const steps=(sec.prog&&sec.prog.steps)||[]; if(!steps.length){ return; }
       tonic=savedTonic+(sec.keyShift||0);
-      secs.push({startBar:barOff, bars:steps.length, label:sec.label, reps:(sec.reps||1)});   // 구간 경계·반복
-      steps.forEach((st,i)=>{ chords[barOff+i]=chordLabel(st[1],st[2],st[0])+bassSlashSemi(st[1],st[3])+(st[4]?' / '+st[4][2]:''); });
-      if(sec.label==='인트로'){ steps.forEach((st,i)=>all.push({bar:barOff+i,pos:0,midi:null,dur:meterQuarters()})); barOff+=steps.length; return; } // 인트로=피아노만(멜로디 쉼표)
-      const mel=(sec.mels&&sec.mels[0])||genMelody(steps,{intensity:sec.intensity||0.85,rhythmSeed:currentMotif,instClass:instClass(INST.melody.gm),scale:sec.prog.scale,narrow:(gsel==='kids')});
-      mel.forEach(mn=>all.push({bar:barOff+mn.bar,pos:mn.pos,midi:mn.midi,dur:mn.dur}));
-      barOff+=steps.length; });
+      secs.push({startBar:barOff, bars:steps.length*Math.max(1,sec.reps||1), label:sec.label, reps:(sec.reps||1)});   // 구간 경계(반복 펼친 마디 수)
+      { const _RC=Math.max(1,sec.reps||1);
+        for(let _r=0;_r<_RC;_r++) steps.forEach((st,i)=>{ chords[barOff+_r*steps.length+i]=chordLabel(st[1],st[2],st[0])+bassSlashSemi(st[1],st[3],st[0])+(st[4]?' / '+st[4][2]:''); }); }
+      if(sec.label==='인트로'){ const _RI=Math.max(1,sec.reps||1);
+        for(let _r=0;_r<_RI;_r++) steps.forEach((st,i)=>all.push({bar:barOff+_r*steps.length+i,pos:0,midi:null,dur:meterQuarters()}));
+        barOff+=steps.length*_RI; return; } // 인트로=피아노만(멜로디 쉼표)
+      /* 반복(reps)을 펼쳐 그린다.
+         예전에는 sec.mels[0] 하나만 그려서 reps=2 인 구간의 뒤쪽 마디가 통째로 비었다
+         (실측 42장르: 구간 334개 중 159개(47.6%)가 악보에서 선율 없음으로 잡혔고,
+          그중 하이라이트·코러스·벌스는 실제로는 선율이 있었다 —
+          ballad 하이라이트 mel0음=19 · lyric 17 · epicaeol 25).
+         반복마다 다른 선율이 있으면 그것을, 없으면 첫 선율을 되풀이해 그린다. */
+      const _R=Math.max(1, sec.reps||1);
+      for(let _r=0; _r<_R; _r++){
+        const mel=(sec.mels&&(sec.mels[_r]||sec.mels[0]))||genMelody(steps,{intensity:sec.intensity||0.85,rhythmSeed:currentMotif,instClass:instClass(INST.melody.gm),scale:sec.prog.scale,narrow:(gsel==='kids')});
+        const _off=barOff+_r*steps.length;
+        mel.forEach(mn=>all.push({bar:_off+mn.bar,pos:mn.pos,midi:mn.midi,dur:mn.dur}));
+      }
+      barOff+=steps.length*_R; });
     tonic=savedTonic;
     /* ── 악보와 소리를 같은 규칙으로 ──
        화면 악보는 이 함수가 모은 원본 선율을 그리고, MIDI는 buildSongMIDI의 관문을 거친다.
@@ -22747,7 +22841,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
          라운지는 곡이 길어 만드는 데 시간이 걸리므로 자동으로 만들지 않는다. */
       if(!__scoreMelFromMidi && !loungeMode){ try{ buildSongMIDI(); }catch(e){} }
       mel=collectSongMelody(); barChords=mel._chords; }
-    else { mel=themeMelody; barChords=themeSteps?themeSteps.map(st=>chordLabel(st[1],st[2],st[0])+bassSlashSemi(st[1],st[3])):null; }
+    else { mel=themeMelody; barChords=themeSteps?themeSteps.map(st=>chordLabel(st[1],st[2],st[0])+bassSlashSemi(st[1],st[3],st[0])):null; }
     const tog='<div class="score-toggle">'+(hasTheme?'<button data-sm="theme" class="'+(scoreMode==='theme'?'on':'')+'">테마</button>':'')+(hasSong?'<button data-sm="full" class="'+(scoreMode==='full'?'on':'')+'">전체 곡</button>':'')+'<button data-img="1" class="score-img" style="margin-left:auto">🖼 이미지 저장</button></div>';
     el.innerHTML=tog+'<div id="scoreInner"></div>';
     const inner=$('scoreInner');
@@ -28553,12 +28647,46 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                장르 기본 반주(왕복 아르페지오)로만 나왔다.
                게다가 아래 호출부가 정의되지 않은 _lgComp를 참조하고 있었다. */
             const _lgComp=(compStyle==='auto' && loungeMode && sec && sec.loungeComp) ? sec.loungeComp : null;
+            /* 편 안에서 이 마디가 어디쯤인가 — 0(시작) ~ 1(끝).
+               밀도 곡선이 이 값을 따라 성김 → 채움 → 절정 → 덜기 → 여백을 그린다.
+               편(movement)이 없으면 곡 전체를 한 편으로 본다. */
+            /* 편 안에서 이 마디가 어디쯤인가 — 0(시작) ~ 1(끝).
+               구간 인덱스로 세면 라운지처럼 같은 라벨이 여러 번 도는 곡에서 순서가 섞인다
+               (실측: build 가 [69,47,53,84,50,55,81,43,50,87] 로 뒤죽박죽이었다).
+               누적 마디 수(=시간)로 센다. movement 가 있으면 그 편 안에서, 없으면 곡 전체에서. */
+            let _lgT01=0;
+            if(loungeMode){
+              try{
+                const mv=(sec&&sec.movement)||0;
+                let before=0, tot=0;
+                /* 같은 편에 속한 구간만 세되, before 는 그 편 안에서의 누적이어야 한다.
+                   편 밖 구간을 건너뛰면서도 ix<secIdx 로만 세면
+                   편2 이후는 앞 편 마디가 빠져 before 가 늘 커진다
+                   (실측: 편1만 곡선이 살고 편2부터 평평했다 —
+                    ballad 편1 7.8→24.0→18.4 인데 편2 는 18.9→12.9→16.1). */
+                (currentSong||[]).forEach(function(s2,ix){
+                  if(mv && (s2.movement||0)!==mv) return;   /* 그 편 구간만 */
+                  const nb=((s2.prog&&s2.prog.steps)?s2.prog.steps.length:0)*(s2.reps||1);
+                  if(ix<secIdx) before+=nb;                 /* 편 안에서의 앞쪽 마디 */
+                  tot+=nb;
+                });
+                const here=before + r*((sec.prog&&sec.prog.steps)?sec.prog.steps.length:0) + si;
+                if(tot>0) _lgT01=Math.max(0,Math.min(1, here/tot));
+              }catch(e){ _lgT01=0; }
+            }
             if(compStyle!=='auto' || _lgComp){ // 스타일 엔진이 반주를 지배(MIDI)
               const _bs=((vleadM&&vleadM[si]&&vleadM[si].root!=null?vleadM[si].root:cn[0])-12); // 왼손 근음
               const _seed=(((secIdx+1)*2654435761)^((r+1)*40503)^((si+1)*2246822519))>>>0; // 섹션·반복·마디 결정적 시드
               const _cl=barChordList(st); // 이 마디의 박별 코드 목록
               let _slots=null; if(_cl.length>1 && secVL && secVL.at[si]){ _slots=secVL.at[si].map(function(c){ const v=secVL.vl[c.idx]; return { f:c.s/16, cn:declash(v.notes.slice()), bass:v.bass }; }); } // 박별 보이싱(연결 최소 이동)
-              const _bar=compStyleBar(cn,_bs,{style:(_lgComp||compStyle),p:(_lgComp?loungeP(_lgComp):compIntensity),eighth:meterEighth(),beat:meterQuarterPos(),strong:meterBeatPos(),seed:_seed,inA:inA,stage:(sec.stage||3),pedal:pedalOn,slots:_slots});
+              /* 라운지에서는 스타일 강도(p)도 곡선을 따른다.
+                 p 가 고정이면 스타일마다 밀도 폭이 달라 편이 바뀔 때 곡선이 눌린다
+                 (실측: 편1 arpeggio 는 4.0→25.0 인데 편2 ballad 는 3.0→16.3,
+                  편3 newage 는 4.0→12.0 으로 폭이 절반이었다).
+                 곡선의 0.55~1.15 배를 곱해 어느 스타일에서도 성김과 절정이 뚜렷하게 한다. */
+              const _lgD=(loungeMode?loungeDensity(_lgT01,loungePeak(sec.movement)):null);
+              const _lgP=(_lgComp? loungeP(_lgComp)*(_lgD!=null?(0.55+0.60*_lgD):1) : compIntensity);
+              const _bar=compStyleBar(cn,_bs,{style:(_lgComp||compStyle),p:(_lgComp?_lgP:compIntensity),eighth:meterEighth(),beat:meterQuarterPos(),strong:meterBeatPos(),seed:_seed,inA:inA,stage:(sec.stage||3),build:_lgD,pedal:pedalOn,slots:_slots});
               _bar.notes.forEach(nn=>{ const mt=T+Math.round(nn.pos*measure), md=Math.max(60,Math.round(nn.dur*measure));
                 ev.push({tick:mt,on:1,note:nn.note,vel:Math.max(30,Math.min(122,Math.round(nn.vel*118)))}); ev.push({tick:mt+md,on:0,note:nn.note}); }); }
             else if((LYRIC_G.has(gsel)||pianoNA||soloPiano)&&!emotive){ // 기악독주곡·솔로 피아노: 구간(stage)마다 패턴·밀도가 자라는 기승전결 + 섹션마다 다른 패턴
