@@ -24000,7 +24000,10 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       }
       /* 피아노 한 대만 흐르면 단조롭다 — 높은 음역에서 간간히 몇 음을 얹어 준다.
          선율 트랙을 켜되 같은 펠트 피아노로 두어 두 대처럼 들리지 않게 한다. */
-      INST.melody.on=true; if(!quartetMode && gsel!=='chanbul') INST.melody.gm=0;
+      /* 오케스트라형은 선율 악기를 그대로 둔다 —
+         바이올린·호른·오보에가 펠트 피아노로 바뀌면 편성이 무너진다
+         (실측: classic 이 일반에서 Violin | Melody 인데 라운지에서 Felt Piano | Melody 로 나왔다). */
+      INST.melody.on=true; if(!quartetMode && gsel!=='chanbul' && !ORCH_LOUNGE.has(gsel)) INST.melody.gm=0;
       if(typeof renderInst==='function') renderInst();
       const lg=buildLoungeSong(structKey);
       if(!lg){ if($('themeMsg'))$('themeMsg').textContent='이 조성에 맞는 진행이 없어요'; return; }
@@ -28454,11 +28457,19 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
        그런데 장르에 따라 melody 트랙이 꺼진 채로 남아 선율 없는 파일이 나왔다
        (실측: lyricMid·lyricMinyo·joypiano 세 장르에서 피아노 트랙 하나만 나옴).
        라운지에서는 편성 상태와 무관하게 켠다. */
-    if(loungeMode && INST.melody && !INST.melody.on){ INST.melody.on=true; INST.melody.gm=0; }
+    /* ── 악보는 주선율 하나만 그린다 ──
+       선율 트랙이 꺼져 있으면 악보에 그릴 주선율이 없다.
+       예전에는 그 자리를 피아노 반주에서 뽑아 채웠는데,
+       그러면 악보에 아르페지오 패턴이 선율로 그려져
+       '2분음표-쉼표-쉼표-8분-8분' 이 40마디 내내 반복되는 것처럼 보였다
+       (실측: melOn=false 인데 확정본 500음 · 악보 앞 6음이 피아노 아르페지오와 같았다).
+       반주는 악보에 들어가면 안 된다. 대신 선율 트랙을 켠다.
+       기악독주곡도 주선율은 있다 — 피아노가 그것을 함께 연주할 뿐이다. */
+    if(INST.melody && !INST.melody.on){ INST.melody.on=true; INST.melody.gm=MEL_GM_FOR(gsel); }
     /* 라운지는 피아노 한 대가 어법인데 피아노가 없는 편성 장르는 반주 트랙 자체가 없었다
        (실측: folk·shanty·rumba 세 장르에서 GUARD 가 '라운지인데 피아노 트랙 없음'으로 잡았다).
        선율과 같은 방식으로 편성 상태와 무관하게 켠다. */
-    if(loungeMode && INST.piano && !INST.piano.on){ INST.piano.on=true; INST.piano.gm=0; }
+    if(loungeMode && !ORCH_LOUNGE.has(gsel) && INST.piano && !INST.piano.on){ INST.piano.on=true; INST.piano.gm=0; }
     if(INST.melody.on) groups.push({gm:INST.melody.gm,ch:5,role:'melody',key:'melody'});
     if(counterOn) groups.push({gm:counterGm(),ch:6,role:'counter',key:'counter'}); // 대선율=솔로 현(현 섹션과 다른 악기) — 이름과 실제 음색 일치
     if(INST.piano.on) groups.push({gm:INST.piano.gm,ch:0,role:'chord',key:'piano'});
@@ -29351,23 +29362,6 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          그 장르는 피아노 한 대가 선율과 반주를 함께 맡으므로
          같은 순간의 꼭대기 음이 실제로 귀가 좇는 선율선이다.
          확정본이 없으면 악보가 genMelody 로 새 선율을 그려 소리와 갈린다. */
-      if(grp.key==='piano' && !INST.melody.on && !__scoreMelFromMidi){
-        try{
-          const _iv=pairIv(ev).slice().sort(function(a2,b2){ return a2.on-b2.on; });
-          const _top=[]; let _i=0;
-          while(_i<_iv.length){
-            let _j=_i;
-            while(_j+1<_iv.length && _iv[_j+1].on-_iv[_i].on<20) _j++;
-            let _best=_iv[_i];
-            for(let _k=_i;_k<=_j;_k++) if(_iv[_k].note>_best.note) _best=_iv[_k];
-            _top.push(_best); _i=_j+1;
-          }
-          __scoreMelFromMidi=_top.map(function(x){
-            const bi=barAtTick(x.on, PAD, __barLen);
-            return {bar:bi, pos:(x.on-PAD-bi*__barLen)/TPQ, midi:x.note, dur:Math.max(0.05,(x.off-x.on)/TPQ)};
-          });
-        }catch(e){}
-      }
       if(grp.key==='melody'){ __melEv=pairIv(ev).map(function(x){ return {a:x.on, b:x.off, n:x.note}; });
         /* 악보가 그릴 선율 — 관문을 모두 거친 확정본이다 */
         try{ __scoreMelFromMidi=pairIv(ev).map(function(x){
@@ -31422,12 +31416,33 @@ let cineSuiteMode=false, cineSuiteMin=16;   // 시네마틱 조곡 — 네 무�
    제외: celtic·gugak(피아노가 편성에 없어 라운지에서 소리가 안 남),
         epicaeol(현·금관 5트랙 편성이라 피아노 독주가 아님),
         rock·edm·trap 계열(리듬이 곡의 골격이라 피아노만 남으면 장르가 사라짐). */
+/* 오케스트라형 라운지 — 피아노로 바꾸지 않고 편성을 그대로 둔다 */
+/* 장르별 주선율 악기 — 악보에 그릴 선율을 누가 맡는가.
+   기악독주곡은 피아노가 선율과 반주를 함께 하므로 선율선을 피아노 음색으로 분리한다. */
+const MEL_GM_MAP={
+  lyric:0, lyricPenta:0, lyricMid:0, lyricMinyo:0, joypiano:0, newage:0,   /* 그랜드 피아노 */
+  gugak:73, gukvocal:73, chanbul:73,                                        /* 대금 대용 플루트 */
+  folk:73, shanty:73, celtic:73,
+  jazz:66, bossa:73, neosoul:73, lofi:73, blues:22,
+  classic:40, quartal:73,
+  dorian:73, phrygian:73, lydian:73, mixolydian:73,
+  doubleharm:73, hungarian:73, phrygdom:73
+};
+function MEL_GM_FOR(g){ return (MEL_GM_MAP[g]!=null)?MEL_GM_MAP[g]:54; }  /* 기본 = 보컬 가이드 */
+const ORCH_LOUNGE=new Set(['cineSoar','cineTension','cineSorrow','cineJoy','cineWar','epicaeol',
+  /* 클래식도 오케스트라형이다 — 바이올린 선율·첼로 대선율·오보에·현을
+     피아노 한 대로 바꾸면 실내악 편성이 사라진다.
+     현악 4중주 모드는 별도 분기가 이미 처리한다. */
+  'classic']);
 const LOUNGE_OK=new Set([
   'lyric','lyricPenta','lyricMid','lyricMinyo','newage','joypiano','classic','quartal',
   'jazz','bossa','neosoul','blues','lofi','ballad','citypop','pop','kids',
   'folk','shanty','tango','gypsy','rumba',
   'dorian','phrygian','lydian','mixolydian','doubleharm','hungarian','phrygdom',
-  'cineSorrow',
+  /* ── 오케스트라형 라운지 ──
+     시네마틱·에픽 계열은 피아노로 바꾸지 않고 오케스트라 그대로 연주한다.
+     편성이 이미 갖춰져 있다(cineSoar 13트랙 · epicaeol 19트랙). */
+  'cineSoar','cineTension','cineSorrow','cineJoy','cineWar','epicaeol',
   /* 켈틱풍·국악풍 — 라운지에서만 피아노 편성으로 바꿔 연주한다 */
   'celtic','gugak','gukvocal',
   /* 찬불가 — 라운지에서는 합창을 빼고 기악으로 연주한다(사찰 카페·명상 공간용) */
@@ -31507,7 +31522,18 @@ function applyPreset(solo){
     }
     else {
     const _isQt=(($('structSel')&&$('structSel').value)==='@quartet');
-    if(loungeMode && _isQt){
+    if(loungeMode && ORCH_LOUNGE.has(gsel)){
+      /* ── 오케스트라형 라운지 ──
+         시네마틱·에픽 계열은 피아노 한 대로 바꾸지 않는다.
+         솔로 피아노로 바꾸면 호른 선율·현·저역금관·합창·하프·팀파니가 통째로 사라진다
+         (실측: cineSoar 13트랙 · epicaeol 19트랙이 라운지에서 2트랙으로 줄었다).
+         오케스트라 그대로 두고 편마다 성격만 바꾼다. */
+      soloPiano=false;
+      const _spO=$('soloPianoTog'); if(_spO&&_spO.checked){ _spO.checked=false; }
+      if(typeof applyGenreInst==='function') applyGenreInst();
+      if(typeof renderInst==='function') renderInst();
+    }
+    else if(loungeMode && _isQt){
       /* 현악 4중주 라운지: 피아노 한 대가 아니라 네 성부를 그대로 유지한다.
          솔로 피아노로 바꾸면 이 편성이 통째로 사라진다. */
       soloPiano=false;
