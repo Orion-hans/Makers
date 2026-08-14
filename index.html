@@ -25236,6 +25236,47 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     });
     return ev;
   }
+  /* ── 프레이즈 숨 ──
+     선율이 구간 경계를 넘어 계속 이어지면 곡 전체가 한 덩어리가 된다.
+     프레이즈가 나뉘지 않으면 최고음도 곡선도 도약 처리도 판정할 수 없다.
+     (실측 42장르: 프레이즈 5개 미만이 24장르.
+      classic 은 36마디에 1박 이상 쉼이 3개 · rumba 는 44마디에 0개였다.
+      같은 조건에서 cineTension 은 44개로 마디마다 숨이 있고
+      프레이즈 24개 · 방향 전환 0.6 · 최고음 한 번 판정이 정상으로 나왔다.)
+     구간 경계 앞 마디의 마지막 음을 반 박 일찍 끊어 숨을 만든다.
+     음을 지우지 않고 길이만 줄이므로 선율의 뼈대는 그대로다. */
+  function phraseBreath(ev, gkey, secTk, tpq){
+    if(gkey!=='melody' && gkey!=='vocal' && gkey!=='vocal2' && gkey!=='counter') return ev;
+    if(!secTk || !secTk.length) return ev;
+    /* 구간 시작 틱 목록 */
+    const edges=[];
+    secTk.forEach(function(s){ if(s && s.start!=null) edges.push(s.start); });
+    if(edges.length<2) return ev;
+    const open={}, iv=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null||e.note==null||e.tick==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push(i); }
+      else { const q=open[e.note];
+        if(q&&q.length){ const oi=q.shift();
+          iv.push({on:ev[oi].tick, off:e.tick, onIdx:oi, offIdx:i}); } }
+    });
+    if(!iv.length) return ev;
+    iv.sort(function(a,b){ return a.on-b.on; });
+    const BR=Math.round(tpq*0.5);          /* 반 박 숨 */
+    edges.forEach(function(ed){
+      /* 그 경계 직전에 울리고 있거나 걸쳐 있는 마지막 음 */
+      let last=null;
+      for(let z=0;z<iv.length;z++){
+        const x=iv[z];
+        if(x.on>=ed) break;
+        if(x.off>ed-BR) last=x;            /* 숨 자리를 침범하는 음만 */
+      }
+      if(!last) return;
+      const cut=Math.max(last.on+Math.round(tpq*0.25), ed-BR);
+      if(cut<last.off && ev[last.offIdx]){ ev[last.offIdx].tick=cut; last.off=cut; }
+    });
+    return ev;
+  }
   function spillGate(ev, gkey, barPcs, barLen, padTick, tpq, melEv){
     if(!barPcs || !barPcs.length) return ev;
     if(!spillTarget(gkey)) return ev;
@@ -27359,8 +27400,14 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
        · 기악독주곡(lyric 계열·newage·joypiano) — 피아노가 곧 선율이라 위아래를 나눌 대상이 없다
        · 시네마틱 — 선율보다 질감이 중심이고 텐션이 그 색이다
        · 교회 선법·명상 월드 — 11도·♭13이 선법의 정체성이라 회피하면 색이 사라진다 */
+  /* 보컬 가이드 트랙이 있는 장르는 모두 대상이다.
+     재즈 계열이 빠져 있어 반주가 선율 위에 그대로 남아 있었다
+     (실측: neosoul 피아노 96% · 현 98% · citypop 피아노 62% · 현 62% · 패드 65%
+      가 선율보다 위에서 울렸다. neosoul 은 선율 음역이 55~79 인데
+      피아노가 28~95 로 선율을 통째로 감쌌다). */
   const SING_G=new Set(['pop','ballad','citypop','kids','chanbul','epicaeol','gukvocal','rock','folk','shanty',
-                        'classic','celtic','gypsy','tango','rumba','edm','gugak','quartal']);
+                        'classic','celtic','gypsy','tango','rumba','edm','gugak','quartal',
+                        'neosoul','jazz','blues','bossa','lofi','lyric','lyricPenta','lyricMid','lyricMinyo']);
   const ACCOMP_BELOW_KEY=['piano','piano2','harp','pad','strings','organ','guitar'];
   function accompBelowMelody(ev, gkey, melEv, tpq){
     if(!SING_G.has(gsel)) return ev;
@@ -28941,6 +28988,11 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          (실측: 아티큘레이션 바로 뒤에 두었을 때 cineSoar 하프가 마디를 넘은 74건 중
           47건이 그대로 남아 반음 충돌 13건이 줄지 않았다). */
       ev=spillGate(ev, grp.key, __barPcs, __barLen, PAD, TPQ, __melEv);
+      /* 프레이즈 숨 — 길이를 바꾸는 관문이 모두 끝난 뒤에 건다.
+         레가토 바로 뒤에 두었을 때는 관문이 돌고 자르기도 했는데(classic 4건·rumba 5건)
+         뒤의 famArticulate 가 계열 규칙대로 길이를 다시 늘려 효과가 남지 않았다.
+         세 앱에서 여섯 번째 겪는 같은 실패다. */
+      ev=phraseBreath(ev, grp.key, SEC_TK, TPQ);
       ev.sort((a,b)=>(a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on))); doneNotes[grp.key]={ch:grp.ch, iv:pairIv(ev)};
       /* 선율이 끝나면 컴핑이 피할 수 있게 그 음들을 모아 둔다 */
       if(grp.key==='melody'){ __melEv=pairIv(ev).map(function(x){ return {a:x.on, b:x.off, n:x.note}; });
