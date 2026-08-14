@@ -22717,16 +22717,28 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       const bq=meterQuarters();
       const savedT=tonic; let bo=0;
       const rootOf=[]; const pcsOf=[];
+      /* 화음 배열도 반복(reps)을 펼쳐야 한다.
+         선율은 barOff += steps.length * reps 로 펼치는데
+         여기서는 bo += st.length 라 reps 곱이 빠져 있었다.
+         그러면 벌스(×2)부터 두 배씩 어긋나 뒤쪽 마디가
+         화음 정보를 못 받거나 엉뚱한 마디의 화음을 본다.
+         (인트로 ×1 은 맞고 벌스 첫 마디인 5마디부터 틀어진다 —
+          '5마디부터 악보와 소리가 안 맞는다' 는 지적의 실제 원인이다.)
+         화음을 못 받으면 7도 보정이 걸리지 않거나 잘못된 근음으로 걸린다. */
       currentSong.forEach(function(sec){
         const st=(sec.prog&&sec.prog.steps)||[]; if(!st.length) return;
         tonic=savedT+(sec.keyShift||0);
-        st.forEach(function(x,i){
-          try{ const c=chordMidis(x[1],x[2],x[3]);
-            rootOf[bo+i]=((((tonic+x[1])%12)+12)%12);
-            pcsOf[bo+i]=[...new Set(c.notes.map(function(m){ return ((m%12)+12)%12; }))];
-          }catch(e){}
-        });
-        bo+=st.length;
+        const _RB=Math.max(1, sec.reps||1);
+        for(let _r=0;_r<_RB;_r++){
+          const _base=bo+_r*st.length;
+          st.forEach(function(x,i){
+            try{ const c=chordMidis(x[1],x[2],x[3]);
+              rootOf[_base+i]=((((tonic+x[1])%12)+12)%12);
+              pcsOf[_base+i]=[...new Set(c.notes.map(function(m){ return ((m%12)+12)%12; }))];
+            }catch(e){}
+          });
+        }
+        bo+=st.length*_RB;
       });
       tonic=savedT;
       const byBar={};
@@ -22789,22 +22801,45 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         for(let i=1;i<VAL.length;i++){ const e=Math.abs(d-VAL[i]); if(e<bd){ bd=e; best=VAL[i]; } }
         return best;
       };
-      const G=comp?3:4;                     /* 복합박은 1/3박, 단순박은 1/4박 격자 */
+      /* 격자 해상도. 기악독주곡은 피아노 꼭대기 선을 선율로 쓰므로 16분이 촘촘하다.
+         1/4박 격자로 스냅하면 같은 자리 음들이 겹쳐 520음이 152음으로 줄었다
+         (실측: lyric 악보 152음 · 확정본 520음 · 일치율 15%).
+         선율 밀도가 높으면 1/8박(32분) 격자를 쓴다. */
+      /* 격자 해상도.
+         셋잇단 자리(1/3박)를 16분 격자로 반올림하면 0.333 이 0.375 로 밀린다.
+         (실측 lyric: 확정본 0.333 · 악보 0.375 — 음높이는 같은데 자리가 어긋난다.)
+         그 마디에 셋잇단이 섞여 있으면 12분할 격자를 쓴다 — 16분과 셋잇단을 모두 담는다. */
+      const snapPos=function(pos, g){ return Math.round(pos*g)/g; };
+      const gridFor=function(list){
+        if(comp) return 3;
+        let trip=0, dense=0;
+        list.forEach(function(n){
+          if(n.midi==null) return;
+          dense++;
+          const f=Math.abs(pos3(n.pos));
+          if(f<0.02) trip++;
+        });
+        if(trip>0) return 12;               /* 셋잇단 섞임 — 12분할(16분·셋잇단 공존) */
+        if(dense>6) return 8;               /* 촘촘한 선율 — 32분 격자 */
+        return 4;
+      };
+      function pos3(p){ const x=p*3; return x-Math.round(x); }
       const byBar={};
       out.forEach(function(n){ (byBar[n.bar]=byBar[n.bar]||[]).push(n); });
       Object.keys(byBar).forEach(function(k){
         const L=byBar[k].sort(function(a2,b2){ return a2.pos-b2.pos; });
+        const _G=gridFor(L);
         L.forEach(function(n,ix){
-          n.pos=Math.round(n.pos*G)/G;
+          n.pos=snapPos(n.pos,_G);
           if(n.pos<0) n.pos=0;
-          if(n.pos>=bq) n.pos=bq-1/G;
+          if(n.pos>=bq) n.pos=bq-1/_G;
           if(n.midi==null) return;
           const nxt=L[ix+1];
-          const room=(nxt? Math.round(nxt.pos*G)/G : bq) - n.pos;   /* 다음 음까지 */
+          const room=(nxt? snapPos(nxt.pos,_G) : bq) - n.pos;   /* 다음 음까지 */
           let d=snapDur(n.dur);
           if(d>room && room>0) d=snapDur(room);
           if(d>bq-n.pos) d=snapDur(bq-n.pos);                       /* 마디를 넘지 않는다 */
-          if(d<=0) d=1/G;
+          if(d<=0) d=1/_G;
           n.dur=d;
         });
       });
@@ -22839,7 +22874,11 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     if(scoreMode==='full'){
       /* 악보는 소리와 같은 데이터를 그린다 — 확정본이 없으면 한 번 만들어 채운다.
          라운지는 곡이 길어 만드는 데 시간이 걸리므로 자동으로 만들지 않는다. */
-      if(!__scoreMelFromMidi && !loungeMode){ try{ buildSongMIDI(); }catch(e){} }
+      /* 라운지도 확정본을 쓴다.
+         예전에는 '길어서 오래 걸린다' 는 이유로 제외했는데,
+         그러면 라운지 악보는 genMelody 로 새로 만든 선율을 그려
+         소리와 다른 곡이 그려진다. 눈과 귀가 갈리는 것이 더 나쁘다. */
+      if(!__scoreMelFromMidi){ try{ buildSongMIDI(); }catch(e){} }
       mel=collectSongMelody(); barChords=mel._chords; }
     else { mel=themeMelody; barChords=themeSteps?themeSteps.map(st=>chordLabel(st[1],st[2],st[0])+bassSlashSemi(st[1],st[3],st[0])):null; }
     const tog='<div class="score-toggle">'+(hasTheme?'<button data-sm="theme" class="'+(scoreMode==='theme'?'on':'')+'">테마</button>':'')+(hasSong?'<button data-sm="full" class="'+(scoreMode==='full'?'on':'')+'">전체 곡</button>':'')+'<button data-img="1" class="score-img" style="margin-left:auto">🖼 이미지 저장</button></div>';
@@ -23753,7 +23792,37 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       const nEst=Math.max(3, Math.round(TARGET/MOVE));
       const arc=loungeArc(k,nEst);
       /* 화음을 순하게 만든 만큼 연주로 결을 바꾼다 — 편마다 반주 성격이 돌아간다. */
-      const compRot=['arpeggio','ballad','newage','block','stride','rumba','arpeggio','waltz'];
+      /* 반주 성격은 장르가 정한다.
+         예전에는 장르와 무관하게 8종을 고정 순서로 돌려
+         재즈에 왈츠, 보사에 스트라이드처럼 어법에 없는 조합이 나왔다.
+         편성이 피아노 하나여도 왼손 반주법이 장르를 드러내야 한다. */
+      const COMP_ROT={
+        /* 재즈 계열 — 컴핑·스트라이드·루트리스. 왈츠·룸바는 쓰지 않는다 */
+        jazz:      ['jazz','stride','block','arpeggio','jazz','block','stride','arpeggio'],
+        neosoul:   ['jazz','arpeggio','block','newage','jazz','arpeggio','block','newage'],
+        blues:     ['jazz','stride','block','jazz','stride','block','jazz','stride'],
+        lofi:      ['jazz','newage','arpeggio','block','jazz','newage','arpeggio','block'],
+        bossa:     ['bossa','arpeggio','jazz','block','bossa','arpeggio','jazz','block'],
+        /* 가요 계열 — 아르페지오·블록·발라드 */
+        ballad:    ['arpeggio','ballad','newage','block','arpeggio','ballad','block','newage'],
+        pop:       ['block','arpeggio','ballad','pop','block','arpeggio','pop','ballad'],
+        citypop:   ['block','arpeggio','jazz','pop','block','arpeggio','pop','jazz'],
+        kids:      ['block','arpeggio','ballad','block','arpeggio','ballad','block','arpeggio'],
+        /* 라틴·포크 — 룸바·왈츠가 어법인 자리 */
+        rumba:     ['rumba','arpeggio','block','rumba','arpeggio','block','rumba','arpeggio'],
+        tango:     ['block','rumba','stride','block','rumba','stride','block','rumba'],
+        gypsy:     ['stride','rumba','block','arpeggio','stride','rumba','block','arpeggio'],
+        folk:      ['arpeggio','ballad','block','waltz','arpeggio','ballad','block','waltz'],
+        shanty:    ['block','waltz','arpeggio','block','waltz','arpeggio','block','waltz'],
+        celtic:    ['arpeggio','waltz','block','arpeggio','waltz','block','arpeggio','waltz'],
+        /* 기악독주곡·선법·명상 — 아르페지오·뉴에이지·발라드 중심 */
+        newage:    ['newage','arpeggio','ballad','newage','arpeggio','ballad','newage','arpeggio'],
+        chanbul:   ['newage','ballad','arpeggio','newage','ballad','arpeggio','newage','ballad'],
+        gugak:     ['newage','arpeggio','ballad','newage','arpeggio','ballad','newage','arpeggio'],
+        gukvocal:  ['ballad','arpeggio','newage','ballad','arpeggio','newage','ballad','arpeggio']
+      };
+      const COMP_ROT_DEF=['arpeggio','ballad','newage','block','arpeggio','ballad','newage','block'];
+      const compRot=COMP_ROT[gsel]||COMP_ROT_DEF;
       /* 편마다 결이 갈리도록 세 가지를 함께 돌린다 — 반주 성격·음역·밀도.
          반주만 바꾸면 여전히 같은 자리에서 같은 두께로 흐른다. */
       const octRot=[0, +12, 0, -12, +12, 0, -12, 0];        // 편별 반주 음역
@@ -27651,7 +27720,12 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       피아노가 28~95 로 선율을 통째로 감쌌다). */
   const SING_G=new Set(['pop','ballad','citypop','kids','chanbul','epicaeol','gukvocal','rock','folk','shanty',
                         'classic','celtic','gypsy','tango','rumba','edm','gugak','quartal',
-                        'neosoul','jazz','blues','bossa','lofi','lyric','lyricPenta','lyricMid','lyricMinyo']);
+                        'neosoul','jazz','blues','bossa','lofi','lyric','lyricPenta','lyricMid','lyricMinyo',
+                        /* 기악독주곡도 선율선이 있다. 피아노 한 대가 선율과 반주를 함께 맡으므로
+                           선율이 짚은 음을 반주가 그대로 겹치면 선율이 반주에 묻힌다
+                           (실측 라운지: newage 는 SING_G 에 없어 관문이 통째로 건너뛰어졌고
+                            선율·반주 중복이 66%였다). */
+                        'newage','joypiano']);
   const ACCOMP_BELOW_KEY=['piano','piano2','harp','pad','strings','organ','guitar'];
   function accompBelowMelody(ev, gkey, melEv, tpq){
     if(!SING_G.has(gsel)) return ev;
@@ -29273,6 +29347,27 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ev=phraseBreath(ev, grp.key, SEC_TK, TPQ);
       ev.sort((a,b)=>(a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on))); doneNotes[grp.key]={ch:grp.ch, iv:pairIv(ev)};
       /* 선율이 끝나면 컴핑이 피할 수 있게 그 음들을 모아 둔다 */
+      /* 기악독주곡은 melody 트랙이 없다(lyric·lyricPenta·lyricMid·lyricMinyo·joypiano).
+         그 장르는 피아노 한 대가 선율과 반주를 함께 맡으므로
+         같은 순간의 꼭대기 음이 실제로 귀가 좇는 선율선이다.
+         확정본이 없으면 악보가 genMelody 로 새 선율을 그려 소리와 갈린다. */
+      if(grp.key==='piano' && !INST.melody.on && !__scoreMelFromMidi){
+        try{
+          const _iv=pairIv(ev).slice().sort(function(a2,b2){ return a2.on-b2.on; });
+          const _top=[]; let _i=0;
+          while(_i<_iv.length){
+            let _j=_i;
+            while(_j+1<_iv.length && _iv[_j+1].on-_iv[_i].on<20) _j++;
+            let _best=_iv[_i];
+            for(let _k=_i;_k<=_j;_k++) if(_iv[_k].note>_best.note) _best=_iv[_k];
+            _top.push(_best); _i=_j+1;
+          }
+          __scoreMelFromMidi=_top.map(function(x){
+            const bi=barAtTick(x.on, PAD, __barLen);
+            return {bar:bi, pos:(x.on-PAD-bi*__barLen)/TPQ, midi:x.note, dur:Math.max(0.05,(x.off-x.on)/TPQ)};
+          });
+        }catch(e){}
+      }
       if(grp.key==='melody'){ __melEv=pairIv(ev).map(function(x){ return {a:x.on, b:x.off, n:x.note}; });
         /* 악보가 그릴 선율 — 관문을 모두 거친 확정본이다 */
         try{ __scoreMelFromMidi=pairIv(ev).map(function(x){
