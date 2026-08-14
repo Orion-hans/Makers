@@ -5871,6 +5871,47 @@ const document = __scopedDoc('app-band');
 
 /* ===== 음악 기초 ===== */
 const NOTE=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+/* ── 조성 표기 (♯/♭) ──
+   같은 소리라도 조성에 따라 표기가 다르다. A♯장조는 겹올림표가 생겨 읽을 수 없으므로
+   B♭장조로 적어야 한다. Play 에 있던 규칙을 그대로 옮긴다.
+     ♯ 계열   G · D · A · E · B  (단조는 Em · Bm · F♯m · C♯m)
+     ♭ 계열   F · B♭ · E♭ · A♭ · D♭ · G♭  (단조는 Dm · Gm · Cm · Fm · B♭m)
+   단조는 상대 장조(+3)로 판정한다. */
+const NOTE_SHARP=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const NOTE_FLAT =['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+/* 검은건반은 두 이름을 병기한다 — 같은 소리라도 조성에 따라 표기가 다르다.
+   어느 쪽으로 적을지는 useFlatKey 가 관례대로 정한다
+   (♯ 계열 G·D·A·E·B / ♭ 계열 F·B♭·E♭·A♭·D♭·G♭, 단조는 상대 장조 기준).
+   A♯장조는 겹올림표가 생겨 읽을 수 없으므로 B♭장조로 적힌다. */
+const KEY_BOTH=['C','C♯ / D♭','D','D♯ / E♭','E','F','F♯ / G♭','G','G♯ / A♭','A','A♯ / B♭','B'];
+function useFlatKey(tonicPc, mode){
+  /* 조표 표(minSf·majSf)와 같은 답을 낸다. 둘이 갈리면
+     화면 악보는 ♭인데 DAW 조표는 ♯으로 떠 눈과 파일이 어긋난다. */
+  const pc=((((tonicPc||0)%12)+12)%12);
+  if(mode==='minor'){ return [8,3,10,5,0,7,2].indexOf(pc)>=0; }
+  return [5,10,3,8,1,6].indexOf(pc)>=0;
+}
+function noteNameKey(pc, tonicPc, mode){
+  pc=((pc%12)+12)%12;
+  return (useFlatKey(tonicPc,mode)?NOTE_FLAT:NOTE_SHARP)[pc];
+}
+/* MIDI 조표 메타 — ♭ 개수는 음수로 기록해야 DAW 가 제대로 표시한다 */
+function keySigMetaBytes(tonicPc, mode){
+  const pc=((tonicPc%12)+12)%12;
+  /* 6개를 넘는 조는 겹올림표·겹내림표가 생기지 않는 쪽을 택한다.
+     G♭장조는 ♭6개(F♯장조 아님) · E♭단조는 ♭6개(D♯단조 아님) · A♭단조는 ♭4개(G♯단조 아님).
+     조표 표와 useFlatKey 가 같은 답을 내야 화면 악보와 DAW 조표가 일치한다. */
+  const majSf={0:0,7:1,2:2,9:3,4:4,11:5,6:-6,1:-5,8:-4,3:-3,10:-2,5:-1};
+  /* 단조 조표는 상대 장조(+3)의 조표를 그대로 쓴다.
+       예전 표는 Fm 을 -1, A♯m 을 -2 로 적어 두었는데
+       F단조는 ♭ 4개, B♭단조는 ♭ 5개다.
+       (실측: 네 앱 모두 같은 오류를 갖고 있었다.) */
+  const minSf={0:-3,1:4,2:-1,3:-6,4:1,5:-4,6:3,7:-2,8:-4,9:0,10:-5,11:2};
+  const mi=(mode==='minor')?1:0;
+  let sf=(mode==='minor')?minSf[pc]:majSf[pc];
+  if(sf==null) sf=0;
+  return [0xFF,0x59,0x02,(sf<0?256+sf:sf)&0xff,mi];
+}
 const ROOTPC={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 const MAJ_OFF=[0,2,4,5,7,9,11];
 /* 코드 톤에는 텐션을 섞지 않는다.
@@ -6640,7 +6681,7 @@ function genFlowRandom(){
   renderEditor();updateRibbon();$('panel2').classList.remove('collapsed');
 }
 (function init(){
-  NOTE.forEach((n,i)=>{const o=document.createElement('option');o.value=i;o.textContent=n;if(n==='C')o.selected=true;$('key').appendChild(o);});
+  KEY_BOTH.forEach((n,i)=>{const o=document.createElement('option');o.value=i;o.textContent=n;if(n==='C')o.selected=true;$('key').appendChild(o);});
   Object.keys(METERS).forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;$('meter').appendChild(o);});
   STYLES.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.name;if(s.id==='kpop')o.selected=true;$('style').appendChild(o);});
   Object.entries(GROOVES).forEach(([k,v])=>{const o=document.createElement('option');o.value=k;o.textContent=v.name;$('groove').appendChild(o);});
@@ -9717,7 +9758,10 @@ function instMeta(part){const st=state.style,g=(PERF[st]||{}).gtr;
   };if(part==='genre')return GENRE_TRK[st]?{n:GENRE_TRK[st].n,p:GENRE_TRK[st].p}:null;return map[part];}
 function tempoTrack(){const PPQ=480,M=METERS[secMeter(state.sections[0])];
   /* 조표(FF 59): 5도권으로 #/b 수 계산. 단조 계열 스케일은 나란한조 조표+단조 플래그 → 로직 조표 트랙에 반영 */
-  const sfMaj=pc=>{let s=(pc*7)%12;return s>6?s-12:s;};
+  const sfMaj=pc=>{let s=(pc*7)%12;
+    /* s===6 은 ♯6개(F♯장조)와 ♭6개(G♭장조)가 같은 소리인 자리다.
+       ♯6개로 두면 겹올림표가 생기는 조가 나오므로 ♭ 쪽을 택한다. */
+    return s>=6?s-12:s;};
   const kpc=keyPc(),sc=curPerf.scale;
   /* 장/단 판정: 으뜸음 위 코드들의 성질(진행이 곡의 조성을 결정) + 단조형 스케일 스타일 */
   let tonicCnt=0,minCnt=0;
@@ -12122,6 +12166,47 @@ const document = __scopedDoc('app-beat');
 /* ===== 음악 기초 (코드 이론) ===== */
 const $=id=>document.getElementById(id);
 const NOTE=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+/* ── 조성 표기 (♯/♭) ──
+   같은 소리라도 조성에 따라 표기가 다르다. A♯장조는 겹올림표가 생겨 읽을 수 없으므로
+   B♭장조로 적어야 한다. Play 에 있던 규칙을 그대로 옮긴다.
+     ♯ 계열   G · D · A · E · B  (단조는 Em · Bm · F♯m · C♯m)
+     ♭ 계열   F · B♭ · E♭ · A♭ · D♭ · G♭  (단조는 Dm · Gm · Cm · Fm · B♭m)
+   단조는 상대 장조(+3)로 판정한다. */
+const NOTE_SHARP=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const NOTE_FLAT =['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+/* 검은건반은 두 이름을 병기한다 — 같은 소리라도 조성에 따라 표기가 다르다.
+   어느 쪽으로 적을지는 useFlatKey 가 관례대로 정한다
+   (♯ 계열 G·D·A·E·B / ♭ 계열 F·B♭·E♭·A♭·D♭·G♭, 단조는 상대 장조 기준).
+   A♯장조는 겹올림표가 생겨 읽을 수 없으므로 B♭장조로 적힌다. */
+const KEY_BOTH=['C','C♯ / D♭','D','D♯ / E♭','E','F','F♯ / G♭','G','G♯ / A♭','A','A♯ / B♭','B'];
+function useFlatKey(tonicPc, mode){
+  /* 조표 표(minSf·majSf)와 같은 답을 낸다. 둘이 갈리면
+     화면 악보는 ♭인데 DAW 조표는 ♯으로 떠 눈과 파일이 어긋난다. */
+  const pc=((((tonicPc||0)%12)+12)%12);
+  if(mode==='minor'){ return [8,3,10,5,0,7,2].indexOf(pc)>=0; }
+  return [5,10,3,8,1,6].indexOf(pc)>=0;
+}
+function noteNameKey(pc, tonicPc, mode){
+  pc=((pc%12)+12)%12;
+  return (useFlatKey(tonicPc,mode)?NOTE_FLAT:NOTE_SHARP)[pc];
+}
+/* MIDI 조표 메타 — ♭ 개수는 음수로 기록해야 DAW 가 제대로 표시한다 */
+function keySigMetaBytes(tonicPc, mode){
+  const pc=((tonicPc%12)+12)%12;
+  /* 6개를 넘는 조는 겹올림표·겹내림표가 생기지 않는 쪽을 택한다.
+     G♭장조는 ♭6개(F♯장조 아님) · E♭단조는 ♭6개(D♯단조 아님) · A♭단조는 ♭4개(G♯단조 아님).
+     조표 표와 useFlatKey 가 같은 답을 내야 화면 악보와 DAW 조표가 일치한다. */
+  const majSf={0:0,7:1,2:2,9:3,4:4,11:5,6:-6,1:-5,8:-4,3:-3,10:-2,5:-1};
+  /* 단조 조표는 상대 장조(+3)의 조표를 그대로 쓴다.
+       예전 표는 Fm 을 -1, A♯m 을 -2 로 적어 두었는데
+       F단조는 ♭ 4개, B♭단조는 ♭ 5개다.
+       (실측: 네 앱 모두 같은 오류를 갖고 있었다.) */
+  const minSf={0:-3,1:4,2:-1,3:-6,4:1,5:-4,6:3,7:-2,8:-4,9:0,10:-5,11:2};
+  const mi=(mode==='minor')?1:0;
+  let sf=(mode==='minor')?minSf[pc]:majSf[pc];
+  if(sf==null) sf=0;
+  return [0xFF,0x59,0x02,(sf<0?256+sf:sf)&0xff,mi];
+}
 const ROOTPC={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 const MAJ_OFF=[0,2,4,5,7,9,11];
 const ROMAN={I:0,II:1,III:2,IV:3,V:4,VI:5,VII:6};
@@ -17010,7 +17095,7 @@ function tempoTrack(){const PPQ=480,PAD=EXPORT_PADQ;let evs=[{tick:0,type:'ts',m
   evs.sort((a,b)=>a.tick-b.tick||(ORD[a.type]||9)-(ORD[b.type]||9));let body=[],last=0;
   body.push(...vlq(0),...metaText(0x03,'Tempo & Markers'));
   // 조표 (FF 59): 키 pc → 샤프(+)/플랫(−) 개수 · 장/단은 홈 코드로 판별 (vi 단3화음 = 관계단조)
-  const KEYSF=[0,-5,2,-3,4,-1,6,1,-4,3,-2,5];
+  const KEYSF=[0,-5,2,-3,4,-1,-6,1,-4,3,-2,5]   /* pc6 은 G♭장조(♭6) — F♯장조(♯6)로 적으면 겹올림표가 생긴다 */;
   let mi=0;
   try{const hc=chordFromSym(state.sections[0].chords[0]);
     if(hc&&hc.notes.length>1&&((hc.notes[1]-hc.notes[0])%12+12)%12===3&&(((hc.bass%12)-keyPc()+12)%12===9))mi=1;}catch(e){}
@@ -18381,7 +18466,7 @@ function applySumwaveSpec(o){
 
 /* ===== init & 바인딩 ===== */
 (function init(){
-  NOTE.forEach((n,i)=>{const o=document.createElement('option');o.value=i;o.textContent=n;if(n==='C')o.selected=true;$('key').appendChild(o);});
+  KEY_BOTH.forEach((n,i)=>{const o=document.createElement('option');o.value=i;o.textContent=n;if(n==='C')o.selected=true;$('key').appendChild(o);});
   if($('mode')){Object.keys(MODES).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=MODES[k].ko;$('mode').appendChild(o);});}
   GENRES.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.name;$('genre').appendChild(o);});
   if($('hybrid')){const off=document.createElement('option');off.value='off';off.textContent='끄기';$('hybrid').appendChild(off);
@@ -19096,7 +19181,13 @@ const document = __scopedDoc('app-play');
   let genreSetSig=false; // 장르(국악 성악곡)가 자동 설정한 박자표인가 — 다른 장르 전환 시 4/4 복원용
   let compStyle='auto', compIntensity=0.30; // 피아노 반주 스타일 + 강도(0=일반 반주법만, 1=완전한 스타일). auto=장르 기본(기존 동작)
 
-  for(let pc=0;pc<12;pc++){ const o=document.createElement('option'); o.value=pc; o.textContent=SHARP[pc]; o.title=SHARP[pc]+(SHARP[pc]!==FLAT[pc]?' / '+FLAT[pc]:''); $('tonic').appendChild(o); }
+/* 검은건반은 두 이름을 병기한다 — 같은 소리라도 조성에 따라 표기가 다르다.
+     어느 쪽으로 적을지는 useFlatKey 가 관례대로 정한다
+     (♯ 계열 G·D·A·E·B / ♭ 계열 F·B♭·E♭·A♭·D♭·G♭, 단조는 상대 장조 기준).
+     A♯장조는 겹올림표가 생겨 읽을 수 없으므로 B♭장조로 적힌다. */
+  for(let pc=0;pc<12;pc++){ const o=document.createElement('option'); o.value=pc;
+    o.textContent=(SHARP[pc]===FLAT[pc])?SHARP[pc]:(SHARP[pc]+' / '+FLAT[pc]);
+    o.title=o.textContent; $('tonic').appendChild(o); }
 
   function noteName(pc,roman){ pc=((pc%12)+12)%12; const flat = (roman&&roman.indexOf('♭')>=0) || FLAT_KEY.has(tonic) || useFlatKey(tonic,keyMode); return (flat?FLAT:SHARP)[pc]; }
 
@@ -19987,15 +20078,25 @@ const document = __scopedDoc('app-play');
     return `<details class="vlbox"><summary>🎵 멜로디·텐션 가이드</summary><div class="mg-body"><div class="mg-scale">이 진행 위 추천 스케일 · ${scN.join(' ')}</div>${rows}<p class="mg-tip">강박엔 코드톤(화음 구성음)을, 약박·경과음으로 텐션(나머지 스케일음)을 얹으면 자연스러워요.</p></div></details>`;
   }
   function keySigMeta(){ const pc=((tonic%12)+12)%12;
-    const majSf={0:0,7:1,2:2,9:3,4:4,11:5,6:6,1:-5,8:-4,3:-3,10:-2,5:-1};
-    const minSf={9:0,4:1,11:2,6:3,1:4,8:5,3:6,2:-1,7:-2,0:-3,5:-4,10:-5};
+    /* 조표는 useFlatKey 의 관례와 같아야 한다. 어긋나면 화면 악보는 ♭인데
+       DAW 조표는 ♯으로 떠 눈과 파일이 갈린다.
+       (실측: G♭장조가 +6(F♯장조) · E♭단조가 +6(D♯단조) · A♭단조가 +5(G♯단조)로 기록됐다.
+        셋 다 useFlatKey 는 ♭으로 판정하던 조다.)
+       6개를 넘는 조는 겹올림표·겹내림표가 생기지 않는 쪽을 택한다. */
+    const majSf={0:0,7:1,2:2,9:3,4:4,11:5,6:-6,1:-5,8:-4,3:-3,10:-2,5:-1};
+    const minSf={9:0,4:1,11:2,6:3,1:4,8:-4,3:-6,10:-5,5:-4,0:-3,7:-2,2:-1};
     const mi=(keyMode==='major')?0:1;
     let sf=(keyMode==='major')?majSf[pc]:minSf[pc]; if(sf==null) sf=0;
     return [0xFF,0x59,0x02,(sf<0?256+sf:sf)&0xff,mi];
   }
   function keySigFor(pc){ pc=((pc%12)+12)%12;
-    const majSf={0:0,7:1,2:2,9:3,4:4,11:5,6:6,1:-5,8:-4,3:-3,10:-2,5:-1};
-    const minSf={9:0,4:1,11:2,6:3,1:4,8:5,3:6,2:-1,7:-2,0:-3,5:-4,10:-5};
+    /* 조표는 useFlatKey 의 관례와 같아야 한다. 어긋나면 화면 악보는 ♭인데
+       DAW 조표는 ♯으로 떠 눈과 파일이 갈린다.
+       (실측: G♭장조가 +6(F♯장조) · E♭단조가 +6(D♯단조) · A♭단조가 +5(G♯단조)로 기록됐다.
+        셋 다 useFlatKey 는 ♭으로 판정하던 조다.)
+       6개를 넘는 조는 겹올림표·겹내림표가 생기지 않는 쪽을 택한다. */
+    const majSf={0:0,7:1,2:2,9:3,4:4,11:5,6:-6,1:-5,8:-4,3:-3,10:-2,5:-1};
+    const minSf={9:0,4:1,11:2,6:3,1:4,8:-4,3:-6,10:-5,5:-4,0:-3,7:-2,2:-1};
     const mi=(keyMode==='major')?0:1; let sf=(keyMode==='major')?majSf[pc]:minSf[pc]; if(sf==null) sf=0;
     return [0xFF,0x59,0x02,(sf<0?256+sf:sf)&0xff,mi]; }
   function buildMIDI(steps,bpm){
@@ -22304,7 +22405,14 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     }
     return mel;
   }
-  function useFlatKey(tonic,mode){ let t=mode==='minor'?(((tonic+3)%12)+12)%12:(((tonic%12)+12)%12); return [5,10,3,8,1,6].indexOf(t)>=0; }
+  function useFlatKey(tonic,mode){
+    /* 단조는 상대 장조로 환산해 판정한다.
+       A♭단조는 상대 장조가 B(pc 11)라 ♯ 으로 판정되지만,
+       조표는 ♭4개(G♯단조가 아니라 A♭단조로 적는 관례)라 서로 어긋났다.
+       조표 표(minSf)가 ♭ 인 조는 ♭ 으로 적는다 — 둘이 같은 답을 내야 한다. */
+    const pc=(((tonic%12)+12)%12);
+    if(mode==='minor'){ const minFlat=[8,3,10,5,0,7,2]; return minFlat.indexOf(pc)>=0; }
+    return [5,10,3,8,1,6].indexOf(pc)>=0; }
   function melodyScoreSVG(mel, tnc, mode){
     if(!mel||!mel.length) return '<div class="score-empty">🎲 테마 듣기로 선율을 먼저 만들어 주세요</div>';
     const useFlat=useFlatKey(tnc,mode);
@@ -22565,6 +22673,48 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         return {bar:x.bar, pos:x.pos, midi:x.midi, dur:x.dur};
       })).sort(function(a2,b2){ return (a2.bar-b2.bar)||(a2.pos-b2.pos); });
     }
+    /* ── 악보용 정리 ──
+       소리(MIDI)는 아고긱·휴머나이즈로 밀고 당기는 것이 맞지만,
+       악보는 그 값을 그대로 그릴 수 없다. 0.51박·1.079박 같은 길이는
+       어떤 음표로도 표기되지 않는다.
+       (실측 42장르 5,611음: 표기 불가 길이 93.6% · 격자 벗어남 21.2% · 마디 넘침 15.0%.)
+       소리는 그대로 두고 악보 데이터만 격자에 정렬하고 음표 값으로 반올림한다.
+         · 시작 자리는 16분 격자로
+         · 길이는 표기 가능한 값(온음·2분·4분·8분·16분·점음표·셋잇단)으로
+         · 마디를 넘으면 마디 끝까지 자른다 (타이는 그리기 쪽에서 잇는다) */
+    try{
+      const bq=meterQuarters();
+      const comp=(typeof isCompoundMeter==='function')?isCompoundMeter():false;
+      /* 표기 가능한 길이 사다리 (4분음표 = 1.0) */
+      const VAL=[];
+      [4,2,1,0.5,0.25].forEach(function(v){ VAL.push(v); VAL.push(v*1.5); });
+      if(comp) [2/3,4/3,8/3,1/3].forEach(function(v){ VAL.push(v); });
+      VAL.sort(function(x,y){ return x-y; });
+      const snapDur=function(d){
+        let best=VAL[0], bd=Math.abs(d-VAL[0]);
+        for(let i=1;i<VAL.length;i++){ const e=Math.abs(d-VAL[i]); if(e<bd){ bd=e; best=VAL[i]; } }
+        return best;
+      };
+      const G=comp?3:4;                     /* 복합박은 1/3박, 단순박은 1/4박 격자 */
+      const byBar={};
+      out.forEach(function(n){ (byBar[n.bar]=byBar[n.bar]||[]).push(n); });
+      Object.keys(byBar).forEach(function(k){
+        const L=byBar[k].sort(function(a2,b2){ return a2.pos-b2.pos; });
+        L.forEach(function(n,ix){
+          n.pos=Math.round(n.pos*G)/G;
+          if(n.pos<0) n.pos=0;
+          if(n.pos>=bq) n.pos=bq-1/G;
+          if(n.midi==null) return;
+          const nxt=L[ix+1];
+          const room=(nxt? Math.round(nxt.pos*G)/G : bq) - n.pos;   /* 다음 음까지 */
+          let d=snapDur(n.dur);
+          if(d>room && room>0) d=snapDur(room);
+          if(d>bq-n.pos) d=snapDur(bq-n.pos);                       /* 마디를 넘지 않는다 */
+          if(d<=0) d=1/G;
+          n.dur=d;
+        });
+      });
+    }catch(e){}
     out._chords=chords; out._sections=secs; return out;
   }
   function exportScorePNG(){ const inner=$('scoreInner'); if(!inner){ return; }
@@ -30934,7 +31084,15 @@ return L.join('\n');
       counterOn=true; { const co=$('counterOn'); if(co) co.checked=true; }
     }
     else if(typeof MODE_SCALE!=='undefined' && MODE_SCALE[gsel]){ INST.drums.on=false; INST.bass.on=false; INST.piano.on=true; INST.melody.on=true; INST.melody.gm=73; INST.harp.on=(gsel==='doubleharm'||gsel==='hungarian'||gsel==='phrygdom'); INST.harp.gm=104; } // 선법·월드: 피아노+플루트 리드, 월드 3종은 시타르·거문고류 발현 색
-  else if(LYRIC_G.has(gsel)){ INST.drums.on=true; INST.bass.on=false; INST.piano.on=true; }
+  else if(LYRIC_G.has(gsel)){
+    /* 기악독주곡 — 피아노 한 대가 선율과 반주를 함께 맡는 형식.
+       드럼이 붙으면 독주곡이 아니라 밴드 편곡이 된다.
+       (실측: lyric·lyricPenta·lyricMid·lyricMinyo·joypiano 다섯 장르에서
+        코러스(마디 12)부터 하이라이트(마디 39)까지 24마디, 전체의 55%에
+        하이햇·스네어·킥이 100~287음 나왔다. 빌드업 3단계부터 드럼이 켜지는 설계인데
+        독주곡에는 그 곡선이 맞지 않는다.
+        같은 계열 newage 는 별도 분기에서 이미 꺼져 있었다.) */
+    INST.drums.on=false; INST.bass.on=false; INST.piano.on=true; }
     else { INST.drums.on=true; INST.bass.on=true; INST.piano.on=true; } }
   function renderInst(){ try{ syncLoungeAvail(); syncSuiteAvail(); }catch(e){}
 
@@ -31382,6 +31540,47 @@ window.__soPlayDebug=()=>({has:!!currentSong,bp:soPlayBlueprint()});
 // ===== MEDITATION BUILDER 코드 시작 =====
 (() => {
 const document = __scopedDoc('app-med');
+
+/* ── 조성 표기 (♯/♭) ──
+   같은 소리라도 조성에 따라 표기가 다르다. A♯장조는 겹올림표가 생겨 읽을 수 없으므로
+   B♭장조로 적어야 한다. Play 에 있던 규칙을 그대로 옮긴다.
+     ♯ 계열   G · D · A · E · B  (단조는 Em · Bm · F♯m · C♯m)
+     ♭ 계열   F · B♭ · E♭ · A♭ · D♭ · G♭  (단조는 Dm · Gm · Cm · Fm · B♭m)
+   단조는 상대 장조(+3)로 판정한다. */
+const NOTE_SHARP=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const NOTE_FLAT =['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+/* 검은건반은 두 이름을 병기한다 — 같은 소리라도 조성에 따라 표기가 다르다.
+   어느 쪽으로 적을지는 useFlatKey 가 관례대로 정한다
+   (♯ 계열 G·D·A·E·B / ♭ 계열 F·B♭·E♭·A♭·D♭·G♭, 단조는 상대 장조 기준).
+   A♯장조는 겹올림표가 생겨 읽을 수 없으므로 B♭장조로 적힌다. */
+const KEY_BOTH=['C','C♯ / D♭','D','D♯ / E♭','E','F','F♯ / G♭','G','G♯ / A♭','A','A♯ / B♭','B'];
+function useFlatKey(tonicPc, mode){
+  /* 조표 표(minSf·majSf)와 같은 답을 낸다. 둘이 갈리면
+     화면 악보는 ♭인데 DAW 조표는 ♯으로 떠 눈과 파일이 어긋난다. */
+  const pc=((((tonicPc||0)%12)+12)%12);
+  if(mode==='minor'){ return [8,3,10,5,0,7,2].indexOf(pc)>=0; }
+  return [5,10,3,8,1,6].indexOf(pc)>=0;
+}
+function noteNameKey(pc, tonicPc, mode){
+  pc=((pc%12)+12)%12;
+  return (useFlatKey(tonicPc,mode)?NOTE_FLAT:NOTE_SHARP)[pc];
+}
+function keySigMetaBytes(tonicPc, mode){
+  const pc=((tonicPc%12)+12)%12;
+  /* 6개를 넘는 조는 겹올림표·겹내림표가 생기지 않는 쪽을 택한다.
+     G♭장조는 ♭6개(F♯장조 아님) · E♭단조는 ♭6개(D♯단조 아님) · A♭단조는 ♭4개(G♯단조 아님).
+     조표 표와 useFlatKey 가 같은 답을 내야 화면 악보와 DAW 조표가 일치한다. */
+  const majSf={0:0,7:1,2:2,9:3,4:4,11:5,6:-6,1:-5,8:-4,3:-3,10:-2,5:-1};
+  /* 단조 조표는 상대 장조(+3)의 조표를 그대로 쓴다.
+       예전 표는 Fm 을 -1, A♯m 을 -2 로 적어 두었는데
+       F단조는 ♭ 4개, B♭단조는 ♭ 5개다.
+       (실측: 네 앱 모두 같은 오류를 갖고 있었다.) */
+  const minSf={0:-3,1:4,2:-1,3:-6,4:1,5:-4,6:3,7:-2,8:-4,9:0,10:-5,11:2};
+  const mi=(mode==='minor')?1:0;
+  let sf=(mode==='minor')?minSf[pc]:majSf[pc];
+  if(sf==null) sf=0;
+  return [0xFF,0x59,0x02,(sf<0?256+sf:sf)&0xff,mi];
+}
 
 const PURPOSES = {
   sleep:{icon:"🌙",name:"수면",en:"Sleep",tempo:"무박 ~50 BPM",
@@ -33711,10 +33910,16 @@ function renderPurposes(){
   ).join('');
 }
 function renderKeys(){
+  /* 검은건반은 두 이름을 병기한다 — 같은 소리라도 조성에 따라 표기가 다르다.
+     기존 KEYS 는 C# · E♭ · B♭ 이 섞여 일관성이 없었다.
+     값(state.key)은 그대로 두고 화면 표시만 병기한다.
+     실제 조표와 코드 표기는 useFlatKey 가 관례대로 정한다. */
+  const BOTH={'C':'C','C#':'C♯ / D♭','D♭':'C♯ / D♭','D':'D','D#':'D♯ / E♭','E♭':'D♯ / E♭',
+              'E':'E','F':'F','F#':'F♯ / G♭','G♭':'F♯ / G♭','G':'G','G#':'G♯ / A♭','A♭':'G♯ / A♭',
+              'A':'A','A#':'A♯ / B♭','B♭':'A♯ / B♭','B':'B'};
   document.getElementById('keyToggle').innerHTML = KEYS.map(k=>
-    `<span class="opt ${state.key===k?'active':''}" onclick="setKey('${k}')">${k}</span>`
-  ).join('');
-}
+    `<span class="opt ${state.key===k?'active':''}" onclick="setKey('${k}')">${BOTH[k]||k}</span>`
+  ).join(''); }
 function pickPurpose(k){
   if(typeof medStepTo==='function') medStepTo(2); stopBGM(); state.purpose = k; state.selProg=null; showRandom=false; randomProgs=[]; randomMelodies=[]; render(); if(typeof renderStageSeq==='function')renderStageSeq(); if(window.sumOpenSection)sumOpenSection(1); }
 function updatePurposeHint(){
