@@ -19223,6 +19223,7 @@ const document = __scopedDoc('app-play');
   const FLAT =['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
   const FLAT_KEY=new Set([5,10,3,8,1,6]); // F Bb Eb Ab Db Gb 계열
   let tonic=0, gsel='lyric', randData=null, keyMode='major', rhythmIdx=0, currentSig='4/4';
+  let melUserOff=false;   // 사용자가 선율악기를 직접 껐는가 — 자동 켜기에서 제외
   let _kmGenre=null;   // 조성 기본값을 적용한 장르(장르가 바뀔 때만 갱신 — 사용자 선택 보존)
   let genreSetSig=false; // 장르(국악 성악곡)가 자동 설정한 박자표인가 — 다른 장르 전환 시 4/4 복원용
   let compStyle='auto', compIntensity=0.30; // 피아노 반주 스타일 + 강도(0=일반 반주법만, 1=완전한 스타일). auto=장르 기본(기존 동작)
@@ -20294,6 +20295,14 @@ const document = __scopedDoc('app-play');
        그 사이에서 피아노가 중앙 66~67에 갇혀 있어 존재감이 없었다(실측: 84 이상 0~1%).
        84 위는 하프만 쓰고 비어 있으므로 그쪽으로 벌린다 — 겹칠 악기가 없다. */
     if(CINE.has(gsel)) return 92;
+    /* 라운지·솔로 피아노에서 반주 꼭대기를 96까지 열어 두면
+       반주가 선율 음역을 통째로 덮는다.
+       (실측 jazz 라운지: 선율 1,702음이 옥타브 5~6인데
+        반주가 같은 옥타브 5~6에 15,140음 — 선율보다 아홉 배 많았다.
+        '선율·아르페지오가 화려해야 하는데 반대' 라는 지적의 원인이다.)
+       선율이 있으면 반주 꼭대기를 그 아래로 내린다 —
+       왼손 반주는 옥타브 4 언저리까지, 오른손 선율이 5~6을 갖는다. */
+    if(solo && INST.melody && INST.melody.on) return 76;
     return solo?96:84;
   }
   function voiceLeadLine(steps,maxTop){
@@ -21261,7 +21270,7 @@ RHYTHMS.joypiano=[
           const _bs=((vlead[si]&&vlead[si].root!=null?vlead[si].root:cn[0])-12);
           const _seed=(((si+1)*2246822519)^((opts&&opts.compSeedBase)||0))>>>0;
           const _claP=barChordList(st); let _slotsA=null; if(_claP.length>1 && secVLa && secVLa.at[si]){ _slotsA=secVLa.at[si].map(function(cc){ const v=secVLa.vl[cc.idx]; return {f:cc.s/16, cn:declash(v.notes.slice()), bass:v.bass}; }); } // 박별 보이싱(재생, MIDI와 동일)
-          const _bar=compStyleBar(cn,_bs,{style:(_lgComp||compStyle),p:(_lgComp?loungeP(_lgComp):compIntensity),eighth:meterEighth(),beat:meterQuarterPos(),strong:meterBeatPos(),seed:_seed,inA:inten2,stage:((opts&&opts.stage)||3),build:(loungeMode?loungeDensity((opts&&opts.t01)||0,loungePeak(opts&&opts.movement)):null),pedal:pedalOn,slots:_slotsA});
+          const _bar=compStyleBar(cn,_bs,{style:(_lgComp||compStyle),p:(_lgComp?loungeP(_lgComp):compIntensity),eighth:meterEighth(),beat:meterQuarterPos(),strong:meterBeatPos(),seed:_seed,inA:inten2,stage:((opts&&opts.stage)||3),build:(loungeMode?loungeDensity((opts&&opts.t01)||0,loungePeak(opts&&opts.movement)):null),melTop:((loungeMode&&INST.melody.on)?74:null),pedal:pedalOn,slots:_slotsA});
           _bar.notes.forEach(nn=>{ const mm=nn.note, dd=Math.max(0.08,nn.dur*measure), vo=nn.vel*0.13; ev.push({t:base+nn.pos*measure, play:(T)=>instVoice(mm,T,dd,vo,'piano')}); }); }
         else if((LYRIC_G.has(gsel)||pianoNA)&&!emotive){ lyricPianoPlay(ev,base,si,vlead,rh,inten2,measure,spb,at,INST.melody.on,si===steps.length-1,(opts&&opts.intro),((opts&&opts.climax)?((opts&&opts.climaxMode)||true):false),st); }
         else if(emotive){ const bassN=Math.max(36,(vlead[si]&&vlead[si].root?vlead[si].root:cn[0])-12); // 왼손 베이스(근음)
@@ -22043,6 +22052,21 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
       const asc=[C[0]+12, (C.length>1?C[1]:C[0]+4)+12, tp+12, tp+((C.length>1?(C[1]-C[0]):5))+12]; // 상행 톱 옥타브
       const sp=[0.75,0.8125,0.875,0.9375]; asc.forEach((n,k)=>{ if(rnd()<0.85) add(sp[k], beatDur*0.22, n, weakV*(0.62+0.3*build)); }); }
 
+    /* ── 라운지 반주는 선율 아래에 머문다 ──
+       반주 층이 tp+12(꼭대기 옥타브 위)와 절정 옥타브 보강으로 위로 올라가
+       선율 음역을 덮었다
+       (실측 jazz 라운지: 선율 1,689음이 옥타브 5~6인데
+        반주가 같은 옥타브에 15,710음 — 선율보다 아홉 배였다).
+       선율이 켜져 있으면 반주 꼭대기를 그 아래로 접는다. */
+    try{
+      if(opts.melTop!=null){
+        const _cap=opts.melTop;
+        out.forEach(function(n){
+          while(n.note>_cap) n.note-=12;
+          while(n.note<24) n.note+=12;
+        });
+      }
+    }catch(e){}
     return {notes:out};
   }
   function meterQuarters(){ return meterOf().grid.length/2; } // 마디의 사분음표 환산 박 (4/4=4, 6/8=3, 5/8=2.5, 7/8=3.5)
@@ -25663,6 +25687,60 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     });
     return ev;
   }
+  /* ── 최종 저역 정리 ──
+     모든 트랙을 만든 뒤 한 번 더 훑어 낮은 음역의 밀집을 푼다.
+     트랙별 관문(crossDeclash)은 '이미 끝난 트랙' 만 보므로
+     나중에 만들어지는 트랙과의 충돌은 아무도 보지 못한다
+     (실측 jazz: 저역 장2도 211건 중 147건이 피아노와 베이스 사이였고,
+      트랙 순서를 바꿔 139건까지 줄였으나 나머지는 남았다).
+
+     낮은 음역은 배음 간격이 좁아 온음도 반음처럼 뭉갠다.
+       C4(60) 아래  장2도 이하로 붙으면 위 음을 옥타브 올린다
+       E3(52) 아래  단3도까지 벌린다
+     베이스·서브·드럼은 바닥이므로 건드리지 않고, 위에 얹힌 층만 옮긴다. */
+  function lowClear(doneNotes, tpq){
+    const FLOOR={bass:1,sub:1,cbass:1,drums:1,timpani:1};   /* 바닥 — 옮기지 않는다 */
+    const keys=Object.keys(doneNotes);
+    const fixed=[];
+    keys.forEach(function(k){
+      const d=doneNotes[k]; if(!d||!d.iv) return;
+      if(FLOOR[k]) d.iv.forEach(function(x){ if(x.note!=null) fixed.push(x); });
+    });
+    if(!fixed.length) return 0;
+    fixed.sort(function(a,b){ return a.on-b.on; });
+    let moved=0;
+    keys.forEach(function(k){
+      if(FLOOR[k]) return;
+      const d=doneNotes[k]; if(!d||!d.ev||!d.iv) return;
+      const ev=d.ev;
+      d.iv.forEach(function(x){
+        if(x.note==null || x.note>=60) return;          /* C4 위는 배음이 벌어져 괜찮다 */
+        for(let i=0;i<fixed.length;i++){
+          const c=fixed[i];
+          if(c.off<=x.on) continue;
+          if(c.on>=x.off) break;                        /* 시간순이라 더 볼 필요 없다 */
+          const lo=Math.min(x.note,c.note);
+          const need=(lo<52)?3:2;
+          const d2=Math.abs(x.note-c.note);
+          if(d2>0 && d2<=need){
+            let m=x.note;
+            let guard=0;
+            while(m<96 && Math.abs(m-c.note)<=need && guard++<4) m+=12;
+            if(m!==x.note && m<=96){
+              for(let z=0;z<ev.length;z++){
+                const e=ev[z];
+                if(e.cc!=null||e.note==null) continue;
+                if(e.note===x.note && e.tick>=x.on && e.tick<=x.off){ e.note=m; }
+              }
+              x.note=m; moved++;
+            }
+            break;
+          }
+        }
+      });
+    });
+    return moved;
+  }
   function spillGate(ev, gkey, barPcs, barLen, padTick, tpq, melEv){
     if(!barPcs || !barPcs.length) return ev;
     if(!spillTarget(gkey)) return ev;
@@ -28263,6 +28341,7 @@ const groups=[];
       return out; }
     // 교차 트랙 지속 반음 정리: 완료된 트랙(레지스트리)과 8분 이상 겹치는 반음을 제거 — 패드=옥타브 내림(성격 유지), 피아노2=먼저 친 쪽 원칙으로 끊음
     const doneNotes={}; // {key:{ch,iv:[{note,on,off}]}}
+    const __pending=[];   // 1단계에서 만든 트랙 이벤트 — 2단계에서 바이트로 쓴다
     function pairIv(evIn){ const open={}, iv=[]; evIn.filter(e=>e.cc==null).slice().sort((a,b)=>a.tick-b.tick||(a.on-b.on)).forEach(e=>{ if(e.on){(open[e.note]=open[e.note]||[]).push({on:e.tick,vel:e.vel});} else { const q=open[e.note]; if(q&&q.length){ const o=q.shift(); iv.push({note:e.note,on:o.on,off:e.tick,vel:o.vel}); } } }); return iv.sort((a,b)=>a.on-b.on); }
     /* ── 악기군별 아티큘레이션 세밀화 ──
      샘플 라이브러리가 주법을 스스로 고르도록 '노트 길이'와 '벨로시티'로 신호를 준다.
@@ -28471,14 +28550,27 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          선율은 맨 처음 처리되어 파트너가 없으므로 둘은 서로를 전혀 피하지 않았다.
          짧은 대위 교차는 정상이므로 16분 이상 물릴 때만 끊는다. */
     else if(gkey==='piano2'){ partners=['piano','pad']; mode='trunc'; }                          // 피아노2(테마): 끊기
-      else if(gkey==='bass'){ partners=['piano','strings','melody','counter']; mode='drop'; loLim=31; } // 베이스: 피아노·현 지속 화음·긴 선율음과
+      else if(gkey==='bass'){ partners=['piano','strings','melody','counter']; mode='drop'; loLim=31; thrMin=TPQ/8; }
+      /* 베이스는 저역이라 온음도 탁하다. 위 공통 판정(_need)이 음역에 따라 넓혀 준다.
+         겹침 문턱을 16분으로 낮춰 짧게 스치는 것도 잡는다
+         (실측 jazz: 저역 장2도 211건 중 147건이 피아노와 베이스 사이였다). */ // 베이스: 피아노·현 지속 화음·긴 선율음과
       else return evIn;
       const pIv=[]; partners.forEach(function(k){ if(doneNotes[k]&&k!==gkey) doneNotes[k].iv.forEach(function(x){ pIv.push({note:x.note,on:x.on,off:x.off,line:!!LINE[k]}); }); }); if(!pIv.length) return evIn;
       const ccs=evIn.filter(e=>e.cc!=null); const iv=pairIv(evIn);
       for(let sweep=0; sweep<3; sweep++){ let changed=false; // 수렴 스윕: 수정 후 재검사(다중 파트너·순서 사각 방지) — 절단은 줄이기만 하므로 수렴
         iv.forEach(function(a){ if(a.off<=a.on+8) return;
           for(let t2=0;t2<3;t2++){ // 최대 2회 이동 후에도 충돌이면 끊음
-            let hit=null,hOn=Infinity; for(const c of pIv){ if(Math.abs(a.note-c.note)===1){ const ov=Math.min(a.off,c.off)-Math.max(a.on,c.on); if(ov>=Math.max(thrMin,(c.line?(lineThr!=null?lineThr:SUS*2):SUS)) && c.on<hOn){ hit=c; hOn=c.on; } } } // 최조기 파트너부터
+            let hit=null,hOn=Infinity; for(const c of pIv){
+              /* 낮은 음역에서는 온음도 탁하다.
+                 배음 간격이 좁아 C3 옆의 D3 이 반음처럼 뭉개진다
+                 (실측 jazz: 저역 장2도 211건 중 198건이 옥타브 3에 몰렸다.
+                  C3(베이스 근음) 옆에 D3(피아노 9도)가 앉아 있었다.
+                  ballad 는 8건뿐이라 장르 문제가 아니라 그 자리의 문제다).
+                 C4(60) 아래는 장2도까지, E3(52) 아래는 단3도까지 정리한다.
+                 반음만 보던 기준을 음역에 따라 넓힌다. */
+              const _lo=Math.min(a.note,c.note);
+              const _need=(_lo<52)?3:((_lo<60)?2:1);
+              if(Math.abs(a.note-c.note)<=_need && a.note!==c.note){ const ov=Math.min(a.off,c.off)-Math.max(a.on,c.on); if(ov>=Math.max(thrMin,(c.line?(lineThr!=null?lineThr:SUS*2):SUS)) && c.on<hOn){ hit=c; hOn=c.on; } } } // 최조기 파트너부터
             if(!hit) break; changed=true;
             if(mode==='drop'){ if(a.note-12>=loLim){ a.note-=12; continue; } a.off=Math.max(a.on+8,Math.max(a.on,hit.on)-6); break; } // 옥타브 내림(기능 유지) → 하한 밑이면 충돌 직전 끊음
             else { if(a.on<hit.on){ a.off=hit.on-6; } else { a.off=Math.min(a.off, a.on+SUS-10); } break; } } }); // 먼저 침=상대 직전 끊음 · 나중 침=지속 기준 미만
@@ -28535,13 +28627,20 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
        (실측: melOn=false 인데 확정본 500음 · 악보 앞 6음이 피아노 아르페지오와 같았다).
        반주는 악보에 들어가면 안 된다. 대신 선율 트랙을 켠다.
        기악독주곡도 주선율은 있다 — 피아노가 그것을 함께 연주할 뿐이다. */
-    if(INST.melody && !INST.melody.on){ INST.melody.on=true; INST.melody.gm=MEL_GM_FOR(gsel); }
+    if(INST.melody && !INST.melody.on && !melUserOff){ INST.melody.on=true; INST.melody.gm=MEL_GM_FOR(gsel); }
     /* 라운지는 피아노 한 대가 어법인데 피아노가 없는 편성 장르는 반주 트랙 자체가 없었다
        (실측: folk·shanty·rumba 세 장르에서 GUARD 가 '라운지인데 피아노 트랙 없음'으로 잡았다).
        선율과 같은 방식으로 편성 상태와 무관하게 켠다. */
     if(loungeMode && !ORCH_LOUNGE.has(gsel) && INST.piano && !INST.piano.on){ INST.piano.on=true; INST.piano.gm=0; }
     if(INST.melody.on) groups.push({gm:INST.melody.gm,ch:5,role:'melody',key:'melody'});
     if(counterOn) groups.push({gm:counterGm(),ch:6,role:'counter',key:'counter'}); // 대선율=솔로 현(현 섹션과 다른 악기) — 이름과 실제 음색 일치
+    /* 베이스를 피아노보다 먼저 만든다.
+       crossDeclash 는 이미 끝난 트랙(doneNotes)하고만 비교하는데,
+       피아노가 먼저 처리되면 그때 베이스가 없어 서로를 피하지 못한다
+       (실측 jazz: 저역 장2도 211건 중 147건이 피아노와 베이스 사이였다.
+        C3(베이스 근음) 옆에 D3(피아노 9도)가 앉아 배음이 뭉갰다).
+       베이스는 화성의 바닥이므로 먼저 정하는 것이 음악적으로도 맞다. */
+    if(INST.bass.on) groups.push({gm:INST.bass.gm,ch:3,role:'bass',key:'bass'});
     if(INST.piano.on) groups.push({gm:INST.piano.gm,ch:0,role:'chord',key:'piano'});
     if(INST.strings.on) groups.push({gm:INST.strings.gm,ch:1,role:(CINE.has(gsel)?'cinestr':'chord'),key:'strings'});
     if(INST.winds.on){ if(INST.winds.gm===200 && !CINE.has(gsel)){ // 목관 섹션: 플루트(고·민첩)·오보에(중·노래)·바순(저·받침) 분리
@@ -28549,7 +28648,6 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         groups.push({gm:68,ch:14,role:'secOb',key:'winds2'});
         groups.push({gm:70,ch:15,role:'secBsn',key:'winds3'}); }
       else groups.push({gm:windsGm(),ch:2,role:'top',key:'winds'}); }
-    if(INST.bass.on) groups.push({gm:INST.bass.gm,ch:3,role:'bass',key:'bass'});
     if(INST.drums.on) groups.push({gm:0,ch:9,role:'drums',key:'drums'});
     if(useProd()){ groups.push({gm:89,ch:4,role:'pad',key:'pad'});    // Pad 2 (Warm) — 앰비언트 지속층
       if(useSub()) groups.push({gm:38,ch:8,role:'sub',key:'sub'});     // Synth Bass 1 — 서브 보강(L5+) · 어쿠스틱 계열 제외
@@ -28842,7 +28940,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                  곡선의 0.55~1.15 배를 곱해 어느 스타일에서도 성김과 절정이 뚜렷하게 한다. */
               const _lgD=(loungeMode?loungeDensity(_lgT01,loungePeak(sec.movement)):null);
               const _lgP=(_lgComp? loungeP(_lgComp)*(_lgD!=null?(0.55+0.60*_lgD):1) : compIntensity);
-              const _bar=compStyleBar(cn,_bs,{style:(_lgComp||compStyle),p:(_lgComp?_lgP:compIntensity),eighth:meterEighth(),beat:meterQuarterPos(),strong:meterBeatPos(),seed:_seed,inA:inA,stage:(sec.stage||3),build:_lgD,pedal:pedalOn,slots:_slots});
+              const _bar=compStyleBar(cn,_bs,{style:(_lgComp||compStyle),p:(_lgComp?_lgP:compIntensity),eighth:meterEighth(),beat:meterQuarterPos(),strong:meterBeatPos(),seed:_seed,inA:inA,stage:(sec.stage||3),build:_lgD,melTop:((loungeMode&&INST.melody.on)?74:null),pedal:pedalOn,slots:_slots});
               _bar.notes.forEach(nn=>{ const mt=T+Math.round(nn.pos*measure), md=Math.max(60,Math.round(nn.dur*measure));
                 ev.push({tick:mt,on:1,note:nn.note,vel:Math.max(30,Math.min(122,Math.round(nn.vel*118)))}); ev.push({tick:mt+md,on:0,note:nn.note}); }); }
             else if((LYRIC_G.has(gsel)||pianoNA||soloPiano)&&!emotive){ // 기악독주곡·솔로 피아노: 구간(stage)마다 패턴·밀도가 자라는 기승전결 + 섹션마다 다른 패턴
@@ -29435,6 +29533,10 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          세 앱에서 여섯 번째 겪는 같은 실패다. */
       ev=phraseBreath(ev, grp.key, SEC_TK, TPQ);
       ev.sort((a,b)=>(a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on))); doneNotes[grp.key]={ch:grp.ch, iv:pairIv(ev)};
+      /* 저역 정리를 위해 이벤트 배열 자체를 보관한다.
+         crossDeclash 는 '이미 끝난 트랙' 만 보므로 늦게 만들어지는 트랙과의
+         충돌은 아무도 보지 못한다. 전부 만든 뒤 한 번 더 훑어야 한다. */
+      doneNotes[grp.key].ev=ev;
       /* 선율이 끝나면 컴핑이 피할 수 있게 그 음들을 모아 둔다 */
       /* 기악독주곡은 melody 트랙이 없다(lyric·lyricPenta·lyricMid·lyricMinyo·joypiano).
          그 장르는 피아노 한 대가 선율과 반주를 함께 맡으므로
@@ -29446,6 +29548,33 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           const bi=barAtTick(x.on, PAD, __barLen);
           return {bar:bi, pos:(x.on-PAD-bi*__barLen)/TPQ, midi:x.note, dur:Math.max(0.05,(x.off-x.on)/TPQ)};
         }); }catch(e){ __scoreMelFromMidi=null; } } // 교차 트랙 반음 정리 + 완료 트랙 등록
+      /* ── 1단계 끝 ──
+         여기까지가 '이벤트 만들기' 다. 바이트 쓰기는 모든 트랙이 끝난 뒤로 미룬다.
+         트랙마다 바로 바이트로 굳히면 나중에 만들어지는 트랙과의 충돌을
+         아무도 고칠 수 없기 때문이다. */
+      __pending.push({grp:grp, ev:ev});
+    });
+    /* ── 최종 저역 정리 ──
+       모든 트랙이 만들어졌으니 이제 전체를 보고 낮은 음역의 밀집을 푼다. */
+    try{
+      const _mv=lowClear(doneNotes, TPQ);
+      /* 음을 옮기면 서로 다른 음이 같은 음이 되어 겹칠 수 있다
+         (실측: 26장르에서 '같은 음 겹침' 이 나왔다 — epicaeol 110건 · rock 70건).
+         옮긴 트랙마다 겹침 정리를 다시 태운다. */
+      if(_mv>0){
+        __pending.forEach(function(pp){
+          pp.ev=coalesceNotes(pp.ev);
+          pp.ev=selfDeclash(pp.ev, pp.grp.key, TPQ);
+          /* selfDeclash 가 자리를 옮기면 다시 겹칠 수 있다 — 한 번 더 병합한다
+             (실측: 26건 -> 1건까지 줄었고 남은 하나가 이 경우였다). */
+          pp.ev=coalesceNotes(pp.ev);
+          pp.ev.sort(function(a,b2){ return (a.tick-b2.tick)||((a.cc!=null?2:a.on)-(b2.cc!=null?2:b2.on)); });
+        });
+      }
+    }catch(e){}
+    /* ── 2단계: 바이트 쓰기 ── */
+    __pending.forEach(function(pp){
+      const grp=pp.grp; let ev=pp.ev;   /* 2단계에서 ev 에 다시 대입하는 자리가 있어 let 이어야 한다 */
       let bytes=[];
       const __melMuted=(grp.key==='melody' && window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length && (!window.SO_HUB.melSrc||window.SO_HUB.melSrc.play!=='own'));   // 가져온 멜로디 선택 시 자체 멜로디 뮤트
       /* 현악 4중주는 성부 이름이 곧 악기 이름이다 — 로직에서 그 이름으로 음원을 찾을 수 있게 한다 */
@@ -31143,6 +31272,7 @@ return L.join('\n');
     if(typeof _syncModeTogs==='function') _syncModeTogs('');
   }
   function applyGenreInst(){
+  melUserOff=false;   /* 장르가 바뀌면 편성이 새로 잡히므로 사용자 선택도 초기화 */
   __scoreMelFromMidi=null;   /* 장르가 바뀌면 악보 확정본도 버린다 */
   // 결정적 리셋: 장르를 바꾸면 항상 그 장르의 기본 편성이 되도록, 이전 장르의 잔재(악기 on/off·음색 gm·대선율)를 전부 초기화
   INST.brass.on=false; INST.harp.on=false; INST.strings.on=false; INST.winds.on=false; INST.melody.on=false;
@@ -31753,7 +31883,13 @@ function applyPreset(solo){
     const rc=e.target.closest('[data-rhy]'); if(rc){ const pi=rc.dataset.rhy, ri=+rc.dataset.ri; const same=loopState&&loopState.id==='card:'+pi&&(rhyVars[pi]||0)===ri; rhyVars[pi]=ri; renderOut(); if(same) stopGroove(); else startCardLoop(pi); return; }
     const b=e.target.closest('[data-pi]'); if(!b)return; const pi=b.dataset.pi; const p = pi==='rand' ? randData : G[gsel].progs[+pi]; if(p){ if(b.dataset.m==='groove'){ if(loopState&&loopState.id==='card:'+pi) stopGroove(); else startCardLoop(pi); } else { stopGroove(); curVoicing=voiceFor(pi); playProg(p.steps,b.dataset.m); } } });
   $('instGrid').addEventListener('change',e=>{ const t=e.target;
-    if(t.dataset.inst){ INST[t.dataset.inst].on=t.checked; if(loopState){ const pi=loopState.id.slice(5); stopGroove(); startCardLoop(pi); } }
+    if(t.dataset.inst){ INST[t.dataset.inst].on=t.checked;
+      /* 사용자가 직접 끈 것인지 기억한다.
+         악보에 주선율을 보장하려고 buildSongMIDI 가 melody 를 자동으로 켜는데,
+         그것이 사용자가 끈 것까지 되살렸다
+         (실측: ballad·classic 에서 melody 토글을 꺼도 Vocal Guide 트랙이 남았다).
+         자동으로 켜는 것은 '한 번도 건드리지 않은 경우' 에만 한다. */
+      if(t.dataset.inst==='melody') melUserOff=!t.checked; if(loopState){ const pi=loopState.id.slice(5); stopGroove(); startCardLoop(pi); } }
     else if(t.dataset.instsel){ INST[t.dataset.instsel].gm=+t.value; }
     renderTransportInsts(); if(currentSong){ bakeSongMelodies(); if(typeof songState!=='undefined'&&songState){ stopSong(); playSong(); } } });
   // 하단 트랜스포트: 전체 재생/정지
