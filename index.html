@@ -15159,12 +15159,47 @@ function arrange(){
             else {const nxt=chordSymAt(si,bar+1),nc=nxt?chordFromSym(nxt):null;
             const changing=nc&&nc.bass%12!==ch.bass%12;
             // 밀도 아크: 성긴 구간은 8분을 솎아 루트를 길게(비움), 촘촘한 구간은 8분 전부(채움).
-            const skip=dens<0.7?new Set([1,3,5]):dens<0.88?new Set([3]):new Set();
+            /* ── 멜로딕 하우스와 딥하우스는 베이스 어법이 다르다 ──
+               둘 다 4-on-floor 지만 저역이 하는 일이 다르다.
+
+               멜로딕 하우스 — 롤링 베이스
+                 16분으로 계속 구르며 킥 사이를 메운다. 사이드체인이 킥 자리를 눌러
+                 '킥과 베이스가 번갈아' 들리게 만든다.
+                 릴리즈를 짧게 잡아 다음 킥 전에 음이 끊겨야 지저분해지지 않는다.
+                 마디마다 세기를 바꿔(100·84·96) 기계가 아닌 손으로 친 느낌을 낸다.
+
+               딥하우스 — 오프비트 서브
+                 8분 뒷자리에서 받아 치는 따뜻한 서브. 음이 길고 성기다.
+                 딥하우스는 타악보다 저역 중심이고 여백이 정체다.
+
+               (실측: 두 장르가 같은 8분 균등 패턴이었고 베이스의 55%가
+                킥과 같은 자리에서 같은 세기로 부딪혔다.) */
+            const _mh=(g.id==='melodichouse'), _dh=(g.id==='deephouse');
+            const _mhBase=tr.bass.length;
+            const skip=_dh?new Set([0,2,4,6])
+                     :(dens<0.7?new Set([1,3,5]):dens<0.88?new Set([3]):new Set());
             for(let e=0;e<8;e++){if(skip.has(e))continue;const rq=e*0.5;let m=ch.bass;
               if(e===5&&rnd()<0.35*dens)m=ch.bass+7;                              // 5음(밀도 반영)
               if(e===7&&changing){let tgt=nc.bass;while(Math.abs(tgt-ch.bass)>6)tgt+=tgt>ch.bass?-12:12;m=approachTo(tgt,keyPc());} // 접근음
               let span=1;while(e+span<8&&skip.has(e+span))span++;                  // 솎인 뒤 슬롯만큼 이어서 길게(서스테인)
-              tr.bass.push({t:b0+rq+swQ(rq),dur:0.5*span*0.9,midi:m,vel:Math.round((e%2===0?88:78)*eScale*ramp+rnd()*4),synthB:true});}}
+              /* 딥하우스: 오프비트 서브 — 길고 따뜻하게 */
+              const _v=_dh?90:((e%2===0)?88:78);
+              const _d=_dh?0.46:(0.5*span*0.9);
+              tr.bass.push({t:b0+rq+swQ(rq),dur:_d,midi:m,vel:Math.round(_v*eScale*ramp+rnd()*4),synthB:true});}
+            /* 멜로딕 하우스: 8분 대신 16분 롤링으로 다시 깐다 */
+            if(_mh){
+              tr.bass.length=_mhBase;                       /* 위에서 넣은 8분을 걷어낸다 */
+              const barV=[100,84,96,88][bar%4];             /* 마디마다 세기가 다르다 */
+              for(let s=0;s<16;s++){
+                if(s%4===0 && s!==0) continue;              /* 2·3·4박 정박은 킥 자리 */
+                let m=ch.bass;
+                if(s===10&&rnd()<0.35)m=ch.bass+7;          /* 가끔 5도로 올라갔다 온다 */
+                if(s===15&&changing){let tgt=nc.bass;while(Math.abs(tgt-ch.bass)>6)tgt+=tgt>ch.bass?-12:12;m=approachTo(tgt,keyPc());}
+                const acc=(s%4===2)?1.0:((s%2===1)?0.82:0.9);
+                tr.bass.push({t:b0+s*0.25,dur:0.22,midi:m,
+                  vel:Math.round(barV*acc*0.92*eScale*ramp+rnd()*4),synthB:true});
+              }
+            }}
         }
       }
       cur+=BQ;                                                       // 박자표 마디만큼 전진(12/8=6박·6/8=3박·3/4=3박)
