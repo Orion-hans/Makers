@@ -8889,14 +8889,25 @@ function melodyRegion(ch,s,d,e,out,bb,bs,bts){
 /* 기타 — 스타일별, 마디 첫박 그리드(bs)에 고정 */
 function guitarRegion(ch,s,d,e,out,bb,bs,bts){const g=ch.guitar,BB=bb||4;bts=bts||[0,1,2,3];
   const within=tt=>tt>=s-1e-6&&tt<s+d-1e-6;
+  /* ── 스트럼 시차 ──
+     기타는 피크가 줄을 훑고 지나가므로 화음이 완전히 동시에 울리지 않는다.
+     10~20ms 시차가 있어야 사람이 친 소리가 난다.
+     (실측 21스타일: 화음 묶음의 62%가 완전 동시타였다.
+      시차가 있던 것은 pompe(집시)와 rasgueado(룸바)뿐이었다.)
+     다운은 저음 -> 고음, 업은 고음 -> 저음 순으로 훑는다.
+     0.012박 ~ 120BPM 기준 약 25ms 폭(6현이면 전체 60ms). */
+  const SPR=0.012;
+  const strumT=(t,ix,n,up)=>t+(up?(n-1-ix):ix)*SPR;
   switch(curPerf.gtr){
     case 'none':return;
     case 'power':{if(e<=1)return;const arr=e>=3?ch.power:g;
-      if(e>=4){for(let o=0;o<BB-1e-6;o+=0.5){const tt=bs+o;if(within(tt))arr.forEach(p=>out.push({t:tt+swOff(o,0.5),dur:0.42,midi:p,vel:74}));}}
-      else bts.forEach(o=>{const tt=bs+o;if(within(tt))arr.forEach(p=>out.push({t:tt,dur:0.9,midi:p,vel:56}));});return;}
+      if(e>=4){for(let o=0;o<BB-1e-6;o+=0.5){const tt=bs+o;if(within(tt)){const _up=(Math.round(o/0.5)%2===1);
+        arr.forEach((p,ix)=>out.push({t:strumT(tt+swOff(o,0.5),ix,arr.length,_up),dur:0.42,midi:p,vel:74}));}}}
+      else bts.forEach(o=>{const tt=bs+o;if(within(tt))arr.forEach((p,ix)=>out.push({t:strumT(tt,ix,arr.length,false),dur:0.9,midi:p,vel:56}));});return;}
     case 'chuck16':{if(e<=1)return;const step=e>=3?0.25:0.5;
       for(let o=0;o<BB-1e-6;o+=step){const i=Math.round(o/step);if(e<4&&i%2===0)continue;const tt=bs+o;if(!within(tt))continue;const acc=i%4===2;
-        g.forEach(p=>out.push({t:tt,dur:0.1,midi:p,vel:acc?60:40}));}return;}
+        const _up=(i%2===1);   /* 16분 뒷자리는 업스트로크 */
+        g.forEach((p,ix)=>out.push({t:strumT(tt,ix,g.length,_up),dur:0.1,midi:p,vel:acc?60:40}));}return;}
     case 'pompe':{ if(e<=1)return;   // 집시 스윙 라 펌프: 매 박 짧은 다운스트로크(스타카토) + 2·4 강세, 뒷박 짧은 업 고스트
       const gl=g.filter(x=>x!=null); if(!gl.length)return;
       const spread=0.007;
@@ -8948,10 +8959,10 @@ function guitarRegion(ch,s,d,e,out,bb,bs,bts){const g=ch.guitar,BB=bb||4;bts=bts
             out.push({t:tt+so+jt+swOff(o,step)*0.25, dur:isDown?0.2:0.14, midi:p, vel:vv, seg:1}); });
         } }
       return;}
-    default:{ // strum
-      if(e<=1)return;if(e===2){g.forEach(p=>out.push({t:s,dur:d*0.9,midi:p,vel:50}));return;}
-      if(e>=4){for(let o=0;o<BB-1e-6;o+=0.5){const up=Math.round(o/0.5)%2===1;const tt=bs+o;if(within(tt))g.forEach(p=>out.push({t:tt+swOff(o,0.5),dur:0.35,midi:p,vel:up?44:54}));}}
-      else bts.forEach(o=>{const tt=bs+o;if(within(tt))g.forEach(p=>out.push({t:tt,dur:0.9,midi:p,vel:52}));});}
+    default:{ // strum — 피크가 줄을 훑으므로 다운은 저→고, 업은 고→저 시차
+      if(e<=1)return;if(e===2){g.forEach((p,ix)=>out.push({t:strumT(s,ix,g.length,false),dur:d*0.9,midi:p,vel:50}));return;}
+      if(e>=4){for(let o=0;o<BB-1e-6;o+=0.5){const up=Math.round(o/0.5)%2===1;const tt=bs+o;if(within(tt))g.forEach((p,ix)=>out.push({t:strumT(tt+swOff(o,0.5),ix,g.length,up),dur:0.35,midi:p,vel:up?44:54}));}}
+      else bts.forEach(o=>{const tt=bs+o;if(within(tt))g.forEach((p,ix)=>out.push({t:strumT(tt,ix,g.length,false),dur:0.9,midi:p,vel:52}));});}
   }
 }
 function fmt(s){const mm=Math.floor(s/60),ss=Math.round(s%60);return mm+':'+String(ss).padStart(2,'0');}
@@ -22810,18 +22821,24 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
          (실측 lyric: 확정본 0.333 · 악보 0.375 — 음높이는 같은데 자리가 어긋난다.)
          그 마디에 셋잇단이 섞여 있으면 12분할 격자를 쓴다 — 16분과 셋잇단을 모두 담는다. */
       const snapPos=function(pos, g){ return Math.round(pos*g)/g; };
+      /* 마디마다 격자를 하나만 고른다.
+         12분할을 쓰면 1/12박(0.0833) 같은 값이 나오는데
+         그것은 32분음표도 셋잇단도 아니어서 악보에 그릴 수 없다
+         (실측: lyric 격자밖 30개 중 18개가 0.0833 · joypiano 69개).
+         셋잇단이 섞인 마디는 셋잇단 격자(3분할)로,
+         아니면 16분(4분할) 또는 32분(8분할)으로 통일한다.
+         한 마디 안에서 16분과 셋잇단을 섞지 않는 것이 표기 원칙이다. */
       const gridFor=function(list){
         if(comp) return 3;
         let trip=0, dense=0;
         list.forEach(function(n){
           if(n.midi==null) return;
           dense++;
-          const f=Math.abs(pos3(n.pos));
-          if(f<0.02) trip++;
+          if(Math.abs(pos3(n.pos))<0.02 && Math.abs(n.pos*4-Math.round(n.pos*4))>0.02) trip++;
         });
-        if(trip>0) return 12;               /* 셋잇단 섞임 — 12분할(16분·셋잇단 공존) */
+        if(trip*2>dense) return 3;          /* 셋잇단이 절반 넘음 — 셋잇단 마디 */
         if(dense>6) return 8;               /* 촘촘한 선율 — 32분 격자 */
-        return 4;
+        return 4;                           /* 기본 16분 */
       };
       function pos3(p){ const x=p*3; return x-Math.round(x); }
       const byBar={};
@@ -22839,6 +22856,12 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           let d=snapDur(n.dur);
           if(d>room && room>0) d=snapDur(room);
           if(d>bq-n.pos) d=snapDur(bq-n.pos);                       /* 마디를 넘지 않는다 */
+          if(n.pos+d>bq+1e-6){                                       /* 반올림이 다시 넘기면 한 칸 줄인다 */
+            const room2=bq-n.pos;
+            let best=1/_G;
+            VAL.forEach(function(v){ if(v<=room2+1e-6 && v>best) best=v; });
+            d=best;
+          }
           if(d<=0) d=1/_G;
           n.dur=d;
         });
@@ -23452,6 +23475,12 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
   function shuffleArr(a){ const r=a.slice(); for(let i=r.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=r[i]; r[i]=r[j]; r[j]=t; } return r; } // Fisher-Yates: 균등 셔플(sort-random 편향 제거 → 진행 다양성)
   let themeSong=null;
   function rollTheme(){
+    /* 곡의 재료가 바뀌면 악보 확정본을 버린다.
+       버리지 않으면 다음에 악보를 열 때 이전 곡의 선율이 그대로 그려진다
+       (실측: 장르를 바꿔 테마를 새로 뽑았는데 확정본이 직전 장르의 값 그대로 남아 있었다 —
+        ballad 162음이 lyric 에서, lyric 103음이 pop 에서 남았다).
+       collectSongMelody 는 확정본이 있으면 다시 만들지 않으므로 여기서 지워야 한다. */
+    __scoreMelFromMidi=null;
     newMotif();
     const ps=G[gsel].progs.filter(p=>p.mode===keyMode); if(!ps.length){ if($('themeMsg'))$('themeMsg').textContent='이 조성의 진행이 없어요'; return; }
     themeProg=ps[Math.floor(Math.random()*ps.length)];
@@ -31073,6 +31102,7 @@ return L.join('\n');
     if(typeof _syncModeTogs==='function') _syncModeTogs('');
   }
   function applyGenreInst(){
+  __scoreMelFromMidi=null;   /* 장르가 바뀌면 악보 확정본도 버린다 */
   // 결정적 리셋: 장르를 바꾸면 항상 그 장르의 기본 편성이 되도록, 이전 장르의 잔재(악기 on/off·음색 gm·대선율)를 전부 초기화
   INST.brass.on=false; INST.harp.on=false; INST.strings.on=false; INST.winds.on=false; INST.melody.on=false;
   INST.piano.gm=0; INST.bass.gm=33; INST.strings.gm=48; INST.winds.gm=73; INST.harp.gm=46; INST.brass.gm=60; INST.melody.gm=73;
