@@ -25709,23 +25709,36 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     if(!fixed.length) return 0;
     fixed.sort(function(a,b){ return a.on-b.on; });
     let moved=0;
+    /* 옮긴 층끼리도 서로 부딪힐 수 있다.
+       바닥만 기준으로 삼으면 위 층 둘이 같은 자리로 옮겨 가 새로 부딪힌다
+       (실측: citypop 단2도가 174 -> 348로 늘었다).
+       이미 처리한 층을 기준에 더해 가며 순서대로 본다. */
+    const ref=fixed.slice();
     keys.forEach(function(k){
       if(FLOOR[k]) return;
       const d=doneNotes[k]; if(!d||!d.ev||!d.iv) return;
       const ev=d.ev;
       d.iv.forEach(function(x){
-        if(x.note==null || x.note>=60) return;          /* C4 위는 배음이 벌어져 괜찮다 */
-        for(let i=0;i<fixed.length;i++){
-          const c=fixed[i];
+        if(x.note==null) return;
+        for(let i=0;i<ref.length;i++){
+          const c=ref[i];
           if(c.off<=x.on) continue;
           if(c.on>=x.off) break;                        /* 시간순이라 더 볼 필요 없다 */
-          const lo=Math.min(x.note,c.note);
-          const need=(lo<52)?3:2;
+          /* ── 무엇이 진짜 부딪힘인가 ──
+             단3도는 화음 구성음이라 부딪히지 않는다. 9도도 둘 다 화음음이면 어법이다.
+             (실측 42장르: 저역 9도 1,526건 중 대부분이 둘 다 화음음이었다.)
+             진짜 부딪히는 것은 셋이다.
+               반음(1)          어느 음역에서나 부딪힌다
+               옥타브+반음(13)   ♭9 — 가장 많았다(1,166건)
+               저역 온음(2)      C4 아래에서 화음 밖 음끼리 붙을 때 */
           const d2=Math.abs(x.note-c.note);
-          if(d2>0 && d2<=need){
+          const bad=(d2===1)||(d2===13)||(d2===2 && Math.min(x.note,c.note)<60);
+          if(bad){
             let m=x.note;
             let guard=0;
-            while(m<96 && Math.abs(m-c.note)<=need && guard++<4) m+=12;
+            const stillBad=function(v){ const q=Math.abs(v-c.note);
+              return (q===1)||(q===13)||(q===2 && Math.min(v,c.note)<60); };
+            while(m<96 && stillBad(m) && guard++<4) m+=12;
             if(m!==x.note && m<=96){
               for(let z=0;z<ev.length;z++){
                 const e=ev[z];
@@ -25738,6 +25751,9 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           }
         }
       });
+      /* 이 층을 처리했으니 다음 층의 기준에 더한다 */
+      d.iv.forEach(function(x){ if(x.note!=null) ref.push(x); });
+      ref.sort(function(a,b2){ return a.on-b2.on; });
     });
     return moved;
   }
