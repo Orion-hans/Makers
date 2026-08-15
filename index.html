@@ -22422,7 +22422,30 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       const baseMidi=snapCt(Math.max(loR,Math.min(hiR,reg)), ctMel), baseIdx=nearIdx(baseMidi);
       // 강박 골격 음(코드톤) — 그룹 시작마다
       const bm={}; let prevNCT=false; let _prevBm=(typeof prev==='number'?prev:72), _prevInt=0; beatsPos.forEach((bp,bi)=>{ const useSp=(ctPc2&&bp>=splitBp); const ct=(_mcl.length>1)?ctMelAt(bp):(useSp?ctMel2:ctMel);
-        let m=snapCt(scaleMidis[cl(baseIdx+(con[bi]||0))],ct);
+        /* ── 강박을 전부 화음음으로 스냅하지 않는다 ──
+           snapCt 가 모든 강박을 화음음으로 끌어당기면 선율이 근음·3도·5도만
+           짚으며 뛰어다녀 아르페지오처럼 들린다
+           (실측 42장르: 화음음 89~94% · 순차 22~29% · 3도 도약 33~47%.
+            노래하는 선율은 순차가 60~70%다.
+            '화음음을 있으니까 쓴다' 는 지적의 실체가 여기다).
+
+           앞 강박에서 3도 이상 뛰게 되는 자리는 음계음 그대로 두어
+           순차로 잇는다. 그 음은 비화성음이 되지만 다음 강박이 화음음이므로
+           경과음·계류음으로 해결된다 — 이것이 선율의 어법이다.
+           첫 마디 첫 박과 마지막 마디는 뼈대를 지켜야 하므로 건드리지 않는다. */
+        const _raw=scaleMidis[cl(baseIdx+(con[bi]||0))];
+        let m=snapCt(_raw,ct);
+        if(!last && bi>0 && bm[beatsPos[bi-1]]!=null){
+          const _pb=bm[beatsPos[bi-1]];
+          if(Math.abs(m-_pb)>=3){
+            /* 앞 강박에서 순차로 갈 수 있는 음계음을 찾는다 */
+            const _dir=(m>_pb)?1:-1;
+            const _step=scaleMidis[cl(nearIdx(_pb)+_dir)];
+            if(_step!=null && Math.abs(_step-_pb)<=2 && Math.abs(_step-m)<=4 && RND()<0.62){
+              m=_step;
+            }
+          }
+        }
         if(!last && !(bi===0&&si===0) && !prevNCT){ const rr=RND(); // 강박에 코드톤만 두지 않기(단, 텐션 뒤 강박은 코드톤으로 해결)
           if(rr<pTens){ const _cc=(_mcl.length>1)?chordAtBp(bp):null; const tp=_cc?tensFor(_cc.rel,_cc.q):tensFor(useSp?st[4][0]:st[1], useSp?st[4][1]:st[2]); if(tp.length){ m=pcNear(tp[Math.floor(RND()*tp.length)], m); prevNCT=true; } } // 텐션음(박별 코드 반영)
           else if(rr<pTens+pApp){ m=scaleMidis[cl(nearIdx(m)+(RND()<0.6?1:-1))]; prevNCT=true; } // 전타음(코드톤 이웃 → 다음 음이 스텝으로 해결)
@@ -22456,7 +22479,21 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           const b=(nbi<beatsPos.length)?bm[beatsPos[nbi]]:null;
           if(b!=null && b!==a){ const bIdx=nearIdx(b), span=bIdx-aIdx, frac=(pos-pb)/(nb-pb);
             pick=scaleMidis[cl(aIdx+Math.round(span*frac))];
-            if(pick===a) pick=scaleMidis[cl(aIdx+(span>0?1:-1))]; }   // 경과음
+            if(pick===a) pick=scaleMidis[cl(aIdx+(span>0?1:-1))];
+            /* 경과음이 앞 음에서 3도 이상 뛰면 선율이 아니라 아르페지오가 된다.
+               두 강박이 멀 때 span*frac 이 한 번에 여러 계단을 건너뛰기 때문이다
+               (실측 42장르: 순차 22~29% · 3도 도약 33~47%.
+                노래하는 선율은 순차가 60~70%다).
+               직전 음에서 한 계단씩만 움직이게 눌러 준다 —
+               목적지(b)로 가는 방향은 유지하므로 프레이즈 윤곽은 그대로다. */
+            if(typeof prev==='number'){
+              const _pi=nearIdx(prev), _ti=nearIdx(pick);
+              if(Math.abs(_ti-_pi)>=2){
+                const _one=scaleMidis[cl(_pi+((_ti>_pi)?1:-1))];
+                if(_one!=null) pick=_one;
+              }
+            }
+          }   // 경과음
           else pick=scaleMidis[cl(aIdx+(RND()<0.5?1:-1))];    // 보조음
           if(b!=null && opts.scale!=='pentatonic' && frac2Chrom(pos,pb,nb) && RND()<pChrom){ pick=b+(b>a?-1:1); } // 다음 강박으로 반음 접근
         }
@@ -27274,6 +27311,19 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       const strongBeat=(Math.abs(beat)<0.12) || (Math.abs(beat-2)<0.12);
       const longEnough=(onBeat && strongBeat && dur>=0.75) || (dur>=0.5);
       if(!longEnough) return;
+      /* 앞뒤 음과 순차로 이어지는 음은 경과음·계류음이다 — 화음음으로 되돌리면
+         선율이 다시 화음음만 짚으며 뛰어다닌다
+         (실측: genMelody 에서 순차를 늘려도 강박 화음음이 100%로 되돌아왔다.
+          순차 22~29% · 3도 도약 33~47% 로 아르페지오처럼 들리던 원인).
+         선율은 화음음 사이를 순차로 잇는 것이 어법이고,
+         그 사이 음이 비화성음인 것은 정상이다. */
+      if(prevPick!=null){
+        const _iN=seq.indexOf(n);
+        const _nx=(_iN>=0 && _iN+1<seq.length)?seq[_iN+1].note:null;
+        const _din=Math.abs(n.note-prevPick);
+        const _dout=(_nx!=null)?Math.abs(_nx-n.note):99;
+        if(_din<=2 && _dout<=2){ prevPick=n.note; return; }   /* 양쪽 순차 = 경과음 */
+      }
       const iv=(((n.note-root)%12)+12)%12;
       /* 그 화음에 실제로 있는 음만 뼈대로 인정한다.
          CHORD_CORE에 ♭7(10)이 있어 3화음에서도 ♭7을 뼈대로 보고 통과시키고 있었다
