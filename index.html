@@ -23981,6 +23981,12 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     return out.length?out:null;
   }
   function makeSongUnified(){ // 곡 만들기 단일 입구: 테마 있으면 A로, 없으면 무작위 · 구조 셀렉트 반영
+    /* 곡이 새로 만들어지면 악보 확정본을 버린다.
+       버리지 않으면 곡 만들기를 다시 눌러도 악보의 오선보가 그대로 남는다
+       (코드 심볼만 바뀌어 보이는 이유 — 화음은 currentSong 에서 매번 새로 읽고
+        선율만 확정본 캐시에서 오기 때문이다).
+       buildSong 에는 있었으나 실제 버튼이 부르는 입구는 이 함수다. */
+    __scoreMelFromMidi=null;
     if(!themeProg||!songMotif) newMotif(); // 테마 없으면 새 모티프
   else if(songMotif) songMotif.seed=(Math.random()*0x7fffffff)>>>0; // 테마 있으면 훅(con·리듬·테마선율)은 유지하되, 변주·전개 시드만 갱신 → 곡마다 전개가 달라짐(같은 훅 다른 곡)
   isThemeMode=false;
@@ -31512,7 +31518,11 @@ const ORCH_LOUNGE=new Set(['cineSoar','cineTension','cineSorrow','cineJoy','cine
   /* 클래식도 오케스트라형이다 — 바이올린 선율·첼로 대선율·오보에·현을
      피아노 한 대로 바꾸면 실내악 편성이 사라진다.
      현악 4중주 모드는 별도 분기가 이미 처리한다. */
-  'classic']);
+  'classic',
+  /* 시네마틱 조곡도 오케스트라형이다.
+     ORCH_LOUNGE 에 빠져 있어 라운지를 켜면 솔로 피아노로 바뀌어
+     오보에 선율과 피아노 둘만 남았다(실측: 트랙 2개 · soloPiano=true). */
+  'cineSuite']);
 const LOUNGE_OK=new Set([
   'lyric','lyricPenta','lyricMid','lyricMinyo','newage','joypiano','classic','quartal',
   'jazz','bossa','neosoul','blues','lofi','ballad','citypop','pop','kids',
@@ -31521,7 +31531,7 @@ const LOUNGE_OK=new Set([
   /* ── 오케스트라형 라운지 ──
      시네마틱·에픽 계열은 피아노로 바꾸지 않고 오케스트라 그대로 연주한다.
      편성이 이미 갖춰져 있다(cineSoar 13트랙 · epicaeol 19트랙). */
-  'cineSoar','cineTension','cineSorrow','cineJoy','cineWar','epicaeol',
+  'cineSoar','cineTension','cineSorrow','cineJoy','cineWar','epicaeol','cineSuite',
   /* 켈틱풍·국악풍 — 라운지에서만 피아노 편성으로 바꿔 연주한다 */
   'celtic','gugak','gukvocal',
   /* 찬불가 — 라운지에서는 합창을 빼고 기악으로 연주한다(사찰 카페·명상 공간용) */
