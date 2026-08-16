@@ -24908,11 +24908,107 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       setTimeout(()=>{ if(songState===st){ songState=null; markSong(); } }, Math.max(0,remain)); }
   }
   function playSection(idx){ if(!currentSong||!currentSong[idx])return; if(songState) stopSong(); playSong([currentSong[idx]], true, true); } // 섹션은 루프 재생
+  /* ── MIDI 확정본을 그대로 연주한다 ──
+     트랙의 역할·GM 을 미리듣기 음색(instVoice)에 이어 준다.
+     타악(채널 9)은 드럼맵 번호를 킥·스네어·하이햇에 잇는다. */
+  /* 확정본 연주 — 전 장르. 재생 버튼이 내보내는 MIDI 를 그대로 들려준다.
+     여섯 장르로 먼저 시험해 계열별(피아노·밴드·기타·오케)로 확인한 뒤 넓혔다. */
+  const MIDIPLAY_ALL=true;
+  const MIDIPLAY_GENRE={ has:function(){ return MIDIPLAY_ALL; } };
+  function mpVoice(key, role, gm){
+    /* 장르 고유 음색을 잃지 않게 — 해금(국악 대선율)과 시타르 계열은 따로 잇는다 */
+    if(gm===104) return 'harp';
+    if((gsel==='gugak'||gsel==='gukvocal') && (key==='counter'||key==='melody')) return 'haegeum';
+    if(key==='drums'||key==='orchcym'||role==='drums') return 'drums';
+    if(key==='bass'||key==='sub'||key==='cbass') return 'bass';
+    if(key==='timpani') return 'timpani';
+    if(key==='strings'||key==='counter'||key==='pad') return 'strings';
+    if(key==='brass'||key==='brass2'||key==='horns'||key==='lowbrass') return 'brass';
+    if(key==='brass3') return 'tpt';
+    if(key==='winds'||key==='winds2'||key==='winds3') return 'winds';
+    if(key==='choir') return 'choirV';
+    if(key==='harp'||key==='gtrlead') return 'harp';
+    if(gm===0||gm===4||gm===5) return 'piano';
+    return 'piano';
+  }
+  function songEventsFromMidi(){
+    var M=window.__MIDI_PLAY; if(!M||!M.trks||!M.trks.length) return null;
+    /* 템포 지도를 따라 틱을 초로 바꾼다 */
+    var TM=(M.tempo&&M.tempo.length)?M.tempo.slice().sort(function(a2,b2){ return a2[0]-b2[0]; })
+                                    :[[0, M.bpm||100]];
+    if(TM[0][0]>0) TM.unshift([0, M.bpm||100]);
+    function secOf(tick){
+      var s2=0, last=0, bpm=TM[0][1];
+      for(var i=0;i<TM.length;i++){
+        if(TM[i][0]>=tick) break;
+        s2+=(TM[i][0]-last)/M.tpq*(60.0/bpm); last=TM[i][0]; bpm=TM[i][1];
+      }
+      return s2+(tick-last)/M.tpq*(60.0/bpm);
+    }
+    var padSec=secOf(M.pad);
+    var ev=[], total=0;
+    /* 로직에서 얹는 프로덕션 층은 연주에서 뺀다.
+       앰비언트 패드·서브 베이스·라이저는 곡의 음악이 아니라 마감용 층이고,
+       예전 재생도 이것들을 내지 않았다(패드는 따로 켜는 버튼이 있다).
+       특히 라이저는 노이즈 스윕이라 음높이가 없다 — 미리듣기에 그 음색이 아예 없어서
+       피아노 한 음으로 나갔다(실측: lyric 에서 gm119 한 음이 피아노로 울렸다). */
+    var SKIPKEY={riser:1, sub:1, pad:1, fx:1};
+    M.trks.forEach(function(t){
+      if(SKIPKEY[t.key]) return;
+      var voice=mpVoice(t.key, t.role, t.gm);
+      t.iv.forEach(function(x){
+        var on=secOf(x[0])-padSec, off=secOf(x[1])-padSec, note=x[2], vel=x[3];
+        if(on<0) return;
+        var dur=Math.max(0.05, off-on);
+        if(on+dur>total) total=on+dur;
+        if(voice==='drums'){
+          /* GM 드럼맵을 미리듣기 타악에 잇는다.
+             킥·스네어·하이햇 셋에만 이으면 톰과 심벌이 전부 스네어로 나간다 —
+             필인과 크래시가 스네어 연타로 들려 구간 전환이 뭉갠다.
+             있는 음색으로 가장 가까운 자리에 보낸다:
+               톰·콩가 -> 대고(높낮이 두 가지) · 크래시·차이나 -> 징 · 라이드·카우벨 -> 꽹과리
+               탬버린·셰이커 -> 닫힌 하이햇(여리게) */
+          ev.push({t:on, play:(function(n,v){ return function(T){
+            var q=v/110;
+            if(n===35||n===36) kick(T, q);
+            else if(n===38||n===40) snare(T, q);
+            else if(n===37) snare(T, q*0.5);                       /* 사이드스틱 */
+            else if(n===39) snare(T, q*1.1);                       /* 클랩 */
+            else if(n===42||n===44) hat(T, q, false);
+            else if(n===46) hat(T, q, true);
+            else if(n===41||n===43||n===45) daego(T, q*0.8, false); /* 낮은 톰 */
+            else if(n===47||n===48||n===50) daego(T, q*0.8, true);  /* 높은 톰 */
+            else if(n===49||n===52||n===55||n===57) jing(T, q*0.7); /* 크래시·차이나·스플래시 */
+            else if(n===51||n===53||n===59||n===56) kkwaeng(T, q*0.5); /* 라이드·벨·카우벨 */
+            else if(n===54||n===69||n===70||n===82) hat(T, q*0.5, false); /* 탬버린·셰이커 */
+            else if(n>=60&&n<=66) daego(T, q*0.6, n>=62);          /* 콩가·봉고 */
+            else snare(T, q*0.6);
+          }; })(note, vel)});
+        } else {
+          ev.push({t:on, play:(function(n,d,v,g2){ return function(T){
+            instVoice(n, T, d, Math.max(0.02, Math.min(0.24, v/127*0.22)), g2);
+          }; })(note, dur, vel, voice)});
+        }
+      });
+    });
+    ev.sort(function(a2,b2){ return a2.t-b2.t; });
+    return {ev:ev, total:total+0.5};
+  }
+  /* 연주가 실제로 무엇을 쏘는가 — 재생과 계측이 같은 함수를 봐야 한다.
+     계측이 songEvents 를 직접 부르면 확정본 연주로 바꿔도 값이 안 변한다(실제로 그렇게 헛돌았다). */
+  function songEventsForPlay(songArr, skipEnding){
+    if(MIDIPLAY_GENRE.has(gsel) && (!songArr || songArr===currentSong)){
+      try{ if(!window.__MIDI_PLAY) buildSongMIDI();
+           var m=songEventsFromMidi();
+           if(m && m.ev.length) return m; }catch(e){}
+    }
+    return songEvents(songArr, skipEnding);
+  }
   function playSong(songArr, skipEnding, loop){
     if(songState){ stopSong(); return; }
     if(!ensureAudio()) return; stopGroove(); stopPad();
     if(!currentSong){ buildSong(); if(!currentSong) return; }
-    const se=songEvents(songArr, skipEnding); if(!se.ev.length) return;
+    const se=songEventsForPlay(songArr, skipEnding); if(!se.ev.length) return;
     const st={ev:se.ev, total:se.total, idx:0, start:actx.currentTime+0.15, timer:null, loop:!!loop};
     st.timer=setInterval(()=>tickSong(st),25); songState=st; tickSong(st); markSong();
   }
@@ -30541,6 +30637,23 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         }
       });
     }catch(e){}
+    /* ── 확정본 보관 ──
+       여기까지 온 이벤트가 곧 내보내는 MIDI 다.
+       연주(미리듣기)가 이것을 그대로 연주하면 두 경로가 같아진다.
+       (실측 42장르: 연주와 MIDI 의 음높이 일치가 평균 24.3% 였다 —
+        관문 마흔 개가 MIDI 쪽에만 걸리기 때문이다.) */
+    try{
+      /* 템포 변화까지 넘긴다. 한 값으로 환산하면 늘임(ritardando) 구간부터 어긋난다
+         (실측 lyric: 끝의 66->60->54->42 를 무시했더니 마지막 사분면 일치가 80.3%,
+          앞 사분면은 96.9% 였다 — 뒤로 갈수록 밀리는 전형적인 템포 오차다). */
+      window.__MIDI_PLAY={ tpq:TPQ, pad:PAD, bpm:(typeof rh!=='undefined'&&rh&&rh.bpm)?rh.bpm:(userBpm||100),
+        tempo:(function(){ try{ return (tempoEvs||[]).map(function(e){ return [e.tick, e.bpm]; }); }catch(e){ return []; } })(),
+        trks:__pending.map(function(pp){
+          var iv=pairIv(pp.ev);
+          return { key:pp.grp.key, role:pp.grp.role, gm:pp.grp.gm, ch:pp.grp.ch,
+                   iv:iv.map(function(x){ return [x.on, x.off, x.note, x.vel||70]; }) };
+        }) };
+    }catch(e){ window.__MIDI_PLAY=null; }
     /* ── 2단계: 바이트 쓰기 ── */
     __pending.forEach(function(pp){
       const grp=pp.grp; let ev=pp.ev;   /* 2단계에서 ev 에 다시 대입하는 자리가 있어 let 이어야 한다 */
