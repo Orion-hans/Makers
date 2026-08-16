@@ -7572,7 +7572,12 @@ function arrange(){
     }
 
     // (2) 금관(기타 트랙): 마디마다 엇박에서 들어와 쭉 미는 롱 스탭(코드톤 3화음, 코드 바뀌기 직전에 끊어 협화 유지)
-    if(MODEL.tracks.guitar){
+    /* animerock 은 록 스타일이다 — ROCK 목록에 있고 PERF 도 gtr:'power' 다.
+       그 기타를 브라스 롱 스탭으로 다시 쓰면 이름·음색(GM 29)과 내용이 어긋난다
+       (실측: 트랙 이름은 Overdriven Guitar 인데 화음이 시차 0으로 동시에 나가 동시타 100%,
+        음 수도 169로 poppunk 912 · kband 841 에 견주어 텅 비었다).
+       오케 편성 패스의 다른 층(저현 롱톤·팀파니)은 그대로 두고 기타만 뺀다. */
+    if(MODEL.tracks.guitar && state.style!=='animerock'){
       const keep=MODEL.tracks.guitar.filter(n=>n.cine||n.trem||inProt(n.t));
       const add=[];
       const cellAt=t=>cells.find(c=>t>=c.t0-1e-6&&t<c.t1-1e-6)||null;
@@ -9714,7 +9719,9 @@ function instMeta(part){const st=state.style,g=(PERF[st]||{}).gtr;
           :st==='funk'?{n:'Slap Bass',p:36}
           :['billie','komuro','kpop'].includes(st)?{n:'Synth Bass',p:38}:{n:'Electric Bass (finger)',p:33},
     guitar:st==='epic'?{n:'Brass Section (Hits/Marcato)',p:61}
-          :st==='animeost'?{n:'Overdriven Guitar (Band)',p:29}
+          /* animeost 의 기타 트랙은 오케 편성 패스가 브라스 롱 스탭으로 다시 쓴다.
+             내용이 브라스인데 이름과 음색만 기타로 남아 있었다 — epic 과 같게 맞춘다. */
+          :st==='animeost'?{n:'Brass Section (Long Stabs)',p:61}
           :st==='disney'?{n:'Brass + Strings (Orchestral Swell)',p:48}
           :st==='saguk'?{n:'Nylon Guitar (Fingerstyle, sparse)',p:24}            // 사극풍 발현감: 나일론 기타 성기게
 :st==='rumba'?{n:'Nylon Guitar (Rasgueado)',p:24}
@@ -21575,6 +21582,10 @@ RHYTHMS.joypiano=[
     edm:{'인트로':2,'벌스':3,'프리코러스':5,'코러스':6,'브릿지':4,'하이라이트':6,'아웃트로':2}, // 빌드→드롭 급경사
     rock:{'인트로':3,'벌스':3,'프리코러스':4,'코러스':5,'브릿지':4,'하이라이트':6,'아웃트로':3},
     jazz:{'인트로':2,'코러스':3,'솔로':4,'아웃트로':2}, gypsy:{'인트로':3,'코러스':4,'솔로':5,'아웃트로':3},
+    /* 블루스는 표에 없어서 기본 커브를 그대로 썼다 — 코러스4·솔로4 로 헤드와 솔로가 같은 세기였다
+       (실측: 인트로1·코러스4·솔로4·코러스4·아웃트로1 로 본문이 완전히 평평했다).
+       헤드가 주제를 내놓고 솔로가 달구는 것이 이 형식이다. */
+    blues:{'인트로':2,'코러스':3,'솔로':4,'아웃트로':2},
     tango:{'인트로':2,'벌스':3,'코러스':4,'간주':3,'코러스변주':5,'하이라이트':6,'아웃트로':2},
     // 잔잔군(명상·앰비언트·모달): 완만 — 절정을 4~5로 캡
     newage:{'인트로':1,'벌스':2,'코러스':3,'간주':2,'코러스변주':3,'하이라이트':4,'아웃트로':1},
@@ -23350,6 +23361,28 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       let stp=enrichSteps(prog.steps, GENCFG[gsel]); if(cadKind) stp=cadencify(stp, cadKind);
       const so={label:label,prog:Object.assign({},prog,{steps:withVoiceLedBass(stp)}),reps:reps,drums:!noDrum(label),density:a.density,intensity:a.intensity,keyShift:ks}; so.stage=presetStage(label); applyStageFields(so);
       return so; });
+    /* ── 헤드-솔로-헤드 형식: 되풀이될수록 뜨거워진다 ──
+       stageOf 는 이름만 보므로 같은 이름의 구간이 여러 번 나오면 세기가 전부 같다
+       (실측 jazz: 코러스3·솔로4·솔로4·코러스3 — 두 솔로가 구분되지 않고
+        돌아온 헤드가 솔로보다 여렸다. 재즈는 솔로가 바퀴를 돌며 달아오르고
+        마지막 헤드가 그 열기를 받아 안는다).
+       같은 이름의 두 번째부터 한 단계씩 올리고, 마지막 본문 구간은 그 곡의 최고 단계로 맞춘다.
+       올리기만 하고 내리지 않는다. */
+    { const HEADSOLO={jazz:1, blues:1, gypsy:1};
+      if(HEADSOLO[gsel]){
+        const seen={}; const body=[];
+        secs.forEach(function(x){
+          if(x.label==='인트로'||x.label==='아웃트로') return;
+          body.push(x);
+          const k=(seen[x.label]==null)?0:(seen[x.label]+1); seen[x.label]=k;
+          if(k>0){ x.stage=Math.min(6,(x.stage||3)+k); applyStageFields(x); }
+        });
+        if(body.length>=2){
+          const top=body.reduce(function(m,x){ return Math.max(m, x.stage||3); }, 1);
+          const last=body[body.length-1];
+          if((last.stage||3)<top){ last.stage=top; applyStageFields(last); }
+        }
+      } }
     if(buildupPreset==='breakdown'){ let mi=-1,mv=0; secs.forEach((x,i)=>{ if((x.stage||3)>=mv){mv=x.stage||3;mi=i;} }); if(mi>0){ secs[mi-1].stage=1; applyStageFields(secs[mi-1]); } } // 절정 직전 스트립백(대비 극대)
     if(buildupPreset==='modern'){ secs.forEach(x=>{ if(x.label==='인트로'){ x.drums=(STAGES[x.stage]||{}).drums||false; } }); } // 훅 콜드오픈: 인트로에도 드럼 허용
     /* 전조 진입 준비 — 새 조의 딸림7 하나만 놓으면 조가 갑자기 바뀐 것처럼 들린다.
@@ -25669,7 +25702,9 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
        나중에 만들어지는 트랙을 옥타브로 옮긴다. 음정 클래스가 그대로라 화성은 바뀌지 않는다
        옮길 자리가 그 계열 음역을 벗어나면 그대로 둔다 — 실주법을 깨는 것이 더 나쁘다
      타악은 대상이 아니다(채널 9는 악기 번호다). */
-  const LAYER_KEEP=new Set(['melody','counter','vocal','vocal2','bass','sub','cbass','timpani']);
+  /* 리드 기타는 선율선이다. 반주층으로 보고 층을 나누면 선이 옥타브로 찢긴다
+     (실측: 5음 음계로 쓴 67·70·75·75·77·79·79 가 79·84·63·63·63·79·79 로 나갔다). */
+  const LAYER_KEEP=new Set(['melody','counter','vocal','vocal2','bass','sub','cbass','timpani','gtrlead']);
   function layerSplit(ev, gkey, gm, doneNotes, tpq){
     if(!pitchEditable(gkey)) return ev;
     if(LAYER_KEEP.has(gkey)) return ev;
@@ -25772,6 +25807,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     if(!barPcs || !barPcs.length) return ev;
     if(!pitchEditable(gkey)) return ev;
     if(gkey==='bass' || gkey==='sub' || gkey==='cbass') return ev;   /* 바닥은 건드리지 않는다 */
+    if(gkey==='gtrlead') return ev;                                  /* 리드 기타는 선율선이다 */
     const other=[];
     if(doneNotes) Object.keys(doneNotes).forEach(function(k){
       if(k===gkey) return;
@@ -25937,8 +25973,299 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
        C4(60) 아래  장2도 이하로 붙으면 위 음을 옥타브 올린다
        E3(52) 아래  단3도까지 벌린다
      베이스·서브·드럼은 바닥이므로 건드리지 않고, 위에 얹힌 층만 옮긴다. */
+  /* 발현 악기 실주법 음역 — 파이프라인 맨 끝에서 건다.
+     harpArp 안에 상한이 있었지만 gm 24·104 두 개만 보고 있어
+     기타로 바꾼 장르(25 스틸·26 재즈·27 클린·29 오버드라이브)가 하프 상한 96을 그대로 썼다
+     (실측: citypop 최고 97 · rock 96 · hungarian 98 — 기타로 칠 수 없는 음역이다).
+     또 그 상한 뒤로 성부 관문들이 음을 다시 올리기 때문에
+     (실측: bossa 는 상한 86인데 최종본에 89·91·92 가 남았다)
+     음높이를 바꾸는 관문이 전부 끝난 뒤에 한 번 더 접어야 한다.
+     옥타브 단위로만 접으므로 음정 클래스는 바뀌지 않는다. */
+  const PLUCK_RANGE={ 24:[40,86], 25:[40,86], 26:[40,86], 27:[40,86], 28:[40,86],
+                      29:[40,86], 30:[40,86], 31:[40,86],   /* 기타 6줄 E2~D6(22프렛) */
+                      104:[48,92],                          /* 시타르 */
+                      105:[50,86],                          /* 밴조 */
+                      46:[24,96] };                         /* 하프 */
+  function pluckRange(ev, gm){
+    const R=PLUCK_RANGE[gm]; if(!R) return 0;
+    const LOp=R[0], HIp=R[1];
+    const open={}; let moved=0;
+    ev.forEach(function(e){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1){
+        let m=e.note;
+        while(m>HIp) m-=12;
+        while(m<LOp) m+=12;
+        if(m>HIp) m=HIp;                    /* 창이 한 옥타브보다 좁을 때의 안전장치 */
+        (open[e.note]=open[e.note]||[]).push(m);
+        if(m!==e.note) moved++;
+        e.note=m;
+      } else if(e.on===0){
+        const q=open[e.note]; if(q&&q.length) e.note=q.shift();
+      }
+    });
+    return moved;
+  }
+  /* 한 손으로 잡을 수 있는 화음인가 — 프렛 악기에만 건다.
+     같은 순간에 33반음 벌어진 두 음은 여섯 줄 위에서 함께 눌리지 않는다
+     (실측: rock·edm 의 [51,84] 가 그 경우였다 — 6번 줄 11프렛과 1번 줄 20프렛이다).
+     벌어진 쪽을 옥타브로 접어 넓이를 19반음 안으로 들인다. 음정 클래스는 그대로다. */
+  const FRETTED_GM={24:1,25:1,26:1,27:1,28:1,29:1,30:1,31:1,105:1};
+  /* 여섯 줄 위에서 실제로 잡히는가 — 계측 도구(GTR.py)와 같은 판정이다.
+     낮은 음은 낮은 줄, 높은 음은 높은 줄에 순서대로 얹고
+     가능한 배정 중 눌린 프렛의 폭이 가장 좁은 것을 고른다.
+     반음 폭만으로 재면 [67,77,83,86] 같은 19반음 화음이 통과하는데 실제로는 잡히지 않는다. */
+  const GTR_OPEN=[40,45,50,55,59,64];
+  function fretSpanJS(pitches){
+    const ps=[]; pitches.forEach(function(p){ if(ps.indexOf(p)<0) ps.push(p); });
+    ps.sort(function(a,b){ return a-b; });
+    const n=ps.length;
+    if(n===0) return 0;
+    if(n>6) return 99;
+    let best=null;
+    (function rec(i, si, cur){
+      if(best===0) return;
+      if(i===n){
+        const pressed=cur.filter(function(f){ return f>0; });
+        const span=(pressed.length<=1)?0:(Math.max.apply(null,pressed)-Math.min.apply(null,pressed));
+        if(best===null || span<best) best=span;
+        return;
+      }
+      for(let s2=si; s2<6; s2++){
+        const f=ps[i]-GTR_OPEN[s2];
+        if(f<0 || f>22) continue;
+        rec(i+1, s2+1, cur.concat([f]));
+      }
+    })(0,0,[]);
+    return (best===null)?99:best;
+  }
+  function pluckGrab(ev, gm){
+    if(!FRETTED_GM[gm]) return 0;
+    const R=PLUCK_RANGE[gm]; if(!R) return 0;
+    const LOp=R[0], HIp=R[1], SPAN=19;
+    const open={}, pairs=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push({oi:i, tick:e.tick}); }
+      else if(e.on===0){ const q=open[e.note]; if(q&&q.length){ const o=q.shift();
+        pairs.push({oi:o.oi, fi:i, tick:o.tick, note:ev[o.oi].note}); } }
+    });
+    if(pairs.length<2) return 0;
+    pairs.sort(function(a,b){ return a.tick-b.tick; });
+    let moved=0, i=0;
+    while(i<pairs.length){
+      let j=i;
+      while(j+1<pairs.length && pairs[j+1].tick-pairs[i].tick<=20) j++;
+      const g=pairs.slice(i, j+1);
+      if(g.length>=2){
+        for(let guard=0; guard<8; guard++){
+          if(g.length>6) break;                       /* 6음 초과는 여기서 못 고친다 */
+          if(fretSpanJS(g.map(function(x){return x.note;}))<=5) break;
+          let lo=g[0], hi=g[0];
+          g.forEach(function(x){ if(x.note<lo.note) lo=x; if(x.note>hi.note) hi=x; });
+          if(hi.note-lo.note<=4) break;               /* 더 좁힐 수 없다 */
+          /* 바깥쪽 하나를 안으로 접는다. 위를 내리는 것이 먼저다 —
+             베이스와 겹치는 저역으로 내려앉는 것을 막는다. */
+          if(hi.note-12>=LOp){ hi.note-=12; ev[hi.oi].note=hi.note; ev[hi.fi].note=hi.note; moved++; }
+          else if(lo.note+12<=HIp){ lo.note+=12; ev[lo.oi].note=lo.note; ev[lo.fi].note=lo.note; moved++; }
+          else break;
+        }
+      }
+      i=j+1;
+    }
+    return moved;
+  }
+  /* ── 기타 스트로크 어법 ──
+     harpArp 는 이름 그대로 아르페지오 생성기다. 기타로 바꾼 장르도 그 경로를 타서
+     오버드라이브 기타가 아르페지오만 흘렸다
+     (실측: rock 421음 중 화음 묶음이 12개뿐 · edm 16 · citypop 21).
+     기타는 화음을 긁는 악기다. 장르마다 긁는 방식이 다르므로 갈라서 만든다. */
+  const GTR_STYLE={ rock:'power', edm:'cut16', citypop:'cut16', bossa:'bossa', blues:'shuffle',
+                    folk:'strum', shanty:'strum', gypsy:'pompe', rumba:'rasg' };
+  /* 여섯 줄에 얹을 수 있는 화음으로 접는다. 낮은 음부터 쌓고 최대 4음 */
+  function gtrVoice(notes, lo, hi, n){
+    const out=[];
+    (notes||[]).forEach(function(m0){
+      let m=m0; while(m<lo)m+=12; while(m>hi)m-=12;
+      if(out.indexOf(m)<0) out.push(m);
+    });
+    out.sort(function(a,b){ return a-b; });
+    return out.slice(0, n||4);
+  }
+  /* 스트럼 — 다운은 저음 줄부터, 업은 고음 줄부터. 완전 동시는 사람이 친 소리가 아니다 */
+  function gtrStrum(ev, ns, tick, dur, vel, dir, tpq){
+    if(!ns.length) return;
+    const SPR=Math.max(3, Math.round(tpq*0.012));
+    const order=(dir==='up') ? ns.slice().reverse() : ns.slice();
+    order.forEach(function(m,k){
+      const st=tick+k*SPR;
+      ev.push({tick:st, on:1, note:m, vel:Math.max(22, Math.min(120, Math.round(vel)-k*2))});
+      ev.push({tick:Math.max(st+10, tick+dur), on:0, note:m});
+    });
+  }
+  /* ── 기타 솔로 ──
+     솔로 구간인데 기타가 화음만 치고 노래는 보컬 가이드가 계속했다
+     (실측: rock 솔로 구간에 보컬 가이드 47음 · 기타 화음 273음 ·
+      blues 는 하모니카 32음 · 기타 화음 343음. 솔로가 아니라 촘촘한 벌스였다).
+     솔로에서는 기타가 한 줄로 노래한다. 재료는 으뜸음의 5음 음계다 —
+     록·블루스 리드가 실제로 짚는 자리이고, 마디 화음이 바뀌어도 어긋나지 않는다. */
+  const GTR_LEAD={ rock:1, blues:1 };
+  const PENT_MIN=[0,3,5,7,10], PENT_MAJ=[0,2,4,7,9];
+  /* 마디마다 다른 리듬 꼴. 넷째 마디는 성기게 두어 숨을 만든다 */
+  const LEAD_CELL=[[0,2,3,6,8,11,14],[0,3,4,7,10,14],[2,4,6,8,12],[0,6,10]];
+  function guitarLead(ev, c, T, measure, tpq, inA, stg, bar, tonicPc, minorish){
+    const s16=measure/16.0, R=function(x){ return Math.round(x); };
+    const sc=(minorish?PENT_MIN:PENT_MAJ).map(function(x){ return ((tonicPc+x)%12+12)%12; });
+    const pool=[];
+    for(let m=52;m<=84;m++) if(sc.indexOf(m%12)>=0) pool.push(m);
+    if(!pool.length) return;
+    /* 마디 첫 음은 그 마디 화음의 음으로 앉힌다 — 화성이 바뀌는 자리를 짚어 준다 */
+    const cts=(c.notes||[]).map(function(m){ return ((m%12)+12)%12; });
+    let startI=0, best=99;
+    pool.forEach(function(m,i){
+      const d=Math.abs(m-67) + ((cts.indexOf(m%12)>=0)?0:6);
+      if(d<best){ best=d; startI=i; } });
+    const cell=LEAD_CELL[bar%LEAD_CELL.length];
+    const dir=((bar%2)===0)?1:-1;              /* 마디마다 방향을 뒤집어 오르내린다 */
+    let idx=startI;
+    cell.forEach(function(sl,k){
+      const tk=T+R(sl*s16);
+      const nx=(k+1<cell.length)?cell[k+1]:16;
+      let len=R((nx-sl)*s16*0.92);
+      if(len<40) len=40;
+      let m=pool[Math.max(0,Math.min(pool.length-1, idx))];
+      ev.push({tick:tk, on:1, note:m, vel:Math.max(46,Math.min(112,R((78+(k===0?12:0)+(stg>=5?8:0))*inA)))});
+      ev.push({tick:tk+len, on:0, note:m});
+      /* 5음 음계를 한두 칸씩 걷고 가끔 제자리를 짚는다(벤딩·비브라토가 앉는 자리) */
+      const step=(k%3===2)?0:((k%4===1)?2:1);
+      idx+=dir*step;
+      if(idx<0) idx=1; if(idx>pool.length-1) idx=pool.length-2;
+    });
+  }
+  function guitarComp(ev, c, T, measure, tpq, inA, stg, lastBarM, style, barPar){
+    const s16=measure/16.0, R=function(x){ return Math.round(x); };
+    if(style==='power'){
+      /* 록 — 파워코드 다운피킹. 3도를 넣지 않는다(디스토션에서 뭉갠다) */
+      /* 자리바꿈 화음에서 베이스음 위에 5도를 쌓으면 화음 밖 음이 된다.
+         (실측: 베이스 48 위의 55·60 중 60 이 화성 관문에 63 으로 스냅됐다.)
+         파워코드는 언제나 근음 위에 쌓는다. */
+      let r=(c.root!=null?c.root:c.bass); while(r>52)r-=12; while(r<40)r+=12;
+      const pw=[r, r+7, r+12];
+      /* 벌스와 코러스는 밀도가 아니라 주법이 갈린다.
+         팜뮤트는 음가로 만든다 — 오른손 옆날로 줄을 눌러 소리를 죽이므로
+         같은 8분이라도 자리의 3분의 1만 울린다. 코러스는 손을 떼고 화음을 열어 울린다.
+         (실측: 고치기 전에는 벌스 0.44박 · 코러스 0.45박으로 음가가 같았고
+          세기 52 대 86 만 달랐다 — 록 기타의 벌스·코러스 대비가 나지 않는다.) */
+      if(stg<=2){ [0,8].forEach(function(sl){
+          gtrStrum(ev, pw, T+R(sl*s16), R(measure*0.46), 74*inA, 'down', tpq); }); }
+      else if(lastBarM && stg>=4){                       /* 마무리 마디는 열린 화음으로 뻗는다 */
+        gtrStrum(ev, gtrVoice(c.notes, 48, 76, 4), T, R(measure*0.94), 96*inA, 'down', tpq); }
+      else if(stg>=5){
+        /* 코러스 — 3도를 넣은 열린 화음을 박마다 울리고, 8분 밀기로 몰아간다 */
+        const op=gtrVoice([pw[0], pw[1], pw[2]].concat(c.notes), 48, 76, 4);
+        [0,4,8,12].forEach(function(sl){
+          gtrStrum(ev, op, T+R(sl*s16), R(s16*3.6), 98*inA, 'down', tpq); });
+        [7,15].forEach(function(sl){
+          gtrStrum(ev, op, T+R(sl*s16), R(s16*0.8), 72*inA, 'up', tpq); });
+      }
+      else if(stg===3){
+        /* 벌스 — 팜뮤트 8분. 자리의 0.7 만 울린다 */
+        [0,2,4,6,8,10,12,14].forEach(function(sl,k){
+          gtrStrum(ev, pw, T+R(sl*s16), R(s16*0.7), 66*inA-((k%2)?6:0), 'down', tpq); });
+      }
+      else {
+        /* 4단계(솔로·프리코러스) — 뮤트를 반쯤 푼다 */
+        [0,2,4,6,8,10,12,14].forEach(function(sl,k){
+          gtrStrum(ev, pw, T+R(sl*s16), R(s16*1.5), 84*inA-((k%2)?7:0), 'down', tpq); });
+      }
+      return true;
+    }
+    if(style==='cut16'){
+      /* 시티팝·EDM — 16분 커팅. 짧은 음, 쉬는 자리, 3~4음 */
+      const v=gtrVoice(c.notes, 55, 76, 4);
+      if(!v.length) return true;
+      if(stg<=2){ [0,8].forEach(function(sl,k){
+          gtrStrum(ev, v, T+R(sl*s16), R(s16*3), 58*inA, k?'up':'down', tpq); }); return true; }
+      /* 벌스는 성기게, 코러스는 촘촘하게 — 같은 커팅이라도 자리 수가 갈려야 곡이 자란다
+         (실측: 고치기 전에는 벌스도 코러스도 마디당 21음으로 같았다) */
+      const slots=(stg>=5)?[0,3,4,7,8,10,11,14]
+                 :((stg>=4)?[0,3,4,7,10,11,14]:[0,3,6,10,14]);
+      slots.forEach(function(sl){
+        const up=(sl%2===1);                              /* 홀수 16분 자리는 업스트로크 */
+        /* 커팅은 16분 자리를 채우지 않는다. 0.85 로 두면 한 박의 0.21 이라 그냥 16분음이 된다.
+           손으로 눌러 죽이는 것이 커팅이므로 자리의 절반 아래로 쓴다 */
+        gtrStrum(ev, v, T+R(sl*s16), R(s16*0.45), ((sl===0||sl===8)?76:62)*inA, up?'up':'down', tpq); });
+      return true;
+    }
+    if(style==='bossa'){
+      /* 보사노바 — 엄지가 저음, 손가락이 화음. 두 마디 한 묶음 */
+      let b=c.bass; while(b>50)b-=12; while(b<40)b+=12;
+      const v=gtrVoice(c.notes, 55, 74, 4);
+      [0,8].forEach(function(sl){                          /* 엄지 베이스: 1박·3박 */
+        ev.push({tick:T+R(sl*s16), on:1, note:b, vel:R(62*inA)});
+        ev.push({tick:T+R(sl*s16)+R(s16*3), on:0, note:b}); });
+      const hits=barPar ? [3,6,11,14] : [3,6,10,14];
+      hits.forEach(function(sl){
+        gtrStrum(ev, v, T+R(sl*s16), R(s16*2.2), 54*inA, 'down', tpq); });
+      return true;
+    }
+    if(style==='strum'){
+      /* 포크·시 섄티 — 스틸 기타 스트로크. 다운은 박, 업은 뒷박 */
+      const v=gtrVoice(c.notes, 50, 74, 4);
+      if(!v.length) return true;
+      if(stg<=2){ [0,8].forEach(function(sl){
+          gtrStrum(ev, v, T+R(sl*s16), R(measure*0.42), 62*inA, 'down', tpq); }); return true; }
+      [0,2,4,6,8,10,12,14].forEach(function(sl){
+        const dn=(sl%4===0);
+        /* 어쿠스틱 스트로크는 다음 긁기까지 울린다. 48틱으로 두면 전부 스타카토가 된다
+           (실측: folk 짧은음 83% · shanty 82%). 8분 자리를 거의 채운다 */
+        /* 다음 긁기까지 울리되 넘기지는 않는다. 긁는 간격이 8분(2*s16)이므로 그 안에 들어야 한다
+           (실측: 3.2*s16 으로 두자 앞 음이 다음 긁기를 덮어 병합돼 folk 음이 675 -> 176 으로 줄었다) */
+        gtrStrum(ev, v, T+R(sl*s16), R(s16*(dn?1.85:1.7)), (dn?74:54)*inA, dn?'down':'up', tpq); });
+      return true;
+    }
+    if(style==='pompe'){
+      /* 집시 재즈 라 퐁프 — 네 박을 다 긁되 2·4박을 짧게 끊어 친다. 이것이 이 음악의 드럼이다 */
+      const v=gtrVoice(c.notes, 50, 72, 4);
+      if(!v.length) return true;
+      const beat=measure/4.0;
+      [0,1,2,3].forEach(function(bt){
+        const acc=(bt===1||bt===3);
+        gtrStrum(ev, v, T+R(bt*beat), R(beat*(acc?0.18:0.34)), (acc?82:60)*inA, 'down', tpq);
+        if(acc) gtrStrum(ev, v, T+R(bt*beat+beat*0.5), R(beat*0.16), 48*inA, 'up', tpq); });
+      return true;
+    }
+    if(style==='rasg'){
+      /* 룸바 — 라스게아도. 빠른 다운·업·다운 세 번 긁기가 한 묶음이다 */
+      const v=gtrVoice(c.notes, 50, 74, 4);
+      if(!v.length) return true;
+      const beat=measure/4.0;
+      [0,1,2,3].forEach(function(bt){
+        const t0=T+R(bt*beat);
+        if(bt%2===0){ gtrStrum(ev, v, t0, R(beat*0.42), 70*inA, 'down', tpq); }
+        else { /* 라스게아도: 세 번을 잇달아 긁는다 */
+          gtrStrum(ev, v, t0,               R(beat*0.20), 58*inA, 'down', tpq);
+          gtrStrum(ev, v, t0+R(beat*0.25),  R(beat*0.18), 50*inA, 'up',   tpq);
+          gtrStrum(ev, v, t0+R(beat*0.5),   R(beat*0.55), 76*inA, 'down', tpq); } });   /* 세 번째 긁기는 울려 둔다 */
+      return true;
+    }
+    if(style==='shuffle'){
+      /* 블루스 — 셔플 컴핑. 뒷박이 셋잇단 셋째 자리에 온다 */
+      const v=gtrVoice(c.notes, 52, 72, 3);
+      if(!v.length) return true;
+      const beat=measure/4.0, sw=beat*(2.0/3.0);          /* 셔플: 8분 뒷박 = 한 박의 2/3 */
+      [0,1,2,3].forEach(function(bt){
+        const acc=(bt===1||bt===3);                        /* 2·4박 강세 */
+        gtrStrum(ev, v, T+R(bt*beat), R(beat*0.30), (acc?78:58)*inA, 'down', tpq);
+        gtrStrum(ev, v, T+R(bt*beat+sw), R(beat*0.24), (acc?52:44)*inA, 'up', tpq); });
+      return true;
+    }
+    return false;
+  }
   function lowClear(doneNotes, tpq){
     const FLOOR={bass:1,sub:1,cbass:1,drums:1,timpani:1};   /* 바닥 — 옮기지 않는다 */
+    /* 선율선은 저역 밀집 정리의 대상이 아니다. 옮기면 선이 끊긴다 */
+    const LINEKEY={melody:1,counter:1,vocal2:1,gtrlead:1};
     const keys=Object.keys(doneNotes);
     const fixed=[];
     keys.forEach(function(k){
@@ -25954,7 +26281,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
        이미 처리한 층을 기준에 더해 가며 순서대로 본다. */
     const ref=fixed.slice();
     keys.forEach(function(k){
-      if(FLOOR[k]) return;
+      if(FLOOR[k] || LINEKEY[k]) return;
       const d=doneNotes[k]; if(!d||!d.ev||!d.iv) return;
       const ev=d.ev;
       d.iv.forEach(function(x){
@@ -26229,7 +26556,11 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
 
      이벤트를 만든 뒤 아직 층이 오지 않은 구간의 음을 걷어낸다 —
      생성 코드를 건드리지 않으므로 어법은 그대로다. */
-  const ORCH_STAGE={ cbass:1, cinestr:1, harp:2, timpani:3, pad:3, horns:4, lowbrass:5, choir:5, sub:5, orchcym:6 };
+  /* orchcym 을 6단계로 두면 곡 전체에서 크래시가 한 번밖에 안 울린다.
+     심벌은 큰 구간이 열릴 때마다 치는 것이고, 생성기도 stg>=5 의 첫 마디에 크래시를 쓴다
+     (실측 cineSoar: 코러스변주 24마디의 크래시가 층에 막혀 걷혔고 하이라이트 1음만 남았다).
+     생성기와 층 표의 문턱을 맞춘다. */
+  const ORCH_STAGE={ cbass:1, cinestr:1, harp:2, timpani:3, pad:3, horns:4, lowbrass:5, choir:5, sub:5, orchcym:5 };
   function orchLayer(ev, grole, SEC_TK, tpq){
     if(!CINE.has(gsel) && gsel!=='epicaeol' && gsel!=='classic') return ev;
     const need=ORCH_STAGE[grole];
@@ -27039,7 +27370,12 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     const dl=Math.max(8, Math.round(tpq*0.045));
     for(let k=1;k<ons.length-1;k++){
       const a=ons[k-1], b=ons[k], c=ons[k+1];
-      if(b.tick===a.tick) continue;                        // 화음 덩어리는 건드리지 않는다
+      /* 화음 덩어리는 건드리지 않는다.
+         '같은 틱' 으로만 보면 스트럼을 놓친다 — 기타는 6틱씩 시차를 두고 긁으므로
+         셋째 음이 홀로 남아 '국지 최고음' 으로 잡혀 22틱 뒤로 밀렸다
+         (실측 rock: 파워코드 [48,55,60] 의 60 이 매번 +22 로 떨어져 나가
+          세 음 묶음이 1개, 두 음 묶음이 414개가 됐다). 굴려 뜯는 하프도 같은 구조다. */
+      if(b.tick-a.tick <= Math.round(tpq*0.04)) continue;
       let hit=false;
       /* 국지 최고음 — 프레이즈의 봉우리 */
       if(b.note>a.note && b.note>c.note && (b.note-a.note)>=3) hit=true;
@@ -28696,6 +29032,10 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         /* 타악 바탕 유무 — 드럼(리듬 바탕)이 켜져 있을 때만 오케 타악·절정 보강 타악을 얹는다.
        바탕 없이 얹히면 "중간에 잠깐 나왔다 사라지는" 소리가 된다. */
     const _percBed = !!(INST && INST.drums && INST.drums.on);
+    /* 오케 타악(팀파니·오케 심벌)은 드럼킷과 다른 층이다.
+       오케스트라 편성 장르에서는 드럼킷이 꺼져 있어도 팀파니가 바탕을 맡는다. */
+    const _orchPercBed = _percBed || CINE.has(gsel) ||
+                         gsel==='epicaeol' || gsel==='classic' || gsel==='gukvocal';
     /* 라운지: 세기 폭을 좁힌다 — 배경음악은 대화 위에 얹히므로 크게 튀면 안 된다.
        35~85 사이로 눌러 두되 셈여림의 방향은 그대로 남긴다. */
     const _lounge=!!loungeMode;
@@ -28883,14 +29223,25 @@ const groups=[];
     bowed:{ sh:0.38, md:0.92, lg:1.08, susCap:88, accMin:86, accTo:100, accCap:106, hiFrom:79, hiDelta:-1.2, hiMax:10, loFrom:0,  loDelta:0,    loMax:0, breath:0  },
     wind: { sh:0.45, md:0.93, lg:1.02, susCap:94, accMin:90, accTo:102, accCap:108, hiFrom:84, hiDelta:-1.5, hiMax:12, loFrom:67, loDelta:0.9,  loMax:8, breath:6  },
     choir:{ sh:0.60, md:0.97, lg:1.04, susCap:90, accMin:999,accTo:0,   accCap:100,   hiFrom:72, hiDelta:-1.0, hiMax:8,  loFrom:0,  loDelta:0,    loMax:0, breath:8  },
-    pluck:{ sh:0.95, md:1.05, lg:1.10, susCap:127,accMin:999,accTo:0,   accCap:124,   hiFrom:0,  hiDelta:0,    hiMax:0,  loFrom:48, loDelta:-0.8, loMax:6, breath:0  }
+    pluck:{ sh:0.95, md:1.05, lg:1.10, susCap:127,accMin:999,accTo:0,   accCap:124,   hiFrom:0,  hiDelta:0,    hiMax:0,  loFrom:48, loDelta:-0.8, loMax:6, breath:0  },
+    /* 기타는 하프와 다르다. 하프는 페달로 울림을 남기지만 기타는 손으로 죽인다.
+       pluck 의 sh 0.95 를 기타에 걸면 16분 커팅이 다음 자리까지 채워져 커팅이 사라진다
+       (실측: rock 다운피킹이 51틱으로 쓰였는데 230틱으로 늘어 8분을 꽉 채웠다). */
+    gtr:  { sh:0.52, md:0.86, lg:0.98, susCap:120,accMin:999,accTo:0,   accCap:124,   hiFrom:0,  hiDelta:0,    hiMax:0,  loFrom:44, loDelta:-0.6, loMax:5, breath:0  }
   };
   function articFam(gkey, gm){
     if(['horns','lowbrass','brass','brass2','brass3'].indexOf(gkey)>=0) return 'brass';
     if(['strings','counter','cbass'].indexOf(gkey)>=0)                  return 'bowed';
     if(['winds','winds2','winds3'].indexOf(gkey)>=0)                    return 'wind';
     if(gkey==='choir') return 'choir';
-    if(gkey==='harp')  return 'pluck';
+    /* 스트로크 어법으로 쓴 기타는 음가 자체가 주법이다. 아티큘레이션 관문을 태우면
+       그 음가가 계열 규칙으로 다시 쓰인다 — 16분 커팅이 다음 자리를 채우거나
+       어쿠스틱 스트로크가 전부 스타카토가 된다(실측: folk 짧은음 83%).
+       기타 어법이 없는 장르의 기타만 짧은 발현 규칙(gtr)을 쓴다. */
+    if(gkey==='harp'){
+      if(gm>=24&&gm<=31) return GTR_STYLE[gsel] ? null : 'gtr';
+      return 'pluck';
+    }
     /* 선율·듀엣 트랙은 고른 음색(GM)으로 판정 — 멜로디로 호른·플루트·첼로를 쓰면 같은 문제가 생긴다.
        사람 목소리(GM 52~54)는 가이드 트랙이라 건드리지 않는다. */
     if(gkey==='melody'||gkey==='vocal2'){
@@ -29048,7 +29399,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
 
   function crossDeclash(gkey, evIn){ const SUS=TPQ/4; // 지속 기준: 상대가 지속층=16분 · 상대가 선율=8분(짧은 대위 교차는 정상)
       const BED={pad:45,sub:24,strings:45,choir:48,horns:40,lowbrass:30,brass:40,brass2:34,cbass:28}; // 지속층: 옥타브 내림 하한(저역 뭉개짐 방지 · 콘트라베이스 최저음 E1=28)
-      const LINE={melody:1,counter:1,winds:1,winds2:1,winds3:1,brass3:1,vocal2:1,piano2:1,harp:1,orchcym:1};
+      const LINE={melody:1,counter:1,winds:1,winds2:1,winds3:1,brass3:1,vocal2:1,piano2:1,harp:1,orchcym:1,gtrlead:1};
       let partners=null, mode=null, loLim=28, thrMin=0;
       /* 선율과 겹치는 기준. 기본은 8분(SUS*2)인데, 반주 화음은 그보다 짧게 스쳐도
          선율 바로 옆에서 울리면 부딪혀 들린다(실측: 40장르 지속 선율음의 2.5%가 남았다).
@@ -29178,9 +29529,14 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       if(INST.brass.on!==false && (gsel==='cineTension'||gsel==='cineSoar')) groups.push({gm:57,ch:11,role:'lowbrass',key:'lowbrass'}); // Trombone — 저금관 무게
       if(INST.harp.on!==false && gsel!=='cineTension') groups.push({gm:46,ch:12,role:'harp',key:'harp'}); // Harp — 아르페지오·상승 런
       if(gsel==='cineTension'||gsel==='cineSoar') groups.push({gm:52,ch:13,role:'choir',key:'choir'}); // Choir Aahs — 절정 성벽
-      /* 오케 타악은 바탕 리듬(드럼) 위에 얹는 층이다. 드럼을 끈 편성(예: 선율악기+피아노 반주)에서
-         이것만 나오면 곡 중간에 잠깐 울렸다 사라지는 소리가 된다 — 바탕이 없으면 함께 뺀다. */
-      if(_percBed){
+      /* 오케 타악은 바탕 리듬 위에 얹는 층이다. 드럼을 끈 편성(예: 선율악기+피아노 반주)에서
+         이것만 나오면 곡 중간에 잠깐 울렸다 사라지는 소리가 된다 — 바탕이 없으면 함께 뺀다.
+         다만 오케스트라 편성에서는 팀파니 자신이 그 바탕이다. 드럼킷과 오케 타악은 다른 층인데
+         한 스위치에 묶여 있어서, 드럼킷을 일부러 끈 시네마틱 장르가 타악을 통째로 잃었다
+         (실측 7장르: 타악 비중이 cineWar 63% · epicaeol 26% 외 전부 0% ·
+          팀파니 트랙이 다섯 장르에서 아예 없었다 — 벅차오름의 절정에 팀파니가 없다).
+         드럼킷은 INST.drums 가 그대로 가르고, 오케 타악은 편성으로 가른다. */
+      if(_orchPercBed){
         if(gsel!=='cineSorrow') groups.push({gm:47,ch:14,role:'timpani',key:'timpani'}); // Timpani — 화성 따라가는 저역 타격
         groups.push({gm:0,ch:9,role:'orchcym',key:'orchcym'}); }                          // 오케 심벌(크래시·서스펜디드) — 별도 트랙(팀파니와 뭉치지 않게)
       groups.push({gm:43,ch:15,role:'cbass',key:'cbass'}); }           // Contrabass — 오케 바닥(오스티나토/롱톤)
@@ -29193,11 +29549,22 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           groups.push({gm:57,ch:11,role:'secTbn',key:'brass2'});
           groups.push({gm:56,ch:13,role:'secTpt',key:'brass3'}); }
         else groups.push({gm:INST.brass.gm,ch:10,role:'brassLong',key:'brass'}); }
-      if(INST.harp.on) groups.push({gm:INST.harp.gm,ch:12,role:'harpArp',key:'harp'}); }
+      if(INST.harp.on) groups.push({gm:INST.harp.gm,ch:12,role:'harpArp',key:'harp'});
+      /* ── 리드 기타 ──
+         리드와 리듬은 다른 트랙이다. 실제 녹음도 따로 딴다.
+         한 트랙에 넣으면 리드가 반주 관문(harmGate·layerSplit·성부 배치)을 통과하며
+         통째로 다시 쓰인다 — 5음 음계로 쓴 선이 최종본에서 음정 클래스 8개에
+         24반음 도약까지 생겼다. 키가 관문 목록에 없는 트랙으로 빼면 그대로 나간다.
+         솔로 구간에서만 소리를 내고 그동안 리듬 기타는 컴핑을 이어 간다. */
+      if(INST.harp.on && GTR_LEAD[gsel] && INST.harp.gm>=24 && INST.harp.gm<=31 &&
+         currentSong && currentSong.some(function(s2){ return s2.label==='솔로'; })){
+        const usedL=new Set(groups.map(function(g2){ return g2.ch; })); usedL.add(9);
+        let chL=null; for(const cc of [13,14,15,10,2,1]){ if(!usedL.has(cc)){ chL=cc; break; } }
+        if(chL!=null) groups.push({gm:INST.harp.gm,ch:chL,role:'gtrLead',key:'gtrlead'}); } }
     if(gsel==='epicaeol'||gsel==='classic'||gsel==='gukvocal'){ // 오케스트라 편성: 팀파니·오케 심벌을 드럼킷과 분리된 트랙으로
       const usedO=new Set(groups.map(g=>g.ch)); usedO.add(9);
       let chT=null; for(const cc of [15,14,13,10]){ if(!usedO.has(cc)){ chT=cc; break; } }
-      if(_percBed){
+      if(_orchPercBed){
         if(chT!=null) groups.push({gm:47,ch:chT,role:'timpani',key:'timpani'});
         groups.push({gm:0,ch:9,role:'orchcym',key:'orchcym'}); } }
     // 듀엣: 여성 보컬 트랙 분리 + 파트 배분(1절 남 → 2절 여 → 후렴은 함께 옥타브)
@@ -29294,7 +29661,11 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             const themeHold = songTheme && INST.piano.on && sec.label==='간주';
             const dPart = duetOn ? (duetMap[secIdx]==='alt' ? (((r*nsteps.length+si) < (nsteps.length*sec.reps)/2)?'m':'f') : duetMap[secIdx]) : 'both'; // 벌스 앞 절반=남, 뒤 절반=여
             const duetSkip = duetOn && (dPart==='f'); // 듀엣: 여성 파트 구간은 남성(ch5) 쉼
-            if((sec.label!=='인트로' || compStyle!=='auto' || sec.introMelOn) && !themeHold && !duetSkip){
+            /* 기타가 솔로를 맡는 장르에서는 솔로 구간에 선율이 쉰다.
+               보컬 가이드가 기타 솔로 위에서 계속 노래하면 솔로 구간이 아니다. */
+            const _gtrSolo=(GTR_LEAD[gsel] && sec.label==='솔로' &&
+                            INST.harp && INST.harp.on && INST.harp.gm>=24 && INST.harp.gm<=31);
+            if((sec.label!=='인트로' || compStyle!=='auto' || sec.introMelOn) && !themeHold && !duetSkip && !_gtrSolo){
               let _ml=((sec.mels&&sec.mels[r])||mel).filter(mn=>mn.bar===si);
               if(_lgMel && _ml.length){
                 /* 두 마디에 한 번, 그 마디에서도 긴 음 두세 개만 남긴다 — 우아하게 몇 음 얹는 성격 */
@@ -29573,7 +29944,18 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
               if(si===sec.prog.steps.length-1 && r===sec.reps-1 && nextSec && fillHot && secOccI>=2 && !brkBar && !stopWinAt(T+Math.round(measure*0.9))){ // 3회차부터: 마지막 박 윗이웃 턴(9도 왕복) — 정지 마디 제외
                 [[12,2],[13,0],[14,2],[15,0]].forEach(p=>{ const m2=top+p[1]; const tk=T+Math.round(p[0]*measure/16);
                   ev.push({tick:tk,on:1,note:m2,vel:Math.round(70*inA)}); ev.push({tick:tk+Math.round(measure/16*0.9),on:0,note:m2}); }); } }
-          } else if(grp.role==='bass'){ if(sec.bassOn===false){ /* 이 섹션 베이스 없음 */ } else {
+          } else if(grp.role==='bass'){ if(sec.bassOn===false){
+            /* 1단계(씨앗)는 베이스를 끄는 설계다. 밴드 편성에서는 맞는 말인데
+               오케스트라 편성에서는 그 트랙이 콘트라베이스, 곧 오케의 바닥이다.
+               바닥이 통째로 빠지면 서곡이 공중에 뜬다
+               (실측 classic: 인트로 4마디에 콘트라베이스 0음 · 벌스부터 19음).
+               시네마틱의 cbass 가 여린 구간에서 활로 긋는 페달을 두는 것과 같게 맞춘다. */
+            const _orchLow=(gsel==='classic'||gsel==='epicaeol'||gsel==='gukvocal'||CINE.has(gsel))
+                           && INST.bass && (INST.bass.gm===43||INST.bass.gm===42);
+            if(_orchLow){ let _p=c.bass; while(_p>50)_p-=12; while(_p<28)_p+=12;
+              ev.push({tick:T,on:1,note:_p,vel:Math.round(42*inA)});
+              ev.push({tick:T+measure-12,on:0,note:_p}); }
+          } else {
             const fB=x=>{ let m=x; while(m>50)m-=12; while(m<26)m+=12; return m; }; // 근음을 베이스 레지스터로 접기(+12 팝 해도 62 이하)
             const qzB=x=>{ const q=TPQ/4; return Math.round(Math.round(x)/q)*q; }; // 마디 분수 → 16분 틱 그리드 양자화(복합박에서 반슬롯 이탈 방지)
             { const _ba0=bassArt(sec.stage||3); if(_ba0.cc){ const bf=Math.max(50,Math.min(104,52+(sec.stage||3)*7)); /* 지속 계열: CC11 스웰 — 박별 코드 마디에서도 울림 유지 */
@@ -29726,6 +30108,12 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             const bn=[c.notes[0],c.notes[2]||c.notes[0]+7].map(m=>{let x=m;while(x>72)x-=12;while(x<52)x+=12;return x;});
             bn.forEach(m=>{ ev.push({tick:T,on:1,note:m,vel:Math.round((56+(stg>=5?14:0))*inA)}); ev.push({tick:T+measure-10,on:0,note:m}); });
             [[0.0,52],[0.4,84],[0.85,58]].forEach(pv=>ev.push({tick:T+Math.round(measure*pv[0]),cc:11,val:pv[1]})); } } // 금관도 스웰
+          else if(grp.role==='gtrLead'){
+            if(sec.label==='솔로'){
+              const _tp=((tonic%12)+12)%12;
+              const _mi=(gsel==='blues') || ((sec.prog&&sec.prog.mode)==='minor');
+              guitarLead(ev, c, T, measure, TPQ, inA, sec.stage||3,
+                         Math.floor(T/Math.max(1,measure)), _tp, _mi); } }
           else if(grp.role==='harpArp'){ const stg=sec.stage||3;
             /* 단계 1(인트로)은 드럼·베이스·대선율을 끄고 피아노가 '최소 반주'를 맡는 설계다.
                그런데 피아노가 없는 편성에서는 맡을 트랙이 없어 인트로가 통째로 비었다
@@ -29733,7 +30121,14 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                그 경우에만 발현 화음 트랙이 최소 반주를 대신한다. 벌스에서 이미 화음을 치는
                같은 악기라 편성이 이질적이지 않고, 벌스와 같은 소리가 먼저 나와 이음이 된다. */
             const _noChordInst=!INST.piano.on && !INST.strings.on;
-            if(stg>=2 || _noChordInst){ ev.push({tick:T,cc:64,val:127}); ev.push({tick:T+measure-6,cc:64,val:0}); // 하프: 페달로 아르페지오가 울려 퍼지게(발현 특성) + 발현 아르페지오
+            /* 기타로 바꾼 장르는 아르페지오가 아니라 스트로크 어법으로 간다.
+               페달(cc64)도 걸지 않는다 — 기타에는 서스테인 페달이 없다. */
+            const _gStyle=((INST.harp&&INST.harp.gm>=24&&INST.harp.gm<=31)?GTR_STYLE[gsel]:null);
+            if(_gStyle && (stg>=2 || _noChordInst)){
+              guitarComp(ev, c, T, measure, TPQ, inA, stg, lastBarM, _gStyle,
+                         (Math.floor(T/Math.max(1,measure))%2)===1);
+            }
+            else if(stg>=2 || _noChordInst){ ev.push({tick:T,cc:64,val:127}); ev.push({tick:T+measure-6,cc:64,val:0}); // 하프: 페달로 아르페지오가 울려 퍼지게(발현 특성) + 발현 아르페지오
             /* 발현 악기도 화음을 한 번에 뜯는 주법을 쓴다 — 아르페지오만 흐르면 단음 흐름만 남는다.
                구간 첫 마디와 마무리에서 화음을 굴려 뜯는다. */
             { const pluckBar=(si===0) || (sec.label==='아웃트로') || (lastBarM && (sec.label==='간주'||sec.label==='브릿지'));
@@ -29801,7 +30196,22 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             else
             if(gsel==='cineSoar' && stg>=4){ [0,0.5].forEach(pp=>{ const st2=T+Math.round(measure*pp); ev.push({tick:st2,on:1,note:tp,vel:Math.max(44,Math.min(88,Math.round(78*inA)))}); ev.push({tick:st2+140,on:0,note:tp}); }); } /* 완화 96→78 */
             else if(gsel==='cineTension' && stg>=3){ ev.push({tick:T,on:1,note:tp,vel:Math.max(40,Math.min(80,Math.round(70*inA)))}); ev.push({tick:T+140,on:0,note:tp}); } /* 완화 84→70 */
+            /* 층 표는 팀파니를 3단계로 선언하는데 행복은 5단계부터라 코러스(4단계)에 없었다.
+               팀파니는 행복 무드에서 앞에 나서는 악기가 아니므로 4단계는 여린 다운비트로만 짚는다. */
+            else if(gsel==='cineJoy' && stg===4){ ev.push({tick:T,on:1,note:tp,vel:Math.max(30,Math.min(58,Math.round(48*inA)))}); ev.push({tick:T+140,on:0,note:tp}); }
             else if(gsel==='cineJoy' && stg>=5){ ev.push({tick:T,on:1,note:tp,vel:Math.max(38,Math.min(74,Math.round(64*inA)))}); ev.push({tick:T+140,on:0,note:tp}); } /* 완화 72→64 */
+            /* 전투(cineWar)에는 팀파니 갈래가 없어서 곡 전체에 1음뿐이었다.
+               전투의 정체가 타악인데 그 타악이 드럼킷 하나뿐이었다는 뜻이다.
+               2단계는 다운비트, 4단계부터 반마디, 6단계는 8분 연타로 몰아간다. */
+            else if(gsel==='cineWar' && stg>=2){
+              const tpW=(function(){ let x=tp+7; while(x>53)x-=12; while(x<38)x+=12; return x; })();
+              if(stg>=6){ for(let k=0;k<8;k++){ const t2=T+Math.round(k*measure/8), nt=(k%4===2)?tpW:tp;
+                  ev.push({tick:t2,on:1,note:nt,vel:Math.max(46,Math.min(96,Math.round((72+(k%4===0?18:0))*inA)))});
+                  ev.push({tick:t2+110,on:0,note:nt}); } }
+              else if(stg>=4){ [0,0.5].forEach(pp=>{ const t2=T+Math.round(measure*pp), nt=(pp===0?tp:tpW);
+                  ev.push({tick:t2,on:1,note:nt,vel:Math.max(44,Math.min(90,Math.round((pp===0?80:66)*inA)))});
+                  ev.push({tick:t2+140,on:0,note:nt}); }); }
+              else { ev.push({tick:T,on:1,note:tp,vel:Math.max(38,Math.min(76,Math.round(62*inA)))}); ev.push({tick:T+150,on:0,note:tp}); } }
             if((gsel==='cineTension'||gsel==='cineSoar') && lastBarM && nextSec && (nextSec.stage||3)>=5 && (nextSec.stage||3)>(sec.stage||3)){ // 전환 롤(연타 크레셴도)
               rollLong(ev, tp, T+Math.round(measure*0.5), T+measure-10, 24, 98, 46); } } /* 전환 롤: 롱노트+CC 크레셴도 */
           else if(grp.role==='cbass'){ const stg=sec.stage||3; const cb=Math.max(28,c.bass-12); // 콘트라베이스: 오케 바닥
@@ -29834,10 +30244,27 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
               }
             }
             else
-            if(gsel==='cineTension' && stg>=2){ for(let k=0;k<8;k++){ const st2=T+Math.round(k*measure/8); ev.push({tick:st2,on:1,note:cb,vel:Math.round((56+(k%4===0?12:0))*inA)}); ev.push({tick:st2+Math.round(measure/8)-16,on:0,note:cb}); } } // 8분 반복(조임 엔진)
+            /* 층 표(ORCH_STAGE)는 cbass 를 1단계로 선언한다 — 오케의 바닥이 먼저 깔린다는 뜻이다.
+               그런데 생성기가 벅차오름은 3단계부터, 나머지는 2단계부터라 인트로에 바닥이 없었다
+               (실측 cineSoar: 인트로 4마디에 현 한 줄뿐이고 콘트라베이스는 12마디에 들어왔다).
+               여린 구간에서는 활로 길게 긋는 페달이 그 자리를 맡는다. */
+            if(stg<=1 || (gsel==='cineSoar' && stg<=2)){
+              ev.push({tick:T,on:1,note:cb,vel:Math.round(44*inA)});
+              ev.push({tick:T+measure-12,on:0,note:cb}); }
+            else if(gsel==='cineTension' && stg>=2){ for(let k=0;k<8;k++){ const st2=T+Math.round(k*measure/8); ev.push({tick:st2,on:1,note:cb,vel:Math.round((56+(k%4===0?12:0))*inA)}); ev.push({tick:st2+Math.round(measure/8)-16,on:0,note:cb}); } } // 8분 반복(조임 엔진)
             else if(gsel==='cineSoar' && stg>=3){ for(let k=0;k<8;k++){ const st2=T+Math.round(k*measure/8); const m=(k%4===2)?cb+7:cb; ev.push({tick:st2,on:1,note:m,vel:Math.round((62+(k%4===0?14:0))*inA)}); ev.push({tick:st2+Math.round(measure/8)-14,on:0,note:m}); } } // 드라이브
             else if(gsel==='cineSorrow' && stg>=2){ ev.push({tick:T,on:1,note:cb,vel:Math.round(52*inA)}); ev.push({tick:T+measure-10,on:0,note:cb}); } // 롱톤
-            else if(gsel==='cineJoy' && stg>=2){ [0,0.5].forEach(pp=>{ const st2=T+Math.round(measure*pp); ev.push({tick:st2,on:1,note:cb,vel:Math.round(58*inA)}); ev.push({tick:st2+Math.round(measure*0.14),on:0,note:cb}); }); } } // 피치카토식
+            else if(gsel==='cineJoy' && stg>=2){ [0,0.5].forEach(pp=>{ const st2=T+Math.round(measure*pp); ev.push({tick:st2,on:1,note:cb,vel:Math.round(58*inA)}); ev.push({tick:st2+Math.round(measure*0.14),on:0,note:cb}); }); } // 피치카토식
+            /* 전투(cineWar)에는 콘트라베이스 갈래가 아예 없어서 본문이 통째로 비어 있었다
+               (실측: 인트로 4음·아웃트로 4음뿐이고 벌스부터 하이라이트까지 0음.
+                그 넷은 종지 처리 쪽 다른 경로가 만든 것이라 본문과 무관했다).
+               전투의 바닥은 쉬지 않고 미는 저역이다 — 8분 반복에 4단계부터 5도를 섞는다. */
+            else if(gsel==='cineWar' && stg>=2){
+              const _n8=(stg>=4)?8:4;
+              for(let k=0;k<_n8;k++){ const st2=T+Math.round(k*measure/_n8);
+                const m=(stg>=4 && k%4===2)?cb+7:cb;
+                ev.push({tick:st2,on:1,note:m,vel:Math.round((58+(k%4===0?14:0)+(stg>=5?8:0))*inA)});
+                ev.push({tick:st2+Math.round(measure/_n8)-14,on:0,note:m}); } } }
           tick+=measure;
         }); }
         tonic=savedTonic; currentSig=savedSigS;
@@ -30100,6 +30527,20 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         });
       }
     }catch(e){}
+    /* ── 발현 악기 음역 접기 ──
+       저역 정리까지 끝난 뒤에 건다. 앞에 두면 lowClear 가 위 층을 옮기며 다시 넘어간다. */
+    try{
+      __pending.forEach(function(pp){
+        let mv=pluckRange(pp.ev, pp.grp.gm);
+        mv+=pluckGrab(pp.ev, pp.grp.gm);
+        if(mv>0){
+          pp.ev=coalesceNotes(pp.ev);
+          pp.ev=selfDeclash(pp.ev, pp.grp.key, TPQ);
+          pp.ev=coalesceNotes(pp.ev);
+          pp.ev.sort(function(a,b2){ return (a.tick-b2.tick)||((a.cc!=null?2:a.on)-(b2.cc!=null?2:b2.on)); });
+        }
+      });
+    }catch(e){}
     /* ── 2단계: 바이트 쓰기 ── */
     __pending.forEach(function(pp){
       const grp=pp.grp; let ev=pp.ev;   /* 2단계에서 ev 에 다시 대입하는 자리가 있어 let 이어야 한다 */
@@ -30115,21 +30556,27 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           현 상한 88로 판정되어 130곳이 위반으로 잡혔다.)
          그래서 선율 트랙은 그 GM이 이름과 맞을 때만 바꾼다. */
       const _GNraw={
-        rumba:  {melody:['Violin (obbligato)',40], harp:['Nylon Guitar (rasgueado)',24], bass:['Acoustic Bass',32], counter:['Cello (counter)',null]},
-        jazz:   {melody:['Tenor Sax (lead)',66],   piano:['Piano (comping)',null], bass:['Acoustic Bass (walking)',32], counter:['Trombone (counter)',null]},
-        neosoul:{piano:['Rhodes (Vintage EP)',4],  bass:['Fingered Bass',33], strings:['Strings (pad)',null], counter:['Cello (counter)',null]},
-        folk:   {melody:['Fiddle',40], harp:['Steel-String Acoustic',25], winds:['Tin Whistle / Flute',null], bass:['Acoustic Bass',32]},
-        shanty: {winds:['Accordion',21], harp:['Steel-String Acoustic',25], bass:['Acoustic Bass',32], counter:['Cello (counter)',null]},
-        celtic: {melody:['Tin Whistle',73], harp:['Celtic Harp',46], strings:['Fiddle',40], winds:['High Whistle (piccolo)',72]},
-        tango:  {melody:['Bandoneon',23], strings:['Violins (section)',40], bass:['Contrabass',43], counter:['Cello (counter)',null]},
-        gypsy:  {melody:['Violin (manouche)',40], harp:['Gypsy Guitar (la pompe)',24], bass:['Acoustic Bass',32]},
-        kids:   {melody:['Recorder (sing-along guide)',74], harp:['Glockenspiel',9], piano:['Piano (accompaniment)',0]},
-        chanbul:{melody:['Choir (unison guide)',52], piano:['Church Organ',19], strings:['Strings (support)',48]},
-        bossa:  {melody:['Flute (lead)',73], harp:['Nylon Guitar (bossa comp)',24], bass:['Acoustic Bass',32], piano:['Piano (support)',0]},
-        blues:  {melody:['Harmonica',22], harp:['Electric Guitar (blues)',26], bass:['Fingered Bass',33], piano:['Piano (comping)',0]},
-        citypop:{piano:['Rhodes (Vintage EP)',4], harp:['Clean Electric Guitar',27], bass:['Fingered Bass',33], strings:['Strings (pad)',48]},
-        lofi:   {melody:['Flute (soft lead)',73], piano:['Rhodes (Vintage EP)',4], bass:['Fingered Bass',33]},
-        classic:{melody:['Violin (lead)',40], strings:['Strings (section)',48], winds:['Oboe',68], bass:['Contrabass',43]}
+        /* 이름에 역할 낱말(Melody / Counter Melody / Piano / Strings / Winds / Bass)을 반드시 남긴다.
+           검증과 계측 도구 다섯이 트랙 이름의 역할 낱말로 트랙을 고르기 때문이다.
+           (실측: 'Trombone (counter)' 로 바뀌자 GRIDCHK 가 대선율을 지속층으로 못 걸러
+            jazz, neosoul 두 건이 격자 어긋남으로 잡혔다. 'Fiddle' 로 바꾸면 MEL.py 가
+            선율 트랙을 못 찾아 피아노 꼭대기 음을 대신 잰다.)
+           jazz 대선율은 소리가 첼로(gm42)인데 이름만 트롬본이었다. 이름은 소리를 따른다. */
+        rumba:  {melody:['Melody - Violin (obbligato)',40], harp:['Nylon Guitar (rasgueado)',24], bass:['Acoustic Bass',32], counter:['Counter Melody - Cello',null]},
+        jazz:   {melody:['Melody - Tenor Sax (lead)',66],   piano:['Piano (comping)',null], bass:['Acoustic Bass (walking)',32], counter:['Counter Melody - Cello',null]},
+        neosoul:{piano:['Piano - Rhodes (Vintage EP)',4],  bass:['Fingered Bass',33], strings:['Strings (pad)',null], counter:['Counter Melody - Cello',null]},
+        folk:   {melody:['Melody - Fiddle',40], harp:['Steel-String Acoustic',25], winds:['Winds - Tin Whistle / Flute',null], bass:['Acoustic Bass',32]},
+        shanty: {winds:['Winds - Accordion',21], harp:['Steel-String Acoustic',25], bass:['Acoustic Bass',32], counter:['Counter Melody - Cello',null]},
+        celtic: {melody:['Melody - Tin Whistle',73], harp:['Celtic Harp',46], strings:['Strings - Fiddle',40], winds:['Winds - High Whistle (piccolo)',72]},
+        tango:  {melody:['Melody - Bandoneon',23], strings:['Strings - Violins (section)',40], bass:['Contrabass',43], counter:['Counter Melody - Cello',null]},
+        gypsy:  {melody:['Melody - Violin (manouche)',40], harp:['Gypsy Guitar (la pompe)',24], bass:['Acoustic Bass',32]},
+        kids:   {melody:['Melody - Recorder (sing-along guide)',74], harp:['Glockenspiel',9], piano:['Piano (accompaniment)',0]},
+        chanbul:{melody:['Melody - Choir (unison guide)',52], piano:['Piano - Church Organ',19], strings:['Strings (support)',48]},
+        bossa:  {melody:['Melody - Flute (lead)',73], harp:['Nylon Guitar (bossa comp)',24], bass:['Acoustic Bass',32], piano:['Piano (support)',0]},
+        blues:  {melody:['Melody - Harmonica',22], harp:['Electric Guitar (blues)',26], bass:['Fingered Bass',33], piano:['Piano (comping)',0]},
+        citypop:{piano:['Piano - Rhodes (Vintage EP)',4], harp:['Clean Electric Guitar',27], bass:['Fingered Bass',33], strings:['Strings (pad)',48]},
+        lofi:   {melody:['Melody - Flute (soft lead)',73], piano:['Piano - Rhodes (Vintage EP)',4], bass:['Fingered Bass',33]},
+        classic:{melody:['Melody - Violin (lead)',40], strings:['Strings (section)',48], winds:['Winds - Oboe',68], bass:['Contrabass',43]}
       };
       const _GN=(function(){ const src=_GNraw[gsel]; if(!src) return {};
         const out={};
@@ -30140,15 +30587,15 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           if(cur===want) out[k]=nm;                      // 음색이 이름과 맞을 때만 쓴다
         });
         return out; })();
-      { const roleEn=quartetMode?Object.assign({},{melody:'Violin I',counter:'Violin II',strings:'Viola',cbass:'Cello'}):Object.assign({melody:((INST&&INST.melody&&INST.melody.gm===54)?'Vocal Guide (replace with your vocal)':(skeletonMode?'Melody (GUIDE - replace or mute)':'Melody')),counter:'Counter Melody',piano:'Piano',piano2:'Piano 2 (Theme ostinato)',vocal2:'Vocal 2 - Female (duet)',orchcym:'Orchestral Cymbals (crash/suspended)',strings:'Strings',winds:(INST&&INST.winds&&INST.winds.gm===200?'Flute (section top)':'Winds'),bass:'Bass',pad:'Pad (ambient layer)',sub:'Sub Bass (L4+)',riser:'FX Riser (pre-drop)',horns:'French Horns',lowbrass:'Low Brass (Tbn/Tuba)',harp:(({46:'Harp',24:'Nylon Guitar (plucked)',104:'Sitar / Plucked'})[(INST&&INST.harp&&INST.harp.gm)||46]||'Harp'),brass:(INST&&INST.brass&&INST.brass.gm===61?'Horns (section mid)':'Brass (long tones)'),brass2:'Trombones (section low)',brass3:'Trumpets (section top)',winds2:'Oboe (section mid)',winds3:'Bassoon (section low)',choir:'Choir (Aahs)',timpani:'Timpani',cbass:'Contrabass (low str)'}, _GN[gsel]||{});
-        const GMN={0:'Grand Piano',4:'E.Piano',6:'Harpsichord',11:'Vibraphone',19:'Church Organ',16:'Hammond Organ',23:'Bandoneon',54:'Voice',72:'Piccolo',41:'Viola',45:'Pizzicato Str',61:'Brass Sec',73:'Flute',75:'Pan Flute',40:'Violin',42:'Cello',46:'Harp',48:'String Ens',56:'Trumpet',65:'Alto Sax',68:'Oboe',71:'Clarinet',32:'Acoustic Bass',33:'Finger Bass',35:'Fretless Bass',89:'Warm Pad',38:'Synth Bass',119:'Reverse Cymbal',60:'French Horn',57:'Trombone',58:'Tuba',52:'Choir Aahs',47:'Timpani',43:'Contrabass',44:'Tremolo Strings',24:'Nylon Guitar',104:'Sitar',70:'Bassoon'};
+      { const roleEn=quartetMode?Object.assign({},{melody:'Violin I',counter:'Violin II',strings:'Viola',cbass:'Cello'}):Object.assign({melody:((INST&&INST.melody&&INST.melody.gm===54)?'Vocal Guide (replace with your vocal)':(skeletonMode?'Melody (GUIDE - replace or mute)':'Melody')),counter:'Counter Melody',piano:'Piano',piano2:'Piano 2 (Theme ostinato)',vocal2:'Vocal 2 - Female (duet)',orchcym:'Orchestral Cymbals (crash/suspended)',strings:'Strings',winds:(INST&&INST.winds&&INST.winds.gm===200?'Flute (section top)':'Winds'),bass:'Bass',pad:'Pad (ambient layer)',sub:'Sub Bass (L4+)',riser:'FX Riser (pre-drop)',horns:'French Horns',lowbrass:'Low Brass (Tbn/Tuba)',gtrlead:'Lead Guitar (solo)',harp:(({46:'Harp',24:'Nylon Guitar (plucked)',25:'Steel-String Acoustic Guitar',26:'Jazz Guitar',27:'Clean Electric Guitar',28:'Muted Electric Guitar',29:'Overdrive Guitar',30:'Distortion Guitar',9:'Glockenspiel',11:'Vibraphone',104:'Sitar / Plucked',105:'Banjo'})[(INST&&INST.harp&&INST.harp.gm)||46]||'Harp'),brass:(INST&&INST.brass&&INST.brass.gm===61?'Horns (section mid)':'Brass (long tones)'),brass2:'Trombones (section low)',brass3:'Trumpets (section top)',winds2:'Oboe (section mid)',winds3:'Bassoon (section low)',choir:'Choir (Aahs)',timpani:'Timpani',cbass:'Contrabass (low str)'}, _GN||{});   /* _GN 은 이미 gsel 로 풀어 둔 표다. _GN[gsel] 은 언제나 undefined 라 장르별 악기 이름이 한 번도 트랙 이름에 닿지 않았다(실측: folk·blues·citypop 기타 트랙이 전부 'Harp' 로 나갔다) */
+        const GMN={0:'Grand Piano',4:'E.Piano',6:'Harpsichord',11:'Vibraphone',19:'Church Organ',16:'Hammond Organ',23:'Bandoneon',54:'Voice',72:'Piccolo',41:'Viola',45:'Pizzicato Str',61:'Brass Sec',73:'Flute',75:'Pan Flute',40:'Violin',42:'Cello',46:'Harp',48:'String Ens',56:'Trumpet',65:'Alto Sax',68:'Oboe',71:'Clarinet',32:'Acoustic Bass',33:'Finger Bass',35:'Fretless Bass',89:'Warm Pad',38:'Synth Bass',119:'Reverse Cymbal',60:'French Horn',57:'Trombone',58:'Tuba',52:'Choir Aahs',47:'Timpani',43:'Contrabass',44:'Tremolo Strings',24:'Nylon Guitar',25:'Steel Guitar',26:'Jazz Guitar',27:'Clean Guitar',28:'Muted Guitar',29:'Overdrive Guitar',30:'Distortion Guitar',9:'Glockenspiel',105:'Banjo',104:'Sitar',70:'Bassoon'};
         // 추천 악기(트랙명 앞) + 느낌(캐릭터). 실제 제품이 없어도 '어떤 느낌 악기'인지 알 수 있게.
         /* 피아노 라벨은 실제 음색(GM)을 따른다 — 고정해 두면 오르간·하프시코드를 골라도
            'Felt Piano'로 적혀 로직에서 잘못된 음원을 얹게 된다.
            gm 0(그랜드)만 펠트 피아노로 표기한다 — 이 앱의 기본 피아노 음색이 펠트이기 때문이다. */
         const _PN=function(gm){ return (gm==null||gm===0)?'Felt Piano':(GMN[gm]||'Piano'); };
         const REC_SOUND={ piano:_PN(INST&&INST.piano?INST.piano.gm:0), melody:(INST.melody.gm===54?((vocType==='duet')?'Male Vocal':((vocType==='male')?'Male Vocal':'Female Vocal')):(INST.melody.gm===0?'Felt Piano':(GMN[INST.melody.gm]||'Lead'))), vocal2:'Female Vocal', piano2:_PN(INST&&INST.piano?INST.piano.gm:0), orchcym:'Orch Cymbals', timpani:'Timpani', counter:counterName(), strings:stringsName(), winds:(INST&&INST.winds&&INST.winds.gm===200?'Woodwind Sec':windsName()), bass:'Warm Bass', pad:'Warm Pad', sub:'Sine Sub', riser:'Riser FX',
-          horns:'French Horns', lowbrass:'Trombone/Tuba', harp:(({46:'Harp',24:'Nylon Guitar',104:'Sitar'})[(INST&&INST.harp&&INST.harp.gm)||46]||'Harp'), brass:(INST&&INST.brass&&INST.brass.gm===61?'Horns (sec)':'Brass'), brass2:'Trombones', brass3:'Trumpets', winds2:'Oboe', winds3:'Bassoon', choir:'Choir Aahs', timpani:'Timpani', cbass:'Contrabass' };
+          horns:'French Horns', lowbrass:'Trombone/Tuba', harp:(({46:'Harp',24:'Nylon Guitar',25:'Steel Guitar',26:'Jazz Guitar',27:'Clean Guitar',28:'Muted Guitar',29:'Overdrive Guitar',30:'Distortion Guitar',9:'Glockenspiel',11:'Vibraphone',104:'Sitar',105:'Banjo'})[(INST&&INST.harp&&INST.harp.gm)||46]||'Harp'), brass:(INST&&INST.brass&&INST.brass.gm===61?'Horns (sec)':'Brass'), brass2:'Trombones', brass3:'Trumpets', winds2:'Oboe', winds3:'Bassoon', choir:'Choir Aahs', timpani:'Timpani', cbass:'Contrabass' };
         const REC_FEEL={ piano:'warm, intimate, soft-hammer (felt) - close mic', melody:(INST.melody.gm===54?'lead vocal - center, front of mix':'expressive, singing lead - sits above the mix'), vocal2:'duet partner - center, pairs with lead', piano2:'theme ostinato - quiet, behind the band', counter:'warm, mournful inner voice', strings:'lush, singing, slow-bow swell - not staccato',
           winds:'breathy, airy, agile', bass:'round, warm, foundational - felt not heard', pad:'soft, wide, atmospheric wash', sub:'pure low weight (mono)', riser:'rising tension into the drop',
           horns:'noble, broad, warm - long notes, no fast runs', lowbrass:'heavy, weighty - power at climax only', harp:'magical, flowing, delicate arpeggios', brass:'bold, broad, sustained', brass2:'low weight, glue', brass3:'bright, brilliant, fanfare', winds2:'singing, plaintive (oboe)', winds3:'dark, reedy low support', choir:'vast, sacred, sustained wall', timpani:'deep tuned hits - follows harmony', cbass:'the floor of the orchestra' };
@@ -30201,8 +30648,40 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          (실측: 앞에 두었을 때 107,391개로 3%만 줄었다) */
       ev=thinCC(ev, 2, 10);
       ev.sort((a,b)=>(a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on)));
+      /* ── 리드 기타 표현: 벤딩과 비브라토 ──
+         이벤트 배열에 미리 넣으면 병합·솎기 함수들이 피치벤드를 노트로 오해해 흘린다
+         (그 함수들은 e.cc 로 CC 를 가르고 나머지를 전부 노트로 본다).
+         그래서 바이트를 쓰기 직전, 확정된 음에서 만들어 끼워 넣는다.
+         벤딩은 온음 아래에서 제자리로 끌어올리는 꼴이다 — 적힌 음이 도착점이 된다.
+         자리는 '앞 음과 같은 음을 다시 짚는 곳' — 리드 생성기가 벤딩을 앉히려고 둔 자리다. */
+      if(grp.key==='gtrlead'){
+        const _iv=pairIv(ev).slice().sort(function(a,b2){ return a.on-b2.on; });
+        const addE=[];
+        if(_iv.length){ /* 피치벤드 범위를 온음(2반음)으로 못박는다 — 음원 기본값에 기대지 않는다 */
+          [[101,0],[100,0],[6,2],[38,0]].forEach(function(pv){ addE.push({tick:0, cc:pv[0], val:pv[1]}); }); }
+        _iv.forEach(function(x,i){
+          const len=x.off-x.on, prev=_iv[i-1];
+          if(prev && prev.note===x.note && len>=Math.round(TPQ*0.35)){
+            const n=6, span=Math.min(Math.round(len*0.4), Math.round(TPQ*0.35));
+            for(let k=0;k<=n;k++){
+              const t=Math.max(0, x.on-2+Math.round(span*k/n));
+              const v=Math.round(1+8191*(k/n));
+              addE.push({tick:t, pb:Math.max(0,Math.min(16383,v))}); }
+          }
+          if(len>=Math.round(TPQ*0.6)){          /* 긴 음에는 비브라토 — 늦게 걸어야 사람이 건 소리가 난다 */
+            /* 1.0 자리에 값을 두면 x.off-2 의 되돌림보다 뒤에 와서 비브라토가 켜진 채로 남는다
+               (실측: cc1 0 뒤에 cc1 58 이 붙어 다음 음까지 흔들렸다). 마지막 점은 되돌림 하나뿐이다 */
+            [[0.0,0],[0.4,36],[0.75,70]].forEach(function(pv){
+              addE.push({tick:x.on+Math.round(len*pv[0]), cc:1, val:pv[1]}); });
+            addE.push({tick:Math.max(x.on+4, x.off-2), cc:1, val:0}); }
+        });
+        if(addE.length){ ev=ev.concat(addE);
+          const ord=function(e2){ return (e2.cc!=null||e2.pb!=null)?2:e2.on; };
+          ev.sort(function(a,b2){ return (a.tick-b2.tick)||(ord(a)-ord(b2)); }); }
+      }
       let last=0; ev.forEach(e=>{ bytes=bytes.concat(vlq(e.tick-last)); last=e.tick;
-        if(e.cc!=null) bytes=bytes.concat([0xB0|grp.ch,e.cc&0x7f,e.val&0x7f]);
+        if(e.pb!=null) bytes=bytes.concat([0xE0|grp.ch, e.pb&0x7f, (e.pb>>7)&0x7f]);
+        else if(e.cc!=null) bytes=bytes.concat([0xB0|grp.ch,e.cc&0x7f,e.val&0x7f]);
         else { let vv=(e.on && feltSoft && (grp.key==='piano'||grp.key==='melody'||grp.key==='counter'))?Math.round(Math.min(96,20+e.vel*0.64)):e.vel;
           /* 라운지: 세기 폭을 35~85로 눌러 둔다 — 셈여림의 방향은 남기되 대화 위로 튀지 않게 */
           /* 가운데(62)를 축으로 폭만 62%로 줄인다 — 위아래를 눌러 평평하게 만들면 표정이 사라진다 */
@@ -31015,6 +31494,54 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       if(gsel==='cineTension'||gsel==='cineSoar') blk('Choir ch13', ['음원(Instrument 슬롯): 합창 Aahs','EQ(Channel EQ): HPF 120Hz · 3kHz +1dB','센드(Sends→Bus): Hall '+rv(3.5)+'s, 38% · CC11']);
       if(gsel!=='cineSorrow') blk('Timpani ch14', ['음원(Instrument 슬롯): 팀파니 — 긴 음(롤 구간)은 Roll 아티큘레이션','CC1(모듈레이션)을 음원의 다이내믹/레이어 크로스페이드에 매핑: 롤이 여리게 시작해 부풀어 오름','CC11(익스프레션)도 함께 들어감 — 볼륨 곡선','EQ(Channel EQ): HPF 50Hz · 3kHz +1dB(막대 어택)','센드(Sends→Bus): Hall '+rv(2.8)+'s, 25%']);
       blk('Contrabass ch15', ['음원(Instrument 슬롯): 저현(콘트라베이스)','EQ(Channel EQ): HPF 30Hz · 120Hz +1dB','컴프(Comp): 2:1 GR2 · 트랙딜레이 -40ms · CC1']);
+    }
+    /* ch12 가 기타인 장르 — 시트에 기타 항목이 없어 무슨 음원을 얹어야 할지 알 수 없었다.
+       음표는 이미 장르별 주법으로 쓰여 있으므로 시트도 그 주법을 그대로 적는다. */
+    if(!CINE.has(gsel) && INST.harp && INST.harp.on && INST.harp.gm>=24 && INST.harp.gm<=31){
+      const _gst=GTR_STYLE[gsel]||'';
+      const _amp={
+        power:['음원(Instrument 슬롯): Studio Instruments > Electric Guitar, 또는 오디오 트랙 + Amp Designer',
+               '앰프(Amp Designer): Brit Stack · Gain 6.5 · Bass 5 · Mid 4 · Treble 6 · Presence 5',
+               '주법: 벌스는 팜뮤트 8분(음가가 자리의 0.7) · 코러스는 3도를 넣은 열린 화음이 박마다 울린다',
+               '벌스 구간만 음원의 뮤트 아티큘레이션 또는 리전 인스펙터 Note Length -20%',
+               'EQ(Channel EQ): HPF 80Hz · 300Hz -2dB · 3kHz +2dB',
+               '컴프(Comp): 4:1 · Attack 15ms · Release 120ms · GR 4dB'],
+        cut16:['음원(Instrument 슬롯): Clean Electric Guitar · Amp Designer > Vintage British Clean · Gain 3',
+               '주법: 16분 커팅 — 음가가 자리의 0.45다. 리전 인스펙터에서 길이를 늘리지 말 것',
+               'EQ(Channel EQ): HPF 120Hz · 400Hz -2dB · 2.5kHz +2dB',
+               '컴프(Comp): 6:1 · Attack 5ms · Release 80ms · GR 5dB',
+               'Modulation > Chorus: Rate 0.8Hz · Depth 20% · Mix 25%'],
+        bossa:['음원(Instrument 슬롯): Nylon Acoustic Guitar',
+               '주법: 엄지가 1·3박 저음 · 손가락이 뒷자리 화음. 두 마디가 한 묶음이다',
+               'EQ(Channel EQ): HPF 100Hz · 250Hz -2dB · 8kHz +1.5dB',
+               '컴프(Comp): 3:1 · Attack 20ms · Release 150ms · GR 3dB'],
+        shuffle:['음원(Instrument 슬롯): Jazz / Semi-hollow Guitar · Amp Designer > Small Tweed · Gain 4',
+               '주법: 셔플 컴핑 — 뒷박이 셋잇단 셋째 자리에 있다. 2·4박이 강세',
+               'EQ(Channel EQ): HPF 90Hz · 900Hz +1dB · 4kHz +1.5dB',
+               '컴프(Comp): 4:1 · Attack 12ms · Release 100ms · GR 4dB'],
+        strum:['음원(Instrument 슬롯): Steel-String Acoustic Guitar',
+               '주법: 다운은 박 · 업은 뒷박. 다음 긁기까지 울린다',
+               'EQ(Channel EQ): HPF 100Hz · 250Hz -2dB · 8kHz +2dB',
+               '컴프(Comp): 3:1 · Attack 20ms · Release 150ms · GR 3dB'],
+        pompe:['음원(Instrument 슬롯): Nylon / Gypsy Jazz Guitar (Selmer 계열)',
+               '주법: 라 퐁프 — 네 박을 다 긁되 2·4박을 짧게 끊는다. 이것이 이 음악의 드럼이다',
+               'EQ(Channel EQ): HPF 110Hz · 300Hz -2dB · 5kHz +2.5dB',
+               '컴프(Comp): 4:1 · Attack 8ms · Release 90ms · GR 4dB'],
+        rasg:['음원(Instrument 슬롯): Nylon (Flamenco) Guitar',
+               '주법: 라스게아도 — 다운·업·다운 세 번을 잇달아 긁는다. 세 번째가 울린다',
+               'EQ(Channel EQ): HPF 100Hz · 350Hz -1.5dB · 6kHz +2dB',
+               '컴프(Comp): 3.5:1 · Attack 10ms · Release 110ms · GR 3dB']
+      }[_gst];
+      if(_amp && GTR_LEAD[gsel]) blk('Lead Guitar ch13', [
+        '음원(Instrument 슬롯): 리듬 기타와 같은 계열로 얹되 게인을 한 단계 올린다',
+        '역할: 솔로 구간 전용 — 다른 구간은 비어 있다. 리듬 기타(ch12)와 다른 트랙이다',
+        '음표: 으뜸음 5음 음계 한 줄. 같은 음이 이어지는 자리가 벤딩·비브라토를 넣을 자리다',
+        'EQ(Channel EQ): HPF 140Hz · 800Hz +1.5dB · 3.5kHz +3dB (리듬 기타 위로 뜨게)',
+        '컴프(Comp): 4:1 · Attack 8ms · Release 140ms · GR 5dB',
+        '센드(Sends→Bus): Plate '+rv(1.6)+'s, 18% · 딜레이 1/8점 12%']);
+      if(_amp) blk('Guitar ch12', _amp.concat([
+        '센드(Sends→Bus): '+((_gst==='power'||_gst==='cut16')?('Plate '+rv(1.3)+'s, 12%'):('Room '+rv(1.0)+'s, 14%')),
+        '스트럼 시차는 이미 들어가 있다(약 12ms) — 음원의 자동 스트럼 기능은 끄고 쓸 것']));
     }
     if(soloBuildPerc && !(INST&&INST.drums&&INST.drums.on)){
       L.push(''); L.push('  ━━━━━ [후반 고조] 타악 3트랙 — 토글로 켠 것 ━━━━━');
