@@ -22334,12 +22334,126 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     // 스케일 음 사다리 — 경과음·보조음을 '스케일 스텝'으로 채움
     const scaleMidis=[]; for(let m=loR-4;m<=hiR;m++){ if(scPc.indexOf(((m%12)+12)%12)>=0) scaleMidis.push(m); } // 상단 누수 제거(캡 엄수)
     const cl=i=>Math.max(0,Math.min(scaleMidis.length-1,i));
+    /* ── 화성 기능을 먼저 읽는다 ──
+       선율은 화음음을 아무거나 짚는 것이 아니라, 그 화음이 조성에서 맡은
+       기능이 요구하는 음을 짚고 다음 화음으로 풀어야 한다.
+
+         딸림(V·vii)      이끔음(조의 7음)과 딸림7도(조의 4음)가 정체다
+                         이끔음은 으뜸음으로 올라가고 7도는 3음으로 내려간다
+         버금딸림(IV·ii)   조의 4음·6음이 색을 낸다
+         으뜸(I·vi·iii)    해결이 도착하는 자리 — 으뜸음·3음이 안정하다
+
+       (실측: 이끔음 출현 30~92% 인데 해결이 0~100%로 들쭉날쭉했고,
+        딸림7도는 0~66%로 거의 안 나왔다.
+        후처리로 고치려 하면 윤곽 제한에 막혀 배치가 0~2건에 그친다 —
+        음을 고르는 단계에서 기능을 알아야 한다.)
+
+       마디마다 '이 마디에서 도착해야 하는 음'을 미리 정하고,
+       골격이 그 음을 향하게 한다. */
+    const _T=(((tonic%12)+12)%12);
+    const _LTpc=(_T+11)%12, _SUBpc=(_T+5)%12, _MEDpc=(_T+4)%12, _MED3pc=(_T+3)%12;
+    const _funcOf=function(rel){
+      const deg=(((rel%12)+12)%12);
+      if(deg===7 || deg===11) return 'D';
+      if(deg===5 || deg===2) return 'S';
+      return 'T';
+    };
+    /* 마디별 목표 음정(피치 클래스) — 없으면 null */
+    const _goal=[];
+    for(let z=0;z<n;z++){
+      const st=steps[z];
+      let pcsZ=null;
+      try{ const cz=chordMidis(st[1],st[2],st[3]);
+           pcsZ=[...new Set(cz.notes.map(function(m){ return ((m%12)+12)%12; }))]; }catch(e){ pcsZ=null; }
+      if(!pcsZ){ _goal.push(null); continue; }
+      const fn=_funcOf(st[1]);
+      let g=null;
+      if(fn==='D'){
+        /* 딸림에서는 이끔음이 우선, 없으면 딸림7도 */
+        if(pcsZ.indexOf(_LTpc)>=0) g={pc:_LTpc, kind:'LT'};
+        else if(pcsZ.indexOf(_SUBpc)>=0) g={pc:_SUBpc, kind:'SV'};
+      } else if(fn==='T'){
+        /* 앞 마디가 딸림이면 해결음이 목표다 */
+        const pv=(z>0)?_goal[z-1]:null;
+        if(pv && pv.kind==='LT' && pcsZ.indexOf(_T)>=0) g={pc:_T, kind:'RES'};
+        else if(pv && pv.kind==='SV'){
+          if(pcsZ.indexOf(_MEDpc)>=0) g={pc:_MEDpc, kind:'RES'};
+          else if(pcsZ.indexOf(_MED3pc)>=0) g={pc:_MED3pc, kind:'RES'};
+        }
+      }
+      _goal.push(g);
+    }
     const nearIdx=midi=>{ let bi=0,bd=1e9; for(let i=0;i<scaleMidis.length;i++){const d=Math.abs(scaleMidis[i]-midi);if(d<bd){bd=d;bi=i;}} return bi; };
     const snapCt=(midi,ct)=>{ let best=midi,bd=1e9;  ct.forEach(pc=>{const m=pcNear(pc,midi);const d=Math.abs(m-midi);if(d<bd){bd=d;best=m;}}); return best; };
     // 강박 골격 음형 동기(코드톤, 마디당 2개: 0·0.5) — 원형 반복·모방진행·전위·역행
     const lp=bowed?0.36:(windy?0.12:0.22), bigL=bowed?[2,3,4,-2,-3,-4]:(flashy?[2,3,4,-2,-3,-4]:[2,3,-2,-3]);
-    const makeContour=len=>{ const c=[0]; for(let i=1;i<len;i++){ let st; if(RND()<lp*(flashy?1.3:1)) st=bigL[Math.floor(RND()*bigL.length)]; else st=(RND()<0.5?1:-1); c.push(c[i-1]+st); } return c; };
+    /* ── 윤곽은 방향을 이어간다 ──
+       매 걸음마다 RND()<0.5 로 방향을 새로 뽑으면 선율이 위아래로 튄다.
+       (실측 6장르: 방향 지속 1.4~1.7음 · 지그재그 34~48%.
+        노래하는 선율은 방향 지속 2.5~3.5 · 지그재그 20% 이하다.
+        '화성과 잘 맞게 멜로디처럼 진행되느냐' 의 실체가 여기다 —
+        음 하나하나가 화음에 맞아도 위아래로 튀면 선율로 들리지 않는다.)
+       한 번 정한 방향을 2~4걸음 이어가고, 그 뒤에 바꾼다.
+       올라간 만큼은 내려와야 하므로 음역 끝에서는 방향을 돌린다. */
+    const makeContour=len=>{
+      const c=[0];
+      let dir=(RND()<0.5?1:-1);
+      let run=0, want=2+Math.floor(RND()*3);          /* 2~4걸음 이어간다 */
+      for(let i=1;i<len;i++){
+        let st;
+        if(RND()<lp*(flashy?1.3:1)){
+          /* 도약은 방향을 유지한 채 크기만 키운다 */
+          const cands=bigL.filter(function(v){ return (v>0)===(dir>0); });
+          st=(cands.length?cands[Math.floor(RND()*cands.length)]:bigL[Math.floor(RND()*bigL.length)]);
+          run+=2;
+        } else {
+          st=dir; run++;
+        }
+        c.push(c[i-1]+st);
+        /* 방향 전환: 정한 걸음 수를 채웠거나 너무 멀리 갔을 때 */
+        if(run>=want || Math.abs(c[i])>=5){
+          dir=-dir; run=0; want=2+Math.floor(RND()*3);
+        }
+      }
+      return c;
+    };
     const transC=(c,d)=>c.map(x=>x+d), invC=c=>c.map(x=>-x), retC=c=>{const L=c[c.length-1];return c.slice().reverse().map(x=>x-L);};
+    /* ── 프레이즈 윤곽 ──
+       윤곽을 마디당 4개씩 따로 만들면 마디 경계마다 제자리로 돌아와
+       선율이 위아래로 튄다
+       (실측: con 단계 방향 지속 0.6~1.0 · 최종 1.6 · 지그재그 34~53%.
+        노래하는 선율은 방향 지속 2.5~3.5다.
+        마디 안에서만 윤곽이 있고 마디를 넘는 선율선이 없던 것이 근원이다).
+
+       곡 전체를 한 줄로 먼저 그린다 — 네 마디를 한 호흡으로 보고
+       올라갔다 내려오는 활을 잇는다. 마디는 그 조각을 받아 쓴다.
+       그러면 방향이 마디를 넘어 이어진다. */
+    const _mkPhrase=function(bars, perBar){
+      const total=bars*perBar;
+      const out=new Array(total);
+      let v=0, dir=1, run=0, want=3+Math.floor(RND()*3);   /* 3~5걸음 이어간다 */
+      for(let i=0;i<total;i++){
+        out[i]=v;
+        /* 네 마디(=perBar*4) 주기의 활 — 앞은 오르고 뒤는 내린다 */
+        const ph=(i%(perBar*4))/(perBar*4);
+        const arc=(ph<0.62)?1:-1;
+        let st;
+        if(RND()<lp*(flashy?1.3:1)){
+          const cands=bigL.filter(function(x){ return (x>0)===(dir>0); });
+          st=cands.length?cands[Math.floor(RND()*cands.length)]:dir*2;
+          run+=2;
+        } else { st=dir; run++; }
+        v+=st;
+        /* 방향 전환: 걸음 수를 채웠거나, 활의 방향과 어긋난 채 멀리 갔을 때 */
+        if(run>=want || (dir!==arc && Math.abs(v)>=3) || Math.abs(v)>=7){
+          dir=(Math.abs(v)>=7)?((v>0)?-1:1):arc;
+          run=0; want=3+Math.floor(RND()*3);
+        }
+      }
+      return out;
+    };
+    let _phCon=null;   /* 곡 전체 윤곽 — 마디 루프가 조각을 떼어 쓴다 */
+    let _carryDir=1;   /* 마디를 넘어 이어지는 방향 */
     // 리듬: 강박 골격(0·0.5) + 약박 경과·보조음 채움. 강도별 밀도.
     // 리듬 셀: 호출마다 A·A\'·B 셀을 만들어 A A\' A B로 반복 — 반복되는 리듬이 그루브를 만든다
     function makeCell(dens,cadence){ const M=meterOf(), L=M.grid.length; const st=new Set();
@@ -22407,6 +22521,9 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       // 골격 음형 동기: 강박(그룹 시작)마다 코드톤 — 원형·모방진행·전위·역행
       const beatsPos=meterBeatPos();
       let con;
+      /* 프레이즈 윤곽에서 이 마디 몫을 떼어 온다 — 방향이 마디를 넘어 이어진다 */
+      if(!_phCon || _phCon.length < n*beatsPos.length) _phCon=_mkPhrase(n, beatsPos.length);
+      const _seg=_phCon.slice(si*beatsPos.length, (si+1)*beatsPos.length);
       if(si===0||!motif||motif.length!==beatsPos.length){
         if(role&&songMotif){ const src=songMotif.con; motif=[]; for(let bi2=0;bi2<beatsPos.length;bi2++){ const ix=Math.round(bi2*(src.length-1)/Math.max(1,beatsPos.length-1)); let vv=src[ix]; if(role==='verse') vv=Math.round(vv*0.6); motif.push(vv); } } // 곡 시그니처 모티프(벌스는 압축=암시)
         else motif=makeContour(beatsPos.length);
@@ -22419,42 +22536,68 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         else if(v<0.66) con=transC(motif,[1,2,-1,-2,3][Math.floor(RND()*5)]);
         else if(v<0.85) con=invC(motif);
         else con=retC(motif); }
+      /* ── 마디를 넘는 선율선 ──
+         con 은 마디당 강박 수(보통 4)만큼만 길고 마디마다 같은 것이 반복된다.
+         그래서 마디 안에서는 윤곽이 있어도 마디 경계마다 제자리로 돌아와
+         선율이 위아래로 튄다
+         (실측: con 단계의 방향 지속이 0.6~1.0 · 최종 1.6 ·
+          지그재그 34~48%. 노래하는 선율은 2.5~3.5다.
+          '화성과 맞아도 멜로디처럼 진행되지 않는다' 는 지적의 근원이 여기다).
+
+         마디마다 조금씩 기울여 여러 마디에 걸친 큰 선을 만든다.
+         네 마디를 한 호흡으로 보고 올라갔다 내려온다 —
+         모티프 자체는 그대로 두고 기울기만 얹으므로 동기는 유지된다. */
+      /* 모티프(동기)는 마디 안의 모양을 정하고, 프레이즈 윤곽은 마디를 넘는 큰 선을 정한다.
+         둘을 더하면 동기를 유지한 채 선율이 이어진다.
+         모티프의 진폭을 줄여 큰 선이 들리게 한다 — 모양은 남고 방향은 프레이즈가 이끈다. */
+      if(_seg && _seg.length===con.length){
+        con=con.map(function(v,k){ return Math.round(v*0.45) + _seg[k]; });
+      }
       const baseMidi=snapCt(Math.max(loR,Math.min(hiR,reg)), ctMel), baseIdx=nearIdx(baseMidi);
       // 강박 골격 음(코드톤) — 그룹 시작마다
       const bm={}; let prevNCT=false; let _prevBm=(typeof prev==='number'?prev:72), _prevInt=0; beatsPos.forEach((bp,bi)=>{ const useSp=(ctPc2&&bp>=splitBp); const ct=(_mcl.length>1)?ctMelAt(bp):(useSp?ctMel2:ctMel);
-        /* ── 강박을 전부 화음음으로 스냅하지 않는다 ──
-           snapCt 가 모든 강박을 화음음으로 끌어당기면 선율이 근음·3도·5도만
-           짚으며 뛰어다녀 아르페지오처럼 들린다
-           (실측 42장르: 화음음 89~94% · 순차 22~29% · 3도 도약 33~47%.
-            노래하는 선율은 순차가 60~70%다.
-            '화음음을 있으니까 쓴다' 는 지적의 실체가 여기다).
-
-           앞 강박에서 3도 이상 뛰게 되는 자리는 음계음 그대로 두어
-           순차로 잇는다. 그 음은 비화성음이 되지만 다음 강박이 화음음이므로
-           경과음·계류음으로 해결된다 — 이것이 선율의 어법이다.
-           첫 마디 첫 박과 마지막 마디는 뼈대를 지켜야 하므로 건드리지 않는다. */
-        const _raw=scaleMidis[cl(baseIdx+(con[bi]||0))];
-        let m=snapCt(_raw,ct);
-        if(!last && bi>0 && bm[beatsPos[bi-1]]!=null){
-          const _pb=bm[beatsPos[bi-1]];
-          if(Math.abs(m-_pb)>=3){
-            /* 앞 강박에서 순차로 갈 수 있는 음계음을 찾는다 */
-            const _dir=(m>_pb)?1:-1;
-            const _step=scaleMidis[cl(nearIdx(_pb)+_dir)];
-            if(_step!=null && Math.abs(_step-_pb)<=2 && Math.abs(_step-m)<=4 && RND()<0.62){
-              m=_step;
-            }
-          }
-        }
+        let m=snapCt(scaleMidis[cl(baseIdx+(con[bi]||0))],ct);
         if(!last && !(bi===0&&si===0) && !prevNCT){ const rr=RND(); // 강박에 코드톤만 두지 않기(단, 텐션 뒤 강박은 코드톤으로 해결)
           if(rr<pTens){ const _cc=(_mcl.length>1)?chordAtBp(bp):null; const tp=_cc?tensFor(_cc.rel,_cc.q):tensFor(useSp?st[4][0]:st[1], useSp?st[4][1]:st[2]); if(tp.length){ m=pcNear(tp[Math.floor(RND()*tp.length)], m); prevNCT=true; } } // 텐션음(박별 코드 반영)
           else if(rr<pTens+pApp){ m=scaleMidis[cl(nearIdx(m)+(RND()<0.6?1:-1))]; prevNCT=true; } // 전타음(코드톤 이웃 → 다음 음이 스텝으로 해결)
           else prevNCT=false;
         } else prevNCT=false;
-        if(Math.abs(_prevInt)>=4 && RND()<0.72){ const dir=(_prevInt>0)?-1:1; m=snapCt(scaleMidis[cl(nearIdx(_prevBm)+dir)],ct); } // 도약 후 풀기: 직전이 도약(4반음↑)이면 반대방향 순차로 해결
+        /* 도약 후 풀기 — 직전이 도약이면 반대 방향 순차로 해결한다.
+           다만 프레이즈 윤곽이 그 방향으로 계속 올라가라고 할 때는 꺾지 않는다.
+           무조건 꺾으면 선율이 매 음마다 방향을 바꿔 위아래로 튄다
+           (실측: 프레이즈 윤곽은 방향 지속 3.50 인데
+            골격 단계에서 0.75, 기능음 배치 뒤 0.25 로 떨어졌다.
+            72% 확률로 반대로 꺾는 이 줄이 그 원인이다). */
+        {
+          const _want=(_seg && bi>0 && _seg[bi]!=null && _seg[bi-1]!=null)?(_seg[bi]-_seg[bi-1]):0;
+          const _same=(_want!==0) && ((_want>0)===(_prevInt>0));
+          if(Math.abs(_prevInt)>=4 && !_same && RND()<0.72){
+            const dir=(_prevInt>0)?-1:1; m=snapCt(scaleMidis[cl(nearIdx(_prevBm)+dir)],ct);
+          }
+        }
         if(bi>0 && bm[beatsPos[bi-1]]!=null){ const pb=bm[beatsPos[bi-1]]; while(m-pb>7 && m-12>=loR) m-=12; while(pb-m>7 && m+12<=hiR) m+=12; } // 골격 도약 6도 이내(같은 코드톤 옥타브) — 성악 흐름
         else if(bi===0 && typeof prev==='number'){ while(m-prev>9 && m-12>=loR) m-=12; while(prev-m>9 && m+12<=hiR) m+=12; } // 마디 첫 골격도 직전 음에서 무리하게 뛰지 않게
         bm[bp]=Math.max(loR,Math.min(hiR,m)); _prevInt=bm[bp]-_prevBm; _prevBm=bm[bp]; });
+      /* ── 기능 목표음을 골격에 앉힌다 ──
+         이 마디가 딸림이면 마지막 강박을 이끔음(또는 딸림7도)으로,
+         앞이 딸림이고 이 마디가 으뜸이면 첫 강박을 해결음으로 둔다.
+         나머지 강박은 그대로 두어 모티프 윤곽을 지킨다. */
+      if(_goal[si] && beatsPos.length){
+        const _g=_goal[si];
+        const _put=function(bp){
+          const cur=bm[bp]; if(cur==null) return;
+          let best=null, bd=99;
+          for(let o=-1;o<=1;o++){
+            const m2=cur-(((cur%12)-_g.pc+12)%12)+o*12;
+            if(m2<loR-2 || m2>hiR+2) continue;
+            const d=Math.abs(m2-cur);
+            if(d<bd){ bd=d; best=m2; }
+          }
+          if(best!=null && bd<=4) bm[bp]=Math.max(loR,Math.min(hiR,best));
+        };
+        if(_g.kind==='RES') _put(beatsPos[0]);                       /* 해결은 첫 강박에 */
+        else _put(beatsPos[beatsPos.length-1]);                      /* 기능음은 마디 끝에 */
+      }
       if(role && !last && (si%4)===1 && beatsPos.length){ const lastBp=beatsPos[beatsPos.length-1]; const openPc=(((tonic+7)%12)+12)%12; bm[lastBp]=Math.max(loR,Math.min(hiR,pcNear(openPc,bm[lastBp]))); } // 질문(2마디) 끝을 딸림음으로 열기
       if(!last && n>=4 && si===Math.floor(n/2)-1 && beatsPos.length){ const lastBp=beatsPos[beatsPos.length-1]; const openPc=(((tonic+7)%12)+12)%12; bm[lastBp]=Math.max(loR,Math.min(hiR,pcNear(openPc,bm[lastBp]))); } // 전반부 끝=반종지(질문): 딸림으로 열고 → 마지막 마디 정격종지(대답)
       if(si===_peakIdx && beatsPos.length && !last){ let topBp=beatsPos[0]; beatsPos.forEach(bp=>{ if(bm[bp]>bm[topBp])topBp=bp; }); const climax=Math.min(hiR,scaleMidis[cl(nearIdx(bm[topBp])+2)]); bm[topBp]=Math.max(loR,Math.min(hiR,climax)); } // 정점 마디: 최고 골격음을 음역 상단으로 끌어올려 클라이막스 뚜렷이
@@ -22466,34 +22609,93 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         let endPc=(cadence==='half')?dPc:(ct.indexOf(tPc)>=0?tPc:ct[0]); // 질문=딸림(열림)/대답=으뜸
         bm[beatsPos[beatsPos.length-1]]=pcNear(endPc,bm[beatsPos[beatsPos.length-1]]); }
       const durBeats=meterQuarters();
+      /* ══ 선을 음 단위로 먼저 그린다 ══
+         강박이 마디당 둘뿐이라 골격만으로는 선이 생기지 않는다
+         (실측: beatsPos.length=2 · 골격 방향 지속 0.5~1.2 · 최종 1.5~1.9.
+          노래하는 선율은 2.5~3.5다).
+         선율의 대부분은 약박이 만드는데, 약박이 경과음 규칙으로만 채워져
+         방향을 잇지 못했다.
+
+         이 마디의 모든 음 자리(rm)에 대해 선을 먼저 그린 뒤
+         그 선에 화음음·음계음을 배정한다. 선이 주인이다. */
+      const _rmLine=(function(){
+        const L=[];
+        const startI=nearIdx(bm[beatsPos[0]]!=null?bm[beatsPos[0]]:_prevBm);
+        const endI=nearIdx(bm[beatsPos[beatsPos.length-1]]!=null?bm[beatsPos[beatsPos.length-1]]:_prevBm);
+        /* 마디 안에서 시작 골격 → 끝 골격으로 가는 선.
+           프레이즈 윤곽(_seg)이 마디 간 방향을 이미 정했으므로
+           그 방향을 따라 한 계단씩 걷는다. */
+        const steps=rm.length;
+        if(steps<=1) return [startI];
+        /* 마디를 넘어 방향을 잇는다.
+           마디마다 선을 새로 그리면 경계에서 방향이 리셋되어
+           방향 지속이 1.5 안팎에 갇힌다.
+           직전 마디에서 오던 방향(_carryDir)을 이어받아 시작하고,
+           목표에 도착한 뒤에도 그 방향으로 조금 더 걷는다. */
+        const span=endI-startI;
+        let dir=(span>0)?1:((span<0)?-1:(_carryDir||1));
+        if(span===0 && _carryDir) dir=_carryDir;
+        /* 음이 적은 마디는 목표 도달을 앞당겨 방향 여유를 만든다.
+           마지막까지 목표를 향해 걸으면 매 걸음이 목표 보정에 쓰여
+           방향이 이어질 자리가 없다
+           (실측: 리듬 셀이 성긴 캐논/발라드·시티팝·보사노바가
+            방향 지속 1.4~1.5로 오히려 나빠졌다.
+            음이 많은 팝/발라드는 2.0까지 올랐다).
+           앞 60% 안에 목표에 닿고, 남은 자리는 오던 방향으로 걷는다. */
+        /* 도달 지점은 음 수에 따라 다르다.
+           음이 많으면 늦게 닿아도 뒤에 걸을 자리가 남지만(팝/발라드 2.0),
+           음이 적으면 일찍 닿아야 방향 여유가 생긴다(시티팝 1.4 -> 1.7).
+           반대로 음이 많은데 일찍 닿게 하면 남은 구간이 길어져
+           한 방향으로만 흘러가다 음역 끝에서 꺾인다(팝/발라드 2.0 -> 1.6).
+           음 수로 갈라 준다. */
+        const reachBy=Math.max(1, Math.round((steps-1)*(steps>=6?0.78:0.55)));
+        for(let k=0;k<steps;k++){
+          let want;
+          if(k===0) want=startI;
+          else {
+            const prevV=L[k-1];
+            const remain=endI-prevV;
+            if(k<=reachBy && remain!==0){
+              /* 도달 구간 — 목표까지 남은 거리를 남은 걸음에 나눠 걷는다 */
+              const left=reachBy-k+1;
+              want=prevV+((Math.abs(remain)>=left)?((remain>0)?1:-1):((remain>0)?1:-1));
+              if(Math.abs(remain)<left && ((k-1)%2===1)) want=prevV;   /* 여유가 있으면 쉬어 간다 */
+            } else {
+              /* 도달 후 — 오던 방향으로 계속 걷는다. 이것이 선을 만든다 */
+              want=prevV+dir;
+            }
+          }
+          L.push(want);
+        }
+        /* 마지막 음은 골격 목표 근처로만 당긴다 — 방향을 꺾지 않는 선에서.
+           그대로 endI 로 못박으면 마지막 걸음이 늘 반대로 꺾여
+           지그재그가 다시 생긴다. */
+        {
+          const lastV=L[steps-1], gap=endI-lastV;
+          if(Math.abs(gap)>2) L[steps-1]=lastV+((gap>0)?2:-2);
+        }
+        _carryDir=(L[steps-1]>L[Math.max(0,steps-2)])?1:((L[steps-1]<L[Math.max(0,steps-2)])?-1:dir);
+        return L;
+      })();
       rm.forEach((pos,ri)=>{
         const strong=beatsPos.indexOf(pos)>=0;
         const lastNote=(last && pos===rm[rm.length-1]);
         const anteLastNote=(!last && n>=4 && si===Math.floor(n/2)-1 && pos===rm[rm.length-1]); // 전반부 끝 마디 마지막 음 = 반종지(질문)
         let pick;
         if(strong){ pick=bm[pos]; }
-        else { // 약박: 속한 그룹의 시작 강박 a → 다음 강박 b 사이 경과음
+        else { // 약박: 이 마디의 선을 따라간다
           let pb=beatsPos[0]; for(const bp of beatsPos){ if(bp<=pos) pb=bp; }
           const nbi=beatsPos.indexOf(pb)+1, nb=nbi<beatsPos.length?beatsPos[nbi]:1.0;
           const a=bm[pb], aIdx=nearIdx(a);
           const b=(nbi<beatsPos.length)?bm[beatsPos[nbi]]:null;
-          if(b!=null && b!==a){ const bIdx=nearIdx(b), span=bIdx-aIdx, frac=(pos-pb)/(nb-pb);
+          /* 선이 정한 자리를 우선 쓴다 — 방향이 이어진다.
+             선이 없으면 예전 경과음 규칙으로 물러난다. */
+          if(_rmLine && _rmLine[ri]!=null){
+            pick=scaleMidis[cl(_rmLine[ri])];
+          }
+          else if(b!=null && b!==a){ const bIdx=nearIdx(b), span=bIdx-aIdx, frac=(pos-pb)/(nb-pb);
             pick=scaleMidis[cl(aIdx+Math.round(span*frac))];
-            if(pick===a) pick=scaleMidis[cl(aIdx+(span>0?1:-1))];
-            /* 경과음이 앞 음에서 3도 이상 뛰면 선율이 아니라 아르페지오가 된다.
-               두 강박이 멀 때 span*frac 이 한 번에 여러 계단을 건너뛰기 때문이다
-               (실측 42장르: 순차 22~29% · 3도 도약 33~47%.
-                노래하는 선율은 순차가 60~70%다).
-               직전 음에서 한 계단씩만 움직이게 눌러 준다 —
-               목적지(b)로 가는 방향은 유지하므로 프레이즈 윤곽은 그대로다. */
-            if(typeof prev==='number'){
-              const _pi=nearIdx(prev), _ti=nearIdx(pick);
-              if(Math.abs(_ti-_pi)>=2){
-                const _one=scaleMidis[cl(_pi+((_ti>_pi)?1:-1))];
-                if(_one!=null) pick=_one;
-              }
-            }
-          }   // 경과음
+            if(pick===a) pick=scaleMidis[cl(aIdx+(span>0?1:-1))]; }   // 경과음
           else pick=scaleMidis[cl(aIdx+(RND()<0.5?1:-1))];    // 보조음
           if(b!=null && opts.scale!=='pentatonic' && frac2Chrom(pos,pb,nb) && RND()<pChrom){ pick=b+(b>a?-1:1); } // 다음 강박으로 반음 접근
         }
@@ -25794,6 +25996,272 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     });
     return moved;
   }
+  /* ── 선율의 화성 어법 ──
+     선율은 화음음을 아무거나 짚는 것이 아니라 화성 진행이 요구하는 대로 움직인다.
+     (실측 42장르: 유도음 해결 0~24% · 가이드톤 연결 0~33% · 도약 후 처리 2~20%.
+      클래식은 유도음 해결과 가이드톤이 둘 다 0%였다 —
+      화음음만 골라 짚으니 '화성에 안 맞게' 들린 실체가 여기다.)
+
+     세 가지가 선율을 화성에 붙인다.
+
+       유도음 해결   7도는 아래로, 이끔음은 위로 순차 해결한다.
+                    이 둘은 그대로 두면 다음 화음에서 걸린다.
+       가이드톤 연결  앞 화음의 3도·7도는 다음 화음의 7도·3도로 순차 이동한다.
+                    화성 진행이 들리는 것은 이 선 때문이다.
+       도약 후 메움   4도 이상 뛴 뒤에는 반대 방향 순차로 되돌아온다.
+
+     화음이 바뀌는 자리의 첫 음만 손댄다 — 그 자리가 화성이 바뀌는 지점이고,
+     나머지는 선율선에 맡긴다. 난수를 쓰지 않으므로 곡 자체는 달라지지 않는다. */
+  function melHarmIdiom(ev, gkey, barPcs, barRoot, barLen, padTick, tpq){
+    if(gkey!=='melody' && gkey!=='vocal' && gkey!=='counter') return ev;
+    if(!barPcs || !barPcs.length || !barRoot || !barRoot.length) return ev;
+    const open={}, seq=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push({on:i, tick:e.tick}); }
+      else if(e.on===0){ const q=open[e.note];
+        if(q&&q.length){ const o=q.shift(); seq.push({on:o.on, off:i, a:o.tick, b:e.tick, note:e.note}); } }
+    });
+    if(seq.length<3) return ev;
+    seq.sort(function(x,y){ return x.a-y.a; });
+    const barOf=function(t){ return barAtTick(t, padTick, barLen); };
+    const setN=function(n,m){ if(ev[n.on]&&ev[n.off]){ ev[n.on].note=m; ev[n.off].note=m; n.note=m; } };
+    /* 그 화음 안에서 목표 음정(iv)에 가장 가까운 실제 음을 찾는다 */
+    const near=function(pc, ref){
+      let best=null, bd=99;
+      for(let o=-2;o<=2;o++){
+        const m=ref+o*12 + (((pc-(ref%12))%12+12)%12);
+        for(const mm of [m, m-12]){
+          const d=Math.abs(mm-ref);
+          if(((mm%12)+12)%12===pc && d<bd && mm>=36 && mm<=96){ bd=d; best=mm; }
+        }
+      }
+      return best;
+    };
+    for(let i=1;i<seq.length;i++){
+      const pv=seq[i-1], cu=seq[i];
+      const pb=barOf(pv.a), cb=barOf(cu.a);
+      if(pb===cb) continue;                       /* 같은 마디 — 화음이 그대로다 */
+      if(!(cb>=0&&cb<barRoot.length) || !(pb>=0&&pb<barRoot.length)) continue;
+      const pr=barRoot[pb], cr=barRoot[cb];
+      const pcs=barPcs[cb];
+      if(pr==null || cr==null || !pcs || !pcs.length) continue;
+      if(pr===cr) continue;                       /* 화음이 안 바뀌었다 */
+      const piv=(((pv.note-pr)%12)+12)%12;
+      let want=null;
+      /* ① 유도음 해결 — 7도는 아래로, 이끔음은 위로 */
+      if(piv===10 || piv===11){ want=pv.note+((piv===11)?1:-1); }
+      else if(piv===5){ want=pv.note-1; }         /* 4도(11도)는 3도로 내려 푼다 */
+      /* ② 가이드톤 연결 — 다음 화음의 3도나 7도로 순차 이동한다.
+         (실측: 화음 전환 직전 음이 근음(0)과 5도(7)에 몰려 있었다 —
+          classic 근음 9 · 5도 15 · 3도 7 · 7도 0.
+          3도·7도에서 출발할 때만 보면 걸리는 자리가 거의 없다.
+          어디서 출발하든 다음 화음의 가이드톤으로 순차로 가는 것이
+          화성 진행을 들리게 만드는 선이다.) */
+      else {
+        const t3=(((cr+4)%12)+12)%12, t3b=(((cr+3)%12)+12)%12;
+        const t7=(((cr+10)%12)+12)%12, t7b=(((cr+11)%12)+12)%12;
+        const cands=[];
+        [t3,t3b,t7,t7b].forEach(function(pc){ if(pcs.indexOf(pc)>=0) cands.push(pc); });
+        let best=null, bd=99;
+        cands.forEach(function(pc){
+          const m=near(pc, pv.note);
+          if(m==null) return;
+          const d=Math.abs(m-pv.note);
+          if(d>0 && d<=2 && d<bd){ bd=d; best=m; }   /* 순차로 갈 수 있는 것만 */
+        });
+        if(best!=null) want=best;
+      }
+      if(want==null) continue;
+      /* 그 음이 다음 화음에 없으면 화음음 중 순차로 갈 수 있는 것을 고른다 */
+      const wpc=(((want%12)+12)%12);
+      if(pcs.indexOf(wpc)<0){
+        let alt=null, ad=99;
+        pcs.forEach(function(pc){
+          const m=near(pc, pv.note);
+          if(m==null) return;
+          const d=Math.abs(m-pv.note);
+          if(d>0 && d<=2 && d<ad){ ad=d; alt=m; }
+        });
+        if(alt==null) continue;
+        want=alt;
+      }
+      if(want<36 || want>96) continue;
+      if(want===cu.note) continue;
+      if(Math.abs(want-cu.note)>4) continue;      /* 원래 음에서 너무 멀면 윤곽이 깨진다 */
+      setN(cu, want);
+    }
+    /* ③ 도약 후 메움 — 4도 이상 뛴 다음 음은 반대 방향 순차로 */
+    for(let i=1;i<seq.length-1;i++){
+      const d1=seq[i].note-seq[i-1].note;
+      if(Math.abs(d1)<5) continue;
+      const nx=seq[i+1];
+      const d2=nx.note-seq[i].note;
+      if(d1*d2<0 && Math.abs(d2)<=2) continue;    /* 이미 메우고 있다 */
+      const bi=barOf(nx.a);
+      if(!(bi>=0&&bi<barPcs.length)) continue;
+      const pcs=barPcs[bi]; if(!pcs||!pcs.length) continue;
+      const dir=(d1>0)?-1:1;
+      let best=null, bd=99;
+      for(let s=1;s<=2;s++){
+        const m=seq[i].note+dir*s;
+        if(m<36||m>96) continue;
+        if(pcs.indexOf((((m%12)+12)%12))>=0){ if(s<bd){ bd=s; best=m; } }
+      }
+      if(best!=null && Math.abs(best-nx.note)<=4) setN(nx, best);
+    }
+    return ev;
+  }
+  /* ── 화성 기능에 따른 선율 ──
+     화음마다 조성 안에서 맡은 기능이 있고, 그 기능에는 움직여야 하는 음이 있다.
+     선율이 그 음을 짚고 제대로 풀어야 화성 진행이 들린다.
+
+       딸림(V)    이끔음(조의 7음)은 으뜸음으로 올라가야 한다
+                 딸림7화음의 7도(조의 4음)는 3음으로 내려가야 한다
+                 이 둘이 딸림화음의 정체다
+       버금딸림(IV·ii)  조의 4음·6음이 색을 낸다
+       으뜸(I·vi)  해결이 도착하는 자리 — 으뜸음·3음이 안정하다
+
+     (실측: 이끔음은 30~92%로 나오는데 해결이 0~100%로 들쭉날쭉했다.
+      클래식·시티팝은 이끔음을 짚고도 해결이 0%였다.
+      딸림7화음의 7도는 0~66%로 거의 안 나왔다 —
+      기능음을 모르고 화음음을 아무거나 짚은 결과다.)
+
+     난수를 쓰지 않는다 — 곡 자체는 달라지지 않는다. */
+  function melFunctionTone(ev, gkey, barPcs, barRoot, barLen, padTick, tpq, keyTonic){
+    if(gkey!=='melody' && gkey!=='vocal') return ev;
+    if(!barPcs || !barPcs.length || !barRoot || !barRoot.length) return ev;
+    if(keyTonic==null) return ev;
+    const open={}, seq=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push({on:i, tick:e.tick}); }
+      else if(e.on===0){ const q=open[e.note];
+        if(q&&q.length){ const o=q.shift(); seq.push({on:o.on, off:i, a:o.tick, b:e.tick, note:e.note}); } }
+    });
+    if(seq.length<3) return ev;
+    seq.sort(function(x,y){ return x.a-y.a; });
+    const T=(((keyTonic%12)+12)%12);
+    const LT=(T+11)%12;                 /* 이끔음 — 조의 7음 */
+    const SUB=(T+5)%12;                 /* 조의 4음 — 딸림7의 7도 */
+    const MED=(T+4)%12, MED3=(T+3)%12;  /* 조의 3음 */
+    const barOf=function(t){ return barAtTick(t, padTick, barLen); };
+    const setN=function(n,m){ if(ev[n.on]&&ev[n.off]){ ev[n.on].note=m; ev[n.off].note=m; n.note=m; } };
+    const nearPc=function(pc, ref){
+      let best=null, bd=99;
+      for(let o=-1;o<=1;o++){
+        let m=ref-(((ref%12)-pc+12)%12)+o*12;
+        const d=Math.abs(m-ref);
+        if(m>=36 && m<=96 && d<bd){ bd=d; best=m; }
+      }
+      return best;
+    };
+    /* 마디별 음 묶음 */
+    const byBar={};
+    seq.forEach(function(n){ const b=barOf(n.a); (byBar[b]=byBar[b]||[]).push(n); });
+    const fnOf=function(bi){
+      const r=barRoot[bi]; if(r==null) return null;
+      const deg=(((r-T)%12)+12)%12;
+      if(deg===7 || deg===11) return 'D';          /* V · vii */
+      if(deg===5 || deg===2) return 'S';           /* IV · ii */
+      if(deg===0 || deg===9 || deg===4) return 'T';/* I · vi · iii */
+      return null;
+    };
+    for(let bi=0;bi<barRoot.length;bi++){
+      if(fnOf(bi)!=='D') continue;
+      const cur=byBar[bi]; if(!cur || !cur.length) continue;
+      const pcs=barPcs[bi]; if(!pcs||!pcs.length) continue;
+      /* ① 딸림마디의 마지막 음을 기능음으로 — 이끔음이 우선, 없으면 7도 */
+      const last=cur[cur.length-1];
+      const hasLT=(pcs.indexOf(LT)>=0), hasSV=(pcs.indexOf(SUB)>=0);
+      let tgt=null;
+      if(hasLT) tgt=nearPc(LT, last.note);
+      else if(hasSV) tgt=nearPc(SUB, last.note);
+      if(tgt!=null && Math.abs(tgt-last.note)<=2 && tgt!==last.note)setN(last, tgt);
+      /* ② 다음 마디 첫 음을 해결음으로.
+         기준은 마디의 마지막 음이 아니라 **그 마디에서 마지막으로 나온 기능음**이다.
+         이끔음이 마디 중간에 나오고 뒤에 다른 음이 붙는 일이 흔한데,
+         그때도 그 이끔음은 해결되어야 한다
+         (실측: 이끔음 출현 30~92% 인데 해결 0~100% 로 들쭉날쭉했던 이유). */
+      const nb=byBar[bi+1];
+      if(!nb || !nb.length) continue;
+      const nf=fnOf(bi+1);
+      if(nf!=='T') continue;                       /* 으뜸으로 갈 때만 해결한다 */
+      const npcs=barPcs[bi+1]; if(!npcs||!npcs.length) continue;
+      let fn=null;
+      for(let z=cur.length-1;z>=0;z--){
+        const pcz=(((cur[z].note%12)+12)%12);
+        if(pcz===LT || pcz===SUB){ fn=cur[z]; break; }
+      }
+      if(fn==null) continue;
+      const lp=(((fn.note%12)+12)%12);
+      const first=nb[0];
+      let res=null;
+      if(lp===LT && npcs.indexOf(T)>=0) res=fn.note+1;                /* 이끔음 → 으뜸음 */
+      else if(lp===SUB){                                              /* 4음 → 3음 */
+        if(npcs.indexOf(MED)>=0) res=fn.note-1;
+        else if(npcs.indexOf(MED3)>=0) res=fn.note-2;
+      }
+      if(res==null) continue;
+      if(res<36 || res>96) continue;
+      if(npcs.indexOf((((res%12)+12)%12))<0) continue;
+      if(Math.abs(res-first.note)>4) continue;     /* 원래 음에서 너무 멀면 윤곽이 깨진다 */
+      if(res!==first.note)setN(first, res);
+    }
+    return ev;
+  }
+  /* ── 오케스트라 층 쌓기 ──
+     오케스트라는 구간마다 악기가 하나씩 얹혀야 규모가 커지는 것이 들린다.
+     지금은 현·하프·팀파니·콘트라베이스가 stage 조건 없이 1단계부터 나오고
+     호른(4)·저금관(5)·합창(5)·심벌(5)이 뒤에 한꺼번에 붙는다
+     (실측 7장르: 구간별 계열 수가 [0,3,5,5,6,6,6] 처럼
+      두세 구간 만에 최대치에 닿고 끝까지 평평했다.
+      등장 순서도 현 -> 건반 -> 금관 -> 저역 이라 저역이 나중이었다).
+
+     계단을 만든다. 저역이 바닥을 깔고 위로 쌓는다.
+
+       1단계  콘트라베이스 · 현        바탕
+       2단계  하프                    색
+       3단계  팀파니                  맥박
+       4단계  호른                    노래
+       5단계  저금관 · 합창            무게
+       6단계  심벌                    절정
+
+     이벤트를 만든 뒤 아직 층이 오지 않은 구간의 음을 걷어낸다 —
+     생성 코드를 건드리지 않으므로 어법은 그대로다. */
+  const ORCH_STAGE={ cbass:1, cinestr:1, harp:2, timpani:3, pad:3, horns:4, lowbrass:5, choir:5, sub:5, orchcym:6 };
+  function orchLayer(ev, grole, SEC_TK, tpq){
+    if(!CINE.has(gsel) && gsel!=='epicaeol' && gsel!=='classic') return ev;
+    const need=ORCH_STAGE[grole];
+    if(need==null || need<=1) return ev;
+    if(!currentSong || !currentSong.length || !SEC_TK) return ev;
+    /* 층이 아직 안 온 구간의 시간 범위를 모은다 */
+    const cut=[];
+    currentSong.forEach(function(sec,si){
+      if((sec.stage||3) >= need) return;
+      const tk=SEC_TK[si];
+      if(!tk) return;
+      cut.push([tk.start, tk.start + tk.bars*tk.meas]);
+    });
+    if(!cut.length) return ev;
+    const inCut=function(t){
+      for(let i=0;i<cut.length;i++){ if(t>=cut[i][0] && t<cut[i][1]) return true; }
+      return false;
+    };
+    /* 그 구간에서 시작한 음은 짝(on/off)째로 뺀다 */
+    const drop={};
+    ev.forEach(function(e){
+      if(e.cc!=null || e.note==null || e.tick==null) return;
+      if(e.on===1 && inCut(e.tick)){ (drop[e.note]=drop[e.note]||0); drop[e.note]++; e._x=1; }
+    });
+    const open={};
+    ev.forEach(function(e){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1 && e._x){ open[e.note]=(open[e.note]||0)+1; }
+      else if(e.on===0 && open[e.note]){ open[e.note]--; e._x=1; }
+    });
+    return ev.filter(function(e){ return !e._x; });
+  }
   function spillGate(ev, gkey, barPcs, barLen, padTick, tpq, melEv){
     if(!barPcs || !barPcs.length) return ev;
     if(!spillTarget(gkey)) return ev;
@@ -27311,19 +27779,6 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       const strongBeat=(Math.abs(beat)<0.12) || (Math.abs(beat-2)<0.12);
       const longEnough=(onBeat && strongBeat && dur>=0.75) || (dur>=0.5);
       if(!longEnough) return;
-      /* 앞뒤 음과 순차로 이어지는 음은 경과음·계류음이다 — 화음음으로 되돌리면
-         선율이 다시 화음음만 짚으며 뛰어다닌다
-         (실측: genMelody 에서 순차를 늘려도 강박 화음음이 100%로 되돌아왔다.
-          순차 22~29% · 3도 도약 33~47% 로 아르페지오처럼 들리던 원인).
-         선율은 화음음 사이를 순차로 잇는 것이 어법이고,
-         그 사이 음이 비화성음인 것은 정상이다. */
-      if(prevPick!=null){
-        const _iN=seq.indexOf(n);
-        const _nx=(_iN>=0 && _iN+1<seq.length)?seq[_iN+1].note:null;
-        const _din=Math.abs(n.note-prevPick);
-        const _dout=(_nx!=null)?Math.abs(_nx-n.note):99;
-        if(_din<=2 && _dout<=2){ prevPick=n.note; return; }   /* 양쪽 순차 = 경과음 */
-      }
       const iv=(((n.note-root)%12)+12)%12;
       /* 그 화음에 실제로 있는 음만 뼈대로 인정한다.
          CHORD_CORE에 ♭7(10)이 있어 3화음에서도 ♭7을 뼈대로 보고 통과시키고 있었다
@@ -29481,6 +29936,11 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          텐션만 떠다니면 화성과 따로 노는 소리가 난다 */
       ev=melCoreAnchor(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       /* 같은 음이 세 번 이상 이어지면 화음 안에서 비켜 준다 */
+      /* 화성 기능음 — 이끔음·딸림7도를 짚고 으뜸으로 해결한다.
+         가이드톤보다 먼저 건다 — 기능음이 뼈대이고 가이드톤은 그 사이를 잇는 선이다. */
+      ev=melFunctionTone(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, TPQ, tonic); ev=coalesceNotes(ev);
+      /* 선율의 화성 어법 — 유도음 해결·가이드톤 연결·도약 후 메움 */
+      ev=melHarmIdiom(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
       ev=melRepeatBreak(ev, grp.key, __barPcs, __barLen, PAD); ev=coalesceNotes(ev);
       /* 첫박이 근음으로만 이어지면 일부를 3도로 — 노래가 화음을 읊지 않게 */
       ev=downbeatVariety(ev, grp.key, __barPcs, __barRoot, __barLen, PAD, TPQ); ev=coalesceNotes(ev);
@@ -29597,6 +30057,8 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          레가토 바로 뒤에 두었을 때는 관문이 돌고 자르기도 했는데(classic 4건·rumba 5건)
          뒤의 famArticulate 가 계열 규칙대로 길이를 다시 늘려 효과가 남지 않았다.
          세 앱에서 여섯 번째 겪는 같은 실패다. */
+      /* 오케스트라 층 쌓기 — 아직 층이 안 온 구간의 음을 걷어낸다 */
+      ev=orchLayer(ev, grp.role, SEC_TK, TPQ);
       ev=phraseBreath(ev, grp.key, SEC_TK, TPQ);
       ev.sort((a,b)=>(a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on))); doneNotes[grp.key]={ch:grp.ch, iv:pairIv(ev)};
       /* 저역 정리를 위해 이벤트 배열 자체를 보관한다.
