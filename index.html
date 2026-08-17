@@ -23247,13 +23247,35 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
          한 마디 안에서 16분과 셋잇단을 섞지 않는 것이 표기 원칙이다. */
       const gridFor=function(list){
         if(comp) return 3;
-        let trip=0, dense=0;
+        /* 스윙 장르는 박의 바탕이 셋잇단이다. 16분 격자로 반올림하면
+           스윙 8분(0.667)이 0.75 로 밀려 정박도 스윙도 아닌 자리가 된다
+           (실측 jazz: 확정본 1.667 · 악보 1.75 — 그 악보를 보고 치면 스윙이 안 된다).
+           스윙이 걸린 장르는 마디마다 세지 말고 처음부터 셋잇단 격자를 쓴다. */
+        /* 문턱은 0.5 가 아니라 0.6 이다.
+           lofi·neosoul 은 0.54 — 뒤로 살짝 눕는 정도라 정박(0.5)에 훨씬 가깝다.
+           그것을 셋잇단(0.667)으로 그리면 악보가 실제보다 훨씬 늦게 치라고 말한다
+           (실측: 악보 1.667 · 확정본 1.540 — 0.127박 차이로 52~86음이 어긋났다).
+           진짜 스윙(jazz 0.667 · gypsy 0.64)만 셋잇단 격자로 그린다. */
+        if(typeof SWING_G!=='undefined' && SWING_G[gsel] && SWING_G[gsel]>=0.6) return 3;
+        let trip=0, dense=0, quad=0;
         list.forEach(function(n){
           if(n.midi==null) return;
           dense++;
-          if(Math.abs(pos3(n.pos))<0.02 && Math.abs(n.pos*4-Math.round(n.pos*4))>0.02) trip++;
+          const t3=Math.abs(pos3(n.pos))<0.02, q4=Math.abs(n.pos*4-Math.round(n.pos*4))<0.02;
+          if(t3 && !q4) trip++;
+          if(q4 && !t3) quad++;
         });
-        if(trip*2>dense) return 3;          /* 셋잇단이 절반 넘음 — 셋잇단 마디 */
+        /* 셋잇단이 '절반을 넘어야' 셋잇단 격자를 쓰면, 한두 음뿐인 마디는
+           16분으로 반올림돼 그 음들이 정확히 1/12박(0.083) 밀린다
+           (실측 12장르: 악보 5.25 대 확정본 5.333 · 2.75 대 2.667 — 전부 같은 값이었다).
+           **셋잇단 음이 더 많으면 셋잇단 격자를 쓴다.** 같으면 셋잇단이 우선이다 —
+           16분을 셋잇단 격자에 반올림하면 0.25 가 0.333 으로 밀리지만
+           그 반대(0.333 -> 0.25)보다 귀에 덜 걸린다. */
+        /* 두 방향 다 시도했다. 셋잇단 우선으로 두면 정박 8분(1.5)이 1.667 로 밀린다 —
+           밀리는 양이 16분 우선(0.083)의 두 배다. 한 마디에 두 격자가 진짜로 섞이면
+           어느 쪽을 골라도 다른 쪽이 밀린다. 밀림이 작은 쪽을 쓴다.
+           진짜 해결은 악보에 셋잇단 괄호를 그리거나, 생성에서 격자를 통일하는 것이다. */
+        if(trip*2>dense) return 3;
         if(dense>6) return 8;               /* 촘촘한 선율 — 32분 격자 */
         return 4;                           /* 기본 16분 */
       };
@@ -25584,7 +25606,12 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
   function jazzIdiom(ev, gkey, grole, barPcs, barRoot, barLen, padTick, tpq, melIv){
     const cfg=JAZZFAM[gsel]; if(!cfg) return ev;
     if(!pitchEditable(gkey)) return ev;
-    const isPiano=(gkey==='piano'||gkey==='piano2');
+    /* 루트리스 보이싱은 **왼손 컴핑**의 어법이다. 베이스가 근음을 맡으니
+       피아노가 겹치지 않게 근음을 9도로 올린다.
+       테마 오스티나토(piano2)는 컴핑이 아니라 고역에서 종처럼 울리는 음형이다.
+       거기서 근음을 9도로 바꾸면 그냥 화음 밖 음이 된다
+       (실측 jazz: 오스티나토 239음 중 108음(45%)이 9도 — 전부 이 관문이 만든 것이다). */
+    const isPiano=(gkey==='piano');
     /* 선율은 키가 아니라 역할로 고른다. 장르마다 선율을 맡는 악기가 달라
        키 목록으로 잡으면 그 장르만 관문을 못 받는다
        (실측: bossa 선율이 목록에 없는 키로 나와 텐션 해결이 0/8 그대로였다). */
@@ -26946,6 +26973,26 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      마디 첫박에 왼손 근음이 없으면 넣어 준다. 이미 있으면 손대지 않는다.
      · 음역 C2~B3 — 그 아래는 흐려지고, 위로 가면 오른손과 겹친다
      · 세기는 오른손보다 여리게 — 받쳐 주는 층이지 앞에 나오는 층이 아니다 */
+  /* ── 재즈 컴핑 음가 상한 ──
+     컴핑은 리듬으로 찌르는 것이지 마디를 끄는 것이 아니다.
+     단계 3·4 구간에서 평균 음가가 3.9박(온음표)으로 나와
+     한 마디에 세 음을 놓고 마디 끝까지 끄는 소리가 됐다
+     (실측 jazz: 인트로 0.37박 · 코러스 3.81박 · 솔로 3.86박 · 마지막 코러스 0.89박).
+     찰스턴 컴핑의 음가는 길어야 한 박 반이다. */
+  function compHold(ev, gkey, tpq){
+    if(gkey!=='piano') return ev;
+    if(!(typeof JAZZFAM!=='undefined' && JAZZFAM[gsel])) return ev;
+    const CAP=Math.round(tpq*1.5);
+    const open={};
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push({oi:i, tick:e.tick}); }
+      else if(e.on===0){ const q=open[e.note];
+        if(q&&q.length){ const o=q.shift();
+          if(e.tick-o.tick>CAP) e.tick=o.tick+CAP; } }
+    });
+    return ev;
+  }
   function pianoLeftHand(ev, gkey, barRoot, barLen, padTick, tpq){
     if(gkey!=='piano' || !barRoot || !barRoot.length) return ev;
     /* 마디 전체를 본다. 첫박 15% 구간만 보면 아르페지오나 신코페이션으로
@@ -28516,8 +28563,14 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      가운데를 비운다.
      newage 는 여백이 어법이라 제외한다.
      classic·cineSuite 계열은 이미 고역 29% 로 벌어져 있고 양식이 있으므로 제외한다. */
-  const AIRY_PIANO=new Set(['ballad','pop','citypop','kids','lofi','neosoul','jazz','bossa',
-    'blues','rumba','tango','gypsy','celtic','folk','shanty','gukvocal','rock','hooksong',
+  /* 재즈 계열(jazz·bossa·neosoul·blues·gypsy)은 뺀다.
+     왼손 루트리스 보이싱이 앉는 자리가 바로 C3~E4(48~64) 다 — 그 어법의 정의다.
+     가운데를 비우면 컴핑이 통째로 사라지고 저역 뼈대와 고역 색만 남는다
+     (실측 jazz: compingSplit 뒤 [48,55,55,64,64] 였던 것이
+      airyPiano 뒤 [36,76,79,79,79] 가 됐다 — 한 옥타브씩 밀어 올린 결과다).
+     이 관문을 만든 이유였던 '중역 96~100% 몰림' 은 팝·발라드 계열의 문제다. */
+  const AIRY_PIANO=new Set(['ballad','pop','citypop','kids','lofi',
+    'rumba','tango','celtic','folk','shanty','gukvocal','rock','hooksong',
     'marusa','chanbul','worship','epicaeol']);
   /* 밀도 1 은 아르페지오가 안 들어가 왼손 옥타브만 남는다.
      실측에서 벌스가 마디당 자리 두세 곳뿐이라 밋밋했다.
@@ -30626,6 +30679,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          (실측: 병합 없이 두었을 때 추출 MIDI에서 같은 음 겹침 2,259곳) */
       /* 왼손·저역 배치는 베이스음을 쓴다 — 자리바꿈이면 그 음이 바닥에 와야 한다 */
       ev=pianoLeftHand(ev, grp.key, __barBassPc, __barLen, PAD, TPQ);
+      try{ ev=compHold(ev, grp.key, TPQ); }catch(e){}
       ev=soloBassSpread(ev, grp.key, __barBassPc, __barLen, PAD, TPQ);
       ev=soloTopSpread(ev, grp.key, TPQ);
       ev=bandPianoLift(ev, grp.key, __barBass, __barLen, PAD);
