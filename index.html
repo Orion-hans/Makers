@@ -26043,6 +26043,21 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     });
     if(!iv.length) return ev;
     iv.sort(function(a,b){ return a.on-b.on; });
+    /* 구간 경계에서만 숨을 넣으면 곡 전체에 숨이 예닐곱 번뿐이다.
+       (실측 42장르: 100~280음짜리 곡에서 프레이즈가 2~8개 · 한 프레이즈가 20~90음.
+        노래하는 선율이 스무 음을 쉬지 않고 부를 수는 없다.)
+       구간 안에서도 네 마디마다 숨을 넣는다. 구간 경계는 더 길게 쉰다. */
+    try{
+      var BT=(typeof __BAR_TK!=='undefined' && __BAR_TK && __BAR_TK.length)?__BAR_TK:null;
+      if(BT){
+        var seen={}; edges.forEach(function(x){ seen[x]=1; });
+        for(var bi=4; bi<BT.length; bi+=4){
+          if(!seen[BT[bi]]){ edges.push(BT[bi]); seen[BT[bi]]=1; }
+        }
+        edges.sort(function(x,y){ return x-y; });
+      }
+    }catch(e){}
+    const SECED={}; secTk.forEach(function(x){ if(x&&x.start!=null) SECED[x.start]=1; });
     const BR=Math.round(tpq*0.5);          /* 반 박 숨 */
     edges.forEach(function(ed){
       /* 그 경계 직전에 울리고 있거나 걸쳐 있는 마지막 음 */
@@ -26053,7 +26068,14 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         if(x.off>ed-BR) last=x;            /* 숨 자리를 침범하는 음만 */
       }
       if(!last) return;
-      const cut=Math.max(last.on+Math.round(tpq*0.25), ed-BR);
+      /* 일부러 길게 끄는 음(3박 이상)은 자르지 않는다 — 시네마틱 롱톤이 그 자리다 */
+      if(last.off-last.on >= tpq*3) return;
+      /* 숨 길이. 구간 경계는 한 박, 구간 안의 네 마디 자리는 0.6박.
+         한 박 반·한 박으로 더 늘려 봤더니 '음을 토막내지 않는다' 는 안전장치에 걸려
+         숨이 아예 건너뛰어지는 자리가 늘어 프레이즈가 오히려 줄었다
+         (실측: neosoul 14 -> 10 · lofi 4 -> 1). 늘리는 방향은 여기서 막힌다. */
+      const br=SECED[ed] ? Math.round(tpq*1.0) : Math.round(tpq*0.6);
+      const cut=Math.max(last.on+Math.round(tpq*0.25), ed-br);
       if(cut<last.off && ev[last.offIdx]){ ev[last.offIdx].tick=cut; last.off=cut; }
     });
     return ev;
