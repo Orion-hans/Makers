@@ -19965,6 +19965,16 @@ const document = __scopedDoc('app-play');
      기존 피아노 독주 여섯(lyric 계열·newage·joypiano)은 잔잔한 결이다.
      이 장르는 반대다 — 왼손이 넓게 흩고 오른손 선율이 그 위에 또렷이 선다.
      화성은 팝 발라드의 축 진행에 add9·maj7 색을 얹어 밝고 투명하게 간다. */
+  /* 새 장르는 GROOVE 항목도 만들어야 한다.
+     없으면 박자표·BPM 을 되돌릴 근거가 없어 **앞 장르 값을 물고 온다**
+     (실측: 장르를 차례로 바꿔 가며 만들면 cineDrive·kpiano 가 12/8 로 나왔다.
+      화면에서 하나만 골라 만들면 4/4 였다 — 장르 전환이 초기화를 안 한 것이다). */
+  try{ if(typeof GROOVE!=='undefined'){
+    if(GROOVE.cineSoar && !GROOVE.cineDrive)
+      GROOVE.cineDrive=Object.assign({}, GROOVE.cineTension||GROOVE.cineSoar, {bpm:104, sig:'4/4'});
+    if(GROOVE.lyric && !GROOVE.kpiano)
+      GROOVE.kpiano=Object.assign({}, GROOVE.lyric, {bpm:76, sig:'4/4'});
+  } }catch(e){}
   try{ if(G && G.joypiano && !G.kpiano){
     G.kpiano={ name:'한국 피아노 (서정·화려)',
       note:'왼손이 넓게 흩고 오른손 선율이 또렷이 노래해요. add9·maj7 색 · 클라이맥스에서 옥타브로 두껍게',
@@ -28598,7 +28608,44 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      요즘 가요 반주처럼 흐르지 않는다. 선율 아래 자리를 16분으로 채운다.
      선율은 맨 위에 그대로 두고, 채우는 음은 반드시 선율보다 낮게 둔다 — 묻히면 안 된다.
      newage 는 여백이 어법이므로 넣지 않는다. */
-  const SOLO_RICH=new Set(['lyric','lyricPenta','lyricMid','lyricMinyo','joypiano','kpiano']);
+  /* 라운지에서 재즈 계열은 피아노 한 대가 된다. 그런데 반주가 밴드 컴핑 어법 그대로라
+     독주곡에 컴핑이 깔린 소리가 난다(실측 jazz 라운지: 화음 묶음 50% · 음역 36~76 ·
+     선율은 73~95 로 완전히 갈라져 두 층이 따로 논다).
+     독주 반주는 화음을 흩어 오른손 선율 아래를 채우는 어법이다 — SOLO_RICH 가 그 일을 한다.
+     라운지일 때만 재즈 계열을 그 목록에 넣는다. 일반 모드의 컴핑은 그대로 둔다. */
+  const SOLO_RICH_BASE=new Set(['lyric','lyricPenta','lyricMid','lyricMinyo','joypiano','kpiano']);
+  const SOLO_RICH={ has:function(g){
+    if(SOLO_RICH_BASE.has(g)) return true;
+    try{ return !!(loungeMode && typeof JAZZFAM!=='undefined' && JAZZFAM[g]); }catch(e){ return false; }
+  } };
+  /* 컴핑 위에 독주 반주를 얹으면 두 겹이 된다
+     (실측 jazz 라운지: 5,401음 -> 13,213음 · 마디당 21음).
+     라운지에서 재즈 계열은 컴핑을 솎아 자리를 내준다 —
+     밴드 컴핑은 다른 악기가 있을 때의 어법이고 피아노 한 대에는 필요 없다. */
+  function loungeCompThin(ev, gkey, barLen, padTick){
+    if(gkey!=='piano' || !loungeMode) return ev;
+    if(!(typeof JAZZFAM!=='undefined' && JAZZFAM[gsel])) return ev;
+    const keep={}, drop={};
+    const out=[];
+    ev.forEach(function(e){
+      if(e.cc!=null || e.note==null){ out.push(e); return; }
+      if(e.on===1){
+        const bi=barAtTick(e.tick, padTick, barLen);
+        const k=bi+'|'+e.tick;
+        if(keep[bi]==null) keep[bi]=0;
+        /* 저역 컴핑(64 아래)은 마디당 넷까지만 남긴다 */
+        if(e.note<64){
+          if(keep[bi]>=4){ drop[e.note]=(drop[e.note]||0)+1; return; }
+          keep[bi]++;
+        }
+        out.push(e);
+      } else {
+        if(drop[e.note]){ drop[e.note]--; return; }
+        out.push(e);
+      }
+    });
+    return out;
+  }
   /* ── 피아노 반주 가볍게 ──
      실측: 일반 모드 피아노가 C3~C5 가운데에 96~100% 몰려 있었다
      (ballad 99% · citypop 100% · lofi 100% · pop 98% · jazz 96%).
@@ -29332,6 +29379,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         tempoEvs.push({tick:oStart, bpm:mul(0.90)});                                      // 진입
         tempoEvs.push({tick:oStart+Math.round(oBars*measureTickO*0.5), bpm:mul(0.80)});   // 중반
         tempoEvs.push({tick:oStart+oBars*measureTickO, bpm:mul(ES.type==='hit'?0.72:0.60)}); } } // 끝: 버튼은 덜, 롤/테일은 더 늘어짐
+    try{ window.__SIGAT=currentSig; }catch(e){}
     const sgB=currentSig.split(' ')[0], sgN=+sgB.split('/')[0]||4, sgD=+sgB.split('/')[1]||4, sgDd=Math.round(Math.log2(sgD))||2;
     const secLabelEn={'인트로':'Intro','벌스':'Verse','프리코러스':'Pre-Chorus','코러스':'Chorus','코러스변주':'Chorus var','간주':'Interlude','브릿지':'Bridge','하이라이트':'Highlight','솔로':'Solo','아웃트로':'Outro','전개부':'Development (new motif)'};
     const asc=str=>str.replace(/[^\x00-\x7F]/g,c=>({'♭':'b','♯':'#','–':'-','·':'-'}[c]||'')); // 로직은 메타 텍스트를 Latin-1로 읽어 한글 깨짐 → ASCII로
@@ -30904,6 +30952,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       /* 라운지 왼손 솎기는 **저역 배치 관문들 뒤**에 와야 한다.
          soloBassSpread·loungeOctave 가 뒤에서 다시 저역으로 내리기 때문에
          앞에 두면 솎아 낸 것이 도로 내려온다(실측: 저역 비중이 34% -> 32% 로만 움직였다). */
+      try{ ev=loungeCompThin(ev, grp.key, __barLen, PAD); }catch(e){}
       try{ ev=loungeLeftThin(ev, grp.key, __barLen, PAD, TPQ); ev=coalesceNotes(ev); }catch(e){}
       __pending.push({grp:grp, ev:ev});
     });
@@ -32829,6 +32878,15 @@ return L.join('\n');
   }
   function applyGenreInst(){
   melUserOff=false;   /* 장르가 바뀌면 편성이 새로 잡히므로 사용자 선택도 초기화 */
+  /* 박자표도 초기화한다. 장르를 바꿔도 currentSig 가 그대로 남아
+     앞 장르의 박자표를 물고 온다
+     (실측: 장르를 차례로 바꿔 가며 만들면 cineDrive·kpiano 가 12/8 로 나왔다.
+      화면에서 하나만 골라 만들면 4/4 였다 — 같은 장르인데 결과가 갈린다).
+     그 장르가 GROOVE 에 박자표를 적어 두었으면 그것을, 없으면 4/4 로 되돌린다. */
+  try{ const _gs=(typeof GROOVE!=='undefined' && GROOVE[gsel])?GROOVE[gsel].sig:null;
+       currentSig=_gs||'4/4';
+       const _sel=$('sigSel'); if(_sel && _sel.value!==currentSig) _sel.value=currentSig;
+  }catch(e){}
   __scoreMelFromMidi=null;   /* 장르가 바뀌면 악보 확정본도 버린다 */
   // 결정적 리셋: 장르를 바꾸면 항상 그 장르의 기본 편성이 되도록, 이전 장르의 잔재(악기 on/off·음색 gm·대선율)를 전부 초기화
   INST.brass.on=false; INST.harp.on=false; INST.strings.on=false; INST.winds.on=false; INST.melody.on=false;
