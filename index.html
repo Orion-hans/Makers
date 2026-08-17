@@ -19932,7 +19932,7 @@ const document = __scopedDoc('app-play');
           theory:'i↔V7 왕복을 마르카토 또는 3-3-2로 밟으면 탱고/밀롱가의 댄스 그루브가 살아납니다.'}
       ]}
   };
-  const LYRIC_G=new Set(['lyric','lyricPenta','lyricMid','lyricMinyo','newage','joypiano']);
+  const LYRIC_G=new Set(['lyric','lyricPenta','lyricMid','lyricMinyo','newage','joypiano','kpiano']);
   const SIGH_G=new Set(['ballad']);   // 가요 발라드 어법: 한숨 계류(강박 긴 음 = 윗음 계류 → 아래 해결)
   // ===== 뉴에이지 변환 =====
   // 어느 장르 진행이든 뉴에이지 어법으로 재음성화한다. 근음·기능은 그대로, 화음 색만 바꿈.
@@ -19953,14 +19953,67 @@ const document = __scopedDoc('app-play');
   }); }
   /* 조곡 항목 — G[gsel].progs를 참조하는 코드가 많아 벅차오름 것을 그대로 빌린다.
      실제 곡은 buildCineSuite가 네 무드를 돌며 만든다. */
+  /* ── 시네마틱 — 밀어붙임(짐머 계열) ──
+     스타일을 만드는 것이지 특정 곡을 옮기는 것이 아니다.
+
+     이 계열이 다른 시네마틱과 갈리는 지점은 화성이 아니라 **화성 리듬**이다.
+     화음 하나를 네 마디씩 끌고 가고 그 위에 층만 얹힌다.
+     우리 앱은 steps[bar % steps.length] 로 마디마다 화음을 바꾸므로
+     **진행 자체를 네 번씩 늘려 적으면** 코드를 건드리지 않고 같은 결과가 된다.
+     (진행 이름에 '페달' 을 넣어 PROG 의 '같은 근음 연속' 예외에 걸리게 한다.) */
+  /* ── 한국 피아노 (서정 · 화려) ──
+     기존 피아노 독주 여섯(lyric 계열·newage·joypiano)은 잔잔한 결이다.
+     이 장르는 반대다 — 왼손이 넓게 흩고 오른손 선율이 그 위에 또렷이 선다.
+     화성은 팝 발라드의 축 진행에 add9·maj7 색을 얹어 밝고 투명하게 간다. */
+  try{ if(G && G.joypiano && !G.kpiano){
+    G.kpiano={ name:'한국 피아노 (서정·화려)',
+      note:'왼손이 넓게 흩고 오른손 선율이 또렷이 노래해요. add9·maj7 색 · 클라이맥스에서 옥타브로 두껍게',
+      progs:[
+        {name:'서정 · I–V–vi–IV (add9)', mode:'major',
+         steps:[['Iadd9',0,'add9'],['V',7,'maj'],['vi',9,'min'],['IVmaj7',5,'maj7']],
+         feel:'가장 익숙한 축 진행에 add9 와 maj7 을 얹어 투명하게 열어 둔 소리.',
+         theory:'I–V–vi–IV 축 순환. 9도·장7도가 3화음의 각을 지워 피아노 울림이 길게 남는다.'},
+        {name:'차오름 · vi–IV–I–V', mode:'major',
+         steps:[['vi',9,'min'],['IVmaj7',5,'maj7'],['Iadd9',0,'add9'],['V',7,'maj']],
+         feel:'단화음에서 시작해 장화음으로 열리며 차오르는 결.',
+         theory:'축 순환의 회전형(vi 시작). 시작을 어둡게 두어 열리는 폭을 키운다.'},
+        {name:'투명 · IV–I/3–ii7–V', mode:'major',
+         steps:[['IVmaj7',5,'maj7'],['I',4,'maj'],['ii7',2,'min7'],['V',7,'maj']],
+         feel:'베이스가 순차로 걸어 내려오며 화음이 투명하게 바뀐다.',
+         theory:'I 을 3음 베이스로 두어 IV–I/3–ii 가 순차 하행선을 만든다. 한국 발라드 상투.'},
+        {name:'절정 · I–iii–IV–V (상행)', mode:'major',
+         steps:[['Iadd9',0,'add9'],['iii',4,'min'],['IVmaj7',5,'maj7'],['V',7,'maj']],
+         feel:'한 계단씩 밀어 올려 절정으로 가는 상행.',
+         theory:'iii 가 I 과 IV 사이에 다리를 놓는다. 클라이맥스 직전 구간에 쓴다.'}
+      ] };
+  } }catch(e){}
+  try{ if(G && G.cineTension && !G.cineDrive){
+    const _hold=function(st, k){ const out=[]; st.forEach(function(x){ for(let i=0;i<k;i++) out.push(x); }); return out; };
+    G.cineDrive={ name:'시네마틱 — 밀어붙임', 
+      note:'화음 하나를 네 마디씩 끌고 8분 오스티나토가 처음부터 끝까지 돈다. 층만 쌓여 올라가는 계열 (페달·오르간·저역 브라스)',
+      progs:[
+        {name:'i–♭VII 왕복 (4마디 페달)', mode:'minor',
+         steps:_hold([['i',0,'min'],['♭VII',10,'maj']], 4),
+         feel:'두 화음만으로 밀고 간다. 화음이 바뀌지 않으니 귀가 층과 리듬을 듣는다.',
+         theory:'이끔음 없는 에올리안 왕복 — 기능 진행이 아니라 색과 질감이 곡을 끈다.'},
+        {name:'i–♭VI–♭III–♭VII (4마디 페달)', mode:'minor',
+         steps:_hold([['i',0,'min'],['♭VI',8,'maj'],['♭III',3,'maj'],['♭VII',10,'maj']], 4),
+         feel:'네 화음이 열여섯 마디를 돈다. 한 바퀴가 하나의 큰 호흡이다.',
+         theory:'에올리안 순환을 느린 화성 리듬으로 늘인 것 — 층 쌓기의 바탕.'},
+        {name:'i sus 페달 (8마디 유지)', mode:'minor',
+         steps:_hold([['i',0,'sus2'],['i',0,'min']], 8),
+         feel:'거의 한 화음이다. sus2 가 풀렸다 조였다 하며 색만 바뀐다.',
+         theory:'페달 포인트 위의 색 변화 — 오르간 지속음과 현 오스티나토가 그 위를 채운다.'}
+      ] };
+  } }catch(e){}
   try{ if(G && G.cineSoar && !G.cineSuite){
     G.cineSuite=Object.assign({}, G.cineSoar, {name:'조곡 (네 무드)',
       note:'슬픔 → 긴장 → 벅차오름 → 행복을 한 곡으로 이어 붙입니다 (전투·추격 제외)'});
   } }catch(e){}
   const GROUPS=[
-    ['기악독주곡', ['lyric','lyricPenta','lyricMid','lyricMinyo','newage','joypiano']],
+    ['기악독주곡', ['lyric','lyricPenta','lyricMid','lyricMinyo','newage','joypiano','kpiano']],
     ['국악·콰탈·클래식', ['gukvocal','gugak','quartal','classic']],
-    ['시네마틱 (무드)', ['cineSoar','cineTension','cineSorrow','cineJoy','cineWar','cineSuite']],
+    ['시네마틱 (무드)', ['cineSoar','cineTension','cineSorrow','cineJoy','cineWar','cineDrive','cineSuite']],
     ['팝 발라드', ['pop','ballad','citypop','epicaeol']],
     ['교육 동요·찬불가', ['kids','chanbul']],
     ['재즈·소울', ['jazz','neosoul','bossa','blues']],
@@ -19972,7 +20025,7 @@ const document = __scopedDoc('app-play');
   ];
 
   // 장르별 랜덤 생성 설정
-  const GENCFG={ gukvocal:{mode:'minor'}, epicaeol:{mode:'minor'}, kids:{mode:'major'}, pop:{mode:'major'}, ballad:{mode:'major'}, citypop:{mode:'major',sev:true},
+  const GENCFG={ kpiano:{mode:'major'}, gukvocal:{mode:'minor'}, epicaeol:{mode:'minor'}, kids:{mode:'major'}, pop:{mode:'major'}, ballad:{mode:'major'}, citypop:{mode:'major',sev:true},
     jazz:{mode:'major',sev:true,jazz:true}, neosoul:{mode:'major',sev:true}, bossa:{mode:'minor',sev:true,jazz:true},
     blues:{blues:true,mode:'major'}, rock:{mode:'major'}, edm:{mode:'minor'}, lofi:{mode:'major',sev:true},
     gugak:{mode:'modal'}, quartal:{mode:'modal',quartal:true}, classic:{mode:'major'}, celtic:{mode:'modal'}, folk:{mode:'major'}, shanty:{mode:'minor'},
@@ -20106,7 +20159,7 @@ const document = __scopedDoc('app-play');
 
   const MODE_SCALE={ dorian:[0,2,3,5,7,9,10], phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10], doubleharm:[0,1,4,5,7,8,11], hungarian:[0,2,3,6,7,8,11], phrygdom:[0,1,4,5,7,8,10] };
   const HARM_MIN=new Set(['classic','tango','gypsy']); // 리딩톤(화성단조) 유지 — 클래식·탱고·집시. 그 외 단조는 자연단조(에이올리안, ♭7·♭6)
-  const CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar']); // 시네마틱(무드) — 오케스트라 트랙 추가
+  const CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDrive']); // 시네마틱(무드) — 오케스트라 트랙 추가
   /* 조곡은 무드 하나가 아니라 네 무드를 이어 붙이는 '곡 종류'다.
      장르 목록에 자리를 두어야 '장르를 골랐는데 쓰이지 않는다'는 모순이 없어진다.
      G 항목은 다른 코드가 G[gsel].progs를 참조하므로 벅차오름 것을 그대로 빌려 둔다. */
@@ -20831,7 +20884,7 @@ const document = __scopedDoc('app-play');
   GROOVE.lyricPenta=Object.assign({}, GROOVE.lyric, {bpm:56});   // 펜타토닉: 더 느리게(명상)
   GROOVE.lyricMid=Object.assign({}, GROOVE.lyric, {bpm:88});     // 중동풍: 리드미컬
   GROOVE.lyricMinyo=Object.assign({}, GROOVE.lyric, {bpm:100});  // 밝은 민요: 경쾌
-  GROOVE.newage=Object.assign({}, GROOVE.lyric, {bpm:72}); GROOVE.joypiano=Object.assign({}, GROOVE.lyric, {bpm:112}); // 밝은 피아노: 경쾌       // 뉴에이지: 잔잔한 노래
+  GROOVE.newage=Object.assign({}, GROOVE.lyric, {bpm:72}); GROOVE.joypiano=Object.assign({}, GROOVE.lyric, {bpm:112}); GROOVE.kpiano=Object.assign({}, GROOVE.lyric, {bpm:76}); /* 한국 피아노: 서정 템포 */ // 밝은 피아노: 경쾌       // 뉴에이지: 잔잔한 노래
   GROOVE.folk={bpm:96, bassName:'루트·5도', bassDesc:'근음·5도를 번갈아 밟는 컨트리 베이스', bassPat:[{s:0,r:'root'},{s:4,r:'fifth'},{s:8,r:'root'},{s:12,r:'fifth'}], bassDur:0.9, rhythmName:'스트럼', rhythmDesc:'8분 다운·업 스트럼', comp:[0,2,4,6,8,10,12,14], compDur:0.5};
   GROOVE.shanty={bpm:100, bassName:'행진 4박', bassDesc:'4박을 또박또박 밟는 행진 베이스', bassPat:[{s:0,r:'root'},{s:4,r:'root'},{s:8,r:'fifth'},{s:12,r:'root'}], bassDur:0.9, rhythmName:'행진 코드', rhythmDesc:'4박 코드 스트럼', comp:[0,4,8,12]};
   // ---- 마스터 버스(클리핑 방지) ----
@@ -21369,10 +21422,11 @@ RHYTHMS.joypiano=[
         const tp=Math.max(36,Math.min(50,c.bass-12));
         if(gsel==='cineSoar' && stg>=4){ [0,0.5].forEach(pp=>{ ev.push({t:base+measure*pp, play:(T)=>{kick(T,0.9); bassTone(tp,T,0.5,0.4);}}); }); }
         else if(gsel==='cineTension' && stg>=3){ ev.push({t:base, play:(T)=>{kick(T,0.8); bassTone(tp,T,0.5,0.34);}}); }
+        else if(gsel==='cineDrive' && stg>=2){ ev.push({t:base, play:(T)=>{kick(T,0.7); bassTone(tp,T,0.5,0.3);}}); }
         else if(gsel==='cineJoy' && stg>=5){ ev.push({t:base, play:(T)=>{kick(T,0.6); bassTone(tp,T,0.4,0.26);}}); }
         // 콘트라베이스 (바닥)
         const cb=Math.max(28,c.bass-12);
-        if(gsel==='cineTension' && stg>=2){ for(let k=0;k<8;k++){ ev.push({t:base+k*measure/8, play:(T)=>bassTone(cb,T,measure/8*0.8,0.2+(k%4===0?0.06:0))}); } }
+        if((gsel==='cineTension'||gsel==='cineDrive') && stg>=2){ for(let k=0;k<8;k++){ ev.push({t:base+k*measure/8, play:(T)=>bassTone(cb,T,measure/8*0.8,0.2+(k%4===0?0.06:0))}); } }
         else if(gsel==='cineSoar' && stg>=3){ for(let k=0;k<8;k++){ const m=(k%4===2)?cb+7:cb; ev.push({t:base+k*measure/8, play:(T)=>bassTone(m,T,measure/8*0.82,0.22+(k%4===0?0.07:0))}); } }
         else if(gsel==='cineSorrow' && stg>=2){ ev.push({t:base, play:(T)=>bassTone(cb,T,measure*0.95,0.2)}); }
         else if(gsel==='cineJoy' && stg>=2){ [0,0.5].forEach(pp=>ev.push({t:base+measure*pp, play:(T)=>bassTone(cb,T,measure*0.14,0.2)})); }
@@ -21476,7 +21530,7 @@ RHYTHMS.joypiano=[
    folk:[2,0,0], celtic:[0,2], shanty:[0,2],
    gypsy:[1,2], tango:[1,2,0], rumba:[1,2,0],
    dorian:[0,0,2], phrygian:[0], lydian:[0,0,2], mixolydian:[0,0,2], doubleharm:[0], hungarian:[0], phrygdom:[0],
-   gugak:[0], lyricPenta:[0,0,1], lyricMinyo:[0], lyricMid:[0,1], lyric:[0,1,1], newage:[0,0,1], joypiano:[1,2,0]
+   gugak:[0], lyricPenta:[0,0,1], lyricMinyo:[0], lyricMid:[0,1], lyric:[0,1,1], newage:[0,0,1], joypiano:[1,2,0], kpiano:[1,1,2]
   };
   function modPrefPick(nonzero){ const pf=MOD_PREF[gsel]||[1,2,0]; const pool=nonzero?pf.filter(x=>x!==0):pf; const src=pool.length?pool:[2]; return src[Math.floor(Math.random()*src.length)]; } // nonzero=true: 장문 전개처럼 전조가 필요한 자리(0 제외)
   let counterOn=false;  // 대선율(카운터멜로디): 현 악기로 하성 대위선
@@ -21491,7 +21545,7 @@ RHYTHMS.joypiano=[
   /* 어쿠스틱 앙상블 — 패드·라이저 같은 프로덕션 층을 쓰지 않는다.
      실제 악기만으로 성립하는 편성이라 신시사이저 층이 얹히면 그 장르의 소리가 아니게 된다.
      (실측: 재즈 콤보에 Warm Pad가 4박짜리 롱톤으로 깔려 있었다.) */
-  const ACOUSTIC_G = new Set(['celtic','folk','shanty','gugak','classic','quartal','newage','joypiano',
+  const ACOUSTIC_G = new Set(['celtic','folk','shanty','gugak','classic','quartal','newage','joypiano','kpiano',
                               'rumba','jazz','tango','gypsy','kids','chanbul']);
   /* 서브베이스는 신시사이저 저역 보강이라 어쿠스틱 앙상블에는 어울리지 않는다.
      재즈 트리오·보사노바·블루스에 서브가 깔리면 그 장르의 소리가 아니게 되고,
@@ -21575,6 +21629,13 @@ RHYTHMS.joypiano=[
   // 장르군별 빌드업 커브(섹션 라벨→단계). 없는 라벨은 default 참조.
   const GBUILD_DEFAULT={'인트로':1,'벌스':2,'프리코러스':3,'코러스':4,'간주':2,'브릿지':3,'코러스변주':5,'하이라이트':6,'솔로':4,'아웃트로':1,'A파트':3,'B파트':4,'전개부':3};
   const GBUILD={
+    /* 밀어붙임: 한 번 올라가는 데 곡 전체를 쓴다.
+       다른 시네마틱은 코러스에서 이미 4단계로 뛰지만 여기서는 3단계에 머문다.
+       간주에서 크게 떨어뜨렸다가 다시 올라가는 것이 이 계열의 호흡이다. */
+    cineDrive:{'인트로':1,'벌스':2,'프리코러스':3,'코러스':3,'간주':1,'브릿지':2,'코러스변주':4,'하이라이트':6,'솔로':4,'아웃트로':2},
+    /* 한국 피아노: 벌스에서 여백을 두고 코러스에서 활짝 연다.
+       피아노 한 대이므로 단계가 곧 음 수와 음역 폭이다. */
+    kpiano:{'인트로':2,'벌스':3,'프리코러스':4,'코러스':5,'간주':2,'브릿지':3,'코러스변주':5,'하이라이트':6,'아웃트로':2},
     ballad:{'인트로':1,'벌스':2,'프리코러스':3,'코러스':4,'브릿지':3,'하이라이트':6,'아웃트로':1},
     gukvocal:{'인트로':1,'벌스':2,'프리코러스':3,'코러스':4,'간주':2,'브릿지':3,'하이라이트':6,'아웃트로':1}, // 애절(비움)→폭발 서사
     pop:{'인트로':2,'벌스':3,'프리코러스':4,'코러스':5,'브릿지':3,'아웃트로':2},
@@ -21636,6 +21697,15 @@ RHYTHMS.joypiano=[
 const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['A파트','A',2],['전개부','C',2],['간주','C',1],['B파트','B',2],['A파트','A',2],['전개부','C',2],['간주','C',1],['코러스변주','A',2],['B파트','B',2],['전개부','C',2],['A파트','A',2],['간주','C',1],['코러스변주','A',2],['B파트','B',2],['전개부','C',2],['코러스변주','A',2],['하이라이트','A',2],['하이라이트','A',2],['아웃트로','A',1]]; // 실내악(5~6분): 테마→대화→재현→전개→간주(솔로교대)를 여러 겹으로 순환→변주→쌓임→절정→엔딩
   const STRUCT_DEFAULT=[['인트로','A',1],['벌스','B',2],['코러스','A',2],['간주','C',1],['코러스변주','A',2],['하이라이트','A',2],['아웃트로','A',1]];
   const STRUCT={
+    /* 밀어붙임 — 층이 한 방향으로 쌓이는 형식.
+       벌스-코러스를 되풀이하는 팝 형식이 아니다.
+       한 겹에서 시작해 간주에서 한 번 비우고 끝까지 한 번 올라간다.
+       화음이 네 마디씩 유지되므로 한 구간이 이미 16마디다 — 반복은 1로 둔다. */
+    /* 한국 피아노: 벌스-코러스를 두 번 돌고 브릿지에서 비운 뒤 절정으로. 노래 형식 그대로다 */
+    kpiano:[['인트로','A',1],['벌스','B',2],['코러스','A',2],['간주','C',1],
+            ['벌스','B',2],['코러스','A',2],['브릿지','C',1],['하이라이트','A',2],['아웃트로','A',1]],
+    cineDrive:[['인트로','A',1],['벌스','B',1],['코러스','A',1],['간주','C',1],
+               ['코러스변주','A',1],['하이라이트','A',1],['하이라이트','A',1],['아웃트로','A',1]],
     gukvocal:[['인트로','A',1],['벌스','B',1],['프리코러스','C',1],['코러스','A',1],['간주','C',1],['벌스','B',1],['프리코러스','C',1],['코러스','A',1],['브릿지','C',1],['하이라이트','A',1],['하이라이트','A',1],['아웃트로','A',1]], // 표준화 후 72마디 · 60BPM = 3:39 — 하이라이트 2연속(파워보컬 지속·회차별 필 변화)
     kids:[['인트로','A',1],['벌스','B',2],['코러스','A',2],['벌스','B',2],['코러스','A',2],['아웃트로','A',1]],
     ballad:[['인트로','A',1],['벌스','B',2],['프리코러스','C',1],['코러스','A',2],['벌스','B',2],['프리코러스','C',1],['코러스','A',2],['브릿지','C',1],['하이라이트','A',2],['아웃트로','A',1]],
@@ -22107,6 +22177,7 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
   let songMotif=null; // 곡 시그니처: 음정 모티프 + 훅 결정성 시드
   const HOOK_CON=[[0,2,4,2,0],[0,-1,0,2,4],[4,2,0,2,0],[0,0,3,2,0],[0,2,0,-1,0],[0,3,2,4,2]]; // 가창성 좋은 윤곽(아치·상승·낙하회귀·도약회귀·턴)
   const MEL_CAP={ // 장르별 멜로디 절대 상한(실연 관점): 잔잔·명상·어쿠스틱 88, 표준 91, 고에너지 93
+    kpiano:93,   /* 화려한 결 — 오른손이 위로 크게 열려야 한다. 잔잔한 독주(88)보다 높게 둔다 */
     newage:88, lofi:88, lyric:88, lyricPenta:86, lyricMid:88, lyricMinyo:86, gugak:86, quartal:88, folk:88, classic:90, celtic:89, shanty:86, kids:84,
     pop:91, ballad:91, citypop:91, blues:91, bossa:90, neosoul:90, dorian:90, phrygian:90, lydian:91, mixolydian:91, doubleharm:90, phrygdom:90,
     jazz:93, gypsy:93, tango:92, edm:93, rock:93, hungarian:92 };
@@ -23273,6 +23344,12 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
   function moveSection(i,dir){ const j=i+dir; if(!currentSong||j<0||j>=currentSong.length) return;
     const t=currentSong[i]; currentSong[i]=currentSong[j]; currentSong[j]=t; renderSong(); }
   function randomStructure(){ // 음악적 테두리 안의 랜덤 구조
+    /* 밀어붙임은 팝 형식이 아니다. 한 겹에서 시작해 끝까지 한 번 올라간다.
+       벌스-코러스 사이클을 되풀이하는 대신 층이 한 방향으로 쌓이는 형식을 쓴다. */
+    if(gsel==='cineDrive'){
+      return [['인트로','A',1],['벌스','B',1],['코러스','A',1],
+              ['간주','C',1],['코러스변주','A',1],['하이라이트','A',1],['아웃트로','A',1]];
+    }
     const body=[['인트로','A',1]];
     const nCycle=2+Math.floor(Math.random()*2); // 벌스-코러스 2~3 사이클
     for(let i=0;i<nCycle;i++){
@@ -23740,7 +23817,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         pop:'tutti', citypop:'tutti', kids:'tutti', celtic:'tutti', folk:'tutti', shanty:'tutti',
         marusa:'tutti', cineJoy:'tutti', cineSoar:'tutti', ballad:'tutti',
         lofi:'fade', newage:'fade', lyric:'fade', lyricPenta:'fade', lyricMid:'fade', lyricMinyo:'fade',
-        joypiano:'fade', chanbul:'fade', quartal:'fade', phrygian:'fade', phrygdom:'fade',
+        joypiano:'fade', kpiano:'fade', chanbul:'fade', quartal:'fade', phrygian:'fade', phrygdom:'fade',
         cineSorrow:'fade', lydian:'fade', mixolydian:'fade', dorian:'fade',
         jazz:'soloTail', blues:'soloTail', bossa:'soloTail', neosoul:'soloTail',
         gypsy:'soloTail', tango:'soloTail', rumba:'soloTail', gukvocal:'soloTail', gugak:'soloTail',
@@ -24727,7 +24804,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
        스물한 장르가 전부 같은 28% 감속을 받고 있었다. 성격에 맞춰 나눈다.
        worship · cineEpic · funk · komuro · billie 는 실제 장르 목록에 없는 이름이라
        위 표에서 한 번도 걸린 적이 없다. 지우지 않고 두되 실제 이름으로 대체한다. */
-    lyricMid:{rit:0.9,type:'roll'}, lyricMinyo:{rit:0.9,type:'roll'}, joypiano:{rit:0.8,type:'roll'},
+    lyricMid:{rit:0.9,type:'roll'}, lyricMinyo:{rit:0.9,type:'roll'}, joypiano:{rit:0.8,type:'roll'}, kpiano:{rit:0.86,type:'roll'},
     classic:{rit:0.5,type:'hit'},                                     // 종지를 정확히 끊는다
     cineSoar:{rit:0.85,type:'roll'}, cineJoy:{rit:0.7,type:'roll'}, cineSuite:{rit:0.9,type:'roll'},
     cineTension:{rit:0.6,type:'hit'}, cineWar:{rit:0.5,type:'hit'},
@@ -25004,6 +25081,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
             else if(n===39) snare(T, q*1.1);                       /* 클랩 */
             else if(n===42||n===44) hat(T, q, false);
             else if(n===46) hat(T, q, true);
+            else if(n===76||n===77) kkwaeng(T, q*0.55);            /* 목탁·우드블록 — 마르고 짧은 점 */
             else if(n===41||n===43||n===45) daego(T, q*0.8, false); /* 낮은 톰 */
             else if(n===47||n===48||n===50) daego(T, q*0.8, true);  /* 높은 톰 */
             else if(n===49||n===52||n===55||n===57) jing(T, q*0.7); /* 크래시·차이나·스플래시 */
@@ -28401,7 +28479,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      요즘 가요 반주처럼 흐르지 않는다. 선율 아래 자리를 16분으로 채운다.
      선율은 맨 위에 그대로 두고, 채우는 음은 반드시 선율보다 낮게 둔다 — 묻히면 안 된다.
      newage 는 여백이 어법이므로 넣지 않는다. */
-  const SOLO_RICH=new Set(['lyric','lyricPenta','lyricMid','lyricMinyo','joypiano']);
+  const SOLO_RICH=new Set(['lyric','lyricPenta','lyricMid','lyricMinyo','joypiano','kpiano']);
   /* ── 피아노 반주 가볍게 ──
      실측: 일반 모드 피아노가 C3~C5 가운데에 96~100% 몰려 있었다
      (ballad 99% · citypop 100% · lofi 100% · pop 98% · jazz 96%).
@@ -29667,7 +29745,10 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         groups.push({gm:70,ch:15,role:'secBsn',key:'winds3'}); }
       else groups.push({gm:windsGm(),ch:2,role:'top',key:'winds'}); }
     if(INST.drums.on) groups.push({gm:0,ch:9,role:'drums',key:'drums'});
-    if(useProd()){ groups.push({gm:89,ch:4,role:'pad',key:'pad'});    // Pad 2 (Warm) — 앰비언트 지속층
+    /* 밀어붙임은 패드 자리를 교회 오르간으로 쓴다.
+       화음이 네 마디씩 유지되므로 지속층의 음색이 곡의 색을 그대로 정한다.
+       신스 패드는 배경으로 물러나지만 오르간은 화음을 붙들고 앞에 선다. */
+    if(useProd()){ groups.push({gm:(gsel==='cineDrive'?19:89),ch:4,role:'pad',key:'pad'});    // Pad 2 (Warm) — 앰비언트 지속층
       if(useSub()) groups.push({gm:38,ch:8,role:'sub',key:'sub'});     // Synth Bass 1 — 서브 보강(L5+) · 어쿠스틱 계열 제외
       groups.push({gm:119,ch:7,role:'riser',key:'riser'}); }           // Reverse Cymbal — 섹션 진입 라이저
     if(CINE.has(gsel)){ // 시네마틱 오케스트라 트랙 — 무드별 역할(영화음악 오케스트레이션 어법). INST 금관·하프가 게이트
@@ -30147,6 +30228,16 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                 case 3: break; } } // 4회차: 쉼(드럼에게 양보)
           } }
           else if(grp.role==='pad'){ const sparseA=(LYRIC_G.has(gsel)||pianoNA); const padStage=sparseA?2:3;
+            /* 지속층은 음이 적다(마디당 두 음). 그 대신 세기 곡선이 표정을 만든다.
+               지금은 CC11 이 곡 전체에 44개뿐이라 사실상 평평했다
+               (실측 cineDrive: 오르간 96음에 CC11 44개 — 다른 트랙은 1,300~5,000개다).
+               마디마다 여닫는 곡선을 넣는다. 단계가 오를수록 바닥과 봉우리가 함께 오른다. */
+            if((sec.stage||3)>=padStage){
+              const _pf=Math.max(34,Math.min(92,30+(sec.stage||3)*9));
+              const _pp=Math.min(118,_pf+((sec.stage||3)>=5?26:18));
+              [[0.0,_pf],[0.18,_pf+6],[0.5,_pp],[0.82,_pf+8],[1.0,_pf]].forEach(function(pv){
+                ev.push({tick:T+Math.round(measure*pv[0]), cc:11, val:Math.round(pv[1])}); });
+            }
             if((sec.stage||3)>=padStage){ // 앰비언트 패드: 근음+5도+옥타브(open 5th)만 — 분위기만(부딪힘 방지)
             let r0=c.bass+12; while(r0<45) r0+=12; while(r0>64) r0-=12; const thinPad=CINE.has(gsel)||LYRIC_G.has(gsel)||pianoNA; // 근음은 실제 근음(bass)에서 — notes[0]은 전위 시 3음이라 합성 5도가 비화성음을 만듦(예: G코드 위 F#)
             if(thinPad){ while(r0>52) r0-=12; while(r0<33) r0+=12; } // 저역으로 내림 — 중역에 남으면 피아노 화음(7도·텐션)과 바로 옆에서 부딪힘
@@ -30342,6 +30433,15 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             else
             if(gsel==='cineSoar' && stg>=4){ [0,0.5].forEach(pp=>{ const st2=T+Math.round(measure*pp); ev.push({tick:st2,on:1,note:tp,vel:Math.max(44,Math.min(88,Math.round(78*inA)))}); ev.push({tick:st2+140,on:0,note:tp}); }); } /* 완화 96→78 */
             else if(gsel==='cineTension' && stg>=3){ ev.push({tick:T,on:1,note:tp,vel:Math.max(40,Math.min(80,Math.round(70*inA)))}); ev.push({tick:T+140,on:0,note:tp}); } /* 완화 84→70 */
+            /* 밀어붙임 — 팀파니가 층 쌓기의 눈금이다.
+               화음이 안 바뀌므로 팀파니가 언제 들어오고 얼마나 촘촘해지는지가 곡의 시계가 된다.
+               2단계 마디 머리 · 4단계부터 반마디 · 6단계는 4분 네 번. */
+            else if(gsel==='cineDrive' && stg>=2){
+              const tpF=(function(){ let x=tp+7; while(x>53)x-=12; while(x<38)x+=12; return x; })();
+              const n4=(stg>=6)?4:((stg>=4)?2:1);
+              for(let k=0;k<n4;k++){ const t2=T+Math.round(k*measure/n4), nt=(n4>1&&k%2===1)?tpF:tp;
+                ev.push({tick:t2,on:1,note:nt,vel:Math.max(40,Math.min(92,Math.round((62+(k===0?14:0)+(stg>=5?8:0))*inA)))});
+                ev.push({tick:t2+150,on:0,note:nt}); } }
             /* 층 표는 팀파니를 3단계로 선언하는데 행복은 5단계부터라 코러스(4단계)에 없었다.
                팀파니는 행복 무드에서 앞에 나서는 악기가 아니므로 4단계는 여린 다운비트로만 짚는다. */
             else if(gsel==='cineJoy' && stg===4){ ev.push({tick:T,on:1,note:tp,vel:Math.max(30,Math.min(58,Math.round(48*inA)))}); ev.push({tick:T+140,on:0,note:tp}); }
@@ -30397,7 +30497,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             if(stg<=1 || (gsel==='cineSoar' && stg<=2)){
               ev.push({tick:T,on:1,note:cb,vel:Math.round(44*inA)});
               ev.push({tick:T+measure-12,on:0,note:cb}); }
-            else if(gsel==='cineTension' && stg>=2){ for(let k=0;k<8;k++){ const st2=T+Math.round(k*measure/8); ev.push({tick:st2,on:1,note:cb,vel:Math.round((56+(k%4===0?12:0))*inA)}); ev.push({tick:st2+Math.round(measure/8)-16,on:0,note:cb}); } } // 8분 반복(조임 엔진)
+            else if((gsel==='cineTension'||gsel==='cineDrive') && stg>=2){ for(let k=0;k<8;k++){ const st2=T+Math.round(k*measure/8); ev.push({tick:st2,on:1,note:cb,vel:Math.round((56+(k%4===0?12:0))*inA)}); ev.push({tick:st2+Math.round(measure/8)-16,on:0,note:cb}); } } // 8분 반복(조임 엔진)
             else if(gsel==='cineSoar' && stg>=3){ for(let k=0;k<8;k++){ const st2=T+Math.round(k*measure/8); const m=(k%4===2)?cb+7:cb; ev.push({tick:st2,on:1,note:m,vel:Math.round((62+(k%4===0?14:0))*inA)}); ev.push({tick:st2+Math.round(measure/8)-14,on:0,note:m}); } } // 드라이브
             else if(gsel==='cineSorrow' && stg>=2){ ev.push({tick:T,on:1,note:cb,vel:Math.round(52*inA)}); ev.push({tick:T+measure-10,on:0,note:cb}); } // 롱톤
             else if(gsel==='cineJoy' && stg>=2){ [0,0.5].forEach(pp=>{ const st2=T+Math.round(measure*pp); ev.push({tick:st2,on:1,note:cb,vel:Math.round(58*inA)}); ev.push({tick:st2+Math.round(measure*0.14),on:0,note:cb}); }); } // 피치카토식
@@ -30454,6 +30554,18 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           if(gsel==='cineSorrow') target=Math.min(target,84); // 슬픔은 f 이상 금지(친밀)
           const bars=(sec.prog&&sec.prog.steps?sec.prog.steps.length:0)*(sec.reps||1), rampTk=Math.round(measureTick*0.75), steps=5;
           for(let k=0;k<=steps;k++) ev.push({tick:ctk+Math.round(rampTk*k/steps), cc:1, val:Math.round(prevV+(target-prevV)*k/steps)});
+          /* 구간 머리에서 한 번 올리고 끝까지 평평하게 두면 활이 멈춘 소리가 난다.
+             현악 라이브러리는 CC1 을 다이내믹 레이어 크로스페이드로 쓴다 —
+             그 값이 안 움직이면 같은 레이어만 계속 울린다
+             (실측: 곡 전체에 CC1 이 46~51개뿐이었다. 구간 수만큼이다).
+             구간 안에서 두 마디마다 여닫는 숨을 넣는다. 폭은 좁게(±7) —
+             큰 곡선은 구간 목표값이 이미 그리고 있다. */
+          const _br=Math.max(1, Math.min(4, Math.round(bars/8)||1));
+          for(let bq=1; bq<bars; bq+=2*_br){
+            const _up=(Math.floor(bq/(2*_br))%2)===0;
+            const _v=Math.max(24, Math.min(120, target+(_up?7:-7)));
+            ev.push({tick:ctk+bq*measureTick, cc:1, val:Math.round(_v)});
+          }
           prevV=target; ctk+=bars*measureTick; }); }
       if((['winds','counter'].indexOf(grp.key)>=0) || ((exprCC||CINE.has(gsel)) && ['pad','horns','choir'].indexOf(grp.key)>=0)){ // 관=브레스·대선율=활은 기본 CC11(악기 고유), 패드·오케는 시네/토글 시
         ev.push({tick:0,cc:11,val:64}); let ctk=PAD, prevV=64;
@@ -30687,6 +30799,23 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         }
       });
     }catch(e){}
+    /* 파이프라인 밖에서 바이트로 직접 쓰이는 트랙도 연주에 실어야 한다.
+       전투 타악(War Perc 넷)·후반 고조 보강은 내보내기 시점에 만들어져
+       __pending 에 없다. 그대로 두면 **재생에서 타악이 통째로 안 들린다**
+       (실측 cineWar: MIDI 2,464음 중 1,196음이 전투 타악인데 연주에 한 음도 안 실렸다). */
+    function __mpAdd(key, ch, gm, evs, getTk, getOn, getM, getV){
+      try{
+        if(!window.__MIDI_PLAY) return;
+        const open={}, iv=[];
+        evs.forEach(function(e){
+          if(getOn(e)===undefined || getM(e)==null) return;
+          if(getOn(e)){ (open[getM(e)]=open[getM(e)]||[]).push([getTk(e), getV(e)]); }
+          else { const q=open[getM(e)];
+            if(q&&q.length){ const o=q.shift(); iv.push([o[0], getTk(e), getM(e), o[1]||80]); } }
+        });
+        if(iv.length) window.__MIDI_PLAY.trks.push({key:key, role:key, gm:gm, ch:ch, iv:iv});
+      }catch(e){}
+    }
     /* ── 확정본 보관 ──
        여기까지 온 이벤트가 곧 내보내는 MIDI 다.
        연주(미리듣기)가 이것을 그대로 연주하면 두 경로가 같아진다.
@@ -31062,6 +31191,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             if(e.cc!=null) pb=pb.concat([0xB0|ch, e.cc, e.v]);
             else pb=pb.concat(e.on?[0x90|ch,e.m,e.v]:[0x80|ch,e.m,0]); });
           pb=pb.concat([0,0xFF,0x2F,0x00]); trackBytes.push(trk(pb));
+          __mpAdd(ch===9?'drums':'timpani', ch, gmv, arr, e=>e.tk, e=>e.on, e=>e.m, e=>e.v);
         };
         emit(TIM,'[후반 고조] Timpani — '+TP.n+' · 롤은 긴 음+CC11',chT,47);
         emit(LOW,'[후반 고조] Low Drums — '+LP.n+' [41·43·45]',9);
@@ -31344,6 +31474,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           let plast=0; sub.forEach(function(e){ pb=pb.concat(vlq(Math.max(0,e.tk-plast))); plast=e.tk;
             pb=pb.concat(e.on?[0x99,e.m,e.v]:[0x89,e.m,0]); });
           pb=pb.concat([0,0xFF,0x2F,0x00]); trackBytes.push(trk(pb));
+          __mpAdd('drums', 9, null, sub, e=>e.tk, e=>e.on, e=>e.m, e=>e.v);
         });
       }
     }
@@ -31562,7 +31693,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         '컴프(Comp): 3:1 · Attack 5ms · Release 80ms · GR 4~6dB (노래는 두 단계 — 4:1 GR3 + 2:1 GR2 권장)',
         '센드(Sends→Bus): Plate '+rv(1.4)+'s, 18% (predelay 15ms) · 1/4 딜레이 fb 12%는 구절 끝에만',
         '자리: 팬 정중앙 · 반주(현·금관)에서 2~4kHz를 -1.5dB 깎아 보컬 자리를 비울 것']);
-        if(vocType==='duet') blk('Vocal 2  (여성 — 듀엣 파트너)', [
+        if(vocType==='duet') blk('Vocal 2 ch6  (여성 — 듀엣 파트너)', [
           '음원(Instrument 슬롯): 임시 가이드(Voice Oohs) → 실제 녹음으로 대체 — 음역 '+VOC.female.tess,
           '파트 배분: 벌스 앞 4마디=남성 · 뒤 4마디=여성 · 후렴/하이라이트=둘이 옥타브로 함께 · 간주/아웃트로=테마만',
           'EQ(Channel EQ): Band1 HPF 120Hz · Band3 300Hz -2dB · Band5 3~5kHz +2dB · Band7 12kHz +1dB',
@@ -31578,7 +31709,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       'EQ(Channel EQ): HPF 40Hz · 250Hz -2dB(머드) · 5kHz +1.5dB(어택)',
       '컴프(Comp): 2:1 · Attack 15ms · Release 120ms · GR 2~3dB',
       '센드(Sends→Bus): Hall '+rv(2.5)+'s, 25% (predelay 20ms) · CC64 서스테인 구워짐']);
-    if(INST.piano.on && songTheme) blk('Piano 2  (테마 오스티나토)', [
+    if(INST.piano.on && songTheme) blk('Piano 2 ch11  (테마 오스티나토)', [
       '음원(Instrument 슬롯): 2nd 피아노 (Soft/Felt, LABS) — 1st와 다른 음색으로',
       '역할: '+themeDesc()+' 테마를 옥타브 위에서 은은하게 반복 (인트로 이후 8마디 뒤 진입 → 구간이 고조될수록 촘촘·크게)',
       'EQ(Channel EQ): HPF 200Hz · 3kHz -1dB(1st 피아노에 자리 양보) · 10kHz +1dB',
@@ -31613,13 +31744,13 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       '병렬 컴프(Comp, 병렬): 8:1 · Attack 5ms · Release 80ms · GR 10~15dB · 블렌드 30~40%',
       '센드(Sends→Bus): Room 0.6s, 10%'+(gsel==='citypop'?' · 스네어 게이트 리버브 0.3s':'')]); }
     if(gsel==='epicaeol'||gsel==='gukvocal'){
-      blk('Timpani  (오케 저역 타악 — 드럼과 별도 트랙)', [
+      blk('Timpani ch14  (오케 저역 타악 — 드럼과 별도 트랙)', [
         '음원(Instrument 슬롯): Timpani (BBC SO Discover / Studio Strings 계열 퍼커션)',
         '역할: 후렴부터 다운비트 강타 · 하이라이트는 반마디마다 · 터짐 직전 마디는 16분 롤 크레셴도로 밀어 올림',
         'EQ(Channel EQ): Band1 HPF 40Hz · Band4 80Hz +1.5dB(무게) · Band6 3kHz +1dB(막대 어택)',
         '컴프(Comp): 2:1 · Attack 20ms · Release 150ms · GR 2~3dB',
         '센드(Sends→Bus): Hall '+rv(2.8)+'s, 25%']);
-      blk('Orch Cymbals  (카사·서스펜디드 — 드럼킷과 별도 트랙 · 롤 구간은 긴 음 1개 + CC1 크레셴도)', [
+      blk('Orch Cymbals ch9  (카사·서스펜디드 — 드럼킷과 별도 트랙 · 롤 구간은 긴 음 1개 + CC1 크레셴도)', [
         '음원(Instrument 슬롯): 오케스트라 심벌 (크래시 + 서스펜디드)',
         '노트 맵: 49 = 크래시(카사, 후렴·하이라이트 첫 박) · 52 = 서스펜디드 롤(터짐 직전 크레셴도)',
         'EQ(Channel EQ): Band1 HPF 200Hz · Band7 하이셸프 10kHz +1dB',
@@ -31658,6 +31789,25 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       if(gsel!=='cineSorrow') blk('Timpani ch14', ['음원(Instrument 슬롯): 팀파니 — 긴 음(롤 구간)은 Roll 아티큘레이션','CC1(모듈레이션)을 음원의 다이내믹/레이어 크로스페이드에 매핑: 롤이 여리게 시작해 부풀어 오름','CC11(익스프레션)도 함께 들어감 — 볼륨 곡선','EQ(Channel EQ): HPF 50Hz · 3kHz +1dB(막대 어택)','센드(Sends→Bus): Hall '+rv(2.8)+'s, 25%']);
       blk('Contrabass ch15', ['음원(Instrument 슬롯): 저현(콘트라베이스)','EQ(Channel EQ): HPF 30Hz · 120Hz +1dB','컴프(Comp): 2:1 GR2 · 트랙딜레이 -40ms · CC1']);
     }
+      /* 발현 슬롯(ch12)이 하프도 기타도 아닌 장르 — 시타르·글로켄슈필·비브라폰·밴조.
+         지금까지 시트에 항목 자체가 없어서 무슨 음원을 얹을지 알 수 없었다
+         (실측: doubleharm·hungarian·phrygdom 의 시타르, kids 의 글로켄슈필 등 여섯 장르). */
+      if(INST.harp && INST.harp.on && !CINE.has(gsel) &&
+         !(INST.harp.gm>=24&&INST.harp.gm<=31) &&
+         gsel!=='gugak' && gsel!=='quartal'){
+        const _pn={46:'Concert Harp (콘서트 하프) — 켈틱은 Celtic/Folk Harp 우선',
+                   104:'Sitar (시타르 — 없으면 Koto/Guzheng 또는 나일론 기타 + 리버브)',
+                   105:'Banjo (밴조 — 없으면 나일론 기타 + 밝은 EQ)',
+                   9:'Glockenspiel (글로켄슈필 — 없으면 Celesta/Music Box)',
+                   11:'Vibraphone (비브라폰 — 없으면 Marimba/Celesta)'}[INST.harp.gm]
+                  ||('GM '+INST.harp.gm+' 계열 발현 악기');
+        blk('Plucked ch12', [
+          '음원(Instrument 슬롯): '+_pn,
+          '역할: 화음을 뜯어 흩는 층 — 피아노·현과 같은 음역에서 겹치지 않게 위쪽에 둔다',
+          'EQ(Channel EQ): HPF 160Hz · 400Hz -2dB · 6kHz +2dB',
+          '컴프(Comp): 3:1 · Attack 15ms · Release 120ms · GR 3dB',
+          '센드(Sends→Bus): Plate '+rv(1.4)+'s, 16%']);
+      }
     /* ch12 가 기타인 장르 — 시트에 기타 항목이 없어 무슨 음원을 얹어야 할지 알 수 없었다.
        음표는 이미 장르별 주법으로 쓰여 있으므로 시트도 그 주법을 그대로 적는다. */
     if(!CINE.has(gsel) && INST.harp && INST.harp.on && INST.harp.gm>=24 && INST.harp.gm<=31){
@@ -31695,6 +31845,16 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                'EQ(Channel EQ): HPF 100Hz · 350Hz -1.5dB · 6kHz +2dB',
                '컴프(Comp): 3.5:1 · Attack 10ms · Release 110ms · GR 3dB']
       }[_gst];
+      if(gsel==='cineDrive'){
+        blk('밀어붙임 — 이 곡을 다루는 법', [
+          '음원(Instrument 슬롯): Pad ch4 는 교회 오르간입니다. 신스 패드로 바꾸면 이 장르의 색이 사라집니다',
+          '구조: 화음 하나가 네 마디씩 유지됩니다. 화성이 아니라 층과 리듬이 곡을 끕니다',
+          '척추: Contrabass 8분 오스티나토가 곡 내내 돕니다 — 이 트랙을 뮤트하면 곡이 무너집니다',
+          '시계: Timpani 가 단계마다 촘촘해집니다(마디 머리 → 반마디 → 4분 네 번)',
+          '믹스: 오르간과 현이 같은 중역을 씁니다. 오르간 Channel EQ 로 400Hz -3dB 하면 현이 삽니다',
+          '올라감: CC11 이 구간마다 오릅니다. 페이더로 다시 그리지 말고 CC11 을 쓰세요',
+          '길게: 라운지를 켜면 30~60분으로 늘어납니다 — 층 순서는 그대로입니다']);
+      }
       if(_amp && GTR_LEAD[gsel]) blk('Lead Guitar ch13', [
         '음원(Instrument 슬롯): 리듬 기타와 같은 계열로 얹되 게인을 한 단계 올린다',
         '역할: 솔로 구간 전용 — 다른 구간은 비어 있다. 리듬 기타(ch12)와 다른 트랙이다',
@@ -32853,7 +33013,7 @@ let cineSuiteMode=false, cineSuiteMin=16;   // 시네마틱 조곡 — 네 무�
 /* 장르별 주선율 악기 — 악보에 그릴 선율을 누가 맡는가.
    기악독주곡은 피아노가 선율과 반주를 함께 하므로 선율선을 피아노 음색으로 분리한다. */
 const MEL_GM_MAP={
-  lyric:0, lyricPenta:0, lyricMid:0, lyricMinyo:0, joypiano:0, newage:0,   /* 그랜드 피아노 */
+  lyric:0, lyricPenta:0, lyricMid:0, lyricMinyo:0, joypiano:0, newage:0, kpiano:0,   /* 그랜드 피아노 */
   gugak:73, gukvocal:73, chanbul:73,                                        /* 대금 대용 플루트 */
   folk:73, shanty:73, celtic:73,
   jazz:66, bossa:73, neosoul:73, lofi:73, blues:22,
@@ -32862,7 +33022,7 @@ const MEL_GM_MAP={
   doubleharm:73, hungarian:73, phrygdom:73
 };
 function MEL_GM_FOR(g){ return (MEL_GM_MAP[g]!=null)?MEL_GM_MAP[g]:54; }  /* 기본 = 보컬 가이드 */
-const ORCH_LOUNGE=new Set(['cineSoar','cineTension','cineSorrow','cineJoy','cineWar','epicaeol',
+const ORCH_LOUNGE=new Set(['cineSoar','cineTension','cineSorrow','cineJoy','cineWar','cineDrive','epicaeol',
   /* 클래식도 오케스트라형이다 — 바이올린 선율·첼로 대선율·오보에·현을
      피아노 한 대로 바꾸면 실내악 편성이 사라진다.
      현악 4중주 모드는 별도 분기가 이미 처리한다. */
@@ -32872,14 +33032,14 @@ const ORCH_LOUNGE=new Set(['cineSoar','cineTension','cineSorrow','cineJoy','cine
      오보에 선율과 피아노 둘만 남았다(실측: 트랙 2개 · soloPiano=true). */
   'cineSuite']);
 const LOUNGE_OK=new Set([
-  'lyric','lyricPenta','lyricMid','lyricMinyo','newage','joypiano','classic','quartal',
+  'lyric','lyricPenta','lyricMid','lyricMinyo','newage','joypiano','kpiano','classic','quartal',
   'jazz','bossa','neosoul','blues','lofi','ballad','citypop','pop','kids',
   'folk','shanty','tango','gypsy','rumba',
   'dorian','phrygian','lydian','mixolydian','doubleharm','hungarian','phrygdom',
   /* ── 오케스트라형 라운지 ──
      시네마틱·에픽 계열은 피아노로 바꾸지 않고 오케스트라 그대로 연주한다.
      편성이 이미 갖춰져 있다(cineSoar 13트랙 · epicaeol 19트랙). */
-  'cineSoar','cineTension','cineSorrow','cineJoy','cineWar','epicaeol','cineSuite',
+  'cineSoar','cineTension','cineSorrow','cineJoy','cineWar','cineDrive','epicaeol','cineSuite',
   /* 켈틱풍·국악풍 — 라운지에서만 피아노 편성으로 바꿔 연주한다 */
   'celtic','gugak','gukvocal',
   /* 찬불가 — 라운지에서는 합창을 빼고 기악으로 연주한다(사찰 카페·명상 공간용) */
