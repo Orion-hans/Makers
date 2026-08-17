@@ -27051,6 +27051,42 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      · 마디 첫박 근음은 C1~B2(24~47)로 — 곡의 바닥을 잡는다
      · 그 위의 왼손 음들은 옥타브를 내려 C2~C4 사이에 펼친다
      · 대신 저역에서 음이 뭉치지 않게 한 옥타브 안에 둘 이상 쌓이면 위로 되돌린다 */
+  /* ── 라운지 왼손 솎기 ──
+     라운지 피아노는 배경 음악이다. 왼손이 오른손만큼 치면 곡이 앞으로 나온다.
+     (실측 9장르 라운지: 전체 음의 34~37%가 52 아래 · 세기가 오른손과 거의 같음 ·
+      kpiano 는 마디당 22.5음에 최저음 16(C0) 까지 내려갔다.)
+     라운지에서는 왼손을 **마디마다 한 자리**로 줄이고 세기도 낮춘다.
+       · 마디 첫 저역 음 하나만 남긴다(그 마디의 바닥)
+       · 나머지 저역은 지우지 않고 오른손 음역으로 올린다 — 지우면 화음이 얇아진다
+       · 남긴 왼손은 오른손보다 여리게(0.72)
+       · 라운지 저역 하한 36(C2) — 그 아래는 웅웅거리기만 한다 */
+  function loungeLeftThin(ev, gkey, barLen, padTick, tpq){
+    if(gkey!=='piano' || !loungeMode) return ev;
+    const LOWTOP=51, FLOOR=36, LIFT=60;
+    const open={}, seen={};
+    ev.forEach(function(e){
+      if(e.cc!=null || e.note==null || e.tick==null) return;
+      if(e.on===1){
+        if(e.note>LOWTOP){ (open[e.note]=open[e.note]||[]).push({n:e.note}); return; }
+        const bi=barAtTick(e.tick, padTick, barLen);
+        let n=e.note, v=e.vel;
+        if(!seen[bi]){                       /* 그 마디의 첫 저역 — 바닥으로 남긴다 */
+          seen[bi]=1;
+          while(n<FLOOR) n+=12;
+          v=Math.max(24, Math.round(v*0.72));
+        } else {                             /* 나머지 저역은 위로 올린다 */
+          while(n<LIFT) n+=12;
+          if(n>84) n-=12;
+          v=Math.max(24, Math.round(v*0.85));
+        }
+        (open[e.note]=open[e.note]||[]).push({n:n});
+        e.note=n; e.vel=v;
+      } else if(e.on===0){
+        const q=open[e.note]; if(q&&q.length) e.note=q.shift().n;
+      }
+    });
+    return ev;
+  }
   function soloBassSpread(ev, gkey, barRoot, barLen, padTick, tpq){
     if(gkey!=='piano' || !barRoot || !barRoot.length) return ev;
     if(!(soloPiano || loungeMode)) return ev;            // 베이스 트랙이 있는 편성은 그대로
@@ -30865,6 +30901,10 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           166개가 뒤에 더해졌고 그것들이 0.5 자리에 남았다).
          이미 스윙 자리(0.667)에 있는 음은 창 밖이라 건드리지 않는다. */
       try{ ev=swingize(ev, grp.key, TPQ); ev=coalesceNotes(ev); }catch(e){}
+      /* 라운지 왼손 솎기는 **저역 배치 관문들 뒤**에 와야 한다.
+         soloBassSpread·loungeOctave 가 뒤에서 다시 저역으로 내리기 때문에
+         앞에 두면 솎아 낸 것이 도로 내려온다(실측: 저역 비중이 34% -> 32% 로만 움직였다). */
+      try{ ev=loungeLeftThin(ev, grp.key, __barLen, PAD, TPQ); ev=coalesceNotes(ev); }catch(e){}
       __pending.push({grp:grp, ev:ev});
     });
     /* ── 최종 저역 정리 ──
