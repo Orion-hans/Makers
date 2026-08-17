@@ -3821,6 +3821,30 @@ const document = __scopedDoc('app-melody');
       }
     }
     out=out.filter(function(n,ix){return !kill[ix];});
+    /* ── 프레이즈 끝에 숨을 남긴다 ──
+       음가가 다음 음까지 채우거나 마디 끝까지 뻗어서 쉼표가 거의 0% 였다
+       (실측 20조합: meditative 만 7% · 나머지 열아홉이 0%).
+       노래하는 선율은 프레이즈 끝에서 쉰다.
+       네 마디마다 마지막 음을 반 박 일찍 끊는다 — 음을 지우지 않고 숨만 낸다. */
+    (function(){
+      if(!out.length) return;
+      /* 프레이즈 길이를 마디 수로 잡으면 8마디 곡에서 경계가 한 번뿐이다
+         (실측: 쉼표가 0% -> 5% 로만 늘었다).
+         노래의 숨은 두 마디마다 온다 — 그 자리를 경계로 쓴다. */
+      /* 현·관은 phrase 배수가 1.3·1.15 라 프레이즈가 길어지고 그만큼 숨 자리가 준다
+         (실측: piano·vocal 이 14~15% 인데 strings·winds 는 7~8% 로 절반이었다).
+         활과 관도 숨은 쉰다 — 활을 되돌리고 숨을 들이켜야 한다.
+         숨 자리는 악기군과 무관하게 두 마디마다 둔다. */
+      var PH=2*(meter.barLen||4);
+      for(var i=0;i<out.length;i++){
+        var n=out[i], end=n.t+n.dur;
+        var edge=Math.ceil((n.t+0.001)/PH)*PH;          /* 이 음이 걸친 프레이즈 경계 */
+        if(end<=edge-0.6) continue;                      /* 이미 쉬고 있다 */
+        if(n.t>=edge-0.25) continue;                     /* 경계에 붙어 시작한 음은 그대로 */
+        var cut=Math.max(n.t+0.25, edge-0.6);
+        if(cut<end) n.dur=cut-n.t;
+      }
+    })();
     // 2) 남은 일반 음끼리 같은 음 겹침 정리
     out.sort(function(a,b){return a.t-b.t||a.midi-b.midi;});
     for(var oi2=0;oi2<out.length;oi2++){
@@ -23037,7 +23061,49 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     for(let k=0;k<T.length;k++){ if(ql>=T[k][0]-1e-6) return {d:T[k][1],dots:T[k][2]}; } return {d:'16',dots:0}; }
   function vfKeySig(tnc,mode){ const MA={0:'C',1:'Db',2:'D',3:'Eb',4:'E',5:'F',6:'Gb',7:'G',8:'Ab',9:'A',10:'Bb',11:'B'},MI={0:'Cm',1:'C#m',2:'Dm',3:'Ebm',4:'Em',5:'Fm',6:'F#m',7:'Gm',8:'G#m',9:'Am',10:'Bbm',11:'Bm'};
     const pc=((tnc%12)+12)%12; return mode==='minor'?(MI[pc]||'Am'):(MA[pc]||'C'); }
-  function vfBarCells(mel,b){ const ns=mel.filter(m=>m.bar===b).sort((a,b)=>a.pos-b.pos),cells=[]; let cur=0;
+  /* ── 셋잇단 마디 ──
+     16분 칸(CELLS)만으로는 1/3박 자리를 담을 수 없다. 그래서 지금까지
+     마디마다 격자를 하나 골라 반올림했고, 셋잇단 음이 0.083박씩 밀렸다
+     (실측 44장르: 악보와 확정본 자리 일치 95.3% · 어긋난 값이 전부 1/12박).
+     박 단위로 본다 — 그 박에 1/3 자리 음이 있으면 그 박만 셋잇단으로 그린다.
+     한 마디 안에서 16분 박과 셋잇단 박이 섞여도 된다. 실제 악보가 그렇다. */
+  function vfBarCellsTrip(mel,b){
+    const ns=mel.filter(m=>m.bar===b).sort(function(x,y){ return x.pos-y.pos; });
+    const bq=meterQuarters();
+    const cells=[];
+    /* 판정 창이 0.02박이면 아고긱 밀림(최대 0.02박)이 얹힌 셋잇단을 놓친다.
+       셋잇단(1/3=0.333)과 16분(0.25·0.5)은 0.083박 떨어져 있으므로
+       창을 0.04박까지 넓혀도 16분과 헷갈리지 않는다. */
+    const isTrip=function(p){
+      const d3=Math.abs(p*3-Math.round(p*3))/3, d4=Math.abs(p*4-Math.round(p*4))/4;
+      return d3<0.04 && d3<d4;
+    };
+    let any=false;
+    for(let beat=0; beat<bq; beat++){
+      const inB=ns.filter(function(n){ return n.pos>=beat-1e-6 && n.pos<beat+1-1e-6; });
+      const trip=inB.some(function(n){ return isTrip(n.pos-beat); });
+      if(trip){
+        any=true;
+        for(let k=0;k<3;k++){
+          const want=beat+k/3;
+          let hit=null;
+          for(let z=0;z<inB.length;z++){ if(Math.abs(inB[z].pos-want)<0.12){ hit=inB[z]; break; } }
+          cells.push({ql:1/3, midi:hit?hit.midi:null, trip:1});
+        }
+      } else {
+        /* 16분 박 — 네 칸으로 나눈다 */
+        for(let k=0;k<4;k++){
+          const want=beat+k/4;
+          let hit=null;
+          for(let z=0;z<inB.length;z++){ if(Math.abs(inB[z].pos-want)<0.1){ hit=inB[z]; break; } }
+          cells.push({ql:0.25, midi:hit?hit.midi:null});
+        }
+      }
+    }
+    return any?cells:null;
+  }
+  function vfBarCells(mel,b){ const _tc=vfBarCellsTrip(mel,b); if(_tc) return _tc;
+    const ns=mel.filter(m=>m.bar===b).sort((a,b)=>a.pos-b.pos),cells=[]; let cur=0;
     const CELLS=meterOf().grid.length*2; // 마디 16분 칸 수 (박자표별: 4/4=16, 5/8=10, 7/8=14)
     const STD=[16,12,8,6,4,3,2,1],snap=l=>{for(let k=0;k<STD.length;k++)if(l>=STD[k])return STD[k];return 1;};
     function rests(start,len){ let s=start,L=len; while(L>0){let t=1;if(L>=8&&s%8===0)t=8;else if(L>=4&&s%4===0)t=4;else if(L>=2&&s%2===0)t=2;t=Math.min(t,L);cells.push({ql:t/4,midi:null});s+=t;L-=t;}}
@@ -23054,7 +23120,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     cells.forEach((cl,i)=>{ const beamable=(cl.midi!=null)&&(cl.ql<1-1e-6),g=gi(pos);
       if(beamable){ if(run.length&&g!==runG)flush(); if(run.length===0)runG=g; run.push(notes[i]); } else flush(); pos+=cl.ql; });
     flush(); return beams; }
-  function vfBuildNotes(VF,cells,useFlat,NAMES,DOREMI){ return cells.map(cell=>{ const v=vfQl(cell.ql);
+  function vfBuildNotes(VF,cells,useFlat,NAMES,DOREMI){ return cells.map(cell=>{ const v=cell.trip?{d:'8',dots:0}:vfQl(cell.ql);
     if(cell.midi==null){ const sn=new VF.StaveNote({keys:['b/4'],duration:v.d+'r'}); if(v.dots)VF.Dot.buildAndAttach([sn],{all:true}); return sn; }
     const sn=new VF.StaveNote({keys:[vfSpell(cell.midi,useFlat)],duration:v.d,auto_stem:true});
     if(v.dots)VF.Dot.buildAndAttach([sn],{all:true});
@@ -23075,10 +23141,17 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     for(let b=0;b<bars;b++){ const mi=b%perLine, li=(b/perLine)|0, first=(mi===0), tsShow=(li===0&&mi===0), ksShow=(mi===0);
       let beginW=5; try{ const tst=new VF.Stave(0,0,300); if(first)tst.addClef('treble'); if(ksShow&&keySig!=='C')tst.addKeySignature(keySig); if(tsShow)tst.addTimeSignature(sigBase); beginW=tst.getNoteStartX()-tst.getX(); }catch(e){ beginW=(first?30:0)+(tsShow?20:0); }
       const cells=vfBarCells(mel,b), notes=vfBuildNotes(VF,cells,useFlat,NAMES,DOREMI);
+      /* 셋잇단 칸 셋씩 묶어 괄호를 만든다 — 이것이 있어야 8분 셋을 한 박에 담을 수 있다 */
+      const tuplets=[];
+      try{ for(let z=0;z+2<cells.length;z++){
+        if(cells[z].trip && cells[z+1] && cells[z+1].trip && cells[z+2] && cells[z+2].trip){
+          tuplets.push(new VF.Tuplet(notes.slice(z,z+3), {num_notes:3, notes_occupied:2}));
+          z+=2;
+        } } }catch(e){}
       const voice=new VF.Voice({num_beats:sigNum,beat_value:sigDen}).setMode(VF.Voice.Mode.SOFT); voice.addTickables(notes);
       try{VF.Accidental.applyAccidentals([voice],keySig);}catch(e){}
       let minW; try{ const f0=new VF.Formatter(); f0.joinVoices([voice]); minW=f0.preCalculateMinTotalWidth([voice]); }catch(e){ minW=44+cells.length*18; }
-      M.push({b,mi,li,first,tsShow,ksShow,beginW,cells,notes,voice,reqW:Math.max(64,minW)+beginW+28}); }
+      M.push({b,mi,li,first,tsShow,ksShow,beginW,cells,notes,voice,tuplets,reqW:Math.max(64,minW)+beginW+28}); }
     // 2) 가장 빡빡한 줄에 맞춰 scale 결정
     let maxLineReq=0; for(let li=0;li<lines;li++){ let s=0; M.forEach(x=>{if(x.li===li)s+=x.reqW;}); maxLineReq=Math.max(maxLineReq,s); }
     // A4 세로(210×297mm ≈ 794×1123px @96dpi) 페이지로 자동 분할
@@ -23110,6 +23183,8 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           const fw=Math.max(44,w-(stave.getNoteStartX()-stave.getX())-18);
           new VF.Formatter().joinVoices([X.voice]).format([X.voice],fw);
           const beams=vfBeams(VF,X.cells,X.notes); X.voice.draw(c,stave); beams.forEach(bm=>bm.setContext(c).draw());
+      /* 셋잇단 괄호는 음표를 그린 뒤에 그린다 — 음표 위치가 정해져야 괄호가 붙는다 */
+      try{ (X.tuplets||[]).forEach(function(tp){ tp.setContext(c).draw(); }); }catch(e){}
           if(secLabel[X.b]){ try{ c.save(); c.setFont('IBM Plex Mono',11,'700'); c.setFillStyle('#3D5A4E'); c.fillText(secLabel[X.b]+(secStart[X.b]&&secStart[X.b].reps>=2?(' ×'+secStart[X.b].reps):''), x+(X.beginW||4)+2, y-16); c.restore(); }catch(e){} }   // 구간 라벨(+반복 횟수)
           if(barChords&&barChords[X.b]){ try{ c.save(); c.setFont('IBM Plex Mono',13,'600'); c.setFillStyle('#9A4727'); c.fillText(barChords[X.b], x+(X.beginW||4)+2, y-3); c.restore(); }catch(e){} }
           x+=w; });
@@ -24099,7 +24174,11 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
   }
   function buildCineSuite(structKey){
     const savedG=gsel;
-    const TARGET=cineSuiteMin*60;
+    /* 조곡은 자기 전용 길이(cineSuiteMin, 기본 16분)를 쓴다.
+       그런데 화면에 그 선택이 없어서 라운지 길이를 45분으로 놓아도 조곡만 15분에서 멈췄다
+       (실측: cineSuite 15분 설정 15:05 · 45분 설정도 15:05 — 같은 값이었다).
+       라운지를 켰다는 것은 길게 뽑겠다는 뜻이다. 그 의도를 조곡이 무시할 이유가 없다. */
+    const TARGET=((loungeMode && loungeMin)?loungeMin:cineSuiteMin)*60;
     const spBar=loungeBarSec();
     const barsOf=arr=>arr.reduce((a,x)=>a+((x.prog&&x.prog.steps)?x.prog.steps.length:0)*(x.reps||1),0);
     /* 악장 수는 반드시 네 개의 배수 — 네 무드가 한 바퀴는 다 돌아야 조곡이 된다.
@@ -25358,6 +25437,12 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       +'</details>';
     host.innerHTML=h; }
   // 곡 전체 → 멀티트랙 MIDI (악기군별 트랙 + GM program)
+  /* 페달이 켜져 있으면 컴핑 음가가 마디 끝까지 뻗는다.
+     재즈 컴핑은 네 슬롯(0·3·8·11)에 같은 보이싱을 짚으므로
+     같은 음이 슬롯 내내 겹쳐 coalesceNotes 가 하나로 병합한다
+     (실측 jazz 코러스 첫 마디: 방출 16음 -> 병합 뒤 4음.
+      마디당 3.1음 · 평균 음가 3.9박은 그 결과였다).
+     컴핑은 짧게 찌르는 어법이다 — 재즈 계열은 페달과 무관하게 0.23마디로 둔다. */
   function coalesceNotes(ev){ // 같은 채널 동일음 겹침 병합(지속음이 짧은 음에 잘리는 것 방지)
     const ccs=ev.filter(e=>e.cc!=null), notes=ev.filter(e=>e.cc==null);
     const open={}, iv=[];
@@ -26223,8 +26308,11 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     try{
       var BT=(typeof __BAR_TK!=='undefined' && __BAR_TK && __BAR_TK.length)?__BAR_TK:null;
       if(BT){
+        /* 네 마디마다는 너무 성기다 — 멜로디 메이커에서 같은 것을 겪었다.
+           프레이즈 길이를 반으로 줄여 두 마디마다 걸자 쉼표가 5% -> 14~27% 가 됐다.
+           **노래의 숨은 두 마디마다 온다.** */
         var seen={}; edges.forEach(function(x){ seen[x]=1; });
-        for(var bi=4; bi<BT.length; bi+=4){
+        for(var bi=2; bi<BT.length; bi+=2){
           if(!seen[BT[bi]]){ edges.push(BT[bi]); seen[BT[bi]]=1; }
         }
         edges.sort(function(x,y){ return x-y; });
@@ -28622,6 +28710,52 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      (실측 jazz 라운지: 5,401음 -> 13,213음 · 마디당 21음).
      라운지에서 재즈 계열은 컴핑을 솎아 자리를 내준다 —
      밴드 컴핑은 다른 악기가 있을 때의 어법이고 피아노 한 대에는 필요 없다. */
+  /* ── 라운지 반주를 박에 맞추고 마디 안에 펼친다 ──
+     밀도가 문제가 아니었다. 간격이 제각각인 것이 문제였다
+     (실측 라운지: jazz 는 마디당 7.9음인데 묶음 간격이 0.42·0.25·0.33·0.67·0.22 로 흩어져 있고,
+      lyric 은 마디당 19.9음인데 0.25박 하나로 고르다 — 음이 두 배 많은데 안 뭉친다).
+     귀는 음 수가 아니라 규칙을 듣는다.
+     스윙 느낌은 선율과 다른 층이 이미 준다. 라운지 반주는 정박 16분 격자로 모으고,
+     같은 자리에 겹친 묶음은 빈 칸으로 밀어 마디 안에 펼친다. */
+  function loungeCompGrid(ev, gkey, barLen, padTick, tpq){
+    if(gkey!=='piano' || !loungeMode) return ev;
+    if(!(typeof JAZZFAM!=='undefined' && JAZZFAM[gsel])) return ev;
+    const G=tpq/4;                                  /* 16분 격자 */
+    const open={}, pairs=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push({oi:i, tick:e.tick}); }
+      else if(e.on===0){ const q=open[e.note];
+        if(q&&q.length){ const o=q.shift(); pairs.push({oi:o.oi, fi:i, tick:o.tick}); } }
+    });
+    if(pairs.length<2) return ev;
+    pairs.sort(function(a2,b2){ return a2.tick-b2.tick; });
+    /* 같은 순간 묶음으로 모은 뒤 격자에 맞춘다 */
+    const groups=[]; let i=0;
+    while(i<pairs.length){
+      let j=i;
+      while(j+1<pairs.length && pairs[j+1].tick-pairs[i].tick<=20) j++;
+      groups.push(pairs.slice(i, j+1)); i=j+1;
+    }
+    const used={};
+    groups.forEach(function(g){
+      const t0=g[0].tick;
+      const bi=barAtTick(t0, padTick, barLen);
+      const base=padTick+bi*barLen;
+      const nSlot=Math.max(1, Math.round(barLen/G));
+      let sl=Math.round((t0-base)/G);
+      if(sl<0) sl=0; if(sl>=nSlot) sl=nSlot-1;
+      const key=bi+':';
+      let s2=sl, guard=0;
+      while(used[key+s2] && guard<nSlot){ s2=(s2+1)%nSlot; guard++; }   /* 겹치면 빈 칸으로 민다 */
+      used[key+s2]=1;
+      const nt=base+s2*G;
+      const d=nt-t0;
+      if(d!==0) g.forEach(function(x){ ev[x.oi].tick+=d; ev[x.fi].tick+=d; });
+    });
+    ev.sort(function(a2,b2){ return (a2.tick-b2.tick)||((a2.cc!=null?2:a2.on)-(b2.cc!=null?2:b2.on)); });
+    return ev;
+  }
   function loungeCompThin(ev, gkey, barLen, padTick){
     if(gkey!=='piano' || !loungeMode) return ev;
     if(!(typeof JAZZFAM!=='undefined' && JAZZFAM[gsel])) return ev;
@@ -30276,7 +30410,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
               (_cells.filter(sl=>!(brkBar&&sl>=8))).forEach(sl=>{ if(busy&&(sl%4!==0)&&!climaxM&&!(_acSlots&&_acSlots.some(function(x){return x.s===sl;}))&&dRnd(si*16+sl,r,909)<0.22) return; // 슬롯 솎기(시드 결정적, 코드 온셋은 유지)
                 const stk=T+Math.round(sl*measure/16);
                 const stabM=climaxM||tangoM;
-                const dur=stabM?Math.round(measure*0.11):((_thin&&_stgP>=5)?Math.round(measure*0.16):((_thin&&_stgP<=2)?Math.max(240,measure-Math.round(sl*measure/16)-14):(pedalOn?Math.max(120,(measure-Math.round(sl*measure/16))-14):Math.round(measure*0.23)))); /* 절정(5+)=짧은 타격(마르카토): 보컬과의 장시간 반음 자체가 안 생겨 슬롯 보존 */ const splitSlotM=(st[4]&&st[4][3])?st[4][3]:8; const durU=(st[4]&&sl<splitSlotM)?Math.min(dur,Math.max(90,Math.round(splitSlotM/16*measure)-Math.round(sl*measure/16)-10)):dur;
+                const dur=stabM?Math.round(measure*0.11):((_thin&&_stgP>=5)?Math.round(measure*0.16):((_thin&&_stgP<=2)?Math.max(240,measure-Math.round(sl*measure/16)-14):(pedalOn?(COMP_JAZZF[gsel]?Math.round(measure*0.23):Math.max(120,(measure-Math.round(sl*measure/16))-14)):Math.round(measure*0.23)))); /* 절정(5+)=짧은 타격(마르카토): 보컬과의 장시간 반음 자체가 안 생겨 슬롯 보존 */ const splitSlotM=(st[4]&&st[4][3])?st[4][3]:8; const durU=(st[4]&&sl<splitSlotM)?Math.min(dur,Math.max(90,Math.round(splitSlotM/16*measure)-Math.round(sl*measure/16)-10)):dur;
                 const cresM=climaxM?(0.78+0.5*(sl/16)):1;
                 const vel=Math.round(((sl%8===0)?98:(sl%4===0?84:70))*inA*(clearMel?0.84:1)*cresM);
                 ((cnAtSlot(sl)||((st[4]&&cn2&&sl>=splitSlotM)?cn2:cn))).forEach((n,ni)=>{ const t2=stk+ni*7; const d2=Math.max(80,durU-ni*7); ev.push({tick:t2,on:1,note:n,vel:Math.max(40,Math.min(120,vel-ni*4))}); ev.push({tick:t2+d2,on:0,note:n}); }); });
@@ -30761,7 +30895,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
     const amp=(grp&&grp.ch===9)?3:5; ons.forEach(e=>{ e.vel=Math.max(20,Math.min(124, e.vel+Math.round((rnd()-0.5)*amp))); }); // 휴머나이즈(드럼은 약하게)
     return ev; }
   ev=smoothExpr(ev, grp);
-  ev=coalesceNotes(ev);
+      ev=coalesceNotes(ev);
       /* 스윙은 아티큘레이션보다 먼저 — 그래야 음 길이·겹침 정리가 옮겨진 자리 위에서 계산된다
          (뒤에 두면 밀린 음이 다음 음과 겹쳐 같은 음 겹침이 175곳 생겼다) */
       /* 화음음 관문은 아티큘레이션 뒤에 — 앞에 두면 음을 옮긴 결과로 음역 판정이 바뀌어
@@ -30953,6 +31087,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          soloBassSpread·loungeOctave 가 뒤에서 다시 저역으로 내리기 때문에
          앞에 두면 솎아 낸 것이 도로 내려온다(실측: 저역 비중이 34% -> 32% 로만 움직였다). */
       try{ ev=loungeCompThin(ev, grp.key, __barLen, PAD); }catch(e){}
+      try{ ev=loungeCompGrid(ev, grp.key, __barLen, PAD, TPQ); ev=coalesceNotes(ev); }catch(e){}
       try{ ev=loungeLeftThin(ev, grp.key, __barLen, PAD, TPQ); ev=coalesceNotes(ev); }catch(e){}
       __pending.push({grp:grp, ev:ev});
     });
