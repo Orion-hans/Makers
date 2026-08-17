@@ -2013,7 +2013,7 @@ input[type=range]{accent-color:var(--teal)}
       <button type="button" id="themeMidiBtn" class="build-midi" style="display:none">💾 MIDI</button>
     </div>
     <div class="struct-row make-row"><span class="build-lab">목표 길이</span><span class="dur-in"><input type="number" id="durMin" min="0" max="20" placeholder="분" inputmode="numeric">:<input type="number" id="durSec" min="0" max="59" placeholder="초" inputmode="numeric"></span><button type="button" id="applyDur" class="apply-dur">⏱ 맞추기</button><button type="button" id="durReset" class="dur-reset" title="분·초 비우기(자동)">↺</button><span id="applyDurMsg" class="dur-hint"></span></div>
-    <div class="struct-row build-row"><span class="build-lab">구조</span><select id="structSel"></select><span class="build-lab">빌드업</span><select id="buildupSel"><option value="genre">장르 기본</option><option value="modern">모던 팝 (훅 선행)</option><option value="edmdrop">EDM 드롭</option><option value="breakdown">브레이크다운 대비</option><option value="gentle">완만 (앰비언트)</option><option value="flat">평탄</option></select><span class="build-lab">전주</span><select id="introSel" title="전주(인트로) 마디 수 — 길게 잡아도 기승전결로 빠짐"><option value="0">자동</option><option value="2">2마디</option><option value="4">4마디</option><option value="8">8마디</option><option value="16">16마디</option></select><span class="build-lab" id="vocLab">보컬</span><select id="vocSel"><option value="female">여성</option><option value="male">남성</option><option value="duet">듀엣 (남·여)</option></select></div>
+    <div class="struct-row build-row"><span class="build-lab">편성</span><select id="ensSel"><option value="">장르 기본</option><option value="@quartet">현악 4중주 (Vn1·Vn2·Va·Vc)</option><option value="@quintet">현악 5중주 (4중주 + 콘트라베이스)</option><option value="@chamber">실내악 (현·목관)</option></select><span class="build-lab">구조</span><select id="structSel"></select><span class="build-lab">빌드업</span><select id="buildupSel"><option value="genre">장르 기본</option><option value="modern">모던 팝 (훅 선행)</option><option value="edmdrop">EDM 드롭</option><option value="breakdown">브레이크다운 대비</option><option value="gentle">완만 (앰비언트)</option><option value="flat">평탄</option></select><span class="build-lab">전주</span><select id="introSel" title="전주(인트로) 마디 수 — 길게 잡아도 기승전결로 빠짐"><option value="0">자동</option><option value="2">2마디</option><option value="4">4마디</option><option value="8">8마디</option><option value="16">16마디</option></select><span class="build-lab" id="vocLab">보컬</span><select id="vocSel"><option value="female">여성</option><option value="male">남성</option><option value="duet">듀엣 (남·여)</option></select></div>
     <div class="struct-row build-row na-row" id="naGroup"><span class="build-lab">전조</span><select id="modSel" class="mod-narrow"><option value="auto">자동</option><option value="0">없음</option><option value="2">온음↑</option><option value="1">반음↑</option><option value="-1">반음↓</option></select><span class="na-cluster"><label class="na-main" title="아르페지오 변환 — 출력(재생·MIDI)에 적용"><input type="checkbox" id="pianoNA"> 아르페지오 변환</label><span class="na-subs"><label class="na-sub"><input type="checkbox" id="naDrums"> 🥁 드럼</label><label class="na-sub">색 <select id="naLevel"><option value="1">은은</option><option value="2" selected>따뜻</option><option value="3">풍부</option></select></label></span></span></div>
     <div id="themeMsg" class="theme-msg">테마를 생성하고 ▶ 로 들어보세요</div>
     <div id="scoreView" class="score-view" style="display:none"></div>
@@ -20044,18 +20044,20 @@ const document = __scopedDoc('app-play');
     G.cineSuite=Object.assign({}, G.cineSoar, {name:'조곡 (네 무드)',
       note:'슬픔 → 긴장 → 벅차오름 → 행복을 한 곡으로 이어 붙입니다 (전투·추격 제외)'});
   } }catch(e){}
+  /* 장르 묶음. 편성(무엇이 소리 내는가)을 먼저 가르고 그 안에서 결로 나눈다.
+     '교육 동요·찬불가' 처럼 둘뿐인 묶음은 성격이 가까운 곳에 합친다.
+     현악 4중주·실내악은 장르가 아니라 구조 선택의 '기악 편성' 에 있다 —
+     장르를 아무거나 고른 뒤 그 편성을 씌우는 방식이다. */
   const GROUPS=[
-    ['기악독주곡', ['lyric','lyricPenta','lyricMid','lyricMinyo','newage','joypiano','kpiano']],
-    ['국악·콰탈·클래식', ['gukvocal','gugak','quartal','classic']],
-    ['시네마틱 (무드)', ['cineSoar','cineTension','cineSorrow','cineJoy','cineWar','cineDrive','cineSuite']],
-    ['팝 발라드', ['pop','ballad','citypop','epicaeol']],
-    ['교육 동요·찬불가', ['kids','chanbul']],
+    ['피아노 독주', ['lyric','lyricMid','lyricPenta','lyricMinyo','newage','joypiano','kpiano']],
+    ['오케스트라·실내악', ['classic','epicaeol','cineSuite']],
+    ['시네마틱 (무드)', ['cineSoar','cineDrive','cineTension','cineWar','cineSorrow','cineJoy']],
+    ['국악', ['gukvocal','gugak','chanbul']],
+    ['팝·발라드', ['pop','ballad','citypop','kids']],
     ['재즈·소울', ['jazz','neosoul','bossa','blues']],
     ['모던·일렉트로닉', ['rock','edm','lofi']],
-    ['포크·켈틱', ['folk','celtic','shanty']],
-    ['교회 선법', ['dorian','phrygian','lydian','mixolydian']],
-    ['명상·월드', ['doubleharm','hungarian','phrygdom']],
-    ['집시·탱고', ['gypsy','tango','rumba']]
+    ['포크·켈틱·월드', ['folk','celtic','shanty','gypsy','tango','rumba']],
+    ['선법·모달', ['dorian','phrygian','lydian','mixolydian','quartal','doubleharm','hungarian','phrygdom']]
   ];
 
   // 장르별 랜덤 생성 설정
@@ -20315,7 +20317,9 @@ const document = __scopedDoc('app-play');
   function renderGenres(){ setTimeout(updateGenreSum,0);
     const gi=GROUPS.findIndex(([gn,keys])=>keys.indexOf(gsel)>=0);
     let h='<select class="gsel" id="gselDrop">';
-    const __ADV={'시네마틱 (무드)':1,'국악·콰탈·클래식':1,'교회 선법':1,'명상·월드':1,'집시·탱고':1};   // 고급으로 접을 그룹
+    const /* 고급으로 접을 그룹. **GROUPS 의 이름을 바꾸면 여기도 함께 바꾼다** —
+       이름이 안 맞으면 조용히 '기본' 쪽으로 떨어진다. */
+    __ADV={'시네마틱 (무드)':1,'국악':1,'선법·모달':1,'오케스트라·실내악':1};   // 고급으로 접을 그룹
     const __basic=[], __adv=[];
     GROUPS.forEach(([gn,keys],i)=>{ const opt=`<option value="${i}" title="${gn}"${i===gi?' selected':''}>${gn}</option>`; (__ADV[gn]?__adv:__basic).push(opt); });
     h+='<optgroup label="기본">'+__basic.join('')+'</optgroup>';
@@ -21587,6 +21591,7 @@ RHYTHMS.joypiano=[
   let counterOn=false;  // 대선율(카운터멜로디): 현 악기로 하성 대위선
   let chamberMode=false;  // 실내악: 섹션마다 리드 악기 로테이션(솔로 패싱) + 역할 분담
   let quartetMode=false;  // 현악 4중주: 네 성부(Vn1·Vn2·Va·Vc)만, 각 성부가 독립 트랙
+  let quintetMode=false;  // 현악 5중주: 위 넷 + 콘트라베이스 — 첼로가 선율을 맡을 때 바닥을 받친다
   let pivotOn=true;    // 전조 피벗: 조 바뀌기 직전 마디를 새 조 V7으로
   let midiPadBars=4; // MIDI 앞뒤 공백 마디
   let midiNoTail=false, midiNoGuide=false, midiNextStage=null; // 리전 분할 빌드용
@@ -24521,12 +24526,20 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
   isThemeMode=false;
     const ps=G[gsel].progs.filter(p=>p.mode===keyMode);
     if(!ps.length){ if($('themeMsg'))$('themeMsg').textContent='이 조성에 맞는 진행이 없어요 — 조성을 바꿔보세요'; return; }
-    const structKey=($('structSel')&&$('structSel').value)||((gsel==='gukvocal')?'gukvocal':''); // 국악 성악곡: 기본 구조 = 3분40초 서사 아크
+    let structKey=($('structSel')&&$('structSel').value)||((gsel==='gukvocal')?'gukvocal':'');
+    /* 편성이 형식을 요구하면 그것을 쓴다 — 4중주·5중주는 소나타 형식이 어법이다.
+       구조를 따로 골랐으면 그쪽을 존중한다. */
+    { const _ek=($('ensSel')&&$('ensSel').value)||'';
+      if((_ek==='@quartet'||_ek==='@quintet') && !structKey) structKey='@quartet';
+      if(_ek==='@chamber' && !structKey) structKey='@chamber'; } // 국악 성악곡: 기본 구조 = 3분40초 서사 아크
     /* 현악 4중주: 제1바이올린·제2바이올린·비올라·첼로 네 성부만.
        피아노·드럼·베이스·패드를 모두 끈다 — 이 편성에 그 악기들은 없다.
        선율=제1바이올린 · 대선율=제2바이올린 · 현=비올라(내성) · 콘트라베이스 자리=첼로. */
-    if(structKey==='@quartet'){
-      quartetMode=true; chamberMode=false;
+    /* 편성은 구조와 다른 개념이다 — 구조는 구간 배열을, 편성은 어느 악기가 소리 내는가를 정한다.
+       그래서 선택도 따로 둔다(#ensSel). 구조 선택에 있던 것을 옮겼다. */
+    const ensKey=($('ensSel')&&$('ensSel').value)||'';
+    if(ensKey==='@quartet' || ensKey==='@quintet'){
+      quartetMode=true; quintetMode=(ensKey==='@quintet'); chamberMode=false;
       INST.melody.on=true;  INST.melody.gm=40;      // Violin
       INST.strings.on=true; INST.strings.gm=41;     // Viola
       INST.piano.on=false; INST.drums.on=false; INST.bass.on=false;
@@ -24534,8 +24547,8 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       if(INST.choir) INST.choir.on=false;
       counterOn=true; { const _co=$('counterOn'); if(_co)_co.checked=true; }
       if(typeof renderInst==='function') renderInst();
-    } else quartetMode=false;
-    if(structKey==='@chamber'){ chamberMode=true; INST.melody.on=true; INST.strings.on=true; INST.winds.on=true; counterOn=true; const _co=$('counterOn'); if(_co)_co.checked=true; if(typeof renderInst==='function')renderInst(); } else chamberMode=false; // 실내악: 피아노+선율+현+목관 앙상블 + 대선율(대위) 자동 편성 + 리드 로테이션
+    } else { quartetMode=false; quintetMode=false; }
+    if(ensKey==='@chamber'){ chamberMode=true; INST.melody.on=true; INST.strings.on=true; INST.winds.on=true; counterOn=true; const _co=$('counterOn'); if(_co)_co.checked=true; if(typeof renderInst==='function')renderInst(); } else chamberMode=false; // 실내악: 피아노+선율+현+목관 앙상블 + 대선율(대위) 자동 편성 + 리드 로테이션
     let A,B,C;
 
     { songPickup=(['ballad','pop','citypop','jazz','neosoul','lofi','folk','celtic','classic','gukvocal'].indexOf(gsel)>=0) && (Math.random()<0.4); } // 못갖춘마디(여린내기): 곡마다 40% 확률, 서정 장르만
@@ -27490,7 +27503,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
   const QT_ORDER=['melody','counter','strings','cbass'];   // Vn1 · Vn2 · Va · Vc
   const QT_LO={melody:60, counter:57, strings:48, cbass:36};
   const QT_HI={melody:96, counter:84, strings:81, cbass:64};
-  function quartetVoiceFix(ev, gkey, tpq, done){
+    function quartetVoiceFix(ev, gkey, tpq, done){
     if(!quartetMode) return ev;
     const idx=QT_ORDER.indexOf(gkey);
     if(idx<=0) return ev;                       // 제1바이올린은 기준 성부 — 손대지 않는다
@@ -27730,6 +27743,9 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     if(!quartetMode || !barQt || !barQt.length) return ev;
     const IDX={melody:0, counter:1, strings:2, cbass:3};
     const ix=IDX[gkey]; if(ix==null) return ev;
+    /* 실연 음역 하한 — 첼로 C2(36) · 비올라 C3(48) · 제2바이올린 G3(55).
+       (실측: 첼로가 34(A#1)까지 내려갔다 — 실연에서 못 내는 음이다.) */
+    const QLO=[55,55,48,36][ix];
     /* 제1바이올린은 선율이므로 자리를 옮기지 않는다.
        대신 아래 성부들이 그 선율과 병행하지 않도록, 배치가 정한 값 대신
        '실제 제1바이올린 음'을 기준으로 다시 재는 것이 정확하다.
@@ -29565,8 +29581,10 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     const _percBed = !!(INST && INST.drums && INST.drums.on);
     /* 오케 타악(팀파니·오케 심벌)은 드럼킷과 다른 층이다.
        오케스트라 편성 장르에서는 드럼킷이 꺼져 있어도 팀파니가 바탕을 맡는다. */
-    const _orchPercBed = _percBed || CINE.has(gsel) ||
-                         gsel==='epicaeol' || gsel==='classic' || gsel==='gukvocal';
+    /* 현악 4중주에는 팀파니도 오케 심벌도 없다. 네 성부로 완결되는 편성이다
+       (실측: classic 으로 4중주를 뽑으면 팀파니 52음·오케 심벌 3음이 함께 나왔다). */
+    const _orchPercBed = !quartetMode && (_percBed || CINE.has(gsel) ||
+                         gsel==='epicaeol' || gsel==='classic' || gsel==='gukvocal');
     /* 라운지: 세기 폭을 좁힌다 — 배경음악은 대화 위에 얹히므로 크게 튀면 안 된다.
        35~85 사이로 눌러 두되 셈여림의 방향은 그대로 남긴다. */
     const _lounge=!!loungeMode;
@@ -30034,7 +30052,9 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
     /* 라운지는 피아노 한 대가 어법인데 피아노가 없는 편성 장르는 반주 트랙 자체가 없었다
        (실측: folk·shanty·rumba 세 장르에서 GUARD 가 '라운지인데 피아노 트랙 없음'으로 잡았다).
        선율과 같은 방식으로 편성 상태와 무관하게 켠다. */
-    if(loungeMode && !ORCH_LOUNGE.has(gsel) && INST.piano && !INST.piano.on){ INST.piano.on=true; INST.piano.gm=0; }
+    /* 현악 4중주·5중주에는 피아노가 없다. 라운지가 피아노를 강제로 켜면
+         네 성부 위에 피아노 4,625음이 얹힌다(실측 lyric 4중주 라운지 21:06). */
+      if(loungeMode && !quartetMode && !ORCH_LOUNGE.has(gsel) && INST.piano && !INST.piano.on){ INST.piano.on=true; INST.piano.gm=0; }
     if(INST.melody.on) groups.push({gm:INST.melody.gm,ch:5,role:'melody',key:'melody'});
     if(counterOn) groups.push({gm:counterGm(),ch:6,role:'counter',key:'counter'}); // 대선율=솔로 현(현 섹션과 다른 악기) — 이름과 실제 음색 일치
     /* 베이스를 피아노보다 먼저 만든다.
@@ -30076,7 +30096,11 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       groups.push({gm:43,ch:15,role:'cbass',key:'cbass'}); }           // Contrabass — 오케 바닥(오스티나토/롱톤)
     /* 현악 4중주의 네 번째 성부 = 첼로. 오케스트라의 콘트라베이스 자리를 첼로가 맡는다.
        4중주에는 콘트라베이스가 없고, 첼로가 저성부이자 대등한 선율 악기다. */
-    if(quartetMode) groups.push({gm:42,ch:15,role:'cbass',key:'cbass'});   // Cello
+    if(quartetMode){ groups.push({gm:42,ch:15,role:'cbass',key:'cbass'});   // Cello
+      /* 5중주: 콘트라베이스를 더한다. 4중주에는 없는 악기지만
+         첼로가 선율을 맡는 대목에서 바닥이 비는 것을 받쳐 준다.
+         첼로 선을 옥타브 아래에서 성기게 따라간다(강박만). */
+      if(quintetMode) groups.push({gm:43,ch:11,role:'quintetBass',key:'qbass'}); }
     else { // 일반 장르: 금관=롱톤 받침(4단계+), 하프=아르페지오 — 악기군 특성 반영
       if(INST.brass.on){ if(INST.brass.gm===61){ // 브라스 섹션: 호른(중)·트롬본(저)·트럼펫(고) 분리 — 각자 음역·주법
           groups.push({gm:60,ch:10,role:'secHorn',key:'brass'});
@@ -30912,6 +30936,18 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ev=loungeOctave(ev, grp.key, __barOct, __barLen, PAD);
       /* 4중주: 네 성부 동시 배치를 먼저 적용한다 — 화음음이므로 뒤의 관문을 그대로 통과한다 */
       ev=quartetSnap(ev, grp.key, __barQt, __barLen, PAD); ev=coalesceNotes(ev);
+      /* 실연 음역 하한 — 첼로 C2(36) · 비올라 C3(48) · 바이올린 G3(55).
+         (실측: 첼로가 34(A#1)까지 내려갔다 — 실연에서 못 내는 음이다.)
+         quartetSnap 안에 넣으면 그 뒤 관문이 다시 내리므로 여기서 건다. */
+      try{ if(quartetMode){
+        const _QLO={melody:55, counter:55, strings:48, cbass:36}[grp.key];
+        if(_QLO){ const _op={};
+          ev.forEach(function(e){
+            if(e.cc!=null || e.note==null) return;
+            if(e.on===1){ let n=e.note; while(n<_QLO) n+=12; (_op[e.note]=_op[e.note]||[]).push(n); e.note=n; }
+            else { const q=_op[e.note]; if(q&&q.length) e.note=q.shift(); }
+          }); ev=coalesceNotes(ev); }
+      } }catch(e){}
       ev=kidsHookRhythm(ev, grp.key, __barStage, __barLen, PAD, TPQ);
       ev=kidsMelodyShape(ev, grp.key, TPQ);
       ev=kidsAccompCap(ev, grp.key);
@@ -31083,6 +31119,31 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           166개가 뒤에 더해졌고 그것들이 0.5 자리에 남았다).
          이미 스윙 자리(0.667)에 있는 음은 창 밖이라 건드리지 않는다. */
       try{ ev=swingize(ev, grp.key, TPQ); ev=coalesceNotes(ev); }catch(e){}
+      /* 5중주 콘트라베이스 — 첼로 선을 받아 옥타브 아래에서 강박만 받친다.
+         생성기에 없는 성부이므로 여기서 첼로(cbass) 이벤트를 복제해 만든다.
+         복제 대상이 __pending 에 이미 들어간 뒤여야 하므로 이 자리에 둔다. */
+      try{ if(quintetMode && grp.key==='cbass'){
+        const _qb=[], _pairs={}, _seen={};
+        ev.forEach(function(e){
+          if(e.cc!=null || e.note==null) return;
+          if(e.on===1){ (_pairs[e.note]=_pairs[e.note]||[]).push(e); }
+          else { const q=_pairs[e.note];
+            if(q&&q.length){ const o=q.shift();
+              const bi=barAtTick(o.tick, PAD, __barLen);
+              const inBar=o.tick-(PAD+bi*__barLen);
+              /* 마디 앞 절반의 첫 음만 — 성기게 받친다 */
+              if(_seen[bi] || inBar>__barLen*0.55) return;
+              _seen[bi]=1;
+              let n=o.note-12; while(n<28) n+=12; while(n>52) n-=12;
+              _qb.push({tick:o.tick, on:1, note:n, vel:Math.max(28,Math.round((o.vel||70)*0.68))});
+              _qb.push({tick:Math.min(e.tick, o.tick+Math.round(__barLen*0.85)), on:0, note:n});
+            } }
+        });
+        if(_qb.length){
+          const g2=groups.filter(function(x){ return x.key==='qbass'; })[0];
+          if(g2) __pending.push({grp:g2, ev:_qb.sort(function(a2,b2){ return a2.tick-b2.tick; })});
+        }
+      } }catch(e){}
       /* 라운지 왼손 솎기는 **저역 배치 관문들 뒤**에 와야 한다.
          soloBassSpread·loungeOctave 가 뒤에서 다시 저역으로 내리기 때문에
          앞에 두면 솎아 낸 것이 도로 내려온다(실측: 저역 비중이 34% -> 32% 로만 움직였다). */
@@ -31168,7 +31229,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       let bytes=[];
       const __melMuted=(grp.key==='melody' && window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length && (!window.SO_HUB.melSrc||window.SO_HUB.melSrc.play!=='own'));   // 가져온 멜로디 선택 시 자체 멜로디 뮤트
       /* 현악 4중주는 성부 이름이 곧 악기 이름이다 — 로직에서 그 이름으로 음원을 찾을 수 있게 한다 */
-      const _QN={melody:'Violin I', counter:'Violin II', strings:'Viola', cbass:'Cello'};
+      const _QN={melody:'Violin I', counter:'Violin II', strings:'Viola', cbass:'Cello', qbass:'Double Bass'};
       /* 편성이 뚜렷한 장르는 역할 대신 악기 이름을 쓴다 —
          'Melody'라고만 적히면 로직에서 무슨 음원을 얹어야 할지 알 수 없다. */
       /* 이름은 실제 음색(GM)과 어긋나면 안 된다 — 로직에서 그 이름으로 음원을 찾는데
@@ -33001,7 +33062,7 @@ return L.join('\n');
   function syncLoungeAvail(){
     /* 현악 4중주는 장르가 아니라 '구조'로 고른다 — 그 구조에서도 라운지를 켤 수 있게 한다.
        사계처럼 악장마다 성격이 바뀌는 긴 버전이 이 편성에 가장 잘 맞는다. */
-    const _qt=(($('structSel')&&$('structSel').value)==='@quartet');
+    const _qt=(function(){ const v=($('ensSel')&&$('ensSel').value)||''; return v==='@quartet'||v==='@quintet'; })();
     const ok=LOUNGE_OK.has(gsel) || _qt;
     const tog=$('loungeTog'), row=tog?tog.closest('label'):null, w=$('loungeLenWrap');
     if(row) row.style.display=ok?'':'none';
@@ -33353,8 +33414,9 @@ const STRUCT_QUARTET=[
 const STRUCT_EXTRA={ kids_simple:['간단 동요 (벌스·코러스)',STRUCT_KIDS_SIMPLE], kids_aaba:['동요 AABA (32마디)',STRUCT_KIDS_AABA], chamber:['실내악 (테마·대화·전개·고조)',STRUCT_CHAMBER], quartet:['현악 4중주 (소나타 형식)',STRUCT_QUARTET] };
   function fillStructSel(){ const sel=$('structSel'); if(!sel)return;
     let h='<option value="">기본 구조 (표준)</option><option value="random">랜덤 구조</option>';
-    h+='<optgroup label="특수 구조"><option value="@chamber">실내악 (테마·대화·전개·고조, 5~6분)</option></optgroup>';
-    h+='<optgroup label="동요 구조">'+Object.keys(STRUCT_EXTRA).filter(k=>k!=='chamber').map(k=>'<option value="@'+k+'">'+STRUCT_EXTRA[k][0]+'</option>').join('')+'</optgroup>';
+    /* 편성(현악 4중주·실내악)은 여기 없다 — 별도 선택 #ensSel 로 옮겼다.
+       구조는 구간 배열만 정한다. */
+    h+='<optgroup label="동요 구조">'+Object.keys(STRUCT_EXTRA).filter(k=>k!=='chamber'&&k!=='quartet').map(k=>'<option value="@'+k+'">'+STRUCT_EXTRA[k][0]+'</option>').join('')+'</optgroup>';
     h+='<optgroup label="다른 장르 구조">'+Object.keys(STRUCT).map(k=>'<option value="'+k+'">'+((G[k]&&G[k].name)||k)+' 구조</option>').join('')+'</optgroup>';
     sel.innerHTML=h; }
   fillStructSel();
@@ -33489,8 +33551,8 @@ function applyPreset(solo){
       if(typeof renderInst==='function') renderInst();
     }
     else {
-    const _isQt=(($('structSel')&&$('structSel').value)==='@quartet');
-    if(loungeMode && ORCH_LOUNGE.has(gsel)){
+    const _isQt=(function(){ const v=($('ensSel')&&$('ensSel').value)||''; return v==='@quartet'||v==='@quintet'; })();
+    if(loungeMode && (ORCH_LOUNGE.has(gsel) || quartetMode)){
       /* ── 오케스트라형 라운지 ──
          시네마틱·에픽 계열은 피아노 한 대로 바꾸지 않는다.
          솔로 피아노로 바꾸면 호른 선율·현·저역금관·합창·하프·팀파니가 통째로 사라진다
