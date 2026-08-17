@@ -20974,7 +20974,13 @@ const document = __scopedDoc('app-play');
     pop:{kick:[0,8],snare:[4,12],hat:[0,2,4,6,8,10,12,14]},
     ballad:{kick:[0],snare:[8],hat:[0,4,8,12]},
     citypop:{kick:[0,6,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14],hatOpen:[14]},
-    jazz:{kick:[0,8],snare:[7,15],hat:[0,4,6,8,12,14]},
+    /* 재즈 드럼은 록 드럼이 아니다.
+       킥은 밟는 것이 아니라 '깃털처럼' 얹는다(페더링) — 세기 40 안팎으로 4분을 받친다.
+       스네어는 16분 7·15(0.75 자리)가 아니라 스윙 8분(6·14 = 0.67)에 얹혀야
+       라이드의 스윙과 같은 자리에 선다
+       (실측: 스네어가 0.82 자리에 94음 · 라이드는 0.65 자리 — 서로 다른 격자였다).
+       세기는 아래 kickVel 에서 장르별로 가른다. */
+    jazz:{kick:[0,4,8,12],snare:[6,14],hat:[0,4,6,8,12,14]},
     neosoul:{kick:[0,7,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14]},
     bossa:{kick:[0,6,8,14],snare:[3,10],hat:[0,2,4,6,8,10,12,14]},
     blues:{kick:[0,8],snare:[4,12],hat:[0,3,4,7,8,11,12,15]},
@@ -21163,10 +21169,13 @@ const document = __scopedDoc('app-play');
       {name:'하프타임 슈웡', desc:'뒤로 끄는 하프타임 — 나른한 그루브', bpm:96, sw:0.3, comp:[0,3,8,11], drums:{kick:[0,10],snare:[8],hat:[0,2,4,6,8,10,12,14]}}
     ],
     jazz:[
-      {name:'스윙 컴핑(찰스턴)', desc:'오프비트에 콕콕 — 스윙 재즈의 컴핑', bpm:132, sw:0.6, comp:[4,11], drums:{kick:[0,8],snare:[7,15],hat:[0,4,6,8,12,14]}},
+      /* 스네어를 16분 7·15(0.75 자리)에 두면 라이드의 스윙 8분(0.67)과 다른 격자가 된다.
+         (실측: 스네어 94음이 0.82 자리 · 라이드는 0.65 — 서로 어긋나 들렸다.)
+         스윙 8분 자리인 6·14 로 옮긴다. 킥은 4박을 깃털처럼 받친다(페더링). */
+      {name:'스윙 컴핑(찰스턴)', desc:'오프비트에 콕콕 — 스윙 재즈의 컴핑', bpm:132, sw:0.6, comp:[4,11], drums:{kick:[0,4,8,12],snare:[6,14],hat:[0,4,6,8,12,14]}},
       {name:'포 비트', desc:'4박을 고르게 밟는 — 워킹과 어울리는 four feel', bpm:120, sw:0.6, comp:[0,4,8,12], drums:{kick:[0,4,8,12],hat:[0,4,6,8,12,14]}},
       {name:'발라드 브러시', desc:'브러시로 쓸어내듯 — 느린 재즈 발라드', bpm:76, sw:0.5, comp:[0,8], compDur:1.0, drums:{kick:[0],snare:[4,12],hat:[0,4,8,12]}},
-      {name:'업 스윙', desc:'빠르게 몰아가는 스윙 — 비밥·업템포', bpm:180, sw:0.6, comp:[4,11], drums:{kick:[0,8],snare:[7,15],hat:[0,4,6,8,12,14]}}
+      {name:'업 스윙', desc:'빠르게 몰아가는 스윙 — 비밥·업템포', bpm:180, sw:0.6, comp:[4,11], drums:{kick:[0,4,8,12],snare:[6,14],hat:[0,4,6,8,12,14]}}
     ],
     neosoul:[
       {name:'스웡 16비트', desc:'뒤로 늘어지는 16분 — 네오소울의 끈적함', bpm:86, sw:0.4, comp:[0,3,7,10,13], drums:{kick:[0,7,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14]}},
@@ -24649,7 +24658,15 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
   let songTheme=null;
   function pickSongTheme(){ let s2=((((songMotif?songMotif.seed:1)>>>0)^0x9e3779b9)>>>0)||7;
     const rnd=()=>{ s2=(1664525*s2+1013904223)>>>0; return s2/4294967296; };
-    songTheme={ kind:THEME_KINDS[Math.floor(rnd()*THEME_KINDS.length)], every:(rnd()<0.35?2:1), sub:(rnd()<0.4?3:4) }; // every=1: 매 박 반복 · sub=4: 16분 4연음, 3: 8분 셋잇단 3연음
+    /* sub=3(8분 셋잇단)은 셔플·스윙이 어법인 장르에서만 쓴다.
+       곡의 나머지가 16분 격자인데 테마만 셋잇단이면 한 마디에 두 격자가 섞여
+       박자가 어긋나 들린다
+       (실측 12장르: pop·ballad·citypop·classic 등에서 테마 트랙만 셋잇단 40~67%,
+        같은 곡의 드럼·베이스·선율은 16분 100% 였다).
+       인계에 이미 적힌 규칙이다 — 한 마디 안에서 16분과 셋잇단을 섞지 않는다. */
+    const _TRI_OK=new Set(['jazz','blues','gypsy','neosoul','swing','shanty','celtic','folk','tango','rumba','doubleharm','hungarian','phrygdom']);
+    songTheme={ kind:THEME_KINDS[Math.floor(rnd()*THEME_KINDS.length)], every:(rnd()<0.35?2:1),
+                sub:((_TRI_OK.has(gsel) && rnd()<0.4)?3:4) }; // every=1: 매 박 반복 · sub=4: 16분 4연음, 3: 8분 셋잇단 3연음
     try{ window.songTheme=songTheme; }catch(e){}
     return songTheme; }
   function themeKindName(k){ return {down:'하행',up:'상행',updown:'상하행',downup:'하상행'}[k]||''; }
@@ -25427,6 +25444,11 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     if(!amt || amt<=0.5) return ev;
     if(gkey==='drums') return ev;
     const E8=tpq/2, shift=Math.round(tpq*(amt-0.5));        // 뒷 8분을 amt 위치로 (0.62 = 62% 스윙)
+    /* 창을 ±2틱으로 잡으면 앞 관문이 사람 손맛으로 몇 틱만 밀어 놔도 스윙이 안 걸린다.
+       (실측 jazz: 컴핑 피아노의 뒷 8분이 0.50·0.52·0.53 자리에 흩어져 있었고
+        정확히 0.50 인 것만 옮겨져 스윙처럼 안 쳤다 — agogicAccent 가 먼저 돌기 때문이다.)
+       한 박의 8%(38틱)까지는 같은 자리로 본다. 옆 격자(0.25·0.75)와는 충분히 멀다. */
+    const WIN=Math.max(2, Math.round(tpq*0.08));
     /* 노트온만 밀면 노트오프가 제자리에 남아 길이가 뒤틀리고 같은 음이 겹친다
        (실측: 재즈에서 노트오프 없는 음 3개, 같은 음 겹침 6곳).
        한 음의 온·오프를 같은 양만큼 함께 민다 — 길이는 그대로 두고 자리만 옮긴다. */
@@ -25435,7 +25457,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       if(e.cc!=null || e.tick==null) return;
       if(e.on===1){
         const inBeat=((e.tick % tpq)+tpq)%tpq;
-        const d=(Math.abs(inBeat-E8)<=2)?shift:0;
+        const d=(Math.abs(inBeat-E8)<=WIN)?(shift+Math.round(E8-inBeat)):0;   /* 흩어진 것도 스윙 자리로 모은다 */
         e.tick+=d;
         (open[e.note]=open[e.note]||[]).push(d);
       } else if(e.on===0){
@@ -27591,7 +27613,13 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         else if(e.on===0){ const q=open[e.note]; if(q&&q.length) pairOff[q.shift()]=i; }
       });
     }
-    const dl=Math.max(8, Math.round(tpq*0.045));
+    /* 아고긱(밀어 치기) 폭.
+       0.045박 = 22틱은 실제 연주보다 크다. 드럼·베이스는 격자에 정확히 붙어 있는데
+       선율만 다섯 음에 하나꼴로 23밀리초씩 늦게 나가 곡이 끌리게 들렸다
+       (실측 pop: Vocal Guide 170음 중 32음이 +22틱 · rock 평균 +3.9틱).
+       실제 연주의 밀어 치기는 5~10틱 수준이다. 음이 성긴 선율일수록 더 작게 건다. */
+    const _isLine=(gkey==='melody'||gkey==='vocal'||gkey==='vocal2'||gkey==='counter'||gkey==='gtrlead');
+    const dl=Math.max(4, Math.round(tpq*(_isLine?0.018:0.028)));
     for(let k=1;k<ons.length-1;k++){
       const a=ons[k-1], b=ons[k], c=ons[k+1];
       /* 화음 덩어리는 건드리지 않는다.
@@ -29933,7 +29961,10 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                 const stk=(sl)=>{ let tm=sl*six; if(sw>0){ if(sl%2===0){ if((sl/2)%2===1) tm+=sw*six; } else { tm+=sw*0.5*six; } } return Math.round(tm); }; // 스윙: 8분 뒷박(slot 2·6·10·14)과 16분 뒷박 모두 밀기 — 컴핑용 slotTime과 동일 규칙
                 const hasP=(dr.kick&&dr.kick.length)||(dr.snare&&dr.snare.length)||(dr.hat&&dr.hat.length)||(dr.hatOpen&&dr.hatOpen.length);
                 if(hasP){
-                  (dr.kick||[]).forEach(sl=>{ if(brkBar&&sl>=8)return; const tk=T+stk(sl); ev.push({tick:tk,on:1,note:36,vel:Math.max(45,Math.min(122,Math.round((sl%8===0?102:88)*inA)))}); ev.push({tick:tk+30,on:0,note:36}); });
+                  (dr.kick||[]).forEach(sl=>{ if(brkBar&&sl>=8)return; const tk=T+stk(sl);
+              /* 페더링 장르는 킥을 밟지 않고 얹는다. 재즈에서 세기 93은 록 킥이다 */
+              const _fe=(gsel==='jazz'||gsel==='bossa'||gsel==='gypsy')?0.42:1;
+              ev.push({tick:tk,on:1,note:36,vel:Math.max(_fe<1?26:45,Math.min(122,Math.round((sl%8===0?102:88)*inA*_fe)))}); ev.push({tick:tk+30,on:0,note:36}); });
                   (dr.snare||[]).forEach(sl=>{ if(brkBar&&sl>=8)return; const tk=T+stk(sl); ev.push({tick:tk,on:1,note:38,vel:Math.max(45,Math.min(120,Math.round(98*inA)))}); ev.push({tick:tk+30,on:0,note:38}); });
                   if(['neosoul','citypop','pop','rock'].indexOf(gsel)>=0 && !brkBar && (sec.stage||3)>=3){ [6,14].forEach(sl=>{ if((dr.snare||[]).indexOf(sl)<0){ const tk=T+stk(sl); ev.push({tick:tk,on:1,note:38,vel:Math.round(38*inA)}); ev.push({tick:tk+20,on:0,note:38}); } }); } // 고스트 스네어(그루브감)
                   const cym=swingG?51:42; // 스윙 장르=라이드(51), 그 외=클로즈 하이햇(42)
@@ -30765,6 +30796,13 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          여기까지가 '이벤트 만들기' 다. 바이트 쓰기는 모든 트랙이 끝난 뒤로 미룬다.
          트랙마다 바로 바이트로 굳히면 나중에 만들어지는 트랙과의 충돌을
          아무도 고칠 수 없기 때문이다. */
+      /* 스윙을 한 번 더 건다.
+         앞에서 스윙을 걸어도 그 뒤 관문들이 음을 **더한다**(왼손 배치·컴핑 나눔 등).
+         새로 더해진 음은 정박 8분에 놓이므로 컴핑이 스윙처럼 안 쳤다
+         (실측 jazz: swingize 가 본 피아노 노트온이 431개인데 최종본은 597개 —
+          166개가 뒤에 더해졌고 그것들이 0.5 자리에 남았다).
+         이미 스윙 자리(0.667)에 있는 음은 창 밖이라 건드리지 않는다. */
+      try{ ev=swingize(ev, grp.key, TPQ); ev=coalesceNotes(ev); }catch(e){}
       __pending.push({grp:grp, ev:ev});
     });
     /* ── 최종 저역 정리 ──
@@ -30825,6 +30863,11 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       /* 템포 변화까지 넘긴다. 한 값으로 환산하면 늘임(ritardando) 구간부터 어긋난다
          (실측 lyric: 끝의 66->60->54->42 를 무시했더니 마지막 사분면 일치가 80.3%,
           앞 사분면은 96.9% 였다 — 뒤로 갈수록 밀리는 전형적인 템포 오차다). */
+      /* 시트가 쓰는 실제 채널 지도. 시트 제목에 채널을 손으로 박아 두면
+         장르마다 편성이 달라 어긋난다
+         (실측: cineSuite 의 호른이 ch10 인데 시트는 다른 번호였고,
+          epicaeol·gukvocal 의 팀파니가 ch15 인데 시트는 ch14 였다 — 여섯 장르). */
+      try{ const _cm={}; __pending.forEach(function(pp){ if(pp.grp&&pp.grp.key!=null) _cm[pp.grp.key]=pp.grp.ch; }); window.__CHMAP=_cm; }catch(e){}
       window.__MIDI_PLAY={ tpq:TPQ, pad:PAD, bpm:(typeof rh!=='undefined'&&rh&&rh.bpm)?rh.bpm:(userBpm||100),
         tempo:(function(){ try{ return (tempoEvs||[]).map(function(e){ return [e.tick, e.bpm]; }); }catch(e){ return []; } })(),
         trks:__pending.map(function(pp){
@@ -31664,6 +31707,8 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
     /* 트랙 한 개 = 블록 한 개. 순서는 로직에서 실제로 손대는 순서 그대로:
        ① 음원 → ② 볼륨·팬 → ③ EQ → ④ 컴프 → ⑤ 센드 → ⑥ 이미 기록됨.
        (다른 섹션에서 같은 트랙 값을 되풀이하지 않는다 — 값은 여기 한 곳에만 있다) */
+    /* 실제 채널을 쓴다. 지도가 없으면(아직 빌드 전) 기본값을 그대로 쓴다 */
+    const _ch=function(k,def){ try{ const m=window.__CHMAP; return (m&&m[k]!=null)?m[k]:def; }catch(e){ return def; } };
     const blk=(head,lines)=>{ L.push(''); L.push('  ━━━━━ '+head+' ━━━━━'); const k=keyOf(head);
       const instL=lines.find(x=>/^음원/.test(x)); let inst=instL?instL.replace(/^음원\(Instrument 슬롯\):\s*/,''):'';
   { const _si=subInst(k); if(_si) inst=_si; }  // 장르 대용 악기·연주법 우선
@@ -31693,106 +31738,137 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         '컴프(Comp): 3:1 · Attack 5ms · Release 80ms · GR 4~6dB (노래는 두 단계 — 4:1 GR3 + 2:1 GR2 권장)',
         '센드(Sends→Bus): Plate '+rv(1.4)+'s, 18% (predelay 15ms) · 1/4 딜레이 fb 12%는 구절 끝에만',
         '자리: 팬 정중앙 · 반주(현·금관)에서 2~4kHz를 -1.5dB 깎아 보컬 자리를 비울 것']);
-        if(vocType==='duet') blk('Vocal 2 ch6  (여성 — 듀엣 파트너)', [
+        if(vocType==='duet') blk('Vocal 2 ch'+_ch('vocal2',6)+'  (여성 — 듀엣 파트너)', [
           '음원(Instrument 슬롯): 임시 가이드(Voice Oohs) → 실제 녹음으로 대체 — 음역 '+VOC.female.tess,
           '파트 배분: 벌스 앞 4마디=남성 · 뒤 4마디=여성 · 후렴/하이라이트=둘이 옥타브로 함께 · 간주/아웃트로=테마만',
           'EQ(Channel EQ): Band1 HPF 120Hz · Band3 300Hz -2dB · Band5 3~5kHz +2dB · Band7 12kHz +1dB',
           '컴프(Comp): 3:1 · Attack 5ms · Release 80ms · GR 4~6dB',
           '센드(Sends→Bus): Plate '+rv(1.4)+'s, 18% · 팬 정중앙(남성과 같은 자리, 음역이 옥타브 위라 안 겹침)']); }
-      else blk('Melody ch5  (가이드 — 내 멜로디로 교체/뮤트)', [
+      else blk('Melody ch'+_ch('melody',5)+'  (가이드 — 내 멜로디로 교체/뮤트)', [
         '음원(Instrument 슬롯): '+(wind?'Flute/Oboe (Studio Horns·LABS)':(bow?'Solo Strings (BBC SO Discover)':'Felt Piano (LABS Soft Piano)')),
         'EQ(Channel EQ): HPF 80Hz · 250Hz -1.5dB · 3~5kHz +2dB(존재감) · 12kHz +1dB(공기)',
         '컴프(Comp): 2.5:1 · Attack 5ms · Release 80ms · GR 3~4dB',
         '센드(Sends→Bus): Plate '+rv(1.2)+'s, 18% (predelay 15ms)'+((wind||bow)?' · CC11 브레스/활 스웰 구워짐':' · 벨로시티 다이내믹')]); }
-    if(INST.piano.on) blk('Piano ch0', [
+    if(INST.piano.on) blk('Piano ch'+_ch('piano',0)+'', [
       '음원(Instrument 슬롯): Spitfire LABS Soft Piano / Studio Piano(Felt, 클로즈 마이크)',
       'EQ(Channel EQ): HPF 40Hz · 250Hz -2dB(머드) · 5kHz +1.5dB(어택)',
       '컴프(Comp): 2:1 · Attack 15ms · Release 120ms · GR 2~3dB',
       '센드(Sends→Bus): Hall '+rv(2.5)+'s, 25% (predelay 20ms) · CC64 서스테인 구워짐']);
-    if(INST.piano.on && songTheme) blk('Piano 2 ch11  (테마 오스티나토)', [
+    if(INST.piano.on && songTheme) blk('Piano 2 ch'+_ch('piano2',11)+'  (테마 오스티나토)', [
       '음원(Instrument 슬롯): 2nd 피아노 (Soft/Felt, LABS) — 1st와 다른 음색으로',
       '역할: '+themeDesc()+' 테마를 옥타브 위에서 은은하게 반복 (인트로 이후 8마디 뒤 진입 → 구간이 고조될수록 촘촘·크게)',
       'EQ(Channel EQ): HPF 200Hz · 3kHz -1dB(1st 피아노에 자리 양보) · 10kHz +1dB',
       '컴프(Comp): 1.5:1 · Attack 20ms · Release 120ms · GR 1~2dB',
       '센드(Sends→Bus): Hall '+rv(2.5)+'s, 20% · 페이더는 1st 피아노보다 6~9dB 아래']);
-    if(INST.strings.on) blk('Strings ch1', [
+    if(INST.strings.on) blk('Strings ch'+_ch('strings',1)+'', [
       '음원(Instrument 슬롯): BBC SO Discover Strings (Legato) / Studio Strings',
       'EQ(Channel EQ): HPF 60Hz · 300Hz -2dB · 8kHz +1dB(윤기)',
       '컴프(Comp): 1.5:1 · Attack 20ms · Release 150ms · GR 1~2dB',
       '센드(Sends→Bus): Hall '+rv(2.8)+'s, 30% · CC11 활 스웰 구워짐(마디마다)']);
-    if(INST.winds.on) blk('Winds ch2', [
+    if(INST.winds.on) blk('Winds ch'+_ch('winds',2)+'', [
       '음원(Instrument 슬롯): 플루트/오보에 (Studio Horns·LABS)',
       'EQ(Channel EQ): HPF 120Hz · 2kHz +1.5dB · 10kHz +2dB(에어)',
       '컴프(Comp): 2:1 · Attack 10ms · Release 100ms · GR 2dB',
       '센드(Sends→Bus): Hall '+rv(2.5)+'s, 25% · CC11 브레스 구워짐']);
-    if(counterOn) blk('Counter ch6  (대선율)', [
+    if(counterOn) blk('Counter ch'+_ch('counter',6)+'  (대선율)', [
       '음원(Instrument 슬롯): Solo Cello / Solo Strings (레가토)',
       'EQ(Channel EQ): HPF 90Hz · 400Hz -1dB',
       '컴프(Comp): 1.5:1 · Attack 20ms · Release 140ms · GR 1~2dB',
       '센드(Sends→Bus): Hall '+rv(2.6)+'s, 22% · CC11 활 스웰 구워짐']);
-    if(INST.bass.on) blk('Bass ch3', [
+    if(INST.bass.on) blk('Bass ch'+_ch('bass',3)+'', [
       '음원(Instrument 슬롯): '+(gsel==='edm'?'ES2/Sub Bass 신스':'Bass 패치(Sampler)/어쿠스틱'),
       'EQ(Channel EQ): HPF 30Hz · 80Hz +1.5dB(무게) · 700Hz +1dB(정의) · 2.5kHz +1dB(핑거 노이즈)',
       '컴프(Comp): 4:1 · Attack 20ms · Release 100ms · GR 4~6dB',
       '사이드체인(Comp 우측상단 Side Chain): 킥에 2~3dB 덕킹 · 리버브 없음(드라이)']);
     if(INST.drums.on){ const dr=DRUMS[gsel]||{}; const sw=(SWING[gsel]||0);
       const pat='그루브(16분): K['+((dr.kick||[]).join(','))+'] S['+((dr.snare||[]).join(','))+'] hat['+((dr.hat||[]).join(','))+']'+((dr.hatOpen&&dr.hatOpen.length)?(' open['+dr.hatOpen.join(',')+']'):'')+(sw>0?(' · 스윙 '+sw+'(라이드+하이햇페달)'):'')+(['neosoul','citypop','pop','rock'].indexOf(gsel)>=0?' · 고스트 스네어[6,14]':'');
-      blk('Drums ch9', [
+      blk('Drums ch'+_ch('drums',9)+'', [
       '음원(Instrument 슬롯): '+(LYRIC_G.has(gsel)?'브러시/소프트 퍼크':'Drum Kit / 어쿠스틱'),
       pat,
       '버스 EQ(Ch EQ): HPF 30Hz · 400Hz -1dB · 5kHz +2dB(어택) · 10kHz +1dB',
       '병렬 컴프(Comp, 병렬): 8:1 · Attack 5ms · Release 80ms · GR 10~15dB · 블렌드 30~40%',
       '센드(Sends→Bus): Room 0.6s, 10%'+(gsel==='citypop'?' · 스네어 게이트 리버브 0.3s':'')]); }
-    if(gsel==='epicaeol'||gsel==='gukvocal'){
-      blk('Timpani ch14  (오케 저역 타악 — 드럼과 별도 트랙)', [
+    /* 장르 이름으로 가르면 편성이 바뀔 때마다 어긋난다.
+       (실측: classic 은 팀파니 트랙이 있는데 이 조건이 epicaeol·gukvocal 만 봐서
+        시트에 항목이 안 나왔다 — 44장르 중 마지막 한 건이었다.)
+       아래 시네마틱 쪽에도 팀파니 항목이 있으므로 거기서 이미 낸 경우는 건너뛴다. */
+    if(window.__CHMAP && window.__CHMAP.timpani!=null && !CINE.has(gsel)){
+      blk('Timpani ch'+_ch('timpani',14)+'  (오케 저역 타악 — 드럼과 별도 트랙)', [
         '음원(Instrument 슬롯): Timpani (BBC SO Discover / Studio Strings 계열 퍼커션)',
         '역할: 후렴부터 다운비트 강타 · 하이라이트는 반마디마다 · 터짐 직전 마디는 16분 롤 크레셴도로 밀어 올림',
         'EQ(Channel EQ): Band1 HPF 40Hz · Band4 80Hz +1.5dB(무게) · Band6 3kHz +1dB(막대 어택)',
         '컴프(Comp): 2:1 · Attack 20ms · Release 150ms · GR 2~3dB',
         '센드(Sends→Bus): Hall '+rv(2.8)+'s, 25%']);
-      blk('Orch Cymbals ch9  (카사·서스펜디드 — 드럼킷과 별도 트랙 · 롤 구간은 긴 음 1개 + CC1 크레셴도)', [
+      blk('Orch Cymbals ch'+_ch('orchcym',9)+'  (카사·서스펜디드 — 드럼킷과 별도 트랙 · 롤 구간은 긴 음 1개 + CC1 크레셴도)', [
         '음원(Instrument 슬롯): 오케스트라 심벌 (크래시 + 서스펜디드)',
         '노트 맵: 49 = 크래시(카사, 후렴·하이라이트 첫 박) · 52 = 서스펜디드 롤(터짐 직전 크레셴도)',
         'EQ(Channel EQ): Band1 HPF 200Hz · Band7 하이셸프 10kHz +1dB',
         '센드(Sends→Bus): Hall '+rv(2.8)+'s, 30% — 드럼 Room이 아니라 오케 홀로']);
     }
     if(useProd()){
-      blk('Pad ch4', [
+      blk('Pad ch'+_ch('pad',4)+'', [
         '음원(Instrument 슬롯): Alchemy(Pads 카테고리 · 검색 「Warm」) / Analog 3-레이어 (신스 패드 계열)',
         '역할: 배경 지속음 — 구간마다 LPF 열어 밝기 조절 · 다른 트랙을 받쳐줌',
         '자리: 매우 넓게(100%) · -8~-12dB (배경이라 작게)',
         'EQ(Channel EQ): HPF 100Hz · LPF 8kHz(구간마다 열기 오토메이션)',
         '컴프(Comp): 2:1 · GR 1~2dB',
         '센드(Sends→Bus): '+(gsel==='edm'?'Hall':'Shimmer/ChromaVerb Large')+' '+rv(4.5)+'s, 40%']);
-      blk('Sub ch8  (L4+)', [
+      blk('Sub ch'+_ch('sub',8)+'  (L4+)', [
         '음원(Instrument 슬롯): ES2 사인 서브 (서브베이스/808 계열)',
         '역할: 저역 보강 — 모노 · 킥과 타이밍 안 겹치게 · 순간 크지만 서브라 리미터 주의',
         '자리: 정중앙 모노 · -8~-12dB (저역이라 조금만 올려도 크게 들림)',
         'EQ(Channel EQ): LPF 120Hz · 모노(Below 120Hz)',
         '컴프(Comp): 2:1 · GR 2dB · 킥 사이드체인 · 리버브 없음']);
-      if((gsel==='gugak'||gsel==='quartal') && INST.harp.on) blk('Harp ch12', [
+      if((gsel==='gugak'||gsel==='quartal') && INST.harp.on) blk('Harp ch'+_ch('harp',12)+'', [
         '음원(Instrument 슬롯): '+(gsel==='gugak'?'가야금 대용 → Koto/Guzheng 또는 Concert Harp로 교체. 뜯는 발현(핑거)·성긴 아르페지오':'비브라폰 → Vibraphone/Celesta로 교체. 4도 스택이 퍼지는 결, 페달 롱'),
         'EQ(Channel EQ): HPF 90Hz · 6kHz +1.5dB(발현 어택)',
         '컴프(Comp): 2:1 · GR 2dB(여리게)',
         '센드(Sends→Bus): Hall '+(gsel==='gugak'?'2.6':'2.2')+'s, 22% (잔향 길게 — 발현 여운)']);
-      blk('Riser ch7  (드롭 직전)', [
+      blk('Riser ch'+_ch('riser',7)+'  (드롭 직전)', [
         '음원(Instrument 슬롯): 리버스 스웰/화이트노이즈 Uplifter (라이저/노이즈 신스 계열)',
         '역할: 구간 끝 4~8마디 크레셴도 — 볼륨+피치+필터 함께 상승 → 드롭 순간 뚝 끊기',
         '자리: 넓게 · 오토메이션 -18dB→-8dB (시작 여리게→정점 · 트랜지언트라 피크 -6dBFS 주의)',
         'FX: HPF 오토메이션 상승 · Valhalla Supermassive 60% 스웰']);
     }
-    if(CINE.has(gsel)){
-      blk('Horns ch10', ['음원(Instrument 슬롯): Studio Horns(호른 섹션)','EQ(Channel EQ): HPF 70Hz · 500Hz -1dB · 6kHz +1dB','컴프(Comp): 2:1 A20 R150 GR2','센드(Sends→Bus): Hall '+rv(3.0)+'s, 30% · 트랙딜레이 -40ms · CC1/CC11']);
-      if(gsel==='cineTension'||gsel==='cineSoar') blk('LowBrass ch11', ['음원(Instrument 슬롯): 트롬본·튜바','EQ(Channel EQ): HPF 40Hz · 200Hz +1dB','컴프(Comp): 2.5:1 GR3','절정만 · 와이드 · 트랙딜레이 -50ms']);
-      if(gsel!=='cineTension') blk('Harp ch12', ['음원(Instrument 슬롯): Concert Harp','EQ(Channel EQ): HPF 90Hz · 6kHz +1.5dB','센드(Sends→Bus): Hall '+rv(3.0)+'s, 32% · CC64 울림 구워짐']);
-      if(gsel==='cineTension'||gsel==='cineSoar') blk('Choir ch13', ['음원(Instrument 슬롯): 합창 Aahs','EQ(Channel EQ): HPF 120Hz · 3kHz +1dB','센드(Sends→Bus): Hall '+rv(3.5)+'s, 38% · CC11']);
-      if(gsel!=='cineSorrow') blk('Timpani ch14', ['음원(Instrument 슬롯): 팀파니 — 긴 음(롤 구간)은 Roll 아티큘레이션','CC1(모듈레이션)을 음원의 다이내믹/레이어 크로스페이드에 매핑: 롤이 여리게 시작해 부풀어 오름','CC11(익스프레션)도 함께 들어감 — 볼륨 곡선','EQ(Channel EQ): HPF 50Hz · 3kHz +1dB(막대 어택)','센드(Sends→Bus): Hall '+rv(2.8)+'s, 25%']);
-      blk('Contrabass ch15', ['음원(Instrument 슬롯): 저현(콘트라베이스)','EQ(Channel EQ): HPF 30Hz · 120Hz +1dB','컴프(Comp): 2:1 GR2 · 트랙딜레이 -40ms · CC1']);
+    /* 항목 조건도 장르 이름이 아니라 **그 트랙이 실제로 있는가**로 가른다.
+       'cineTension·cineSoar 일 때만' 같은 조건은 편성이 바뀌면 바로 어긋난다
+       (실측: classic 은 팀파니 트랙이 있는데 조건이 cineSorrow 만 걸러서 항목이 안 나왔다).
+       오케 트랙 항목은 CINE 목록으로 가르면 안 된다.
+       epicaeol·gukvocal·classic·cineSuite·gugak 은 CINE 이 아니면서 오케 트랙을 갖는다
+       (실측: 표식을 심어 보니 블록 15~21 이 이 장르들에서 한 번도 안 돌았다.
+        관 섹션 세 트랙·콘트라베이스·가야금 항목이 통째로 시트에서 빠져 있었다).
+       **실제로 그 트랙이 있는가**로 가른다 — 편성이 바뀌어도 시트가 따라간다. */
+    if(CINE.has(gsel) || (window.__CHMAP && (window.__CHMAP.horns!=null || window.__CHMAP.lowbrass!=null ||
+        window.__CHMAP.choir!=null || window.__CHMAP.cbass!=null || window.__CHMAP.brass2!=null ||
+        gsel==='gugak' || gsel==='quartal'))){
+      blk('Horns ch'+_ch('horns',10)+'', ['음원(Instrument 슬롯): Studio Horns(호른 섹션)','EQ(Channel EQ): HPF 70Hz · 500Hz -1dB · 6kHz +1dB','컴프(Comp): 2:1 A20 R150 GR2','센드(Sends→Bus): Hall '+rv(3.0)+'s, 30% · 트랙딜레이 -40ms · CC1/CC11']);
+      if(window.__CHMAP && window.__CHMAP.lowbrass!=null) blk('LowBrass ch'+_ch('lowbrass',11)+'', ['음원(Instrument 슬롯): 트롬본·튜바','EQ(Channel EQ): HPF 40Hz · 200Hz +1dB','컴프(Comp): 2.5:1 GR3','절정만 · 와이드 · 트랙딜레이 -50ms']);
+      if(window.__CHMAP && window.__CHMAP.harp!=null) blk('Harp ch'+_ch('harp',12)+'', ['음원(Instrument 슬롯): Concert Harp','EQ(Channel EQ): HPF 90Hz · 6kHz +1.5dB','센드(Sends→Bus): Hall '+rv(3.0)+'s, 32% · CC64 울림 구워짐']);
+      if(window.__CHMAP && window.__CHMAP.choir!=null) blk('Choir ch'+_ch('choir',13)+'', ['음원(Instrument 슬롯): 합창 Aahs','EQ(Channel EQ): HPF 120Hz · 3kHz +1dB','센드(Sends→Bus): Hall '+rv(3.5)+'s, 38% · CC11']);
+      if(window.__CHMAP && window.__CHMAP.timpani!=null) blk('Timpani ch'+_ch('timpani',14)+'', ['음원(Instrument 슬롯): 팀파니 — 긴 음(롤 구간)은 Roll 아티큘레이션','CC1(모듈레이션)을 음원의 다이내믹/레이어 크로스페이드에 매핑: 롤이 여리게 시작해 부풀어 오름','CC11(익스프레션)도 함께 들어감 — 볼륨 곡선','EQ(Channel EQ): HPF 50Hz · 3kHz +1dB(막대 어택)','센드(Sends→Bus): Hall '+rv(2.8)+'s, 25%']);
+      /* 관 섹션이 나뉘는 편성(호른·트롬본·트럼펫, 오보에·바순)은 시트에 항목이 없었다.
+         (실측: cineSuite·epicaeol·gukvocal 에서 세 트랙씩 빠졌다.)
+         브라스 항목 하나로 묶어 세 채널을 함께 적는다. */
+      { const _bs=[];
+        if(window.__CHMAP){
+          if(window.__CHMAP.brass!=null)  _bs.push('Horns ch'+window.__CHMAP.brass+' — 섹션 중역(화음의 몸통)');
+          if(window.__CHMAP.brass2!=null) _bs.push('Trombones ch'+window.__CHMAP.brass2+' — 섹션 저역(무게)');
+          if(window.__CHMAP.brass3!=null) _bs.push('Trumpets ch'+window.__CHMAP.brass3+' — 섹션 고역(광채)');
+          if(window.__CHMAP.winds2!=null) _bs.push('Oboe ch'+window.__CHMAP.winds2+' — 목관 중역');
+          if(window.__CHMAP.winds3!=null) _bs.push('Bassoon ch'+window.__CHMAP.winds3+' — 목관 저역');
+        }
+        if(_bs.length>1) blk('Brass / Winds 섹션 (나뉜 트랙)', _bs.concat([
+          '음원(Instrument 슬롯): 각 채널에 해당 악기를 따로 얹습니다 — 한 트랙에 합치면 섹션이 사라집니다',
+          'EQ(Channel EQ): 브라스 HPF 90Hz · 400Hz -2dB · 3kHz +2dB / 목관 HPF 120Hz · 2kHz +1.5dB',
+          '컴프(Comp): 3:1 · Attack 20ms · Release 140ms · GR 3dB',
+          '어택 보정: 리전을 왼쪽으로 40~60ms 당깁니다(관은 소리가 늦게 섭니다)']));
+      }
+      blk('Contrabass ch'+_ch('cbass',15)+'', ['음원(Instrument 슬롯): 저현(콘트라베이스)','EQ(Channel EQ): HPF 30Hz · 120Hz +1dB','컴프(Comp): 2:1 GR2 · 트랙딜레이 -40ms · CC1']);
     }
       /* 발현 슬롯(ch12)이 하프도 기타도 아닌 장르 — 시타르·글로켄슈필·비브라폰·밴조.
          지금까지 시트에 항목 자체가 없어서 무슨 음원을 얹을지 알 수 없었다
          (실측: doubleharm·hungarian·phrygdom 의 시타르, kids 의 글로켄슈필 등 여섯 장르). */
-      if(INST.harp && INST.harp.on && !CINE.has(gsel) &&
+      if(INST.harp && INST.harp.on &&
          !(INST.harp.gm>=24&&INST.harp.gm<=31) &&
          gsel!=='gugak' && gsel!=='quartal'){
         const _pn={46:'Concert Harp (콘서트 하프) — 켈틱은 Celtic/Folk Harp 우선',
@@ -31801,7 +31877,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                    9:'Glockenspiel (글로켄슈필 — 없으면 Celesta/Music Box)',
                    11:'Vibraphone (비브라폰 — 없으면 Marimba/Celesta)'}[INST.harp.gm]
                   ||('GM '+INST.harp.gm+' 계열 발현 악기');
-        blk('Plucked ch12', [
+        blk('Plucked ch'+_ch('harp',12)+'', [
           '음원(Instrument 슬롯): '+_pn,
           '역할: 화음을 뜯어 흩는 층 — 피아노·현과 같은 음역에서 겹치지 않게 위쪽에 둔다',
           'EQ(Channel EQ): HPF 160Hz · 400Hz -2dB · 6kHz +2dB',
@@ -31855,14 +31931,14 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           '올라감: CC11 이 구간마다 오릅니다. 페이더로 다시 그리지 말고 CC11 을 쓰세요',
           '길게: 라운지를 켜면 30~60분으로 늘어납니다 — 층 순서는 그대로입니다']);
       }
-      if(_amp && GTR_LEAD[gsel]) blk('Lead Guitar ch13', [
+      if(_amp && GTR_LEAD[gsel]) blk('Lead Guitar ch'+_ch('gtrlead',13)+'', [
         '음원(Instrument 슬롯): 리듬 기타와 같은 계열로 얹되 게인을 한 단계 올린다',
         '역할: 솔로 구간 전용 — 다른 구간은 비어 있다. 리듬 기타(ch12)와 다른 트랙이다',
         '음표: 으뜸음 5음 음계 한 줄. 같은 음이 이어지는 자리가 벤딩·비브라토를 넣을 자리다',
         'EQ(Channel EQ): HPF 140Hz · 800Hz +1.5dB · 3.5kHz +3dB (리듬 기타 위로 뜨게)',
         '컴프(Comp): 4:1 · Attack 8ms · Release 140ms · GR 5dB',
         '센드(Sends→Bus): Plate '+rv(1.6)+'s, 18% · 딜레이 1/8점 12%']);
-      if(_amp) blk('Guitar ch12', _amp.concat([
+      if(_amp) blk('Guitar ch'+_ch('harp',12)+'', _amp.concat([
         '센드(Sends→Bus): '+((_gst==='power'||_gst==='cut16')?('Plate '+rv(1.3)+'s, 12%'):('Room '+rv(1.0)+'s, 14%')),
         '스트럼 시차는 이미 들어가 있다(약 12ms) — 음원의 자동 스트럼 기능은 끄고 쓸 것']));
     }
