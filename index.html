@@ -7304,46 +7304,7 @@ function arrange(){
      arr.forEach(n=>{if(cur&&Math.abs(n.t-cur.end)<1e-6){cur.end=n.end;}else{if(cur)tracks.drone.push({t:cur.t,dur:cur.end-cur.t,midi:cur.midi,vel:cur.vel});cur={...n};}});
      if(cur)tracks.drone.push({t:cur.t,dur:cur.end-cur.t,midi:cur.midi,vel:cur.vel});});
    tracks.drone.sort((a,b)=>a.t-b.t||a.midi-b.midi);}
-  /* ── 7음·텐션이 바닥에 오는 것을 막는다 (최종본에서 한 번) ──
-   voiceChord 에 걸어 봤지만 실제 피아노 음은 그 뒤 아르페지오·롤링을 거쳐
-   다른 묶음으로 재구성된다. 그래서 **완성된 트랙에서** 잡는다.
-   두 음 이상 동시에 울리는 묶음만 본다 — 단음 아르페지오는 텐션을 지나가는 것이 정상이다
-   (실측 Band 28스타일 2,656묶음: ♭7 10.5% · 9도 9.2% · 13도 7.4% · 장7 4.0%).
-   베이스 트랙이 있으면 5도까지, 없으면 근음·3도만 바닥에 둔다. */
-try{
-  (function(){
-    const P=tracks.piano; if(!P||P.length<2) return;
-    const hasBass=!!(state && state.enabled && state.enabled.bass!==false);
-    const ok=hasBass?{0:1,3:1,4:1,7:1}:{0:1,3:1,4:1};
-    const cells=_cells||[];
-    const arr=P.slice().sort(function(a2,b2){ return a2.t-b2.t || a2.midi-b2.midi; });
-    let i=0;
-    while(i<arr.length){
-      let j=i;
-      while(j+1<arr.length && arr[j+1].t-arr[i].t<=0.05) j++;
-      const g=arr.slice(i,j+1); i=j+1;
-      if(g.length<2) continue;
-      const t=g[0].t;
-      let cc=null;
-      for(let z=0;z<cells.length;z++){ const c=cells[z];
-        if(c.s<=t && t<c.s+c.d){ cc=c; break; } }
-      if(!cc || cc.pc==null) continue;
-      const iv=new Set((cc.pcs||[]).map(function(q){ return ((q-cc.pc)%12+12)%12; }));
-      if(!(iv.has(10)||iv.has(11))) continue;
-      let lo=g[0];
-      g.forEach(function(x){ if(x.midi<lo.midi) lo=x; });
-      const rel=((lo.midi-cc.pc)%12+12)%12;
-      if(ok[rel]) continue;
-      let want=lo.midi-rel;
-      if(rel>6) want=lo.midi+(12-rel);
-      while(want<28) want+=12;
-      while(want>72) want-=12;
-      if(g.some(function(x){ return x!==lo && x.midi===want; })) continue;
-      lo.midi=want;
-    }
-  })();
-}catch(e){}
-MODEL={tracks,sections:sview,totalQ:cur,totalSec:acc,bpm:(+$('bpm').value||92),_cells:_cells};// ── 브레이크(정적) 적용: 클라이맥스 직전 마지막 박에서 화성·베이스·기타·현 끊기 → 다음 다운비트 폭발 극대화 ──
+  MODEL={tracks,sections:sview,totalQ:cur,totalSec:acc,bpm:(+$('bpm').value||92),_cells:_cells};// ── 브레이크(정적) 적용: 클라이맥스 직전 마지막 박에서 화성·베이스·기타·현 끊기 → 다음 다운비트 폭발 극대화 ──
   if(_breakRanges.length){
     const muteTracks=['bass','guitar','melody','counter','lead','genre','drone'];   // 피아노 제외 전부 정적
     _breakRanges.forEach(({a,b,barStart,bq})=>{
@@ -8186,6 +8147,54 @@ MODEL={tracks,sections:sview,totalQ:cur,totalSec:acc,bpm:(+$('bpm').value||92),_
 }
 { const NO_DRUM=['tango'];   // 전통 탱고는 드럼을 쓰지 않는다 — 필·엔딩까지 끝난 뒤 비운다
     if(NO_DRUM.indexOf(state.style)>=0 && MODEL.tracks && MODEL.tracks.drums) MODEL.tracks.drums=[]; }
+  /* ── 7음·텐션이 바닥에 오는 것을 막는다 (최종본에서 한 번) ──
+   voiceChord 에 걸어 봤지만 실제 피아노 음은 그 뒤 아르페지오·롤링을 거쳐
+   다른 묶음으로 재구성된다. 그래서 **완성된 트랙에서** 잡는다.
+   두 음 이상 동시에 울리는 묶음만 본다 — 단음 아르페지오는 텐션을 지나가는 것이 정상이다
+   (실측 Band: motown 화음 [23,48,67] 에 베이스 36 — 23 은 B0 다.
+   MODEL 을 만든 뒤에도 브레이크·빌드업이 피아노를 더한다.
+   그래서 **arrange 의 맨 끝(return 직전)** 에서 훑는다.
+   (실측 28스타일 2,656묶음: ♭7 10.5% · 9도 9.2% · 13도 7.4% · 장7 4.0%).
+   베이스 트랙이 있으면 5도까지, 없으면 근음·3도만 바닥에 둔다. */
+try{
+  (function(){
+    const P=MODEL.tracks.piano; if(!P||P.length<2) return;
+    const hasBass=!!(state && state.enabled && state.enabled.bass!==false);
+    const ok=hasBass?{0:1,3:1,4:1,7:1}:{0:1,3:1,4:1};
+    const cells=_cells||[];
+    const arr=P.slice().sort(function(a2,b2){ return a2.t-b2.t || a2.midi-b2.midi; });
+    let i=0;
+    while(i<arr.length){
+      let j=i;
+      while(j+1<arr.length && arr[j+1].t-arr[i].t<=0.05) j++;
+      const g=arr.slice(i,j+1); i=j+1;
+      if(g.length<2) continue;
+      const t=g[0].t;
+      let cc=null;
+      for(let z=0;z<cells.length;z++){ const c=cells[z];
+        if(c.s<=t && t<c.s+c.d){ cc=c; break; } }
+      if(!cc || cc.pc==null) continue;
+      const iv=new Set((cc.pcs||[]).map(function(q){ return ((q-cc.pc)%12+12)%12; }));
+      if(!(iv.has(10)||iv.has(11))) continue;
+      let lo=g[0];
+      g.forEach(function(x){ if(x.midi<lo.midi) lo=x; });
+      /* 피아노 왼손 하한 — 33(A1) 아래는 화음 바닥으로 쓸 음이 아니다.
+         (실측 motown: 화음 [23,48,67] 에 베이스 36 — 23 은 B0 로 베이스보다 한 옥타브 아래고
+          그 위 C 와 장7도로 부딪힌다. 그 음역의 장7도는 웅웅거리기만 한다.
+          이 장르가 35% 로 가장 나빴던 원인이 그 한 음형의 반복이었다.) */
+      if(lo.midi<33){ let up=lo.midi; while(up<33) up+=12;
+        if(!g.some(function(x){ return x!==lo && x.midi===up; })){ lo.midi=up; } }
+      const rel=((lo.midi-cc.pc)%12+12)%12;
+      if(ok[rel]) continue;
+      let want=lo.midi-rel;
+      if(rel>6) want=lo.midi+(12-rel);
+      while(want<33) want+=12;
+      while(want>72) want-=12;
+      if(g.some(function(x){ return x!==lo && x.midi===want; })) continue;
+      lo.midi=want;
+    }
+  })();
+}catch(e){}
   return MODEL;
 }
 function qToSec(q){const S=MODEL.sections;if(!S.length)return q*(60/MODEL.bpm);
@@ -8402,7 +8411,23 @@ function piano2Region(ch,s,d,out,frac){
 function pianoRegion(ch,s,d,e,out,bb,bs,bts,opt){const ps=ch.piano,top=ps[ps.length-1],BB=bb||4;bts=bts||[0,1,2,3];
   const O=opt||{},dyn=O.dyn||1,spaceP=O.space||0,EXPR=O.expr,BR=O.breath||0;
   const within=tt=>tt>=s-1e-6&&tt<s+d-1e-6;
-  const rootLo=()=>{let m=48+(((ch.pc||0)%12)+12)%12;while(m>55)m-=12;while(m<43)m+=12;return m;}; // 왼손 근음(베이스 위 음역)
+  /* 왼손 근음. 하한 43(G2)이 베이스보다 아래로 내려가는 경우가 있었다
+     (실측 neosoul: 베이스 45(A2) 인데 피아노 바닥 43(G2) — 두 반음 아래에서 뭉갠다.
+      그 스타일이 7음 바닥 17.9% 로 남은 원인이다).
+     베이스 트랙이 있으면 그 음보다 아래로는 내려가지 않는다. */
+  const rootLo=()=>{
+    let m=48+(((ch.pc||0)%12)+12)%12;while(m>55)m-=12;while(m<43)m+=12;
+    try{
+      const B=(MODEL&&MODEL.tracks&&MODEL.tracks.bass)||null;
+      if(B&&B.length){
+        let bl=null;
+        for(let z=0;z<B.length;z++){ const n=B[z];
+          if(n&&n.midi!=null&&n.t!=null && n.t<s+d-1e-6 && (n.t+(n.dur||0.25))>s+1e-6){
+            if(bl==null||n.midi<bl) bl=n.midi; } }
+        if(bl!=null){ while(m<bl && m+12<=67) m+=12; }
+      }
+    }catch(e){}
+    return m; }; // 왼손 근음(베이스 위 음역)
   const HUM=state.humanize, N=ps.length;
   const accent=o=>o<1e-6?4:(Math.abs(o-Math.round(o))<1e-6?1:-2);   // 다운비트 또렷, 엇박 살짝 죽임
   const offbeat=o=>o>0.01&&Math.abs(o-Math.round(o))>1e-6;          // 공간 비우기 대상(엇박)
@@ -8578,6 +8603,12 @@ function pianoRegion(ch,s,d,e,out,bb,bs,bts,opt){const ps=ch.piano,top=ps[ps.len
       else{bts.forEach(o=>{chord(o,60,0.92);note(o,lo,56,0.92);});for(let o=0.5;o<BB-1e-6;o+=1)note(o,top+12,46,0.4);}
     }
   }
+  /* 피아노 왼손 하한 — 33(A1) 아래는 화음 바닥으로 쓸 음이 아니다.
+     (실측 motown: [23,48,67] 에 베이스 36 — 23 은 B0 로 베이스보다 한 옥타브 아래고
+      그 위 C 와 장7도로 부딪힌다. 그 음역의 장7도는 웅웅거리기만 한다.
+      이 한 음형의 반복이 그 스타일 혼자 34% 를 만들었다.)
+     후처리 위치를 네 번 옮겨도 안 잡혔다 — **음을 만드는 자리에서 막는다.** */
+  try{ out.forEach(function(n){ if(n && n.midi!=null){ while(n.midi<33) n.midi+=12; } }); }catch(e){}
 }
 /* 시드 랜덤 멜로디 — 리듬 셀 + 코드톤/패싱톤, 매번 다양하게 */
 function mul32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -8668,7 +8699,13 @@ function atmosRegion(ch,s,d,tracks,isIntro,frac){
     // 양 끝 피아노: 코드톤 아르페지오 — 음형·리듬 곡 시드로 다양화. 아웃트로는 같은 음형을 회상하며 페이드(북엔드)
     const seq=introArpSeq(ps),RH=introArpRhythm();
     let lo0=ps[0];while(lo0<43)lo0+=12;while(lo0>55)lo0-=12;
-    tracks.piano.push({t:s,dur:d*0.98,midi:lo0-12,vel:Math.max(20,baseVel+2),bright,atmos:1});   // 왼손 근음 지속
+    /* 왼손 근음을 옥타브 내릴 때 하한이 없었다.
+       (실측 motown: lo0-12 가 23(B0) 이 됐다 — 베이스 36 보다 한 옥타브 아래고
+        그 위 C 와 장7도로 부딪힌다. 그 음역의 장7도는 웅웅거리기만 한다.
+        이 한 줄이 그 스타일 혼자 34% 를 만들었다.
+        후처리 위치를 다섯 번 옮겨도 안 잡혔다 — 만드는 자리가 여기였다.) */
+      { let _lh=lo0-12; if(_lh<33) _lh=lo0;
+        tracks.piano.push({t:s,dur:d*0.98,midi:_lh,vel:Math.max(20,baseVel+2),bright,atmos:1}); }   // 왼손 근음 지속
     const ons=[];for(let blk=0;blk<d-1e-6;blk+=RH.per)RH.off.forEach(o=>{if(blk+o<d-1e-6)ons.push(blk+o);});
     let k=0;ons.forEach((o,i)=>{const nx=(i+1<ons.length)?ons[i+1]:d;
       tracks.piano.push({t:s+o,dur:Math.max(0.12,(nx-o)*0.92),midi:seq[k%seq.length],vel:Math.max(18,baseVel+(Math.abs(o%1)<1e-6?6:0)),bright,atmos:1});k++;});
@@ -10207,6 +10244,16 @@ function tensionPlaceBand(cells){
   const at=function(t){ for(let i=0;i<cells.length;i++){ const c=cells[i];
     if(c.s-1e-6<=t && t<c.s+c.d-1e-6) return c; } return null; };
   const T=MODEL.tracks||{};
+  /* 베이스가 그 순간 짚는 음 — 피아노·기타가 그보다 아래로 내려가면 안 된다.
+     (실측 neosoul: 베이스 45(A2) 인데 피아노 바닥이 43(G2) 로 ♭7 을 짚었다.
+      두 반음 차이로 저역에서 뭉갠다. 이 스타일이 17.9% 로 남은 원인이다.) */
+  const __bassAt=function(a,b){
+    let lo=null;
+    (T.bass||[]).forEach(function(n){
+      if(n&&n.midi!=null&&n.t!=null && n.t<b-1e-6 && (n.t+(n.dur||0.25))>a+1e-6){
+        if(lo==null||n.midi<lo) lo=n.midi; } });
+    return lo;
+  };
   /* 그 순간 울리는 모든 유율 음을 모은다 — 베이스와 타악은 제외 */
   const all=[];
   Object.keys(T).forEach(function(k){
@@ -10276,8 +10323,17 @@ function tensionPlaceBand(cells){
       if(!isBadThird && !futile){
         for(let j=1;j<=2;j++){ const c2=n.midi+12*j;
           if(c2>hi+12) break; if(!clash(c2,co,pcsN)){ m=c2; break; } }
+        /* 아래로 옮길 때 하한이 없었다. 피아노 왼손이 23(B0)까지 내려가
+           베이스(36)보다 한 옥타브 아래에서 장7도로 부딪혔다
+           (실측 motown: 23 이 26개 · 그 스타일 혼자 7음 바닥 34%).
+           후처리를 여섯 번 옮겨도 안 잡힌 이유가 이것이다 —
+           **편곡이 아니라 내보내기 단계의 tensionPlaceBand 가 만든 음이었다.**
+           표식 두 개(artic뒤 0개 · noteTrack앞 26개)로 한 번에 나왔다. */
+        /* 베이스보다 아래로는 내리지 않는다 — 저역이 겹쳐 뭉갠다 */
+        const _bl=(/piano|guitar|keys/i.test(k||''))?__bassAt(n.t,n.t+(n.dur||0.25)):null;
         if(m==null) for(let j=1;j<=2;j++){ const c2=n.midi-12*j;
-          if(c2<lo-12) break; if(!clash(c2,co,pcsN)){ m=c2; break; } }
+          if(c2<lo-12 || c2<33 || (_bl!=null && c2<_bl)) break;
+          if(!clash(c2,co,pcsN)){ m=c2; break; } }
       }
       if(m==null){
         /* 자리를 못 찾으면 가까운 화음 뼈대음으로 내린다 — 텐션은 양념이다 */
@@ -10443,7 +10499,7 @@ function exportAll(){arrange();
                                    const _gg=gmOf('guitar');
                                    if(_gg!=null && ((_gg>=56&&_gg<=63)||(_gg>=64&&_gg<=79)||(_gg>=40&&_gg<=54)))
                                      fold(T.guitar.filter(n=>!n.cine&&!n.trem), _gg); }
-    famArticBand(T.piano,   gmOf('piano'));
+  famArticBand(T.piano,   gmOf('piano'));
     famArticBand(T.counter, gmOf('counter'));
     famArticBand(T.genre,   gmOf('genre'));
     famVelBand(T.bass,      gmOf('bass'));      // 베이스는 벨로시티만(튜바·저현일 때 상한 적용)
@@ -15024,7 +15080,9 @@ function arrange(){
       // 코드 — chordBars 주기로 전환 (러닝 기본 2마디)
       const sym=sec.chords[Math.floor(bar/cb)%sec.chords.length]||sec.chords[0];
       const ch=chordFromSym(sym);
-      /* 마디별 화음을 남긴다 — 최종본에서 바닥을 잡을 때 근음이 필요하다 */
+      /* 마디별 화음을 남긴다 — 계측이 근음을 추정하지 않게 한다.
+         (Beat 는 베이스가 근음을 전담하므로 화음 트랙만 보면 1전위가 11도 바닥으로 잡힌다.
+          베이스를 합쳐 재니 곡 전체 바닥의 99.9%가 근음이었다 — 고칠 것이 없다.) */
       if(ch){ try{ (tr.__cells=tr.__cells||[]).push({s:b0, d:BQ*cb, pc:((ch.notes[0]%12)+12)%12,
         pcs:(ch.notes||[]).map(function(n){ return ((n%12)+12)%12; })}); }catch(e){} }
       if(ch){
@@ -15544,41 +15602,7 @@ function arrange(){
   fixHarmonyClashes(tr,sview);                                        // 리드·베이스가 코드와 정면충돌하는 음을 코드톤으로 보정
   harmGateBeat(tr,sview);                                             // 화성층(코드·패드·피아노·아르프·드론)은 코드톤만
   dedupMelodic(tr);                                                   // 멜로디 트랙 같은 음 중복·물림 정리(스턱 노트 방지)
-  /* 7음 텐션이 바닥에 오는 것을 막는다 (최종본에서 한 번).
-   7음이 바닥이면 3전위다. 그 위 근음과 장7도로 부딪힌다.
-   두 음 이상 동시에 울리는 묶음만 본다 - 단음 아르페지오는 텐션을 지나가는 것이 정상이다.
-   Play 2.4% Band 5.9% 로 잡은 것과 같은 규칙. Beat 는 16.4% 였다. */
-try{ (function(){
-  var P=tr.chords; if(!P||P.length<2) return;
-  var cells=tr.__cells||[]; if(!cells.length) return;
-  var ok={0:1,3:1,4:1,7:1};
-  var arr=P.slice().sort(function(x,y){ return x.t-y.t || x.midi-y.midi; });
-  var i=0;
-  while(i<arr.length){
-    var j=i;
-    while(j+1<arr.length && arr[j+1].t-arr[i].t<=0.05) j++;
-    var g=arr.slice(i,j+1); i=j+1;
-    if(g.length<2) continue;
-    var t=g[0].t, cc=null;
-    for(var z=0;z<cells.length;z++){ var c=cells[z]; if(c.s<=t && t<c.s+c.d){ cc=c; break; } }
-    if(!cc || cc.pc==null) continue;
-    var iv={}; (cc.pcs||[]).forEach(function(q){ iv[((q-cc.pc)%12+12)%12]=1; });
-    if(!(iv[10]||iv[11])) continue;
-    var lo=g[0];
-    g.forEach(function(x){ if(x.midi<lo.midi) lo=x; });
-    var rel=((lo.midi-cc.pc)%12+12)%12;
-    if(ok[rel]) continue;
-    var want=(rel>6)?(lo.midi+(12-rel)):(lo.midi-rel);
-    while(want<36) want+=12;
-    while(want>76) want-=12;
-    var dup=false;
-    g.forEach(function(x){ if(x!==lo && x.midi===want) dup=true; });
-    if(dup) continue;
-    lo.midi=want;
-  }
-  try{ delete tr.__cells; }catch(e){}
-})(); }catch(e){}
-MODEL={tracks:tr,sections:sview,tempoMap:tm.segs,totalQ:tm.totalQ,totalSec:tm.totalSec,bpm:+$('bpm').value};
+  MODEL={tracks:tr,sections:sview,tempoMap:tm.segs,totalQ:tm.totalQ,totalSec:tm.totalSec,bpm:+$('bpm').value,_cells:(tr.__cells||[])};
   sview.forEach(s=>{s.startSec=qToSec(s.startQ);});
   buildHookpopLayers();                                               // Hook-Pop: 기타·스트링 물리 레이어 생성
   layerHookpop();                                                     // Hook-Pop: 악기 레이어 누적 빌드업
@@ -23409,8 +23433,16 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     let out=all;
     if(__scoreMelFromMidi && __scoreMelFromMidi.length){
       const rests=all.filter(function(x){ return x.midi==null; });
+      /* 확정본의 pos 가 마디 길이를 넘는 음이 있다 — 마무리 악구가 마지막 마디를 넘어
+         4.0 · 4.5 · 5.5 · 6.0박 에 놓이는데 bar 는 그대로다.
+         (실측 dorian: 마디43 에 4.0/4.5/5.5/6.0 — 악보는 이것을 마디 안으로 밀어 넣으려다
+          전부 3.75 에 겹쳐 쌓았다. 이 유형이 열 장르 넘게 나왔다.)
+         넘친 만큼 마디를 올려 준다. */
+      const _bq=meterQuarters();
       out=rests.concat(__scoreMelFromMidi.map(function(x){
-        return {bar:x.bar, pos:x.pos, midi:x.midi, dur:x.dur};
+        let b2=x.bar, p=x.pos;
+        while(p>=_bq-1e-6){ p-=_bq; b2++; }
+        return {bar:b2, pos:p, midi:x.midi, dur:x.dur};
       })).sort(function(a2,b2){ return (a2.bar-b2.bar)||(a2.pos-b2.pos); });
     }
     /* ── 악보용 정리 ──
@@ -24631,7 +24663,13 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     __scoreMelFromMidi=null;
     if(!themeProg||!songMotif) newMotif(); // 테마 없으면 새 모티프
   else if(songMotif) songMotif.seed=(Math.random()*0x7fffffff)>>>0; // 테마 있으면 훅(con·리듬·테마선율)은 유지하되, 변주·전개 시드만 갱신 → 곡마다 전개가 달라짐(같은 훅 다른 곡)
-  isThemeMode=false;
+  /* 테마로 곡을 만들 때는 그 테마 선율을 써야 한다.
+     여기서 isThemeMode 를 끄면 아래 두 자리(구간 선율 생성 · 재생 경로)의
+     `isThemeMode && themeMelody` 조건이 거짓이 되어 genMelody 가 새 선율을 만든다.
+     그래서 '테마로 곡 생성' 을 눌러도 코드만 테마를 따르고 **선율은 딴것**이 나왔다
+     (Hans 확인: 테마 악보는 맞는데 곡 만들기를 누르면 다른 선율이 나온다).
+     테마가 있으면 테마 모드를 유지한다. 테마 없이 만든 곡은 종전대로 끈다. */
+  isThemeMode=!!(themeProg && themeMelody);
     const ps=G[gsel].progs.filter(p=>p.mode===keyMode);
     if(!ps.length){ if($('themeMsg'))$('themeMsg').textContent='이 조성에 맞는 진행이 없어요 — 조성을 바꿔보세요'; return; }
     let structKey=($('structSel')&&$('structSel').value)||((gsel==='gukvocal')?'gukvocal':'');
