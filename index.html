@@ -27198,6 +27198,56 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     });
     return ev;
   }
+  /* ── 7화음의 바닥은 근음이나 3도다 ──
+     7음이 바닥에 오면 3전위다. 그 위 근음과 장7도(뒤집으면 단2도)로 부딪힌다.
+     낮은 음역일수록 배음이 촘촘해 그 마찰이 크게 들린다.
+     정통 화성에서 3전위는 해결로 가는 자리에만 쓴다 — 아무 데나 나올 것이 아니다.
+     (실측 44장르 7화음 3,228묶음: ♭7 바닥 13.6% · 장7 1.1% · 9도·11도 5.0%.
+      cineJoy·gypsy·tango·quartal·rock 은 세 번에 한 번꼴이었다.)
+     재즈 컴핑의 루트리스 보이싱은 베이스가 근음을 맡을 때의 어법이지만
+     Hans 확인: 독주 계열에서는 부딪혀 들린다 — 독주는 예외 없이 맞춘다. */
+  function seventhBassFix(ev, gkey, barPcs, barRoot, barLen, padTick){
+    if(gkey!=='piano' && gkey!=='piano2') return ev;
+    const solo=(typeof LYRIC_G!=='undefined' && LYRIC_G.has(gsel)) || soloPiano || loungeMode;
+    const OKIV={0:1, 3:1, 4:1};              /* 근음 · 단3 · 장3 */
+    const OK5=Object.assign({7:1}, OKIV);    /* 베이스 있는 편성은 5도까지 허용 */
+    const open={};
+    /* 같은 순간 묶음을 찾아 그 묶음의 최저음만 본다 */
+    const pairs=[];
+    ev.forEach(function(e,i){
+      if(e.cc!=null || e.note==null || e.tick==null) return;
+      if(e.on===1){ (open[e.note]=open[e.note]||[]).push({oi:i,tick:e.tick}); }
+      else { const q=open[e.note]; if(q&&q.length){ const o=q.shift();
+        pairs.push({oi:o.oi, fi:i, tick:o.tick}); } }
+    });
+    if(pairs.length<2) return ev;
+    pairs.sort(function(a2,b2){ return a2.tick-b2.tick; });
+    let i=0;
+    while(i<pairs.length){
+      let j=i;
+      while(j+1<pairs.length && pairs[j+1].tick-pairs[i].tick<=20) j++;
+      const g=pairs.slice(i,j+1); i=j+1;
+      const bi=barAtTick(g[0].tick, padTick, barLen);
+      const pcs=(barPcs&&barPcs[bi])?barPcs[bi]:null;
+      const root=(barRoot&&barRoot[bi]!=null)?barRoot[bi]:null;
+      if(!pcs || root==null) continue;
+      const iv=new Set(pcs.map(function(p){ return ((p-root)%12+12)%12; }));
+      if(!(iv.has(10)||iv.has(11))) continue;          /* 7화음이 아니면 건너뛴다 */
+      let lo=g[0], lv=ev[g[0].oi].note;
+      g.forEach(function(x){ if(ev[x.oi].note<lv){ lv=ev[x.oi].note; lo=x; } });
+      const rel=((lv-root)%12+12)%12;
+      const ok=solo?OKIV:OK5;
+      if(ok[rel]) continue;
+      /* 바닥을 근음으로 올리거나 내린다 — 원래 자리에서 가장 가까운 근음 */
+      let want=lv - rel;                                /* 그 아래 근음 */
+      if(rel>6) want=lv + (12-rel);                     /* 위쪽이 더 가깝다 */
+      while(want<28) want+=12;
+      while(want>72) want-=12;
+      if(g.some(function(x){ return x!==lo && ev[x.oi].note===want; })) continue;  /* 겹치면 두다 */
+      ev[lo.oi].note=want; ev[lo.fi].note=want;
+    }
+    return ev;
+  }
   function soloBassSpread(ev, gkey, barRoot, barLen, padTick, tpq){
     if(gkey!=='piano' || !barRoot || !barRoot.length) return ev;
     if(!(soloPiano || loungeMode)) return ev;            // 베이스 트랙이 있는 편성은 그대로
@@ -31187,6 +31237,10 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       try{ ev=loungeCompThin(ev, grp.key, __barLen, PAD); }catch(e){}
       try{ ev=loungeCompGrid(ev, grp.key, __barLen, PAD, TPQ); ev=coalesceNotes(ev); }catch(e){}
       try{ ev=loungeLeftThin(ev, grp.key, __barLen, PAD, TPQ); ev=coalesceNotes(ev); }catch(e){}
+      /* 7화음 바닥 정리는 저역 배치 관문들이 끝난 뒤에 온다 —
+         앞에 두면 soloBassSpread·loungeOctave 가 다시 내려 도로 어긋난다
+         (라운지 왼손 솎기에서 같은 것을 겪었다). */
+      try{ ev=seventhBassFix(ev, grp.key, __barPcs, __barRoot, __barLen, PAD); ev=coalesceNotes(ev); }catch(e){}
       __pending.push({grp:grp, ev:ev});
     });
     /* ── 최종 저역 정리 ──
@@ -32138,7 +32192,12 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       'EQ(Channel EQ): HPF 40Hz · 250Hz -2dB(머드) · 5kHz +1.5dB(어택)',
       '컴프(Comp): 2:1 · Attack 15ms · Release 120ms · GR 2~3dB',
       '센드(Sends→Bus): Hall '+rv(2.5)+'s, 25% (predelay 20ms) · CC64 서스테인 구워짐']);
-    if(INST.piano.on && songTheme) blk('Piano 2 ch'+_ch('piano2',11)+'  (테마 오스티나토)', [
+    /* 항목을 낼지는 **실제로 만들어진 트랙**으로 판정한다.
+       INST 상태로 보면 라운지처럼 편성이 뒤에서 바뀌는 경우를 놓친다
+       (실측 lyric 라운지: MIDI 트랙 둘인데 시트에 '테마 오스티나토' 가 있었고,
+        jazz 라운지는 '대선율' 까지 있었다 — 둘 다 없는 트랙이다). */
+    const _has=function(k){ try{ return !!(window.__CHMAP && window.__CHMAP[k]!=null); }catch(e){ return true; } };
+    if(_has('piano2') && INST.piano.on && songTheme) blk('Piano 2 ch'+_ch('piano2',11)+'  (테마 오스티나토)', [
       '음원(Instrument 슬롯): 2nd 피아노 (Soft/Felt, LABS) — 1st와 다른 음색으로',
       '역할: '+themeDesc()+' 테마를 옥타브 위에서 은은하게 반복 (인트로 이후 8마디 뒤 진입 → 구간이 고조될수록 촘촘·크게)',
       'EQ(Channel EQ): HPF 200Hz · 3kHz -1dB(1st 피아노에 자리 양보) · 10kHz +1dB',
@@ -32154,7 +32213,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       'EQ(Channel EQ): HPF 120Hz · 2kHz +1.5dB · 10kHz +2dB(에어)',
       '컴프(Comp): 2:1 · Attack 10ms · Release 100ms · GR 2dB',
       '센드(Sends→Bus): Hall '+rv(2.5)+'s, 25% · CC11 브레스 구워짐']);
-    if(counterOn) blk('Counter ch'+_ch('counter',6)+'  (대선율)', [
+    if(_has('counter') && counterOn) blk('Counter ch'+_ch('counter',6)+'  (대선율)', [
       '음원(Instrument 슬롯): Solo Cello / Solo Strings (레가토)',
       'EQ(Channel EQ): HPF 90Hz · 400Hz -1dB',
       '컴프(Comp): 1.5:1 · Attack 20ms · Release 140ms · GR 1~2dB',
