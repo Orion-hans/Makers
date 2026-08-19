@@ -22954,10 +22954,16 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     const chordSnap=simple||!!opts.chordSnap; // 재즈 등: 강박·지속음을 화음톤으로 스냅(변화음 코드와 안 부딪히게)
     if(chordSnap){ // 강박(pos 0, 0.5) + 지속음을 화음톤으로 스냅
       const maxD=simple?2:1; // 재즈: ±1반음(실제 충돌음)만 — 온음 텐션(9·11·13) 보존 / 에이올리안: ±2
-      a.forEach(n=>{ const strong=(Math.abs(n.pos-0)<0.06||Math.abs(n.pos-0.5)<0.06)||(n.dur>=0.5);
+      /* 옮긴 자리가 앞 음과 같아지면 선율이 멈춘다 — 같은 음이 두 번 울린다.
+         (실측 jazz: 제자리 13% -> 21%. 되풀이 39건 중 28건이 약박이었다.)
+         앞 음과 같아지는 후보는 건너뛰고 반대쪽을 본다. 없으면 옮기지 않는다. */
+      a.forEach((n,ni)=>{ const strong=(Math.abs(n.pos-0)<0.06||Math.abs(n.pos-0.5)<0.06)||(n.dur>=0.5);
         if(!strong) return;
         const ct=chAt(n.bar); if(ct.indexOf(((n.midi%12)+12)%12)>=0) return; let best=n.midi,bd=99;
-        for(let d=1;d<=maxD;d++)for(const c of [n.midi-d,n.midi+d]){ if(ct.indexOf(((c%12)+12)%12)>=0&&d<bd){bd=d;best=c;} } n.midi=best; });
+        const pvM=(ni>0)?a[ni-1].midi:null;
+        for(let d=1;d<=maxD;d++)for(const c of [n.midi-d,n.midi+d]){
+          if(c===pvM) continue;
+          if(ct.indexOf(((c%12)+12)%12)>=0&&d<bd){bd=d;best=c;} } n.midi=best; });
     }
     /* ── 긴 음은 화음음으로 ──
        모달 진행(켈틱·포크·교회선법)은 화음톤 스냅을 걸지 않아 색채음이 자유롭다.
@@ -22974,7 +22980,10 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         if(heard<LS) return;
         const ct=chAt(n.bar); if(ct.indexOf(((n.midi%12)+12)%12)>=0) return;
         let best=n.midi,bd=99;
-        for(let d=1;d<=2;d++)for(const c of [n.midi-d,n.midi+d]){ if(ct.indexOf(((c%12)+12)%12)>=0&&d<bd){bd=d;best=c;} }
+        const pvM=(i>0)?a[i-1].midi:null;                      /* 앞 음과 같아지지 않게 */
+        for(let d=1;d<=2;d++)for(const c of [n.midi-d,n.midi+d]){
+          if(c===pvM) continue;
+          if(ct.indexOf(((c%12)+12)%12)>=0&&d<bd){bd=d;best=c;} }
         n.midi=best;
       });
     }
@@ -23479,7 +23488,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           }
         }
         /* ③ 화음음과 화음음 사이를 결로 잇는다 */
-        const KIND=['걷기','뛰고메우기','보조음','제자리','아치'];
+        const KIND=['걷기','뛰고메우기','보조음','아치'];
         for(let a=0;a<anc.length-1;a++){
           const i0=anc[a], i1=anc[a+1];
           const k=i1-i0-1;
@@ -23489,11 +23498,16 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           /* 갈래 고르기 — 거리와 자리 수가 먼저, 그 안에서 직전과 다르게 */
           let kind;
           if(Math.abs(d)>k+1) kind='뛰고메우기';
-          else if(d===0) kind=(RND()<0.45?'제자리':'보조음');
+          /* '제자리' 를 갈래로 두었더니 선율이 멈춰 섰다.
+             (실측 jazz: 마디 17 이 [79,79], 마디 18 이 [81,84,84] —
+              음은 있는데 어디로도 가지 않는다. '선율이 없다' 는 말이 이것이었다.)
+             머무는 자리는 리듬이 만드는 것이지 같은 음을 두 번 찍는 것이 아니다.
+             두 화음음이 같으면 이웃음으로 다녀온다. */
+          else if(d===0) kind='보조음';
           else if(k>=3 && RND()<0.35) kind='아치';
           else kind='걷기';
           if(kind===_lastKind && kind==='걷기' && k>=2 && RND()<0.5) kind='아치';
-          if(kind===_lastKind && kind==='제자리') kind='보조음';
+          if(kind===_lastKind && kind==='보조음' && k>=2) kind='걷기';
           _lastKind=kind;
           if(kind==='뛰고메우기'){
             /* 먼저 목표 너머로 크게 뛴 뒤, 반대 방향 순차로 걸어 내려(올라)와 도착한다.
@@ -23509,11 +23523,12 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
               const f=(i<=top)?i:(2*top-i);
               L[i0+i]=v0+up*f+Math.round(d*i/(k+1));
             }
-          } else if(kind==='제자리'){
-            for(let i=1;i<=k;i++) L[i0+i]=v0;
           } else if(kind==='보조음'){
+            /* 위아래로 번갈아 다녀온다. 예전에는 짝수 자리를 원음으로 되돌렸는데,
+               그러면 마지막 자리가 다음 화음음과 같은 값이 되어 **같은 음이 두 번** 찍혔다
+               (실측 jazz: 제자리 13% -> 21%. 선율이 멈춰 선 소리의 정체가 이것이다). */
             const nb=(RND()<0.5)?1:-1;
-            for(let i=1;i<=k;i++) L[i0+i]=v0+((i%2===1)?nb:0);
+            for(let i=1;i<=k;i++) L[i0+i]=v0+((i%2===1)?nb:-nb);
           } else {
             /* 걷기 — 한 계단씩. 남는 걸음은 지나쳤다 되돌아온다(선이 길어진다) */
             const need=Math.abs(d), spare=(k+1)-need;
@@ -23537,6 +23552,15 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           for(let i=lastA+1;i<NS;i++) L[i]=L[i-1]+dir;
         }
         for(let i=0;i<NS;i++) if(L[i]==null) L[i]=(i>0?L[i-1]:nearIdx(_prevBm));
+        /* 마지막 확인 — 선 위에서 같은 값이 이어지면 한 칸 비켜 준다.
+           화음음 자리(anc)는 화성이 정한 것이므로 건드리지 않는다.
+           선이 멈추면 선율도 멈춘다. */
+        { const isAnc={}; anc.forEach(function(i){ isAnc[i]=1; });
+          for(let i=1;i<NS;i++){
+            if(L[i]!==L[i-1] || isAnc[i]) continue;
+            const dir=(i>1 && L[i-1]>L[i-2])?1:((i>1 && L[i-1]<L[i-2])?-1:(_carryDir||1));
+            L[i]=L[i-1]+dir;
+          } }
         _carryDir=(NS>1)?((L[NS-1]>L[NS-2])?1:((L[NS-1]<L[NS-2])?-1:(_carryDir||1))):(_carryDir||1);
         return L;
       })();
@@ -23563,13 +23587,11 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           if(b!=null && opts.scale!=='pentatonic' && frac2Chrom(pos,pb,nb) && RND()<pChrom){ pick=b+(b>a?-1:1); } // 다음 강박으로 반음 접근
         }
         pick=Math.max(loR,Math.min(hiR,pick));
-        /* 같은 음이 이어지는 것은 '제자리' 라는 결이다 — 선율에는 머무는 자리도 있어야 한다.
-           예전에는 무조건 한 칸 올려서 그 결을 통째로 지웠다.
-           세 번 이상 이어질 때만 비켜 준다. */
-        if(pick===prev && !strong){
-          _sameRun++;
-          if(_sameRun>=2) { pick=scaleMidis[cl(nearIdx(pick)+1)]; _sameRun=0; }
-        } else _sameRun=0;
+        /* 약박에서 앞 음과 같은 음이면 비켜 준다.
+           한때 '머무는 자리도 선율' 이라며 두 번까지 허용했는데,
+           그러면 선율이 같은 음을 되풀이하며 멈춰 선다(실측 jazz 마디 17 = [79,79]).
+           머무름은 리듬이 만드는 것이지 같은 음을 두 번 찍는 것이 아니다. */
+        if(pick===prev && !strong) pick=scaleMidis[cl(nearIdx(pick)+1)];
         if(lastNote){ const ct=(ctPc2||ctPc); const tPc=((tonic%12)+12)%12, dPc=((tonic+7)%12+12)%12;
           const endPc=(cadence==='half')?dPc:(ct.indexOf(tPc)>=0?tPc:ct[0]);
           pick=Math.max(loR,Math.min(hiR,pcNear(endPc,pick))); } // 종지 확정(조 으뜸/딸림)
@@ -23625,6 +23647,29 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
             if(m2>=loR&&m2<=hiR){ const before=Math.max(Math.abs(d2), nx!=null?Math.abs(nx-mel[i2].midi):0); const after=Math.max(Math.abs(m2-mel[i2-1].midi), nx!=null?Math.abs(nx-m2):0);
               if(after<=before){ mel[i2].midi=m2; ch2++; } } } }
         if(!ch2) break; }
+    }
+    /* ── 같은 음이 이어지는 자리를 푼다 ──
+       음을 놓는 단계에서 약박 같은음을 피하게 해 두었지만
+       그 뒤 도약 통제(옥타브 접기)와 픽업 음 추가가 그 자리를 다시 만든다
+       (실측 jazz: 놓는 단계는 걸렀는데 최종본 제자리 20% · 되풀이 39건 중 28건이 약박.
+        같은 재즈 계열이라도 bossa 9% · neosoul 14% 인데 jazz 만 남았다).
+       같은 음이 두 번 이어지면 뒤엣것을 음계 한 칸 옮긴다.
+       마디 첫 음과 마지막 음은 화성·종지가 정한 자리이므로 건드리지 않는다.
+       세 번 이어지는 자리도 이 규칙이 차례로 풀어 준다. */
+    if(!opts.userMel && mel.length>2){
+      const _srt=mel.slice().sort(function(x,y){ return (x.bar-y.bar)||(x.pos-y.pos); });
+      for(let i2=1;i2<_srt.length-1;i2++){
+        const pv=_srt[i2-1], cu=_srt[i2];
+        if(cu.midi!==pv.midi) continue;
+        if(cu.pos<0.06) continue;                       /* 마디 첫 음 — 화성이 정한 자리 */
+        const ix=nearIdx(cu.midi);
+        const up=scaleMidis[cl(ix+1)], dn=scaleMidis[cl(ix-1)];
+        const nx=_srt[i2+1].midi;
+        /* 다음 음 쪽으로 비켜 준다 — 그래야 선이 이어진다 */
+        let m2=(nx>cu.midi)?up:((nx<cu.midi)?dn:up);
+        if(m2===cu.midi) m2=(m2===up)?dn:up;
+        if(m2>=loR && m2<=hiR && m2!==cu.midi) cu.midi=m2;
+      }
     }
     // ===== 콜-리스폰스: 4마디 프레이즈의 3번째 마디가 1번째 마디를 동형 반복(리듬 그대로 · 음고는 현 코드로 평행이동) =====
     if(!opts.userMel && steps.length>=4){
@@ -24391,6 +24436,40 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     for(let i=0;i<abs.length-1;i++){ const gap=abs[i+1].t-abs[i].t; if(abs[i].dur>gap+0.08) abs[i].dur=Math.max(0.2,gap+0.08); }
     return abs.map(({bar,pos,midi,dur})=>({bar,pos,midi,dur}));
   }
+  /* ── 말발굽 리듬꼴을 곡 단위로 정한다 ──
+     예전에는 타악을 만드는 함수 **안에서** 골라 그 안에서만 알고 있었다.
+     하프는 타악보다 먼저 만들어지므로 첫 빌드에서는 그 값이 없어
+     4분음으로 물러났다 — 달리는 층과 서 있는 층으로 갈렸다
+     (실측 GRIDCHK: cineWar 하프 '드럼 스윙 0.67 · 유율은 정박 100%').
+     MODEL 을 생성 중에 읽으려다 겪은 것과 같은 함정이다.
+     곡 데이터만 보고 정하는 값이므로 언제 불러도 같다 — 순서를 없앤다. */
+  const GALLOP_TBL=[
+    {n:'셋잇단 강약약',      p:[0,0.333,0.667],      v:[104,58,58], div:3},
+    {n:'셋잇단 따그닥',      p:[0,0.333,0.667],      v:[102,62,78], div:3},
+    {n:'점8분+16분 따-닥',   p:[0,0.75],             v:[102,72],    div:4},
+    {n:'8분+16분2 따 따닥',   p:[0,0.5,0.75],         v:[102,78,62], div:4},
+    {n:'16분2+8분 따닥 따',   p:[0,0.25,0.5],         v:[102,60,84], div:4},
+    {n:'16분·8분·16분',      p:[0,0.25,0.75],        v:[102,64,74], div:4},
+    {n:'16분 강약약약',      p:[0,0.25,0.5,0.75],    v:[106,58,58,58], div:4},
+    {n:'16분 4연음',        p:[0,0.25,0.5,0.75],    v:[104,60,82,60], div:4},
+    {n:'16분 4연음(고르게)',  p:[0,0.25,0.5,0.75],    v:[96,86,90,86],  div:4}
+  ];
+  function gallopSeed(){
+    let _sd=1;
+    const _m=(typeof songMotif!=='undefined'&&songMotif&&isFinite(songMotif.seed))?songMotif.seed:0;
+    _sd=(_sd+_m)>>>0;
+    (currentSong||[]).forEach(function(sc,ix){ const stp=(sc.prog&&sc.prog.steps)||[];
+      stp.forEach(function(x,jx){ const r=(+x[1]); _sd=((_sd*31)+(isFinite(r)?r:0)+ix*7+jx*3)>>>0; });
+      const nmH=String(sc.label||''); for(let ci=0;ci<nmH.length;ci++) _sd=((_sd*33)+nmH.charCodeAt(ci))>>>0; });
+    _sd=((_sd*31)+((currentSong||[]).length)*13)>>>0;
+    if(!isFinite(_sd)) _sd=1;
+    return _sd;
+  }
+  function gallopOf(){
+    const _sd=gallopSeed();
+    const _h32=((Math.imul(_sd,2654435761)>>>0)^(_sd>>>13))>>>0;
+    return GALLOP_TBL[_h32 % GALLOP_TBL.length];
+  }
   function cineMelody(steps, mood, opts){ // 영화음악 어법 멜로디: {bar,pos,midi,dur}
     // 근거: 벅차오름=1→5 도약+순차 하행+부점+못갖춘마디(실베스트리) / 긴장=반음 셀·3대4 어긋남·트라이톤 /
     //       슬픔=한숨 계류(아포자투라 하행)+라멘트 윤곽 / 행복=상승 모티프+경쾌 순차(히사이시)
@@ -24456,10 +24535,14 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       for(let b=0;b<N;b++){
         const sh=(b%4===2)?7:0;                             /* 세 마디째만 5도 위로 */
         const c0=lo+sh;
-        [[0,0],[0.125,1],[0.25,0],[0.375,-1],
-         [0.5,0],[0.625,1],[0.75,0],[0.875,-2]].forEach(function(x){
+        /* 자리는 곧은 8분이 아니라 **말발굽 격자**를 따른다.
+           이 장르의 드럼은 스윙 0.67 로 달린다(GRIDCHK: 드럼 스윙 [0.67] · 유율은 정박 100%).
+           그 위에 곧은 8분을 얹으면 2대3으로 어긋나 뭉갠다.
+           뒷 8분을 셋잇단 자리(0.1667)로 밀어 발굽과 같은 격자에 태운다. */
+        [[0,0],[0.1667,1],[0.25,0],[0.4167,-1],
+         [0.5,0],[0.6667,1],[0.75,0],[0.9167,-2]].forEach(function(x){
           put(b,x[0], c0+x[1], 0.115); });
-        if(b%4===3) put(b,0.9375, c0+5, 0.0625);            /* 다음 셀로 미는 4도 */
+        if(b%4===3) put(b,0.9167, c0+5, 0.0625);            /* 다음 셀로 미는 4도 */
       } }
     else if(mood==='cineSuite'){
       /* ── 조곡 ──
@@ -26787,9 +26870,16 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       const beat = inBar/tpq;
       const isBeat2 = (Math.abs(beat-Math.round(beat)) < 0.08) && (Math.round(beat)%2===0);
       if(isLong || isStrong || isFirst || isLeap || isBeat2){
+        /* 옮긴 자리가 앞뒤 음과 같아지면 선율이 그 자리에서 멈춘다.
+           (실측 jazz: 생성기 제자리 15% 인데 최종본이 19% 였다 — 관문이 만들고 있었다.
+            되풀이 35건 중 30건이 같은 마디 안이다.)
+           같아지는 후보는 건너뛴다. 갈 곳이 없으면 옮기지 않고 세기만 눌러 스쳐 가게 둔다. */
+        const _pvN=(k>0)?ons[k-1].note:null;
+        const _nxN=(k<ons.length-1)?ons[k+1].note:null;
         let best=null, bd=99;
         for(const d of [-1,1,-2,2]){
           const c=o.note+d;
+          if(c===_pvN || c===_nxN) continue;
           if(pcs.indexOf(((((c%12)+12)%12))) >= 0 && Math.abs(d)<bd){ bd=Math.abs(d); best=c; }
         }
         if(best!=null){ ev[o.i].note=best; if(o.off!=null) ev[o.off].note=best; o.note=best;
@@ -29440,8 +29530,9 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           그래서 순차가 4% 였다 — 만든 쪽이 아니라 다듬는 쪽의 문제였다.)
 
          앞뒤 간격이 둘 다 2반음 이내일 때만 봐준다. 한쪽이 도약이면 지나가는 음이 아니다. */
+      const _nxSeq=(_si<seq.length-1)?seq[_si+1]:null;
       {
-        const _pv=(_si>0)?seq[_si-1]:null, _nx=(_si<seq.length-1)?seq[_si+1]:null;
+        const _pv=(_si>0)?seq[_si-1]:null, _nx=_nxSeq;
         if(_pv && _nx){
           const _d1=n.note-_pv.note, _d2=_nx.note-n.note;
           if(Math.abs(_d1)>=1 && Math.abs(_d1)<=2 && Math.abs(_d2)>=1 && Math.abs(_d2)<=2){
@@ -29485,6 +29576,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         while(m<n.note-6) m+=12;
         while(m>n.note+6) m-=12;
         if(prevCore!=null && m===prevCore) continue;   // 앞 음과 같으면 건너뛴다
+        if(_nxSeq && m===_nxSeq.note) continue;        // 뒤 음과 같아도 그 자리에서 멈춘다
         let d=Math.abs(m-n.note)*2;
         if(deg===3 || deg===4) d-=3;              // 3도 우대 — 화음의 성격을 정한다
         if(deg===7) d-=1;                          // 5도도 노래하기 좋다
@@ -31737,8 +31829,34 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
               } }
             const hp=[c.notes[0],c.notes[1]||c.notes[0]+4,c.notes[2]||c.notes[0]+7,c.notes[0]+12];
             const hpCap=(INST.harp&&INST.harp.gm===24)?86:((INST.harp&&INST.harp.gm===104)?92:96); // 발현 악기별 실주법 상한: 나일론 기타 86 · 시타르 92 · 하프 96
-            const slots=(rh.bpm>=110)?[0,2,4,6,8,10,12,14]:[0,4,8,12];
-            slots.forEach((sl,k)=>{ let m=hp[k%hp.length]+((k>=hp.length)?12:0); while(m>hpCap)m-=12; const st2=T+Math.round(sl*measure/16);
+            /* 말발굽 장르의 발현 아르페지오는 발굽 자리를 함께 짚는다.
+               4분음만 짚으면 달리는 층과 서 있는 층으로 갈라진다. */
+            let slots=(rh.bpm>=110)?[0,2,4,6,8,10,12,14]:[0,4,8,12];
+            let _galP=null;
+            try{ if(gsel==='cineWar'){ const _g=gallopOf(); if(_g&&_g.p) _galP=_g.p; } }catch(e){}
+            /* 드럼이 스윙하는 장르에서는 발현 아르페지오도 그 격자를 탄다.
+               곧은 8분을 얹으면 2대3으로 어긋나 뭉갠다
+               (실측 GRIDCHK: cineWar 하프가 '드럼 스윙 0.67 · 유율은 정박 100%').
+               말발굽·셔플·스윙 모두 뒷 8분이 밀린 자리에 온다. */
+            const _swH=(rh.sw!=null?rh.sw:(SWING[gsel]||0));
+            const _slT=(sl)=>{ let tm=sl*(measure/16);
+              if(_swH>0){ if(sl%2===0){ if((sl/2)%2===1) tm+=_swH*(measure/16); }
+                          else tm+=_swH*0.5*(measure/16); }
+              return Math.round(tm); };
+            if(_galP){
+              /* 발굽 자리(한 박 안 비율)를 네 박에 펼친다. 첫 타점은 세게, 나머지는 여리게. */
+              const _qn=meterQuarters();
+              for(let _b2=0;_b2<_qn;_b2++){
+                _galP.forEach(function(pp,gi){
+                  const m0=hp[(_b2*_galP.length+gi)%hp.length]; let m=m0; while(m>hpCap)m-=12;
+                  const st4=T+Math.round((_b2+pp)*(measure/_qn));
+                  ev.push({tick:st4,on:1,note:m,vel:Math.round((gi===0?50:36)*inA)});
+                  ev.push({tick:st4+Math.round(measure*0.18),on:0,note:m});
+                });
+              }
+              slots=[];
+            }
+            slots.forEach((sl,k)=>{ let m=hp[k%hp.length]+((k>=hp.length)?12:0); while(m>hpCap)m-=12; const st2=T+_slT(sl);
               ev.push({tick:st2,on:1,note:m,vel:Math.round((42+(sl%8===0?10:0))*inA)}); ev.push({tick:st2+Math.round(measure*0.26),on:0,note:m}); }); } }
           else if(grp.role==='horns'){ const stg=sec.stage||3; // 호른: 단순·긴 음으로 뻗는 힘. 벅차오름=영웅 화음톤 스테이트먼트, 긴장=낮은 스웰, 슬픔·행복=따뜻한 중역 받침
             if(gsel==='cineSoar' && stg>=4){ const hn=[c.notes[0],c.notes[1]||c.notes[0]+4].map(m=>{let x=m; while(x>72)x-=12; while(x<55)x+=12; return x;});
@@ -32779,17 +32897,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          Math.imul로 32비트 곱셈: 일반 곱셈은 2^53을 넘어 하위 비트가 뭉개져 늘 한쪽만 나온다. */
       /* div = 이 리듬꼴의 세분(3=셋잇단·4=16분). 목탁 그리드를 여기에 맞춰야
          3대4 폴리리듬으로 스치며 걸리는 느낌이 사라진다(실측: 0.083박 차이 타점 4개). */
-      const GALLOP=[
-        {n:'셋잇단 강약약',      p:[0,0.333,0.667],      v:[104,58,58], div:3},
-        {n:'셋잇단 따그닥',      p:[0,0.333,0.667],      v:[102,62,78], div:3},
-        {n:'점8분+16분 따-닥',   p:[0,0.75],             v:[102,72],    div:4},
-        {n:'8분+16분2 따 따닥',   p:[0,0.5,0.75],         v:[102,78,62], div:4},
-        {n:'16분2+8분 따닥 따',   p:[0,0.25,0.5],         v:[102,60,84], div:4},
-        {n:'16분·8분·16분',      p:[0,0.25,0.75],        v:[102,64,74], div:4},
-        {n:'16분 강약약약',      p:[0,0.25,0.5,0.75],    v:[106,58,58,58], div:4},
-        {n:'16분 4연음',        p:[0,0.25,0.5,0.75],    v:[104,60,82,60], div:4},
-        {n:'16분 4연음(고르게)',  p:[0,0.25,0.5,0.75],    v:[96,86,90,86],  div:4}
-      ];
+      const GALLOP=GALLOP_TBL;   /* 표는 위로 옮겼다 — 하프도 같은 것을 본다 */
       /* 강박 배치 — 어느 박에 힘을 주느냐로 같은 리듬꼴도 느낌이 확 달라진다.
          특히 '첫박·끝박'(1·4)에만 힘을 주면 마디가 앞뒤로 당겨지며 추진력이 생긴다. */
       const ACCENT=[
@@ -32801,7 +32909,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       ];
       const _h32=((Math.imul(_sd,2654435761)>>>0)^(_sd>>>13))>>>0;
       const _h2 =((Math.imul(_sd^0x9E3779B9,2246822519)>>>0)^(_sd>>>7))>>>0;
-      const GP=GALLOP[_h32 % GALLOP.length];
+      const GP=gallopOf();       /* 곡 단위로 미리 정해 둔 것을 그대로 쓴다 */
       const AC=ACCENT[_h2 % ACCENT.length];
       const pev=[]; const q=TPQ; let ptick=0;
       /* ── 박자표 대응 ──
