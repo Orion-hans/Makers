@@ -9581,6 +9581,15 @@ function noteTrack(notes,ch,prog,isDrum,ctrl,name,fxNote){const PPQ=480,ev=[],pa
   }
   __smoothCCEvents(ev, e=>e.t, e=>e.cc, e=>e.val, null,
     (src,t,v)=>({t:t, k:0, cc:src.cc, val:v}), PPQ*16);
+  /* 곡 밖 CC 를 지운다 — 마지막 음 뒤에 찍힌 것은 소리에 영향을 못 준다.
+     여운(릴리스) 몫으로 두 마디(8박) 여유를 둔다. */
+  { let _last=0;
+    ev.forEach(function(e){ if(e.k===1 && e.t>_last) _last=e.t; });
+    if(_last>0){ const _cut=_last+PPQ*8;
+      const _out=ev.filter(function(e){ return !(e.k===0 && e.cc!=null && e.t>_cut); });
+      if(_out.length<ev.length){ ev.length=0; _out.forEach(function(e){ ev.push(e); }); }
+    }
+  }
   ev.sort((a,b)=>a.t-b.t||a.k-b.k||(a.on!=null?a.on:0)-(b.on!=null?b.on:0));
   /* ── 같은 음 겹침 정리(최종 틱 기준) ──
      같은 채널·같은 음이 겹치면 앞 음의 노트오프가 뒤 음을 꺼버린다.
@@ -17048,6 +17057,15 @@ function noteTrack(notes,ch,prog,isDrumMap,name,ccEvents,instName){const PPQ=480
     ev.length=0; for(let i=_keep.length-1;i>=0;i--) ev.push(_keep[i]);
   }
   __smoothCCEvents(ev, e=>e.t, e=>e.cc, e=>e.val, (src,t,v)=>({t:t,on:2,cc:src.cc,val:v}), PPQ*16);
+  /* 곡 밖 CC 를 지운다 — 마지막 음 뒤에 찍힌 것은 소리에 영향을 못 준다.
+     여운(릴리스) 몫으로 두 마디(8박) 여유를 둔다. */
+  { let _last=0;
+    ev.forEach(function(e){ if(e.on!==2 && e.t>_last) _last=e.t; });
+    if(_last>0){ const _cut=_last+PPQ*8;
+      const _out=ev.filter(function(e){ return !(e.on===2 && e.t>_cut); });
+      if(_out.length<ev.length){ ev.length=0; _out.forEach(function(e){ ev.push(e); }); }
+    }
+  }
   ev.sort((a,b)=>a.t-b.t||a.on-b.on);let body=[];
   if(name)body.push(...vlq(0),...metaText(0x03,name));
   { const _cat=(prog!=null&&!isDrumMap)?(' [소리계열: '+gmCat(prog)+']'):''; const _in=(instName||'')+_cat; if(_in)body.push(...vlq(0),...metaText(0x04,_in)); }   // 악기 이름 메타 (없을 수 있는 특정 음원 대비 소리계열 병기)
@@ -31608,6 +31626,18 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       }
       __smoothCCEvents(ev, e=>e.tick, e=>e.cc, e=>e.val, null,
         (src,t,v)=>({tick:t, cc:src.cc, val:v}), TPQ*16);
+      /* ── 곡 밖 CC 를 지운다 ──
+         마지막 음이 끝난 뒤에 찍힌 CC 는 소리에 영향을 못 준다. 파일만 키우고
+         로직 오토메이션 레인이 곡보다 길게 늘어져 보인다
+         (실측 세 앱 91건 · 트랙마다 12~27개).
+         다만 마지막 음의 여운(릴리스) 동안은 필요하므로 두 마디 여유를 둔다. */
+      { let _last=0;
+        ev.forEach(function(e){ if(e.note!=null && e.tick>_last) _last=e.tick; });
+        if(_last>0){ const _cut=_last+__barLen*2;
+          const _out=ev.filter(function(e){ return !(e.cc!=null && e.note==null && e.tick>_cut); });
+          if(_out.length<ev.length){ ev.length=0; _out.forEach(function(e){ ev.push(e); }); }
+        }
+      }
       /* 보간 뒤에 솎는다 — 앞에 두면 이 함수가 다시 채워 효과가 없다
          (실측: 앞에 두었을 때 107,391개로 3%만 줄었다) */
       ev=thinCC(ev, 2, 10);
