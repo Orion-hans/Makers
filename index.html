@@ -24874,6 +24874,12 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
   }
   function buildSong(structKey){
     __scoreMelFromMidi=null;               // 곡이 바뀌면 확정본을 버린다
+    /* 재생은 내보내기용 MIDI 를 그대로 읽는다(MIDIPLAY_ALL).
+       그런데 그 결과물을 한 번 만들면 '없을 때만' 다시 만들게 되어 있어,
+       곡을 다시 만들어도 **앞에 만든 재생본이 그대로 남았다.**
+       편성을 4중주·5중주로 바꾸고 전체 재생을 누르면 앞 편성이 울린다.
+       악보 확정본을 여기서 버리는 것과 같은 이유로 재생본도 여기서 버린다. */
+    try{ window.__MIDI_PLAY=null; }catch(e){}
     newMotif(); isThemeMode=false;
     const ps=G[gsel].progs.filter(p=>p.mode===keyMode);
     if(!ps.length){ currentSong=null; renderSong(); return; }
@@ -25372,6 +25378,13 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         선율만 확정본 캐시에서 오기 때문이다).
        buildSong 에는 있었으나 실제 버튼이 부르는 입구는 이 함수다. */
     __scoreMelFromMidi=null;
+    /* 재생본도 같은 이유로 여기서 버린다.
+       재생은 내보내기용 MIDI 를 그대로 읽는데(MIDIPLAY_ALL),
+       그 결과물은 '없을 때만' 다시 만들게 되어 있다.
+       그래서 편성을 4중주·5중주로 바꾸고 곡을 다시 만들어도
+       전체 재생을 누르면 **앞 편성이 그대로 울렸다**.
+       악보 확정본과 재생본은 늘 함께 버려야 한다. */
+    try{ window.__MIDI_PLAY=null; }catch(e){}
     if(!themeProg||!songMotif) newMotif(); // 테마 없으면 새 모티프
   else if(songMotif) songMotif.seed=(Math.random()*0x7fffffff)>>>0; // 테마 있으면 훅(con·리듬·테마선율)은 유지하되, 변주·전개 시드만 갱신 → 곡마다 전개가 달라짐(같은 훅 다른 곡)
   /* 테마로 곡을 만들 때는 그 테마 선율을 써야 한다.
@@ -26032,6 +26045,10 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     if(gm===104) return 'harp';
     if((gsel==='gugak'||gsel==='gukvocal') && (key==='counter'||key==='melody')) return 'haegeum';
     if(key==='drums'||key==='orchcym'||role==='drums') return 'drums';
+    /* 현악 4·5중주의 저성부는 첼로와 콘트라베이스다.
+       'bass' 음색으로 이으면 현악 합주 한가운데서 베이스 기타가 울린다.
+       네 성부 전부를 현으로 이어야 합주로 들린다. */
+    if(quartetMode && (key==='cbass'||key==='qbass'||key==='melody'||key==='counter'||key==='strings')) return 'strings';
     if(key==='bass'||key==='sub'||key==='cbass') return 'bass';
     if(key==='timpani') return 'timpani';
     if(key==='strings'||key==='counter'||key==='pad') return 'strings';
