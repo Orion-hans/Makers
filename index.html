@@ -13490,7 +13490,12 @@ function newSection(type,bars,vix){const g=curGenre(),km=keyPc();vix=vix|0;
   const prog=randomProgRoman(g).map(t=>romanToSym(t,km));
   const en=STYPES[type].energy;
   return {type,bars,vix,tempo:'inherit',swing:'inherit',steps:(typeof curMeter==='function'?curMeter().stn:16),
-    drums:meterPat(shapeDrumsFor(g,type,vix),(typeof curMeter==='function'?curMeter():null)),   // 박자표의 맥에 맞춰 깐다(비례 압축 금지)
+    /* 앰비언트 테크노는 패턴 그대로 쓴다.
+     shapeDrumsFor 는 구간 에너지에 따라 스네어·클랩을 얹는데
+     이 장르는 **킥과 하이햇만 도는 것이 어법**이다
+     (실측: 패턴 스네어 0인데 벌스 구간에서 1이 켜져 32마디 내내 200번 넘게 쳤다.
+      드럼 비중도 35%로 하우스 계열 중 가장 높았다). */
+  drums:meterPat((g.id==='ambtechno')?genrePat(16):shapeDrumsFor(g,type,vix),(typeof curMeter==='function'?curMeter():null)),   // 박자표의 맥에 맞춰 깐다(비례 압축 금지)
     chords:prog,chordBars:(g.id==='deephouse')?(deephouseStyle().chordBars||2):(g.id==='melodichouse')?(melodichouseStyle().chordBars||2):(g.id==='kpop')?(kpopStyle().chordBars||1):((g.id==='running'||isHouse(g.id)||g.id==='edm')?2:1),   // 하우스=서브스타일별, K-Pop=서브스타일별(하우스팝·앰비언트=2), 나머지 신스계열 2마디
     arp:(g.id==='edm'&&en>=5)||(g.id==='running'&&en>=5&&(RUNSTYLES[state.runStyle]||RUNSTYLES.fresh)&&((RUNSTYLES[state.runStyle]||RUNSTYLES.fresh).arpHook||(RUNSTYLES[state.runStyle]||RUNSTYLES.fresh).leadStyle==='arp'))||(g.id==='kpop'&&en>=4&&kpopStyle().arp)||(g.id==='melodichouse'&&en>=4&&melodichouseStyle().arp),
     bass:g.bass,pump:g.pad&&en>=4&&(g.id==='edm'||g.id==='global'),
@@ -15051,7 +15056,10 @@ function arrange(){
       const b0=cur;
       const ramp=isBuild&&sec.bars>1?0.85+0.15*(bar/(sec.bars-1)):1; // 빌드업 램프
       const thin=si===0&&(state.introStyle||'stack')==='stack'&&bar<Math.floor(sec.bars/2); // 인트로 전반: 킥+화성만
-      const fillHere=bar===sec.bars-1&&si<N-1&&sec.bars>=2&&!thin;   // 모든 구간 전환에 필 (마지막 구간·인트로 전반 제외)
+      /* 앰비언트 테크노에는 필인이 없다. 반복이 곡이라 구간 전환을 알리지 않는다
+         (실측: 스네어가 211음 나왔다 — 패턴에는 스네어가 비어 있는데 전부 필인이었다.
+          드럼 비중도 35%로 하우스 계열 중 가장 높았다). */
+      const fillHere=(g.id!=='ambtechno')&&bar===sec.bars-1&&si<N-1&&sec.bars>=2&&!thin;   // 모든 구간 전환에 필 (마지막 구간·인트로 전반 제외)
       const bigFill=nextEn>en;                                        // 에너지 상승(훅·드롭 직전)이면 화려, 아니면 가벼운 필
       const drNow=sec.switch?applyBeatSwitch(sec.drums,sec,g):sec.drums;  // 비트 스위치: 스위치 구간은 바뀐 패턴 사용
       const mhBreak=(g.id==='melodichouse'&&sec.type==='Break');       // 멜로딕 하우스 브레이크다운 = 앰비언트: 킥·클랩·스네어 빼고 드론·패드가 이끔
