@@ -9563,8 +9563,24 @@ function noteTrack(notes,ch,prog,isDrum,ctrl,name,fxNote){const PPQ=480,ev=[],pa
   if(!isDrum) __softenEntry(ev, prog, e=>e.t, e=>e.cc, e=>e.val, (e,v)=>{e.val=v;},
     e=>(e.k===1&&e.on===1), e=>(e.k===1&&e.on===0), e=>(e.vel||80),
     (cc,t,v)=>({t:t, k:0, cc:cc, val:v}), PPQ);
+  /* **겹침을 먼저 지우고 그다음에 사이를 채운다** — 반대로 하면 계단이 도로 생긴다.
+     ── 같은 틱에 겹친 CC 정리 ──
+     같은 시각·같은 CC 가 여러 개면 **마지막 값만 먹는다.** 나머지는 파일만 키우고
+     로직 오토메이션 레인을 새까맣게 만든다
+     (실측 Band: komuro Poly Synth 9,262개 중 3,647개 겹침 · epic Strings 2,219개 ·
+      worship Choir 1,616개. Beat 도 running Pad 6,514개 중 3,702개).
+     스위치(CC64 페달)는 밟고 떼는 순서가 있으므로 건드리지 않는다. */
+  { const _last={}, _keep=[];
+    for(let i=ev.length-1;i>=0;i--){ const e=ev[i];
+      if(e.k!==0 || e.cc==null || e.cc===64){ _keep.push(e); continue; }
+      const key=e.cc+'@'+e.t;
+      if(_last[key]){ continue; }          /* 뒤에서 앞으로 훑으므로 처음 만난 것이 마지막 값 */
+      _last[key]=1; _keep.push(e);
+    }
+    ev.length=0; for(let i=_keep.length-1;i>=0;i--) ev.push(_keep[i]);
+  }
   __smoothCCEvents(ev, e=>e.t, e=>e.cc, e=>e.val, null,
-    (src,t,v)=>({t:t, k:0, cc:src.cc, val:v}), PPQ*4);
+    (src,t,v)=>({t:t, k:0, cc:src.cc, val:v}), PPQ*16);
   ev.sort((a,b)=>a.t-b.t||a.k-b.k||(a.on!=null?a.on:0)-(b.on!=null?b.on:0));
   /* ── 같은 음 겹침 정리(최종 틱 기준) ──
      같은 채널·같은 음이 겹치면 앞 음의 노트오프가 뒤 음을 꺼버린다.
@@ -17018,7 +17034,20 @@ function noteTrack(notes,ch,prog,isDrumMap,name,ccEvents,instName){const PPQ=480
   if(!isDrumMap) __softenEntry(ev, prog, e=>e.t, e=>e.cc, e=>e.val, (e,v)=>{e.val=v;},
     e=>(e.on===1), e=>(e.on===0), e=>(e.vel||80),
     (cc,t,v)=>({t:t, on:2, cc:cc, val:v}), PPQ);
-  __smoothCCEvents(ev, e=>e.t, e=>e.cc, e=>e.val, (src,t,v)=>({t:t,on:2,cc:src.cc,val:v}), PPQ*4);
+  /* **겹침을 먼저 지우고 그다음에 사이를 채운다** — 반대로 하면 계단이 도로 생긴다.
+     같은 틱에 겹친 CC 는 마지막 값만 먹는다 — 나머지는 파일만 키운다
+     (실측 Beat: running Pad 6,514개 중 3,702개가 겹침).
+     스위치(CC64)는 밟고 떼는 순서가 있으므로 건드리지 않는다. */
+  { const _seen={}, _keep=[];
+    for(let i=ev.length-1;i>=0;i--){ const e=ev[i];
+      if(e.on!==2 || e.cc==null || e.cc===64){ _keep.push(e); continue; }
+      const key=e.cc+'@'+e.t;
+      if(_seen[key]) continue;
+      _seen[key]=1; _keep.push(e);
+    }
+    ev.length=0; for(let i=_keep.length-1;i>=0;i--) ev.push(_keep[i]);
+  }
+  __smoothCCEvents(ev, e=>e.t, e=>e.cc, e=>e.val, (src,t,v)=>({t:t,on:2,cc:src.cc,val:v}), PPQ*16);
   ev.sort((a,b)=>a.t-b.t||a.on-b.on);let body=[];
   if(name)body.push(...vlq(0),...metaText(0x03,name));
   { const _cat=(prog!=null&&!isDrumMap)?(' [소리계열: '+gmCat(prog)+']'):''; const _in=(instName||'')+_cat; if(_in)body.push(...vlq(0),...metaText(0x04,_in)); }   // 악기 이름 메타 (없을 수 있는 특정 음원 대비 소리계열 병기)
@@ -31561,8 +31590,24 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       __softenEntry(ev, grp.gm, e=>e.tick, e=>e.cc, e=>e.val, (e,v)=>{e.val=v;},
         e=>(e.cc==null&&e.on===1), e=>(e.cc==null&&e.on===0), e=>(e.vel||80),
         (cc,t,v)=>({tick:t, cc:cc, val:v}), TPQ);
+      /* 사이를 채우는 문턱이 4박이라 그보다 멀리 떨어진 두 값 사이가 안 채워져
+         한 자리에서 30~100씩 튀었다(실측 Play 96건 · epicaeol 팀파니 CC1 값차 100).
+         구간이 바뀌는 자리는 8박 넘게 벌어지기도 한다 — 문턱을 16박으로 넓힌다.
+         소리가 끊긴 자리(그보다 먼 간격)는 그대로 두어야 페이드가 안 생긴다. */
+      /* 순서가 중요하다 — **겹침을 먼저 지우고 그다음에 사이를 채운다.**
+         반대로 하면 채운 뒤 겹침을 지우면서 간격이 벌어져 계단이 도로 생긴다
+         (실측: 몰림 22건 -> 0건 이었지만 계단이 109 -> 120건으로 늘었다). */
+      { const _seen={}, _keep=[];
+        for(let i=ev.length-1;i>=0;i--){ const e=ev[i];
+          if(e.cc==null || e.cc===64 || e.note!=null){ _keep.push(e); continue; }
+          const key=e.cc+'@'+e.tick;
+          if(_seen[key]) continue;
+          _seen[key]=1; _keep.push(e);
+        }
+        ev.length=0; for(let i=_keep.length-1;i>=0;i--) ev.push(_keep[i]);
+      }
       __smoothCCEvents(ev, e=>e.tick, e=>e.cc, e=>e.val, null,
-        (src,t,v)=>({tick:t, cc:src.cc, val:v}), TPQ*4);
+        (src,t,v)=>({tick:t, cc:src.cc, val:v}), TPQ*16);
       /* 보간 뒤에 솎는다 — 앞에 두면 이 함수가 다시 채워 효과가 없다
          (실측: 앞에 두었을 때 107,391개로 3%만 줄었다) */
       ev=thinCC(ev, 2, 10);
@@ -31808,7 +31853,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             e=>(e.cc==null&&e.on===1), e=>(e.cc==null&&e.on===0), e=>(e.v||80),
             (cc,t,v)=>({tk:t, cc:cc, v:v}), TPQ);
           __smoothCCEvents(arr, e=>e.tk, e=>e.cc, e=>e.v, null,
-            (src,t,v)=>({tk:t, cc:src.cc, v:v}), TPQ*4, (e,v)=>{e.v=v;});
+            (src,t,v)=>({tk:t, cc:src.cc, v:v}), TPQ*16, (e,v)=>{e.v=v;});
           arr.sort(function(a2,b2){ return (a2.tk-b2.tk)||((a2.cc!=null?0:1)-(b2.cc!=null?0:1)); });
           const nb=Array.from(new TextEncoder().encode(name));
           let pb=[0,0xFF,0x03].concat(vlq(nb.length)).concat(nb);
