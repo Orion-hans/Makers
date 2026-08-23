@@ -34257,6 +34257,166 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             if(OPEN.indexOf(pc)>=0 && e.note>=64 && e.note<=76) e.vel=Math.min(120, Math.round((e.vel||70)*1.08));
           });
         }
+        /* ── 기타는 줄을 긁는 악기다 ──
+           지금까지는 한 음씩 이어지는 선만 나왔다
+           (실측: 두 트랙 470음 중 동시 화음 0 · 스트럼꼴 4회.
+            기타 음색을 입힌 선율이지 기타 연주가 아니다).
+           실제 기타는 코드 하나를 세네 줄로 함께 울린다.
+           낮은 줄부터 차례로 스치므로 음마다 20~30틱씩 밀린다 —
+           그 밀림이 '긁었다' 는 느낌을 만든다. 동시에 찍으면 신스가 된다.
+
+           리듬 쪽(높은 자리가 아닌 대)에서만 펼친다. 선율 쪽은 단선이라야 노래한다. */
+        if(!_isLead){
+          try{
+            const SPR=26;                              /* 줄 사이 간격(틱) */
+            /* 이 대의 원래 밀도 — 마디당 음 수. 긁는 양을 여기에 맞춘다 */
+            const _dens=(function(){
+              const ns0=ev.filter(function(e){ return e.cc==null && e.note!=null && e.on===1; });
+              if(!ns0.length) return 0;
+              let mn=1e9, mx=0;
+              ns0.forEach(function(e){ if(e.tick<mn) mn=e.tick; if(e.tick>mx) mx=e.tick; });
+              const bars=Math.max(1,(mx-mn)/__barLen);
+              return ns0.length/bars;
+            })();
+            const _maxPerBar = (_dens>=18)?2 : (_dens>=11)?3 : 4;
+            const _cnt5={};
+            const add5=[]; const seen5={};
+            const ons=ev.filter(function(e){ return e.cc==null && e.note!=null && e.on===1; })
+                        .sort(function(x,y){ return x.tick-y.tick; });
+            const offOf={};
+            ev.forEach(function(e){ if(e.cc==null && e.note!=null && e.on===0)
+              (offOf[e.note]=offOf[e.note]||[]).push(e.tick); });
+            ons.forEach(function(e){
+              /* 정박에서만 긁으면 한 곡에 스무 번쯤밖에 안 나온다
+                 (실측: 무리 227개 중 스트럼 21개).
+                 실제 기타는 8분 자리마다 긁고 올려친다 —
+                 내려긁기(정박)는 낮은 줄부터, 올려긁기(엇박)는 높은 줄부터.
+                 그 방향 차이가 스트로크의 결을 만든다. */
+              const q=(((e.tick-PAD)%__barLen+__barLen)%__barLen)/TPQ;
+              const h8=Math.abs(q*2-Math.round(q*2))<0.1;
+              if(!h8) return;                          /* 8분 자리마다 긁는다 */
+              const _down=Math.abs(q-Math.round(q))<0.1;   /* 정박=내려긁기 */
+              /* 8분마다 다 긁으면 음이 배로 늘어 두꺼워진다
+                 (실측 pop: 470음 -> 1367음).
+                 실제 연주도 모든 자리를 긁지는 않는다 — 쉬는 자리가 결을 만든다.
+                 엇박은 절반만, 그것도 줄 수를 줄인다. */
+              /* ── 장르마다 긁는 양이 다르다 ──
+                 8분 자리를 다 긁으면 원래 반주가 촘촘한 장르는 두 배로 두꺼워진다
+                 (실측: pop 마디당 11.5 · bossa 24.1 — 두 배 넘게 벌어졌다).
+                 원래 음이 많은 반주에는 덜 긁는다. 기타는 손이 하나뿐이다. */
+              /* ── 긁는 총량을 정해 둔다 ──
+                 문턱으로 걸러 봤더니 편차가 24.1 -> 24.6 으로 거의 안 줄었다.
+                 원래 밀도가 높은 반주는 정박 자리도 그만큼 많아서,
+                 '절반만' 이라는 규칙으로는 총량이 안 잡힌다.
+                 **한 마디에 긁는 횟수를 정한다** — 기타는 손이 하나뿐이다.
+                 성긴 반주는 마디당 4회, 촘촘하면 2회. 그 이상은 안 긁는다. */
+              if(!_down && (((e.tick>>>4)^_duoSeed)>>>0)%2===0) return;
+              const _bar5=Math.floor((e.tick-PAD)/__barLen);
+              _cnt5[_bar5]=(_cnt5[_bar5]||0)+1;
+              if(_cnt5[_bar5]>_maxPerBar) return;
+              if(seen5[e.tick]) return; seen5[e.tick]=1;
+              const bi=barAtTick(e.tick, PAD, __barLen);
+              const pcs=__barPcs[bi];
+              if(!pcs || pcs.length<3) return;
+              /* 그 화음의 음을 이 대의 음역 안에서 위로 두세 개 더 얹는다 */
+              const base=e.note;
+              const cand=[];
+              for(let k=1;k<=14;k++){
+                const m=base+k;
+                if(m>_hi) break;
+                if(pcs.indexOf(((m%12)+12)%12)>=0) cand.push(m);
+              }
+              if(cand.length<2) return;
+              /* 내려긁기는 두툼하게(2~3줄), 올려긁기는 얇게(1~2줄).
+                 그것이 다운·업의 무게 차이다. */
+              const _w=_down ? (2+(((e.tick>>>6)^_duoSeed)>>>0)%2) : (1+(((e.tick>>>6)^_duoSeed)>>>0)%2);
+              const take=cand.slice(0, _w);
+              let dur=Math.round(TPQ*0.9);
+              const oq=offOf[base];
+              if(oq && oq.length){ for(let z=0;z<oq.length;z++){ if(oq[z]>e.tick){ dur=oq[z]-e.tick; break; } } }
+              /* 올려긁기는 **높은 줄부터** 스친다. 그런데 take 는 기준음 위로만 모은 것이라
+                 뒤집어도 '기준음 → 높은 음' 순서라 결국 상행이 된다
+                 (실측: 엇박을 247번 긁는데 최종 올려긁기가 0이었다).
+                 올려칠 때는 기준음이 **마지막**에 와야 한다 — 위에서 아래로 스치니까. */
+              const seq=take;   /* 낮은 줄부터 — 내려긁기 */
+              /* 올려긁기(높은 줄 → 낮은 줄)는 기준음의 tick 을 옮겨야 하는데,
+                 그러면 뒤 관문들이 그 음을 다시 정렬해 순서가 도로 상행이 된다.
+                 시도했다가 pop 264음·celtic 251음으로 오히려 성겨져 되돌렸다.
+                 지금은 **내려긁기만** 넣는다 — 그것만으로도 기타로 들린다.
+                 올려긁기는 tick 이동 없이 만드는 방법을 찾은 뒤에 넣는다. */
+              /* ── 올려긁기 ──
+                 엇박에서는 위에서 아래로 스친다. 기준음의 tick 을 옮겨 봤더니
+                 뒤 관문들이 다시 정렬해 도로 상행이 됐다(pop 264음으로 성겨지기까지 했다).
+                 그래서 **기준음은 그대로 두고 위 음들만 먼저 울린다** —
+                 높은 음이 앞서고 기준음이 뒤에 남으므로 아래로 스친 결이 된다.
+                 시각을 앞당기는 것이라 마디 첫 박은 건드리지 않는다. */
+              if(!_down && q>0.3){
+                const hi3=take.slice().reverse();
+                hi3.forEach(function(m,ix){
+                  const tk=e.tick-SPR*(hi3.length-ix);
+                  if(tk<=PAD) return;
+                  add5.push({tick:tk, on:1, note:m,
+                    vel:Math.max(26, Math.round((e.vel||70)*(0.70-0.05*ix)))});
+                  add5.push({tick:tk+Math.max(110,Math.round(TPQ*0.35)), on:0, note:m});
+                });
+                return;
+              }
+              seq.forEach(function(m,ix){
+                const tk=e.tick+SPR*(ix+1);
+                add5.push({tick:tk, on:1, note:m,
+                  vel:Math.max(30, Math.round((e.vel||70)*(0.86-0.06*ix)))});
+                add5.push({tick:tk+Math.max(120,dur-SPR*(ix+1)), on:0, note:m});
+              });
+            });
+            /* ── 뮤트(팜 뮤트·데드 스트로크) ──
+               기타는 긁는 사이에 손바닥으로 줄을 눌러 끊는다.
+               그 짧고 둔한 소리가 리듬을 만든다 — 없으면 오르간처럼 이어진다
+               (실측: 리듬 트랙 755음 중 0.14박 미만인 음이 0개였다).
+               긁지 않은 엇박 자리에 근음을 아주 짧게 놓는다.
+               세기도 낮춘다 — 뮤트는 소리가 죽는 주법이다. */
+            try{
+              const mute=[]; const done6={};
+              const ons2=ev.filter(function(e){ return e.cc==null && e.note!=null && e.on===1; })
+                           .sort(function(x,y){ return x.tick-y.tick; });
+              const at={}; ons2.forEach(function(e){ at[Math.round(e.tick/12)]=1; });
+              let lowest=null;
+              ons2.forEach(function(e){ if(lowest===null||e.note<lowest) lowest=e.note; });
+              if(lowest!=null){
+                let mn2=1e9,mx2=0;
+                ons2.forEach(function(e){ if(e.tick<mn2) mn2=e.tick; if(e.tick>mx2) mx2=e.tick; });
+                for(let tk=mn2; tk<mx2; tk+=Math.round(TPQ/2)){
+                  const q2=(((tk-PAD)%__barLen+__barLen)%__barLen)/TPQ;
+                  const dn2=Math.abs(q2-Math.round(q2))<0.1;
+                  if(dn2) continue;                       /* 정박은 비워 두지 않는다 */
+                  if(at[Math.round(tk/12)]) continue;     /* 이미 소리 나는 자리 */
+                  if(done6[tk]) continue; done6[tk]=1;
+                  if((((tk>>>5)^(_duoSeed>>>4))>>>0)%3!==0) continue;   /* 셋에 하나꼴 */
+                  const bi2=barAtTick(tk, PAD, __barLen);
+                  const rt=(__barRoot&&__barRoot[bi2]!=null)?__barRoot[bi2]:null;
+                  if(rt==null) continue;
+                  let m2=lowest+((((rt-lowest)%12)+12)%12);
+                  if(m2>_hi) m2-=12;
+                  if(m2<_lo) continue;
+                  mute.push({tick:tk, on:1, note:m2, vel:34});
+                  mute.push({tick:tk+Math.round(TPQ*0.10), on:0, note:m2});
+                }
+              }
+              mute.forEach(function(x){ add5.push(x); });
+            }catch(e){}
+            /* ── 해머온·풀오프 ── (보류)
+               왼손만으로 다음 음을 내는 주법이다. 두 번째 음이 여리고 앞 음과 이어진다.
+               앞 음의 끝 시각을 다음 음 뒤로 늘려 구현했는데,
+               그러면 뒤의 coalesceNotes 가 두 음을 **하나로 합쳐** 버린다
+               (실측: 리듬 트랙 867음 -> 411음 · 뮤트 16 -> 0 으로 절반이 사라졌다).
+               끊김 없이 이으려면 길이를 늘려야 하는데 그 길이가 합치기의 조건이 된다.
+               합치기 뒤에 거는 방법을 찾은 다음에 넣는다. */
+
+            if(add5.length){
+              add5.forEach(function(x){ ev.push(x); });
+              ev.sort(function(a6,b6){ return (a6.tick-b6.tick)||((a6.cc!=null?2:a6.on)-(b6.cc!=null?2:b6.on)); });
+            }
+          }catch(e){}
+        }
         try{ ev=coalesceNotes(ev); }catch(e){}
       }
       if(quartetMode && QT_LO[grp.key]!=null){
@@ -34352,6 +34512,79 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          이어 붙이기가 끝난 뒤 같은 잣대를 한 번 더 댄다.
          이미 맞는 음은 아무것도 바뀌지 않으므로 두 번 걸어도 안전하다. */
       try{ ev=melTensionGate(ev, grp.key, __barPcs, __barLen, PAD, TPQ, __barRoot); ev=coalesceNotes(ev); }catch(e){}
+      /* ── 해머온·풀오프 ──
+         왼손만으로 다음 음을 내는 주법이다. 오른손이 다시 뜯지 않으므로
+         두 번째 음이 여리고 앞 음과 끊김 없이 이어진다.
+         기타가 기타처럼 들리는 데 이것이 크다 —
+         한 음씩 또박또박 뜯으면 하프시코드가 된다.
+
+         **합치기(coalesceNotes) 뒤에 건다.** 앞에서 걸면 앞 음의 길이를 늘리게 되고,
+         그 길이가 합치기의 조건이 되어 두 음이 하나로 합쳐진다
+         (실측: 리듬 트랙 867음 -> 411음 · 뮤트 16 -> 0 으로 절반이 사라졌다).
+         여기서는 세기만 낮추고 길이는 아주 조금만 늘린다. */
+      if((gtrDuoMode||gayaTrioMode) && grp.key!=='bass'){
+        try{
+          const on8=[]; const off8={};
+          ev.forEach(function(e){
+            if(e.cc!=null || e.note==null) return;
+            if(e.on===1) on8.push(e);
+            else (off8[e.note]=off8[e.note]||[]).push(e);
+          });
+          on8.sort(function(x,y){ return x.tick-y.tick; });
+          let hit=0;
+          for(let i8=0;i8<on8.length-1;i8++){
+            const a8=on8[i8], b8=on8[i8+1];
+            const gap=b8.tick-a8.tick;
+            if(gap<=0 || gap>TPQ*0.5) continue;        /* 벌어지면 뜯는 것이 맞다 */
+            const d8=Math.abs(b8.note-a8.note);
+            if(d8<1 || d8>2) continue;                 /* 2도 이웃음만 — 손가락이 닿는 거리 */
+            if((((a8.tick>>>4)^(_duoSeed>>>6))>>>0)%3!==0) continue;
+            b8.vel=Math.max(24, Math.round((b8.vel||70)*0.60));   /* 뜯지 않으니 여리다 */
+            /* 앞 음을 다음 음 직전까지만 끈다 — 넘기지 않으므로 합쳐지지 않는다 */
+            const q8=off8[a8.note];
+            if(q8) for(let z=0;z<q8.length;z++){
+              if(q8[z].tick>a8.tick && q8[z].tick<b8.tick){ q8[z].tick=b8.tick-2; break; }
+            }
+            hit++;
+          }
+          /* ── 슬라이드 ──
+             한 음을 짚은 채 지판을 미끄러진다. 3~5도 벌어진 자리에서
+             중간 음들이 스치듯 지나간다 — 그것이 미끄러진 흔적이다.
+             MIDI 에는 글리산도가 없으니 아주 짧고 여린 경과음으로 흉내 낸다.
+             피치벤드로도 되지만 로직에서 음원마다 벤드 폭이 달라 어긋난다.
+             음으로 적어 두면 어느 음원에서도 같은 결이 난다.
+
+             해머온과 같은 자리(합치기 뒤)에 건다. 여기서 길이를 늘리면 안 되므로
+             경과음은 **사이에 끼워 넣기만** 한다. */
+          const slid=[];
+          for(let i9=0;i9<on8.length-1;i9++){
+            const a9=on8[i9], b9=on8[i9+1];
+            const gap9=b9.tick-a9.tick;
+            if(gap9<TPQ*0.35 || gap9>TPQ*1.2) continue;   /* 미끄러질 시간이 있어야 한다 */
+            const d9=b9.note-a9.note;
+            const ad=Math.abs(d9);
+            if(ad<3 || ad>5) continue;                    /* 3~5도 — 그 이상은 도약이다 */
+            /* 슬라이드는 드물어야 그 한 번이 들린다.
+               넷에 하나꼴로 뒀더니 celtic 선율에 83회가 나왔다 — 곡이 미끄러지기만 한다.
+               열에 하나꼴로 줄인다. */
+            if((((a9.tick>>>5)^(_duoSeed>>>8))>>>0)%10!==0) continue;
+            const step=(d9>0)?1:-1;
+            const n9=ad-1;
+            for(let k9=1;k9<=n9;k9++){
+              const m9=a9.note+step*k9;
+              const tk9=b9.tick-Math.round(TPQ*0.10*(n9-k9+1));
+              if(tk9<=a9.tick+20) continue;
+              slid.push({tick:tk9, on:1, note:m9,
+                vel:Math.max(20, Math.round((b9.vel||60)*0.42))});
+              slid.push({tick:tk9+Math.round(TPQ*0.07), on:0, note:m9});
+            }
+          }
+          if(slid.length){
+            slid.forEach(function(x){ ev.push(x); });
+            ev.sort(function(x,y){ return (x.tick-y.tick)||((x.cc!=null?2:x.on)-(y.cc!=null?2:y.on)); });
+          }
+        }catch(e){}
+      }
         __pending.push({grp:grp, ev:ev});
     });
     /* ── 최종 저역 정리 ──
