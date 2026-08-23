@@ -8481,7 +8481,15 @@ function piano2Region(ch,s,d,out,frac){
   const step=(frac<0.45)?1.0:0.5;                                   // 초반=4분(성김), 후반=8분(촘촘)
   const bv=Math.round(14+frac*20);                                  // 벨로 14→34 (아주 작게 시작해 서서히)
   let k=0;for(let o=0;o<d-1e-6;o+=step){
-    out.push({t:s+o,dur:step*0.92,midi:seq[k%seq.length],vel:bv+(k%2?0:3)});k++;
+    /* 배경 오스티나토라도 결은 있어야 한다. bv 와 bv+3 두 값뿐이라 편차 4.8 이었다 —
+       사람이 아주 여리게 칠 때도 손가락마다 힘이 다르다.
+       한 무리의 첫 음이 또렷하고, 위로 갈수록 조금 실린다. */
+    const _kk=k%seq.length;
+    const _hd=(_kk===0)?7:((_kk===seq.length-1)?3:0);
+    const _up=Math.round(_kk*(6/Math.max(1,seq.length-1)));
+    const _jt=((((k*2246822519)>>>0)%7)-3);
+    out.push({t:s+o,dur:step*0.92,midi:seq[k%seq.length],
+      vel:Math.max(12,Math.min(72,bv+_hd+_up+_jt))});k++;
   }
 }
 function pianoRegion(ch,s,d,e,out,bb,bs,bts,opt){const ps=ch.piano,top=ps[ps.length-1],BB=bb||4;bts=bts||[0,1,2,3];
@@ -8836,13 +8844,30 @@ function genreTrackRegion(ch,s,d,e,out,secType,barStart,barQ){
   if(G.kind==='harp'){ if(e<2)return;                               // 켈틱·오케: 8분 아르페지오(상행 순환)
     const pool=tones(48,84);if(pool.length<4)return;
     const per=Math.max(1,Math.round(d/0.5));
-    for(let i=0;i<per;i++){const m=pool[i%pool.length];out.push({t:s+i*0.5,dur:0.47,midi:m,vel:56+((i%pool.length===pool.length-1)?12:0)});}
+    /* ── 하프 아르페지오의 셈여림 ──
+       세기가 56 과 68 두 값뿐이었다 — 편차 1.4 로 사실상 한 값이다
+       (실측 epic: 하프 220음 · 편차 1.4 · 범위 56~59).
+       하프는 손가락으로 뜯는 악기다. 올라갈수록 힘이 실리고,
+       한 무리의 첫 음이 가장 또렷하다. 그 결이 없으면 신스 시퀀서로 들린다. */
+    for(let i=0;i<per;i++){const m=pool[i%pool.length];
+      const _k=i%pool.length;
+      const _rise=Math.round(_k*(14/Math.max(1,pool.length-1)));   /* 올라가며 힘이 실린다 */
+      const _head=(_k===0)?8:0;                                    /* 무리의 첫 음이 또렷 */
+      const _j=((((i*2654435761)>>>0)%7)-3);
+      out.push({t:s+i*0.5,dur:0.47,midi:m,
+        vel:Math.max(34,Math.min(96,50+_rise+_head+_j))});}
     return;}
   if(G.kind==='arps'){ if(e<3)return;                               // 댄스팝: 16분 업다운 아르페지오(필터 스윕 대상)
     const pool=tones(60,84);if(pool.length<3)return;
     const seq=[...pool,...pool.slice(1,-1).reverse()];
     const per=Math.max(1,Math.round(d/0.25));
-    for(let i=0;i<per;i++)out.push({t:s+i*0.25,dur:0.22,midi:seq[i%seq.length],vel:(i%4===0)?76:64});
+    /* 신스 아르프도 같다. 76/64 두 값이면 기계다.
+       16분 아르페지오는 정박이 세고 그 사이가 여리되, 매번 똑같지는 않다. */
+    for(let i=0;i<per;i++){
+      const _b=i%4, _base=(_b===0)?78:((_b===2)?70:62);
+      const _j=((((i*40503)>>>0)%9)-4);
+      out.push({t:s+i*0.25,dur:0.22,midi:seq[i%seq.length],
+        vel:Math.max(38,Math.min(104,_base+_j))});}
     return;}
   if(G.kind==='stabs'){ if(e<4)return;                              // 펑크·모타운·시티팝: 2·4박 뒤 오프비트 쇼트 히트
     const pool=tones(60,81);if(pool.length<3)return;
@@ -16962,9 +16987,23 @@ function applyDiscoFunk(M){
         const sg=segs.filter(x=>x.t0<=t+0.02).pop(); if(!sg) continue;
         const tones=sg.tones.map(m=>{ let x=m; while(x<67)x+=12; while(x>88)x-=12; return x; })
                             .filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a-b).slice(0,3);
-        SP.at.forEach(h=>{ const tt=t+h*(bar/16);
+        /* ── 브라스 스탭의 셈여림 ──
+           세 음을 같은 세기로 한 번에 찌르면 기계가 된다.
+           실연 브라스 섹션은 이렇게 분다.
+             · 마디 첫 자리를 가장 세게. 뒤로 갈수록 조금씩 여리게
+             · 위 음이 더 뚫고 나온다 — 리드 트럼펫이 그 자리다
+             · 같은 자리라도 매번 미세하게 다르다
+           (실측 discofunk: 리드 568음이 전부 벨로시티 108 · 편차 0 이었다.
+            브라스 스탭이 리드 트랙을 통째로 갈아치우면서 세기를 하나로 고정했다.) */
+        SP.at.forEach((h,hi)=>{ const tt=t+h*(bar/16);
           if(tt>=Math.min(sc.endQ,endT)-0.01) return;
-          tones.forEach(m=>nl.push({t:+tt.toFixed(4), midi:m, dur:0.3, vel:98}));
+          const _pos=1-Math.min(0.28, hi*0.09);          /* 뒤로 갈수록 여리게 */
+          tones.forEach((m,ti)=>{
+            const _top=(ti===tones.length-1)?6:(ti===0?-4:0);   /* 위 음이 뚫고 나온다 */
+            const _j=((((tt*997)|0)^(m*131))>>>0)%7-3;
+            nl.push({t:+tt.toFixed(4), midi:m, dur:0.3,
+                     vel:Math.max(38,Math.min(118,Math.round(92*_pos+_top+_j)))});
+          });
         });
       }
     });
@@ -17598,6 +17637,13 @@ function noteTrack(notes,ch,prog,isDrumMap,name,ccEvents,instName){const PPQ=480
       if(_out.length<ev.length){ ev.length=0; _out.forEach(function(e){ ev.push(e); }); }
     }
   }
+  /* ── 연주 가능한 바닥 ──
+     벨로시티 6~8 은 어느 음원에서도 소리가 안 난다 — 음이 사라진 것과 같다
+     (실측 Beat: lofi 일렉피아노 8 · melodichouse 패드 6 · running 베이스 14).
+     실연에서 가장 여린 pp 도 벨로시티로는 20 언저리다.
+     드럼만 예외 — 고스트 노트가 그 어법이다. */
+  { const _fl=isDrumMap?8:20;
+    ev.forEach(function(e){ if(e.on===1 && e.vel!=null) e.vel=Math.max(_fl,Math.min(127,e.vel|0)); }); }
   ev.sort((a,b)=>a.t-b.t||a.on-b.on);let body=[];
   if(name)body.push(...vlq(0),...metaText(0x03,name));
   { const _cat=(prog!=null&&!isDrumMap)?(' [소리계열: '+gmCat(prog)+']'):''; const _in=(instName||'')+_cat; if(_in)body.push(...vlq(0),...metaText(0x04,_in)); }   // 악기 이름 메타 (없을 수 있는 특정 음원 대비 소리계열 병기)
@@ -22037,6 +22083,7 @@ const document = __scopedDoc('app-play');
   let _songBpm=0;    /* 이 곡의 확정 빠르기(0=장르 기본) */
   let _bpmUser=false; /* 사용자가 슬라이더·숫자칸으로 직접 정했는가 */
   let _kmUser=false;  /* 사용자가 조성을 직접 골랐는가 */
+  let _rhyUser=false; /* 사용자가 리듬을 직접 골랐는가 */
   let _drumSeed=0;    /* 이 곡의 드럼 변형 씨앗(0=변형 없음) */
   let gtrDuoMode=false;   /* 기타 듀오 편성 */
   let gayaTrioMode=false; /* 25현 가야금 3중주 편성 */
@@ -26367,13 +26414,42 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
        테마로 만들 때는 건드리지 않는다. 같은 테마는 같은 조라야 한다. */
     if(!themeProg){
       try{
-        tonic=Math.floor(Math.random()*8)-4;
+        /* 그 장르가 쓰는 조에서 고른다. 표에 없으면 예전대로 무작위. */
+        (function(){
+          try{
+            const _kk=GENRE_KEYS[gsel];
+            if(_kk && _kk.length){
+              let _t=_kk[Math.floor(Math.random()*_kk.length)];
+              while(_t>7) _t-=12;                 /* 음역이 너무 올라가지 않게 */
+              tonic=_t;
+              return;
+            }
+          }catch(e){}
+          tonic=Math.floor(Math.random()*8)-4;
+        })();
         /* 화면의 조 선택도 함께 맞춘다 — 안 맞추면 사용자가 본 값과 소리가 어긋난다.
            그리고 renderOut 이 화면 값을 다시 읽어 tonic 을 덮어쓰는 자리가 있다. */
         try{ const _ts=$('tonic'); if(_ts){ _ts.value=String(tonic); } }catch(e){}
         /* 빠르기는 곡마다 흔들되 사용자가 직접 정해 두었으면 건드리지 않는다.
            userBpm 이 0 이면 '자동' — 그때만 장르 기준을 ±6% 흔든다. */
         _bpmJitter=_bpmUser?1:(0.94+Math.random()*0.12);
+        /* ── 리듬도 곡마다 고른다 ──
+           장르마다 리듬이 여럿 있는데(재즈: 스윙 컴핑 132 · 포 비트 120 ·
+           발라드 브러시 76 · 업 스윙 180) rhythmIdx 가 0 에 고정돼
+           **첫 리듬만 쓰였다.** 빠르기를 ±6% 흔들어도 그 안에서만 움직인다
+           (실측 jazz 6곡: 124~132 · gypsy 176~190 — 발라드도 업스윙도 안 나온다).
+           리듬이 바뀌면 빠르기·컴핑·드럼이 함께 바뀐다. 그게 곡의 성격이다.
+           사용자가 리듬을 직접 고르면 그것을 지킨다. */
+        try{
+          if(!_rhyUser){
+            const _rl=RHYTHMS[gsel];
+            if(_rl && _rl.length>1){
+              rhythmIdx=Math.floor(Math.random()*_rl.length);
+              const _rs=$('rhythmSel');
+              if(_rs && _rs.options && _rs.options.length>rhythmIdx) _rs.value=String(rhythmIdx);
+            }
+          }
+        }catch(e){}
         _drumSeed=(Math.random()*0x7fffffff)>>>0;
         _duoSeed=(Math.random()*0x7fffffff)>>>0;
         /* ── 장·단조도 곡마다 흔든다 ──
@@ -32381,7 +32457,16 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       if(P.loFrom && x.note<P.loFrom){ const d=P.loDelta*(P.loFrom-x.note);
         v=v+(P.loDelta>=0?Math.min(P.loMax,d):Math.max(-P.loMax,d)); }                                         // 저음역 보정
       v=isShort?Math.min(v,P.accCap):Math.min(v,P.susCap);                                                     // 상한은 마지막에 — 레이어 전환은 최종 값이 정한다
-      x.vel=Math.max(1,Math.min(127,Math.round(v)));
+      /* ── 연주 가능한 바닥 ──
+         음역 보정(hiDelta·loDelta)이 겹치면 값이 1 까지 내려간다.
+         벨로시티 1 은 어느 음원에서도 소리가 안 난다 — 음이 사라진 것과 같다
+         (실측 cineSoar 선율: 145음 중 16음이 25 미만 · 최저 1.
+          celtic 5 · cineSorrow 8. 세 장르 다 여린 자리에서 났다).
+         실연에서 가장 여린 pp 도 벨로시티로는 20 언저리다. 그 아래로는 내리지 않는다.
+         선율은 더 높게 잡는다 — 곡의 얼굴이라 반주에 묻히면 안 된다.
+         드럼은 고스트 노트가 어법이므로 예외로 둔다. */
+      const _floor=(gkey==='drums')?8:((gkey==='melody'||gkey==='vocal2')?32:20);
+      x.vel=Math.max(_floor,Math.min(127,Math.round(v)));
     }
     const out=[]; iv.forEach(function(x){ out.push({tick:x.on,on:1,note:x.note,vel:x.vel}); out.push({tick:x.off,on:0,note:x.note}); });
     return out.concat(ccs).sort(function(a,b2){ return (a.tick-b2.tick)||((a.cc!=null?2:a.on)-(b2.cc!=null?2:b2.on)); });
@@ -32687,7 +32772,30 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                  고역은 배음이 넓게 벌어져 겹쳐도 뭉치지 않고 공간감이 난다.
                  피아노 상단은 C8(108)까지인데 93에서 멈춰 한 옥타브가 남아 있었다. */
               if(_lgMel){ while(_mn<79) _mn+=12; while(_mn>103) _mn-=12; }   // 반주 위 음역으로 올린다
-              ev.push({tick:mt,on:1,note:_mn,vel:_lgMel?Math.max(40,Math.min(74,Math.round(70*inA))):Math.max(50,Math.min(124,Math.round(108*inA)))}); ev.push({tick:mt+md,on:0,note:_mn});
+              /* ── 음마다 셈여림 ──
+                 모든 선율 음이 같은 값(108*inA)이었다. 편차는 구간 단위 inA 에서만 나온다 —
+                 한 프레이즈 안에서는 전부 같은 세기다
+                 (실측: newage 편차 9.8 · lyricPenta 10.4 · lofi 7.7. 기계처럼 평평하다).
+                 사람은 이렇게 친다.
+                   · 마디 첫 박이 가장 세다. 그 다음이 셋째 박
+                   · 높은 음을 더 세게 친다 — 손이 그리로 실린다
+                   · 프레이즈 안에서 오르내린다
+                 폭은 장르가 정한다. 로파이의 납작함과 명상의 여림은 어법이므로
+                 **평균은 그대로 두고 폭만 넓힌다.** */
+              const _mq=(((mt-PAD)%measure+measure)%measure)/TPQ;
+              const _dn=Math.abs(_mq-Math.round(_mq))<0.12;
+              /* 폭을 키운다. 앞서 ±7 로는 편차가 9.8 -> 11.7 로 2밖에 안 올랐다 —
+                 사람이 치는 셈여림은 그보다 훨씬 넓다. */
+              let _sh=0;
+              if(_dn){ const _b=Math.round(_mq)%4; _sh=(_b===0)?12:((_b===2)?6:-2); }
+              else _sh=-9;                                    /* 엇박은 여리게 */
+              _sh += Math.max(-10, Math.min(14, Math.round((_mn-72)*0.9)));  /* 높은 음이 세다 */
+              /* 프레이즈 안에서 오르내린다 — 같은 자리라도 매번 같지 않게 */
+              _sh += ((((mt>>>4)^0x5bd1e995)>>>0)%9) - 4;
+              const _dyn=(MEL_DYN[gsel]!=null)?MEL_DYN[gsel]:1;
+              const _v0=_lgMel?(70*inA):(108*inA);
+              const _vv=_v0 + _sh*_dyn;
+              ev.push({tick:mt,on:1,note:_mn,vel:_lgMel?Math.max(40,Math.min(74,Math.round(_vv))):Math.max(50,Math.min(124,Math.round(_vv)))}); ev.push({tick:mt+md,on:0,note:_mn});
               if(melBreath && md>=Math.round(TPQ*0.35)){ // 관=브레스·현=활: 부드러운 어택 → 쭉 지속 → 부드러운 소멸 (음마다 정점 스웰 X = 우왕거림 방지)
                 ev.push({tick:mt,cc:11,val:74}); ev.push({tick:mt+Math.round(md*0.14),cc:11,val:104}); ev.push({tick:mt+Math.round(md*0.80),cc:11,val:104}); ev.push({tick:mt+md,cc:11,val:78}); } }); }
           } else if(grp.role==='drums'){ if(!sec.drums){ /* 이 섹션 드럼 없음(빌드업 단계) */ } else { const Md=meterOf(), Ld=Md.grid.length, simpleD=(currentSig==='4/4'||currentSig==='2/4');
@@ -33093,8 +33201,12 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
              (실측: 음이름 일치 48~63% · B베이스에 C서브 등).
              음이름을 유지한 채 서브 음역(E1~E2)으로 접는다. */
           let sb=c.bass; while(sb>40) sb-=12; while(sb<28) sb+=12;
-            if((sec.stage||3)>=6){ [0,0.5].forEach(pp=>{ const st2=T+Math.round(measure*pp); ev.push({tick:st2,on:1,note:sb,vel:Math.max(64,Math.round(100*inA))}); ev.push({tick:st2+Math.round(measure*0.5)-8,on:0,note:sb}); }); }
-            else { ev.push({tick:T,on:1,note:sb,vel:Math.max(60,Math.round(96*inA))}); ev.push({tick:T+measure-8,on:0,note:sb}); } } }
+            /* 서브는 **받치는 층**이다. 선율보다 앞에 서면 저역이 곡을 지배한다
+               (실측 cineSoar: 서브 평균 108 · 선율 69 — 39 앞이었다.
+                cineSorrow 도 서브 107 · 선율 80).
+               느끼는 저역은 세기보다 음역이 만든다. 세기를 낮춰도 무게는 그대로다. */
+            if((sec.stage||3)>=6){ [0,0.5].forEach(pp=>{ const st2=T+Math.round(measure*pp); ev.push({tick:st2,on:1,note:sb,vel:Math.max(52,Math.round(76*inA))}); ev.push({tick:st2+Math.round(measure*0.5)-8,on:0,note:sb}); }); }
+            else { ev.push({tick:T,on:1,note:sb,vel:Math.max(48,Math.round(72*inA))}); ev.push({tick:T+measure-8,on:0,note:sb}); } } }
           else if(grp.role==='vocal2'){ // 여성 보컬(듀엣) — 같은 선율을 여성 음역으로
             const themeHold2 = songTheme && INST.piano.on && ['아웃트로','간주'].indexOf(sec.label)>=0;
             const part0=duetMap[secIdx]||'both'; const part=(part0==='alt')?(((r*nsteps.length+si) < (nsteps.length*sec.reps)/2)?'m':'f'):part0;
@@ -36551,7 +36663,7 @@ return L.join('\n');
   { const gp=$('guidePanel'); if(gp) gp.addEventListener('input',e=>{ if(e.target.id==='gDurMin'||e.target.id==='gDurSec'){ syncGuideDurToDetail(); updateGuideEst(); } }); }
   ['durMin','durSec'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input',()=>{ syncDetailDurToGuide(); updateGuideEst(); }); });
   $('genreFold').addEventListener('change',e=>{ const s=e.target.closest('#gselDrop'); if(!s)return; stopGroove(); gsel=GROUPS[+s.value][1][0]; rhythmIdx=0; randData=null; bassVars={}; rhyVars={}; voiceVars={}; renderGenres(); applyGenreInst(); renderInst(); setUserBpm(rhythmBpm(),false); updateKeyToggle(); renderOut(); { guideOffset=0; const gp=$('guidePanel'); if(gp&&gp.style.display!=='none') renderGuide(); } });
-  $('genreFold').addEventListener('click',e=>{ const b=e.target.closest('.gchip'); if(!b)return; stopGroove(); gsel=b.dataset.g; rhythmIdx=0; randData=null; bassVars={}; rhyVars={}; voiceVars={}; renderGenres(); applyGenreInst(); renderInst(); setUserBpm(rhythmBpm(),false); updateKeyToggle(); renderOut(); { guideOffset=0; const gp=$('guidePanel'); if(gp&&gp.style.display!=='none') renderGuide(); } });
+  $('genreFold').addEventListener('click',e=>{ const b=e.target.closest('.gchip'); if(!b)return; stopGroove(); gsel=b.dataset.g; rhythmIdx=0; _rhyUser=false; randData=null; bassVars={}; rhyVars={}; voiceVars={}; renderGenres(); applyGenreInst(); renderInst(); setUserBpm(rhythmBpm(),false); updateKeyToggle(); renderOut(); { guideOffset=0; const gp=$('guidePanel'); if(gp&&gp.style.display!=='none') renderGuide(); } });
   /* 사람이 셀렉트를 직접 만졌을 때만 사용자 선택으로 본다.
      코드가 값을 바꿀 때도 change 가 나므로 isTrusted 로 가른다 —
      userBpm 에서 같은 함정을 겪었다(장르 고를 때 setUserBpm 이 불려 자동값이 굳었다). */
@@ -36607,6 +36719,52 @@ let cineSuiteMode=false, cineSuiteMin=16;   // 시네마틱 조곡 — 네 무�
 /* 오케스트라형 라운지 — 피아노로 바꾸지 않고 편성을 그대로 둔다 */
 /* 장르별 주선율 악기 — 악보에 그릴 선율을 누가 맡는가.
    기악독주곡은 피아노가 선율과 반주를 함께 하므로 선율선을 피아노 음색으로 분리한다. */
+/* ── 장르별 조 ──
+   조는 곡 전체의 색을 정한다. 지금까지 -4~+3 반음에서 완전 무작위로 골랐다.
+   그러면 그 장르가 잘 안 쓰는 조가 절반 넘게 나온다
+   (실측 8곡씩: trap D#m·A#m·G#m 위주 · lofi G#·C#·D# — 흑건이 많은 조가 절반 넘었다.
+    기타·베이스 연주자가 잘 안 쓰는 조이고, 그 장르 음원의 샘플 조와도 어긋난다).
+
+   장르마다 그 음악이 실제로 쓰는 조가 있다. 이유가 있다.
+     · 기타 음악(포크·켈틱·락)  개방현이 울리는 조 — E·A·D·G
+     · 관악이 있는 음악(재즈·블루스)  ♭ 조 — F·B♭·E♭ (관악기가 그렇게 만들어졌다)
+     · 힙합·트랩  F단조·G단조 — 808 이 그 음역에서 가장 두껍다
+     · 현악 오케스트라  개방현이 울리는 조 — D·G·A·C
+   값은 C=0 기준 반음 수다. 표에 없으면 예전처럼 -4~+3 무작위. */
+const GENRE_KEYS={
+  /* 힙합 계열 — 808 이 두껍게 울리는 낮은 조 */
+  trap:[5,7,3,10], kpopc:[0,5,7,10,3],
+  /* 로파이·R&B — 따뜻하고 어둡지 않은 단조 */
+  lofi:[2,9,4,7], neosoul:[5,0,2,10], ambjazz:[5,10,3,0],
+  /* 일렉트로닉 — 신스 프리셋이 흔히 쓰는 조 */
+  edm:[9,5,0,2],
+  /* 기타 음악 — 개방현이 울린다 */
+  folk:[4,9,2,7], celtic:[2,7,9,4], shanty:[2,7,4,9],
+  rock:[4,9,7,2], blues:[4,9,2,7],
+  /* 관악이 있는 음악 — ♭ 조 */
+  jazz:[5,10,3,8], bossa:[5,10,0,7], neosoulB:[5,10],
+  /* 현악·오케스트라 — 개방현 */
+  classic:[2,7,9,0], quartal:[2,7,0,9], cineSuite:[2,9,7,0],
+  cineSoar:[2,9,4,7], cineSorrow:[9,2,4,7], epicaeol:[2,9,4,7],
+  /* 팝·발라드 — 노래하기 좋은 조 */
+  pop:[0,7,2,5], ballad:[0,5,7,9], citypop:[0,5,7,2], kids:[0,7,5],
+  /* 피아노 독주 — 손에 편한 조 */
+  lyric:[0,5,7,9], lyricMid:[0,5,9,2], lyricPenta:[0,5,7],
+  newage:[0,7,5,2], joypiano:[0,7,5], kpiano:[0,5,9,7]
+};
+
+/* ── 장르별 셈여림 폭 ──
+   1 이 기준이다. 큰 값일수록 음마다 세기 차이가 크다.
+   여린 음악이라고 평평한 것이 아니다 — 오히려 작은 소리 안에서 결이 더 들린다.
+   명상·서정 계열은 폭을 넉넉히 준다(밋밋하다는 지적을 받은 자리다).
+   기계적 반복이 어법인 것(EDM·트랩)은 폭을 좁힌다. */
+const MEL_DYN={
+  newage:1.8, lyricPenta:1.8, lyric:1.6, lyricMid:1.5, lyricMinyo:1.6,
+  lofi:1.6, ambjazz:1.5, joypiano:1.4, kpiano:1.3, chanbul:1.6,
+  classic:1.4, cineSorrow:1.4, cineSuite:1.3, quartal:1.4,
+  jazz:1.2, neosoul:1.2, bossa:1.2, blues:1.2,
+  edm:0.6, trap:0.6, rock:0.8, kpopc:0.8
+};
 const MEL_GM_MAP={
   trap:81, kpopc:54,     /* 트랩 리드 = 신스 리드 · K-팝 = 보컬 가이드 */
   lyric:0, lyricPenta:0, lyricMid:0, lyricMinyo:0, joypiano:0, newage:0, kpiano:0,   /* 그랜드 피아노 */
@@ -36897,7 +37055,8 @@ function applyPreset(solo){
   $('userBpm').addEventListener('input',e=>setUserBpm(+e.target.value,'slider'));
   $('userBpmNum').addEventListener('input',e=>setUserBpm(+e.target.value||0,'num'));
   $('tonic').addEventListener('change',()=>{ stopGroove(); tonic=+$('tonic').value; renderOut(); updateGenreSum(); });
-  $('rhythmSel').addEventListener('change',e=>{ rhythmIdx=+e.target.value||0; stopGroove(); if(typeof songState!=='undefined'&&songState) stopSong(); setUserBpm(rhythmBpm(),false); renderOut(); });
+  /* 사람이 직접 고른 것만 사용자 선택으로 본다(isTrusted). 코드가 값을 바꿀 때도 change 가 난다. */
+  $('rhythmSel').addEventListener('change',e=>{ if(e.isTrusted) _rhyUser=true; rhythmIdx=+e.target.value||0; stopGroove(); if(typeof songState!=='undefined'&&songState) stopSong(); setUserBpm(rhythmBpm(),false); renderOut(); });
   function fillSigs(){ const sel=$('sigSel'); if(!sel)return; sel.innerHTML=Object.keys(METER).map(k=>'<option value="'+k+'" title="'+k+'"'+(k===currentSig?' selected':'')+'>'+k.split(' ')[0]+'</option>').join(''); sel.value=currentSig; } /* 표시는 10/8만 — 그룹 설명은 title */
   $('harmonyBtn').addEventListener('click',()=>{ const p=$('harmonyPanel'); const show=p.style.display==='none'; p.style.display=show?'':'none'; $('harmonyBtn').classList.toggle('on',show); if(show) renderHarmony(); });
   $('sigSel').addEventListener('change',e=>{ currentSig=e.target.value; genreSetSig=false; /* 사용자가 직접 선택 — 장르 전환 시 복원 안 함 */ stopGroove(); if(typeof songState!=='undefined'&&songState) stopSong(); if(isThemeMode&&themeMelody){ themeMelody=genMelody(themeSteps||themeProg.steps,{intensity:0.9,instClass:instClass(INST.melody.gm)}); } if($('scoreView')&&$('scoreView').style.display!=='none') renderScore(); });
