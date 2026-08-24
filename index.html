@@ -1794,7 +1794,7 @@ input[type=range]{accent-color:var(--teal)}
       <span class="mini" id="lenTag" style="white-space:nowrap;"></span>
     </div>
     <div id="runMixRow" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;">
-      <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="runMixTog"> <b>🏃 러닝 믹스 (긴 시간)</b></label>
+      <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="runMixTog"> <b>🔁 롱 믹스 (긴 시간)</b></label>
       <select id="runMixLen" class="slim-sel"><option value="30">약 30분</option><option value="45">약 45분</option><option value="60" selected>약 60분</option><option value="75">약 75분</option><option value="90">약 90분</option></select>
       <span class="mini">3~4분짜리 곡을 이어 붙입니다 — 곡마다 리듬·연주는 달라지고 속도는 ±3 BPM 안에서만 움직입니다.</span>
     </div>
@@ -14368,8 +14368,28 @@ function updateLenTag(){const el=$('lenTag');if(!el)return;const cur=estTotalSec
    · 조        : 편마다 5도권 이웃으로만 옮긴다
    길이는 곡을 자르지 않으므로 목표에 딱 떨어지지 않는다. */
 let runMixMode=false, runMixMin=60;
-const RUNMIX_BPM=[0,+2,-2,+3,-1,+1,-3,+2];        // 기준 BPM에서의 편차 — ±3 안
+/* 긴 믹스를 쓸 수 있는 장르 — 러닝만의 것이 아니다.
+   카페·매장·행사에서 EDM·레트로·K팝도 60분이 필요하다. */
+const MIX_GENRES=['running','edm','retro','kpop','discofunk','hookpop','hooksong','country','global'];
+function mixOK(){ try{ return MIX_GENRES.indexOf(state.genre)>=0; }catch(e){ return false; } }
+const RUNMIX_BPM=[0,+2,-2,+3,-1,+1,-3,+2];        // 러닝 전용 — 케이던스 때문에 ±3 안
 const RUNMIX_KEY=[0,5,-5,2,-3,7,-7,4];            // 5도권 이웃
+/* ── 러닝이 아닌 장르의 긴 믹스 ──
+   ±3 은 발이 엉키지 않게 하려는 제한이다. 달리지 않는 음악에는 그럴 이유가 없다.
+   장르가 실제로 쓰는 폭 안에서 넉넉히 흔든다 —
+   그래야 60분 동안 편마다 성격이 달라진다.
+   조도 5도권 이웃만이 아니라 3도 관계·나란한조까지 넓힌다. */
+const MIX_BPM={
+  edm:       [0,+6,-4,+10,-6,+4,+14,-2,+8,-8],
+  retro:     [0,-5,+4,-8,+6,-3,+9,-6,+2,+7],
+  kpop:      [0,+5,-6,+8,-3,+11,-8,+3,-4,+6],
+  discofunk: [0,+4,-5,+7,-3,+9,-7,+2,+5,-4],
+  hookpop:   [0,+6,-5,+9,-4,+3,+12,-7,+4,-2],
+  hooksong:  [0,+5,-6,+8,-4,+10,-8,+3,+6,-3],
+  country:   [0,-4,+5,-7,+3,+8,-5,+2,-6,+4],
+  global:    [0,+5,-6,+9,-4,+7,-9,+3,+5,-2]
+};
+const MIX_KEY=[0,5,-5,2,-3,7,-7,4,9,-4,3,-2];     /* 5도권 + 3도 관계 + 나란한조 */
 function buildRunMix(){
   const keys=Object.keys(RUNSTYLES);
   const base=+$('bpm').value||165;
@@ -14385,12 +14405,30 @@ function buildRunMix(){
     if(k>0) secs=secs.filter(x=>x.type!=='Intro');
     const willEnd=(k>=2) && (acc + secs.reduce((a,x)=>a+x.bars,0)*(60/base)*barQ() > TARGET - TRACK*0.5);
     if(!willEnd) secs=secs.filter(x=>x.type!=='Outro');
-    const bpm=Math.round(base+RUNMIX_BPM[k%RUNMIX_BPM.length]);
-    const ks=RUNMIX_KEY[k%RUNMIX_KEY.length];
+    /* 러닝이면 ±3, 그 밖의 장르는 그 장르가 쓰는 폭으로 */
+    const _gid=(curGenre()&&curGenre().id)||'';
+    const _bt=MIX_BPM[_gid]||RUNMIX_BPM;
+    const _kt=(_gid==='running')?RUNMIX_KEY:MIX_KEY;
+    let bpm=Math.round(base+_bt[k%_bt.length]);
+    try{ const st=curGenre(); if(st&&st.tempo){ bpm=Math.max(st.tempo[0],Math.min(st.tempo[1],bpm)); } }catch(e){}
+    const ks=_kt[k%_kt.length];
+    /* 장르가 쓰는 박자 — 없으면 4/4 하나 */
+    const MIX_SIG={ retro:['4/4','3/4'], country:['4/4','3/4','6/8'],
+                    kpop:['4/4'], edm:['4/4'], discofunk:['4/4'],
+                    hookpop:['4/4'], hooksong:['4/4','6/8'],
+                    global:['4/4','6/8'], running:['4/4','3/4'] };
+    const _sg=MIX_SIG[_gid]||null;
     secs.forEach(x=>{
       x.tempo=bpm;                                  // 편 안에서는 한 속도로
       x.runMix=k+1; x.runStyleId=state.runStyle;
       x.keyShift=ks;
+      /* ── 편마다 박자표 ──
+         롱 믹스가 4/4 하나로만 나왔다(러닝만 3/4 이 섞였다).
+         60분 동안 박자가 한 번도 안 바뀌면 그 자체로 단조롭다.
+         다만 아무 박자나 넣으면 그 장르가 아니게 된다 —
+         디스코·EDM 은 4/4 가 어법이고, 레트로·컨트리는 3/4 왈츠가 자연스럽다.
+         장르가 쓰는 박자 안에서만 돌린다. 넷에 한 편꼴로 바뀐다. */
+      if(_sg && _sg.length>1 && (k%4)===3) x.meter=_sg[(Math.floor(k/4))%_sg.length];
       x.chords=(x.chords||[]).map(c=>c);            // 진행은 그 스타일 풀에서 이미 뽑혔다
     });
     if(k>0 && out.length){
@@ -14602,7 +14640,13 @@ function genRunMix(){
   const byMv={};
   state.sections.forEach(x=>{ if(x.runMix){ byMv[x.runMix]=byMv[x.runMix]||[]; byMv[x.runMix].push(x); } });
   Object.keys(byMv).forEach(function(k,i){
-    const arr=byMv[k], bpm=Math.round((+$('bpm').value||165)+RUNMIX_BPM[(k-1)%RUNMIX_BPM.length]);
+    /* finalizeSections 가 템포를 손대므로 다시 씌운다.
+       러닝은 ±3, 그 밖의 장르는 그 장르가 쓰는 폭으로 (buildRunMix 와 같은 표) */
+    const _gid2=(curGenre()&&curGenre().id)||'';
+    const _bt2=MIX_BPM[_gid2]||RUNMIX_BPM;
+    let bpm=Math.round((+$('bpm').value||165)+_bt2[(k-1)%_bt2.length]);
+    try{ const st2=curGenre(); if(st2&&st2.tempo){ bpm=Math.max(st2.tempo[0],Math.min(st2.tempo[1],bpm)); } }catch(e){}
+    const arr=byMv[k];
     arr.forEach(x=>{ x.tempo=bpm; });
     if(i>0){ arr[0].atmos=arr[0].atmos||{}; arr[0].atmos.impact=1; arr[0].atmos.revcrash=1; arr[0].crash=true; }
   });
@@ -14619,7 +14663,7 @@ function genBeat(){applyGenreDefaults(true);
   /* 긴 시간 모드도 만들 때마다 새로 뽑혀야 한다 — 아래 분기가 일반 경로의 시드 갱신보다 먼저 돌아
      시드가 1에 고정돼 있었다. 훅 모티프·필·고스트·미세 지터가 매번 같아진다. */
   if(runMixMode||lofiMixMode||houseMixMode||waveMixMode) state.seed=((Math.random()*1e9)|0)||1;
-  if(runMixMode && state.genre==='running'){ if(genRunMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
+  if(runMixMode && mixOK()){ if(genRunMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
 
   if(lofiMixMode && (state.genre==='lofi'||state.genre==='lofigirl')){ if(genLofiMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
   if(houseMixMode && (state.genre==='melodichouse'||state.genre==='deephouse')){ if(genHouseMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
@@ -14629,7 +14673,7 @@ function genFlow(){const g=curGenre();state.active=0;
   /* 긴 시간 모드도 만들 때마다 새로 뽑혀야 한다 — 아래 분기가 일반 경로의 시드 갱신보다 먼저 돌아
      시드가 1에 고정돼 있었다. 훅 모티프·필·고스트·미세 지터가 매번 같아진다. */
   if(runMixMode||lofiMixMode||houseMixMode||waveMixMode) state.seed=((Math.random()*1e9)|0)||1;
-  if(runMixMode && state.genre==='running'){ if(genRunMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
+  if(runMixMode && mixOK()){ if(genRunMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
   if(lofiMixMode && (state.genre==='lofi'||state.genre==='lofigirl')){ if(genLofiMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
   if(houseMixMode && (state.genre==='melodichouse'||state.genre==='deephouse')){ if(genHouseMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
   if(waveMixMode && state.genre==='synthwave'){ if(genWaveMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
@@ -15012,7 +15056,40 @@ function genSongLead(tr,g,sec,start,en,rnd,HOOK){
           [[4,0,0.4],[4,0.5,0.4],[7,1,0.4],[4,1.75,0.4],[2,2.5,0.4],[0,3,0.9]],
           [[7,0,0.4],[7,0.75,0.4],[9,1.5,0.4],[7,2,0.4],[4,2.75,0.4],[2,3.25,0.6]],
           [[7,0,0.4],[7,0.5,0.4],[12,1,0.9],[9,2,0.4],[7,2.5,0.4],[4,3,0.9]]];
-      const sh=shapes[HOOK.shape%shapes.length].map(([d,rq,du])=>[du>=0.9?safeDeg(d,cpc):d,rq,du]);
+      /* ── 모양 고르기와 마디 변주 ──
+         HOOK.shape 하나로 골라 곡 내내 같은 모양이 되풀이됐다
+         (실측 retro 롱 믹스: Lead 4942음 중 한 음형이 241마디 · 60분에서 크게 들린다).
+         편(runMix)마다·셀마다 다른 모양을 고르고, 그 위에 마디 변주를 얹는다.
+         연주자는 같은 프레이즈를 되풀이할 때 매번 똑같이 치지 않는다 —
+         한 음을 펜타 한 칸 옮기거나, 둘을 하나로 잇거나, 하나를 둘로 쪼갠다.
+         뼈대(첫 음·끝 음)는 지켜야 후크로 남는다. */
+      const _mv2=(sec&&sec.runMix)?sec.runMix:0;
+      let sh=shapes[(HOOK.shape+_mv2*2+c)%shapes.length].map(([d,rq,du])=>[du>=0.9?safeDeg(d,cpc):d,rq,du]);
+      if(c%2===1 && sh.length>=4){
+        const _vk=((c*2654435761)^(_mv2*40503)^(HOOK.shape*7919))>>>0;
+        const UP2={0:2,2:4,4:7,7:9,9:12,12:0}, DN2={2:0,4:2,7:4,9:7,12:9};
+        const _md=_vk%4;
+        if(_md===0){
+          const _i=1+(_vk>>>3)%(sh.length-2);
+          sh=sh.map(function(x,k){ if(k!==_i) return x;
+            const t=((_vk>>>5)&1)?UP2[x[0]]:DN2[x[0]];
+            return [(t!=null?t:x[0]), x[1], x[2]]; });
+        } else if(_md===1){
+          const _i=1+(_vk>>>3)%(sh.length-3);
+          const _o=[]; sh.forEach(function(x,k){
+            if(k===_i) _o.push([x[0], x[1], x[2]+sh[k+1][2]]);
+            else if(k!==_i+1) _o.push(x); });
+          sh=_o;
+        } else if(_md===2){
+          const _i=1+(_vk>>>3)%(sh.length-2);
+          const _o=[]; sh.forEach(function(x,k){
+            if(k!==_i){ _o.push(x); return; }
+            const h2=Math.max(0.2, x[2]/2);
+            _o.push([x[0], x[1], h2]);
+            const t=UP2[x[0]]; _o.push([(t!=null?t:x[0]), +(x[1]+h2).toFixed(3), h2]); });
+          sh=_o;
+        }
+      }
       sh.forEach(([deg,rq,d])=>tr.lead.push({t:t0+rq,dur:d,midi:r5+deg,vel:Math.round((country?84:g.id==='retro'?82:90)+rnd()*8)}));
       if(lastCell)tr.lead.push({t:t0+4,dur:3.2,midi:r5,vel:Math.round(84+rnd()*6)});
       else sh.slice(0,4).forEach(([deg,rq,d])=>tr.lead.push({t:t0+4+rq,dur:d,midi:r5+deg,vel:Math.round((country?76:g.id==='retro'?74:82)+rnd()*7)}));
@@ -15068,13 +15145,27 @@ function genLead(tr,g,sec,start,en,rnd,HOOK){
       return false;};
     const safeE=(deg,pcs)=>{if(!clashE(deg,pcs))return deg;for(const d of PENTe)if(!clashE(d,pcs))return d;return deg;};
     // 곡 고정 시그니처 콜 (1마디): 좁은 음역 · 강박 앵커 · 끝에 당김 서프라이즈 하나
+    /* 음형 넷으로는 60분을 못 버틴다. 여덟로 늘린다 —
+       펜타토닉 안에서 리듬꼴과 방향이 서로 다른 것들이다. */
     const CALLS=[
       [[0,0,0.9],[4,1,0.45],[2,1.5,0.45],[0,2,0.9],[7,3.25,0.7]],
       [[4,0,0.45],[4,0.5,0.45],[7,1,0.9],[9,2,1.4],[7,3.5,0.5]],
       [[9,0,0.9],[7,1,0.45],[9,1.5,0.45],[4,2,1.4],[2,3.5,0.5]],
-      [[0,0,0.45],[2,0.5,0.45],[4,1,0.9],[7,2,0.45],[4,2.5,0.45],[2,3,0.9]]
+      [[0,0,0.45],[2,0.5,0.45],[4,1,0.9],[7,2,0.45],[4,2.5,0.45],[2,3,0.9]],
+      /* 아래 넷은 새로 넣은 것 */
+      [[7,0,1.4],[4,1.5,0.45],[2,2,0.9],[0,3,0.9]],                          /* 하행 · 긴 첫음 */
+      [[0,0,0.45],[7,0.5,0.45],[4,1,0.45],[9,1.5,0.9],[7,2.5,1.4]],          /* 도약 · 넓게 */
+      [[2,0,0.9],[4,1,0.45],[7,1.5,1.4],[4,3,0.45],[2,3.5,0.5]],             /* 산 모양 */
+      [[9,0,0.45],[9,0.75,0.45],[7,1.5,0.9],[4,2.5,0.45],[0,3,1.0]]          /* 되풀이 뒤 하행 */
     ];
-    const call=CALLS[HOOK.shape%CALLS.length];
+    /* ── 편마다 다른 음형 ──
+       CALLS 가 넷뿐이고 HOOK.shape 하나로 골라서 곡 내내 같은 음형이 되풀이됐다
+       (실측 retro 롱 믹스: 1435마디 중 242마디가 같은 음형 · 서로 다른 음형 153개).
+       60분짜리에서는 그 되풀이가 더 크게 들린다.
+       롱 믹스는 편(runMix)마다, 일반 곡은 구간마다 다른 음형을 고른다. */
+    const _mv=(sec&&sec.runMix)?sec.runMix:0;
+    const _si=(sec&&sec.idx!=null)?sec.idx:0;
+    const call=CALLS[(HOOK.shape+_mv*3+(_mv?0:_si))%CALLS.length];
     // 리스폰스 = 콜과 같은 리듬, 끝 두 음만 하행 → 근음 (문답)
     const resp=call.map(([d,rq,du],k)=>k===call.length-1?[0,rq,du+0.4]:(k===call.length-2?[2,rq,du]:[d,rq,du]));
     // 프레이즈 스케일: 짧은 구간(≤11마디)=1마디 콜↔리스폰스 교대
@@ -15096,7 +15187,42 @@ function genLead(tr,g,sec,start,en,rnd,HOOK){
       const hasPickup=longSec&&pos===3&&!lastBar;          // 픽업(3.75)이 붙는 마디는 그 앞까지만
       const barCap=hasPickup?3.75:4;
       const nextBarFirstRq=(longSec ? [call,callLift,respPeak,respCad][(bar+1)%4] : ((bar+1)%2===0?call:resp))[0][1];
-      const clamped=phrase.map((x,k)=>{const nextRq=k<phrase.length-1?phrase[k+1][1]:(hasPickup?barCap:4+nextBarFirstRq);
+      /* ── 마디 변주 ──
+         음형을 여덟로 늘려도 1400마디를 채우면 같은 마디가 185번 되풀이된다
+         (실측 retro 롱 믹스). 음형을 통째로 고르는 층만 있고,
+         **같은 음형을 조금씩 바꾸는 층**이 없기 때문이다.
+         연주자는 같은 프레이즈를 되풀이할 때 매번 똑같이 치지 않는다 —
+         한 음을 위아래로 옮기거나, 둘을 하나로 잇거나, 하나를 둘로 쪼갠다.
+         마디마다 셋 중 하나를 골라 건다. 뼈대(첫 음·끝 음)는 지킨다. */
+      const _vk=((bar*2654435761)^((sec&&sec.runMix)||0)*40503^(HOOK.shape*7919))>>>0;
+      let _ph=phrase;
+      if(bar%2===1 && phrase.length>=3){
+        const _mode=_vk%4;
+        const UP2={0:2,2:4,4:7,7:9,9:12}, DN2={2:0,4:2,7:4,9:7,12:9};
+        if(_mode===0){
+          /* 가운데 한 음을 펜타 한 칸 위아래로 */
+          const _i=1+(_vk>>>3)%(phrase.length-2);
+          _ph=phrase.map(function(x,k){ if(k!==_i) return x;
+            const t=((_vk>>>5)&1)?UP2[x[0]]:DN2[x[0]];
+            return [(t!=null?t:x[0]), x[1], x[2]]; });
+        } else if(_mode===1 && phrase.length>=4){
+          /* 가운데 둘을 하나로 잇는다 — 긴 음이 생겨 숨이 트인다 */
+          const _i=1+(_vk>>>3)%(phrase.length-3);
+          _ph=[]; phrase.forEach(function(x,k){
+            if(k===_i) _ph.push([x[0], x[1], x[2]+phrase[k+1][2]]);
+            else if(k!==_i+1) _ph.push(x); });
+        } else if(_mode===2){
+          /* 한 음을 둘로 쪼갠다 — 잔가지가 생긴다 */
+          const _i=(_vk>>>3)%phrase.length;
+          _ph=[]; phrase.forEach(function(x,k){
+            if(k!==_i){ _ph.push(x); return; }
+            const half=Math.max(0.22, x[2]/2);
+            _ph.push([x[0], x[1], half]);
+            const t=UP2[x[0]]; _ph.push([(t!=null?t:x[0]), +(x[1]+half).toFixed(3), half]); });
+        }
+        /* mode 3 은 그대로 — 되풀이도 음악이다 */
+      }
+      const clamped=_ph.map((x,k)=>{const nextRq=k<_ph.length-1?_ph[k+1][1]:(hasPickup?barCap:4+nextBarFirstRq);
         const maxDur=Math.max(0.1,nextRq-x[1]-0.02); return [x[0],x[1],Math.min(x[2],maxDur)];});
       clamped.forEach(([deg,rq,du])=>{
         /* 0.9박 넘는 음만 걸렀더니 0.5~0.9박 음이 그대로 남았다.
@@ -18458,7 +18584,7 @@ function buildSongSheet(){
     L.push('   ▸ 드럼은 드렁큰 그루브입니다 — 리퀀타이즈하면 로파이 특유의 밀당이 사라집니다.');
     L.push('');
   }
-  if(runMixMode && state.genre==='running'){
+  if(runMixMode && mixOK()){
     const mv=new Set(state.sections.map(x=>x.runMix).filter(Boolean)).size;
     const bpms=[...new Set(state.sections.map(x=>secTempo(x)))].sort((a,b)=>a-b);
     const tot=Math.round(estTotalSec());
@@ -19468,7 +19594,7 @@ function generateSong(fullRandom){
   /* 긴 시간 모드는 여기서도 걸러야 한다 — 화면의 '새 곡 생성' 버튼은 genFlow가 아니라 이 함수를 부른다.
      그래서 토글을 켜도 3~4분짜리 일반 곡이 나오고 있었다. */
   if(runMixMode||lofiMixMode||houseMixMode||waveMixMode) state.seed=((Math.random()*1e9)|0)||1;
-  if(runMixMode && g.id==='running'){ if(genRunMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
+  if(runMixMode && mixOK()){ if(genRunMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
   if(lofiMixMode && (g.id==='lofi'||g.id==='lofigirl')){ if(genLofiMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
   if(houseMixMode && (g.id==='melodichouse'||g.id==='deephouse')){ if(genHouseMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
   if(waveMixMode && g.id==='synthwave'){ if(genWaveMix()){ renderAll(); $('panel3').classList.remove('collapsed'); return; } }
@@ -19609,7 +19735,10 @@ function renderRunStyles(){const row=$('runStyleRow'),hint=$('runStyleHint');
     if(!(state.genre==='melodichouse'||state.genre==='deephouse')) off('houseMixTog',()=>{houseMixMode=false;},'houseMixRow');
     if(state.genre!=='synthwave') off('waveMixTog',()=>{waveMixMode=false;},'waveMixRow');
   }
-  { const rm=$('runMixRow'); if(rm) rm.style.display=isRun?'flex':'none'; }   // 러닝 믹스는 러닝에서만
+  /* 긴 믹스는 러닝만의 것이 아니다 — 카페·매장·행사에서 EDM·레트로·K팝도 60분이 필요하다 */
+  { const rm=$('runMixRow');
+    const _mg=['running','edm','retro','kpop','discofunk','hookpop','hooksong','country','global'];
+    if(rm) rm.style.display=(_mg.indexOf(state.genre)>=0)?'flex':'none'; }
   { const lm=$('lofiMixRow'); if(lm) lm.style.display=(state.genre==='lofi'||state.genre==='lofigirl')?'flex':'none'; }   // 로파이 믹스
   { const hm=$('houseMixRow'); if(hm) hm.style.display=(state.genre==='melodichouse'||state.genre==='deephouse')?'flex':'none'; }   // 하우스 셋
   { const wm=$('waveMixRow'); if(wm) wm.style.display=(state.genre==='synthwave')?'flex':'none'; }   // 신스웨이브 셋
