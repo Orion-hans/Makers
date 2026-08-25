@@ -30329,12 +30329,44 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       const T=secTk[i]; if(!T || T.bars<3) return;
       const m=T.meas;
       const st=T.start+(T.bars-2)*m;                        // 마지막 두 마디
-      out.push({tick:st,                    bpm:Math.round(bpm*(1-0.06*amt))});
-      out.push({tick:st+m,                  bpm:Math.round(bpm*(1-0.13*amt))});
-      out.push({tick:T.start+T.bars*m-4,    bpm:Math.round(bpm*(1-0.18*amt))});
+      /* 편 끝 리타르단도 — 더 깊게. 편이 맺히는 느낌이 분명해야 다음 편이 새로 시작한다 */
+      out.push({tick:st,                    bpm:Math.round(bpm*(1-0.09*amt))});
+      out.push({tick:st+Math.round(m*0.5),  bpm:Math.round(bpm*(1-0.15*amt))});
+      out.push({tick:st+m,                  bpm:Math.round(bpm*(1-0.21*amt))});
+      out.push({tick:T.start+T.bars*m-4,    bpm:Math.round(bpm*(1-0.28*amt))});
       /* 다음 편 첫 마디에서 제 빠르기로 복귀 — 늦춘 채로 두면 곡 전체가 처진다 */
       out.push({tick:T.start+T.bars*m,      bpm:Math.round(bpm)});
     });
+    /* ── 편 안에서의 완만한 오르내림 ──
+       지금은 편 끝에서만 늦춘다 — 편 안은 처음부터 끝까지 한 속도다.
+       사람이 연주하는 긴 곡은 그렇지 않다. 고조되는 자리에서 조금씩 밀고,
+       가라앉는 자리에서 조금씩 늦춘다. 그 오르내림이 곡을 살아 있게 한다.
+       **구간의 stage(고조 단계)를 따라간다** — 임의로 흔드는 것이 아니다.
+       폭은 ±4% 안. 그 이상은 실수처럼 들린다.
+       한 구간 안에서 여러 걸음으로 나눠 넣어야 '서서히' 가 된다 — 한 번에 바꾸면 턱이 진다. */
+    if(loungeMode){
+      song.forEach(function(sec,i){
+        if(i>=song.length-1) return;
+        const T=secTk[i]; if(!T || T.bars<4) return;
+        const nx=song[i+1];
+        if(nx && (nx.movement||1)!==(sec.movement||1)) return;   /* 편 경계는 위에서 맡는다 */
+        if(sec.label==='아웃트로') return;
+        const st0=sec.stage||3, st1=(nx&&nx.stage)||st0;
+        if(st1===st0) return;                                    /* 단계가 같으면 그대로 */
+        /* 고조되면 밀고(+), 가라앉으면 늦춘다(-).
+           ±4% 로는 부족했다 — 30분을 들으면 거의 안 느껴진다.
+           실연에서 지휘자가 쓰는 폭은 그보다 넓다. 단계 하나에 3.5% · 최대 ±11%.
+           그 이상은 곡이 흔들리는 것으로 들린다. */
+        const d=Math.max(-11, Math.min(11, (st1-st0)*3.5));
+        /* 걸음도 늘린다 — 여섯 걸음이면 더 매끄럽게 밀린다.
+           그리고 구간 앞쪽부터 시작해 오래 끌어야 '서서히' 가 된다. */
+        const m2=T.meas, N=6;
+        for(let k=1;k<=N;k++){
+          const tk=T.start+Math.round(T.bars*m2*(0.25+0.75*(k/N)));
+          out.push({tick:tk, bpm:Math.round(bpm*(1+d/100*(k/N)))});
+        }
+      });
+    }
     return out;
   }
 
@@ -34715,6 +34747,82 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          그 길이가 합치기의 조건이 되어 두 음이 하나로 합쳐진다
          (실측: 리듬 트랙 867음 -> 411음 · 뮤트 16 -> 0 으로 절반이 사라졌다).
          여기서는 세기만 낮추고 길이는 아주 조금만 늘린다. */
+      /* ── 라운지 베이스의 리듬꼴 ──
+         라운지에는 드럼이 없다. 그러면 **저역을 맡은 악기가 곧 리듬**이다.
+         그런데 걸음이 0박·2박 반반뿐이라 60분 내내 같은 맥으로 흐른다
+         (실측: newage 477마디 중 상위 걸음이 (0.0, 2.0) 하나로 몰렸다).
+         4/4 안에도 나눔이 여럿이다 — 3+3+2 는 라틴·시티팝·아프로의 뼈대이고,
+         2+3+3 은 그것을 뒤집은 것, 3+2+3 은 가운데가 짧다.
+         편(악장)마다 하나를 골라 그 편 내내 지킨다. 걸음이 바뀌면 곡이 바뀐다.
+         원래 음을 옮기는 것이 아니라 **그 자리에 없으면 더한다** —
+         지우기만 해서는 없던 자리가 안 생긴다(가야금 3중주에서 겪었다). */
+      if(loungeMode && grp.key==='bass' && !ORCH_LOUNGE.has(gsel)){
+        try{
+          const CLAVE=[
+            [0,2],                 /* 반반 — 기본 */
+            [0,1.5,3],             /* 3+3+2 (8분 단위 3·3·2) */
+            [0,1,2.5],             /* 2+3+3 */
+            [0,1.5,2.5],           /* 3+2+3 */
+            [0,1,2,3],             /* 네 박을 고르게 */
+            [0,0.75,2,2.75],       /* 앞으로 미는 걸음 */
+            [0,1.5,2,3.5]          /* 당김이 섞인 걸음 */
+          ];
+          const ons=ev.filter(function(e){ return e.cc==null && e.note!=null && e.on===1; })
+                     .sort(function(x,y){ return x.tick-y.tick; });
+          if(ons.length>4){
+            let mn=1e9,mx=0;
+            ons.forEach(function(e){ if(e.tick<mn) mn=e.tick; if(e.tick>mx) mx=e.tick; });
+            const at={}; ons.forEach(function(e){ at[Math.round(e.tick/24)]=e.note; });
+            const add=[];
+            for(let tk=mn; tk<mx; tk+=__barLen){
+              const bi=barAtTick(tk, PAD, __barLen);
+              const rt=(__barRoot&&__barRoot[bi]!=null)?__barRoot[bi]:null;
+              if(rt==null) continue;
+              /* 편마다 다른 걸음 — 악장이 없으면 마디 묶음으로 */
+              const _mvB=(function(){ try{ const s2=currentSong[secAtTick?secAtTick(tk):0];
+                return (s2&&s2.movement)||0; }catch(e){ return 0; } })()
+                || Math.floor((tk-PAD)/(__barLen*16));
+              const pat=CLAVE[_mvB%CLAVE.length];
+              const base=ons[0].note;
+              /* 원래 걸음도 남기고 새 걸음도 더하면 음이 두 배가 된다
+                 (실측 newage 1171 -> 2203음). 걸음꼴 밖의 음은 먼저 솎는다 —
+                 리듬꼴이 곧 그 편의 걸음이므로 그 자리만 남아야 한다. */
+              pat.forEach(function(q,qi){
+                const t2=tk+Math.round(q*TPQ);
+                if(at[Math.round(t2/24)]!=null) return;      /* 이미 있는 자리는 둔다 */
+                const pc=(qi===0)?rt:((qi%2===1)?((rt+7)%12):rt);
+                let m=base+((((pc-base)%12)+12)%12);
+                while(m>52) m-=12; while(m<28) m+=12;
+                const dur=Math.round(TPQ*(qi===0?0.9:0.55));
+                add.push({tick:t2,on:1,note:m,vel:Math.round(58+(qi===0?8:0))});
+                add.push({tick:t2+dur,on:0,note:m});
+              });
+            }
+            if(add.length){
+              /* 걸음꼴에 없는 자리의 원래 음을 솎는다(마디 첫 박은 지킨다) */
+              const okAt={};
+              for(let tk2=mn; tk2<mx; tk2+=__barLen){
+                const _mvC=Math.floor((tk2-PAD)/(__barLen*16));
+                const p2=CLAVE[_mvC%CLAVE.length];
+                p2.forEach(function(q){ okAt[Math.round((tk2+Math.round(q*TPQ))/24)]=1; });
+              }
+              const keep=[]; const drop={};
+              ev.forEach(function(e){
+                if(e.cc!=null || e.note==null){ keep.push(e); return; }
+                if(e.on===1){
+                  const q3=(((e.tick-PAD)%__barLen+__barLen)%__barLen)/TPQ;
+                  if(q3>0.2 && !okAt[Math.round(e.tick/24)]){ drop[e.note]=(drop[e.note]||0)+1; return; }
+                } else if(drop[e.note]){ drop[e.note]--; return; }
+                keep.push(e);
+              });
+              if(keep.length>4){ ev.length=0; keep.forEach(function(e){ ev.push(e); }); }
+              add.forEach(function(x){ ev.push(x); });
+              ev.sort(function(a2,b2){ return (a2.tick-b2.tick)||((a2.cc!=null?2:a2.on)-(b2.cc!=null?2:b2.on)); });
+              try{ ev=coalesceNotes(ev); }catch(e){}
+            }
+          }
+        }catch(e){}
+      }
       if((gtrDuoMode||gayaTrioMode) && grp.key!=='bass'){
         try{
           const on8=[]; const off8={};
