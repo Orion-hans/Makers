@@ -6536,14 +6536,18 @@ function applyStyleDefaults(randomize){
        팀파니·대북(Gran Cassa)·심벌·탐탐만 남긴다.
    악장 성격은 고전 모음곡의 흐름을 따른다: 서곡 → 느린 악장 → 스케르초 → 피날레. */
 const SUITE_STYLES=new Set(['epic','animeost','disney','saguk']);
+/* tRel = 기준 빠르기에 대한 배수. 악장 성격이 곧 빠르기다 —
+   느린 악장이 서곡과 같은 속도로 흐르면 '느린 악장' 이 아니다
+   (실측: 조곡 15분을 뽑았는데 BPM 이 108 하나였다).
+   실제 모음곡은 빠름-느림-빠름의 대비가 형식 자체다. */
 const SUITE_MOV=[
-  {n:'서곡',      types:['Intro','Verse','Chorus','Verse','Chorus'],           lift:0,  meter:null},
-  {n:'느린 악장', types:['Intro','Verse','Verse','Bridge','Verse'],            lift:-3, meter:'3/4'},
-  {n:'스케르초',  types:['Verse','Chorus','Verse','Chorus'],                   lift:+2, meter:'6/8'},
-  {n:'간주곡',    types:['Intro','Verse','Bridge','Verse'],                    lift:-1, meter:null},
-  {n:'전개',      types:['Verse','PreChorus','Chorus','Verse','Chorus'],       lift:+4, meter:null},
-  {n:'느린 악장 II', types:['Intro','Verse','Verse','Bridge'],                 lift:-5, meter:'3/4'},
-  {n:'피날레',    types:['Buildup','Chorus','Chorus','Outro'],                 lift:+5, meter:null}
+  {n:'서곡',      types:['Intro','Verse','Chorus','Verse','Chorus'],           lift:0,  meter:null, tRel:1.00},
+  {n:'느린 악장', types:['Intro','Verse','Verse','Bridge','Verse'],            lift:-3, meter:'3/4', tRel:0.62},
+  {n:'스케르초',  types:['Verse','Chorus','Verse','Chorus'],                   lift:+2, meter:'6/8', tRel:1.28},
+  {n:'간주곡',    types:['Intro','Verse','Bridge','Verse'],                    lift:-1, meter:null, tRel:0.85},
+  {n:'전개',      types:['Verse','PreChorus','Chorus','Verse','Chorus'],       lift:+4, meter:null, tRel:1.12},
+  {n:'느린 악장 II', types:['Intro','Verse','Verse','Bridge'],                 lift:-5, meter:'3/4', tRel:0.55},
+  {n:'피날레',    types:['Buildup','Chorus','Chorus','Outro'],                 lift:+5, meter:null, tRel:1.20}
 ];
 function suiteOn(){ return !!state.suite && SUITE_STYLES.has(state.style); }
 /* 목표 길이에서 악장 수를 정한다 — 한 악장이 3~5분이 되도록 */
@@ -6558,11 +6562,40 @@ function buildSuiteForm(n, targetSec){
   const out=[];
   for(let k=0;k<mv;k++){
     const M=SUITE_MOV[k%SUITE_MOV.length];
+    /* ── 구간마다 다른 길이 ──
+       한 악장의 모든 구간을 같은 마디 수로 잘랐다
+       (실측: animeost 조곡 18구간이 전부 20마디 · 다시 굴려도 같았다).
+       실제 곡은 인트로가 4마디일 때도 8마디일 때도 있고, 코러스는 그보다 길다.
+       구간 성격에 맞는 비율을 주고, 그 위에 곡마다 흔든다. */
     const ts=M.types, unit=Math.max(4, Math.round(per/ts.length/4)*4);
+    const WT={Intro:0.55, Outro:0.55, Bridge:0.7, PreChorus:0.6,
+              Verse:1.15, Chorus:1.25, Buildup:0.7, Drop:1.0};
+    /* Date.now()>>>4 는 16ms 단위라 연달아 굴리면 같은 값이 나온다
+       (실측: reroll 두 번에 마디 배열이 똑같았다). 곡마다 새로 뽑는다. */
+    const _sd=((Math.random()*0x7fffffff)^(k*2654435761))>>>0;
     ts.forEach(function(t,i){
+      const w=WT[t]||1;
+      /* ±25% 안에서 곡마다 흔든다 — 4마디 단위로 맞춘다(마디 블록이 어긋나면 진행이 끊긴다) */
+      const j=(((_sd>>>(i*3))&7)-3.5)/14;
+      const _b=Math.max(4, Math.round(unit*w*(1+j)/4)*4);
       const o={ movement:k+1, movName:M.n };
-      if(i===0){ o.movStart=true; if(M.lift) o.lift=M.lift; if(M.meter) o.meter=M.meter; }
-      out.push([t, unit, o]);
+      if(i===0){ o.movStart=true; if(M.lift) o.lift=M.lift; if(M.meter) o.meter=M.meter;
+        /* ── 악장마다 조가 바뀐다 ──
+           모음곡은 악장마다 조를 옮긴다 — 딸림조·나란한조·버금딸림조가 관습이다.
+           같은 조로 30분을 흐르면 귀가 지친다. */
+        const KS=[0, 7, -3, 5, 2, -5, 9, -2];
+        o.keyShift=KS[k%KS.length];
+      }
+      /* 악장 성격에 맞는 빠르기 — 모든 구간에 씌운다(구간마다 되돌아가지 않게) */
+      if(M.tRel){
+        const _b0=+($('bpm')&&$('bpm').value)||100;
+        let _t=Math.round(_b0*M.tRel);
+        /* 악장 안에서도 조금씩 오르내린다 — 산 모양 */
+        const _w=Math.sin(Math.PI*(i/Math.max(1,ts.length-1)));
+        _t=Math.round(_t*(1+0.05*_w*((k%2)?-1:1)));
+        o.tempo=Math.max(40, Math.min(200, _t));
+      }
+      out.push([t, _b, o]);
     });
   }
   return out;
@@ -6663,6 +6696,9 @@ function fitToDuration(targetSec){
   state.active=0;
   state.sections=(suiteOn()?buildSuiteForm(n,targetSec):buildFormForBars(n,energetic,fast,targetSec)).map(([type,bars,opts])=>{const o=opts||{};
     return {type,meter:o.meter||'inherit',groove:o.groove||grooveForType(type,rock,energetic),grid:Array.from({length:bars},()=>['']),_planLift:o.lift||0,
+            /* 조곡의 악장별 빠르기 — buildSuiteForm 이 o.tempo 로 넘긴다.
+               이 자리에서 옮기지 않으면 그대로 버려진다(실측: 15분 조곡의 BPM 이 하나였다). */
+            tempo:(o.tempo!=null?o.tempo:'inherit'),
             movement:o.movement||null, movName:o.movName||null, movStart:!!o.movStart};});
   {const g0=GROOVES[curStyle().groove]||{};if(g0.bare||g0.orch)state.sections.forEach(sx=>sx.groove='inherit');}   // 사극·오케: 박자 전환은 유지하되 타악 문법은 전 구간 스타일 문법
   assignByType(false);
@@ -12199,6 +12235,17 @@ $('reroll').onclick=()=>{
       }
     }
   }catch(e){}
+  /* 조곡은 형식(악장·구간 길이·박자)도 다시 짠다 —
+     악기 배정만 바꾸면 30분짜리 구조가 늘 같다
+     (실측: reroll 을 세 번 눌러도 마디 배열이 [12,28,24,20,...] 로 동일했다). */
+  try{
+    if(typeof suiteOn==='function' && suiteOn()){
+      const _t=(typeof targetSec!=='undefined')?targetSec:((+$('fitMin').value||15)*60+(+$('fitSec').value||0));
+      setTargetSec(_t);
+      renderEditor(); updateRibbon(); $('panel2').classList.remove('collapsed');
+      return;
+    }
+  }catch(e){}
   assignByType(true);renderEditor();updateRibbon();$('panel2').classList.remove('collapsed');};
 /* 사람이 BPM 칸을 직접 만졌을 때만 사용자 선택으로 본다.
    코드가 값을 바꿀 때도 이벤트가 나므로 isTrusted 로 가른다
@@ -14647,7 +14694,23 @@ function genRunMix(){
     let bpm=Math.round((+$('bpm').value||165)+_bt2[(k-1)%_bt2.length]);
     try{ const st2=curGenre(); if(st2&&st2.tempo){ bpm=Math.max(st2.tempo[0],Math.min(st2.tempo[1],bpm)); } }catch(e){}
     const arr=byMv[k];
-    arr.forEach(x=>{ x.tempo=bpm; });
+    /* ── 편 안에서의 템포 오르내림 ──
+       지금까지 편 안은 한 속도였다 — 편이 바뀔 때만 툭 바뀐다
+       (실측 running: 166 -> 168 -> 164 로 편마다 한 번씩).
+       사람이 트는 긴 믹스는 그렇지 않다. 편 안에서도 조금씩 밀고 늦춘다.
+       러닝은 케이던스 때문에 좁게(±1.5%), 그 밖의 장르는 넓게(±6%).
+       구간 수에 맞춰 나눠 넣어야 '서서히' 가 된다. */
+    /* ±1.5/6 은 좁았다. 러닝도 케이던스가 끊기지 않는 선에서 더 흔들 수 있다 */
+    const _amp=(_gid2==='running')?3.5:11;
+    const _dir=((k%2)===0)?1:-1;                       /* 편마다 방향을 바꾼다 */
+    arr.forEach(function(x,i){
+      const f=(arr.length>1)?(i/(arr.length-1)):0;     /* 편 안의 진행도 0~1 */
+      /* 앞은 그대로, 가운데에서 가장 크게, 끝에서 되돌아온다 — 산 모양 */
+      const w=Math.sin(Math.PI*f);
+      let t2=Math.round(bpm*(1+_dir*_amp/100*w));
+      try{ const st3=curGenre(); if(st3&&st3.tempo){ t2=Math.max(st3.tempo[0],Math.min(st3.tempo[1],t2)); } }catch(e){}
+      x.tempo=t2;
+    });
     if(i>0){ arr[0].atmos=arr[0].atmos||{}; arr[0].atmos.impact=1; arr[0].atmos.revcrash=1; arr[0].crash=true; }
   });
   for(let i=1;i<state.sections.length;i++){
@@ -21336,7 +21399,10 @@ const document = __scopedDoc('app-play');
 
   const MODE_SCALE={ dorian:[0,2,3,5,7,9,10], phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10], doubleharm:[0,1,4,5,7,8,11], hungarian:[0,2,3,6,7,8,11], phrygdom:[0,1,4,5,7,8,10] };
   const HARM_MIN=new Set(['classic','tango','gypsy']); // 리딩톤(화성단조) 유지 — 클래식·탱고·집시. 그 외 단조는 자연단조(에이올리안, ♭7·♭6)
-  const CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDrive']); // 시네마틱(무드) — 오케스트라 트랙 추가
+  const /* cineSuite 는 cineSoar 를 복제해 만든 조곡인데 이 목록에 없어서
+   시네마틱 트랙(팀파니·심벌·호른·합창)이 통째로 안 붙었다
+   (실측: 41구간짜리에 타악 0음). 같은 어법이므로 넣는다. */
+CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDrive','cineSuite']); // 시네마틱(무드) — 오케스트라 트랙 추가
   /* 조곡은 무드 하나가 아니라 네 무드를 이어 붙이는 '곡 종류'다.
      장르 목록에 자리를 두어야 '장르를 골랐는데 쓰이지 않는다'는 모순이 없어진다.
      G 항목은 다른 코드가 G[gsel].progs를 참조하므로 벅차오름 것을 그대로 빌려 둔다. */
@@ -30425,7 +30491,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      긴 팀파니 음을 찾아 CC11(익스프레션)로 차오르게 한다. */
   function timpaniRoll(ev, gkey, ch, tpq){
     if(gkey!=='timpani') return ev;
-    const open={}; const add=[];
+    const open={}; const add=[]; const rollNotes=[];
     ev.forEach(function(e,i){
       if(e.cc!=null || e.note==null) return;
       if(e.on===1){ (open[e.note]=open[e.note]||[]).push({tick:e.tick, vel:e.vel}); }
@@ -30433,6 +30499,15 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         const q=open[e.note]; if(!q||!q.length) return;
         const o=q.shift(); const len=e.tick-o.tick;
         if(len < tpq*1.5) return;                           // 짧은 타격은 롤이 아니다
+        /* ── 팀파니 롤을 실제 연타로 ──
+           로직 기본 오케스트라 패치에는 롤 아티큘레이션이 없다.
+           CC11 크레셴도만 얹으면 한 번 친 소리가 커졌다 작아질 뿐 연타가 아니다.
+           32분음표로 실제로 굴린다 — 왼손·오른손이 번갈아 치므로 세기를 엇갈리게 한다.
+
+           ★ **롤은 끝나는 자리에서 터진다.** 찍힌 순간이 아니라 도착점이 절정이다.
+             그러니 원래 음의 시작 자리가 아니라 **그보다 앞에서 굴리기 시작해야**
+             그 음 자리에서 최고점이 맞는다. */
+        rollNotes.push({note:e.note, start:o.tick, end:e.tick, vel:o.vel||90});
         const N=6;
         for(let k=0;k<=N;k++){
           const t=o.tick+Math.round(len*k/N);
@@ -30441,6 +30516,40 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         }
       }
     });
+    /* 긴 음을 32분 연타로 바꾼다. 마지막 타가 원래 음 끝에 오도록 배치한다 —
+       그 자리가 터지는 자리다. */
+    if(rollNotes.length){
+      /* 32분 연타는 촘촘하다. 라운지처럼 롱노트가 많은 곡에서는 950음까지 불어난다
+         (실측 classic 라운지: 팀파니 17 -> 950음).
+         롤 길이에 맞춘다 — 짧은 롤은 32분, 긴 롤은 16분으로 굴린다.
+         실연도 긴 롤을 32분으로 계속 굴리지는 않는다. */
+      const step=Math.max(30, Math.round(tpq/8));           /* 32분 */
+      const keep=[]; const drop={};
+      ev.forEach(function(e){
+        if(e.cc!=null || e.note==null){ keep.push(e); return; }
+        const hit=rollNotes.some(function(r){ return r.note===e.note &&
+          ((e.on===1 && e.tick===r.start) || (e.on===0 && e.tick===r.end)); });
+        if(hit){ if(e.on===1) drop[e.note]=(drop[e.note]||0)+1; return; }
+        keep.push(e);
+      });
+      ev.length=0; keep.forEach(function(e){ ev.push(e); });
+      rollNotes.forEach(function(r){
+        const _len=r.end-r.start;
+        /* 라운지는 롱노트가 많아 연타가 통째로 불어난다 —
+           8분으로 굴려도 롤로 들린다. */
+        const _lg8=(typeof loungeMode!=='undefined' && loungeMode);
+        const _st=_lg8 ? Math.round(tpq/2) : ((_len>tpq*3)?Math.round(tpq/4):step);
+        const n=Math.max(4, Math.min(48, Math.floor(_len/_st)));
+        for(let k=0;k<n;k++){
+          const t=r.start+k*_st;
+          const f=k/(n-1||1);
+          /* 끝으로 갈수록 세진다. 좌우 손 번갈아 — 홀수 타를 조금 여리게 */
+          const v=Math.round((r.vel*0.45+r.vel*0.75*f) * (k%2?0.92:1));
+          add.push({tick:t, on:1, note:r.note, vel:Math.max(24,Math.min(120,v))});
+          add.push({tick:t+Math.round(_st*0.85), on:0, note:r.note});
+        }
+      });
+    }
     if(!add.length) return ev;
     ev=ev.concat(add);
     ev.sort(function(a,b){ return (a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on)); });
@@ -32167,7 +32276,9 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
        (실측: classic 으로 4중주를 뽑으면 팀파니 52음·오케 심벌 3음이 함께 나왔다). */
     /* 기타 듀오·가야금 3중주도 같다 — 두세 대로 완결되는 편성에 팀파니가 붙으면 그 편성이 아니다
        (실측: classic 으로 가야금 3중주를 뽑으니 팀파니 22음이 함께 나왔다). */
-    const _orchPercBed = !quartetMode && !gtrDuoMode && !gayaTrioMode && !pianoDuoMode && !pianoDuetMode && (_percBed || CINE.has(gsel) ||
+    /* cineSuite 는 41구간짜리 조곡인데 타악이 0음이었다 —
+       _percBed 도 CINE 도 아닌 자리에 있어 어느 조건에도 안 걸렸다. */
+    const _orchPercBed = !quartetMode && !gtrDuoMode && !gayaTrioMode && !pianoDuoMode && !pianoDuetMode && (_percBed || CINE.has(gsel) || gsel==='cineSuite' ||
                          gsel==='epicaeol' || gsel==='classic' || gsel==='gukvocal');
     /* 라운지: 세기 폭을 좁힌다 — 배경음악은 대화 위에 얹히므로 크게 튀면 안 된다.
        35~85 사이로 눌러 두되 셈여림의 방향은 그대로 남긴다. */
@@ -32929,6 +33040,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         if(chL!=null) groups.push({gm:INST.harp.gm,ch:chL,role:'gtrLead',key:'gtrlead'}); } }
     if(gsel==='epicaeol'||gsel==='classic'||gsel==='gukvocal'){ // 오케스트라 편성: 팀파니·오케 심벌을 드럼킷과 분리된 트랙으로
       const usedO=new Set(groups.map(g=>g.ch)); usedO.add(9);
+      /* cineSuite 는 41구간짜리 조곡인데 타악이 0음이었다 — 이 경로에도 걸리게 한다 */
       let chT=null; for(const cc of [15,14,13,10]){ if(!usedO.has(cc)){ chT=cc; break; } }
       if(_orchPercBed){
         if(chT!=null) groups.push({gm:47,ch:chT,role:'timpani',key:'timpani'});
@@ -33720,21 +33832,117 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             else if(gsel==='cineTension' && stg>=4){ const m=Math.max(50,c.bass); ev.push({tick:T,on:1,note:m,vel:Math.round(46*inA)}); ev.push({tick:T+measure-8,on:0,note:m}); } }
           else if(grp.role==='orchcym'){ // 오케 심벌: 큰 도약 진입 첫 마디에 크래시 + 정지 마디에 서스펜디드 롤(드럼킷과 별도 트랙)
             const stg=sec.stage||3, firstBar=(si===0 && r===0);
+            /* ── 구간이 바뀔 때마다 심벌 ──
+               지금은 stage>=5 인 첫 마디에만 크래시가 났다 —
+               구간 일곱에 심벌 한 번뿐인 장르가 있었다(실측 epicaeol).
+               오케스트라에서 심벌은 **구조가 바뀌는 표지**다. 구간이 바뀌면 울려야 한다.
+               세기는 그 구간의 고조 단계를 따른다 — 여린 구간에는 여린 크래시. */
+            /* 여린 구간(stg1)에도 표지는 필요하다 — 세기로 가른다.
+               구간이 여러 번 되풀이되면 그 안에서도 네 마디마다 한 번은 표지를 준다 —
+               classic 처럼 구간이 적고 반복이 긴 장르는 그러지 않으면 심벌이 한 번뿐이다
+               (실측: 구간 6개에 심벌 1개). */
+            /* 라운지는 편(악장)이 바뀌는 자리에 반드시 표지를 준다 —
+               30분에 심벌 여덟 번이면 구조가 안 들린다(실측 epicaeol 라운지). */
+            if(loungeMode && firstBar && sec.movStart && gsel!=='cineSorrow'){
+              ev.push({tick:T,on:1,note:49,vel:Math.max(52,Math.min(92,Math.round((58+stg*6)*Math.max(0.8,inA))))});
+              ev.push({tick:T+measure-8,on:0,note:49}); }
+            if(!firstBar && r>0 && si===0 && (r%4)===0 && stg>=3 && gsel!=='cineSorrow'){
+              ev.push({tick:T,on:1,note:49,vel:Math.max(30,Math.min(60,Math.round((32+stg*5)*Math.max(0.7,inA))))});
+              ev.push({tick:T+Math.round(measure*0.8),on:0,note:49}); }
+            /* 라운지는 편(악장)이 바뀌는 자리가 가장 큰 구조 표지다 — 거기서 반드시 울린다 */
+            if(loungeMode && firstBar && sec.movStart && gsel!=='cineSorrow'){
+              ev.push({tick:T,on:1,note:49,vel:Math.max(52,Math.min(88,Math.round((56+stg*6)*Math.max(0.8,inA))))});
+              ev.push({tick:T+Math.round(measure*0.9),on:0,note:49}); }
+            /* 라운지는 편(악장)이 바뀔 때가 가장 큰 구조 표지다 — 거기서 반드시 울린다 */
+            if(loungeMode && firstBar && sec.movement && (si===0) && gsel!=='cineSorrow'){
+              ev.push({tick:T,on:1,note:49,vel:Math.max(46,Math.min(84,Math.round((52+stg*6)*Math.max(0.8,inA))))});
+              ev.push({tick:T+Math.round(measure*0.9),on:0,note:49}); }
+            /* 라운지는 편(악장)이 바뀌는 자리가 곧 구조의 표지다 — 거기서 반드시 울린다 */
+            if(loungeMode && firstBar && sec.movStart && gsel!=='cineSorrow'){
+              ev.push({tick:T,on:1,note:49,vel:Math.max(52,Math.min(92,Math.round((56+stg*6)*Math.max(0.8,inA))))});
+              ev.push({tick:T+measure-8,on:0,note:49}); }
+            if(firstBar && stg<5 && gsel!=='cineSorrow'){
+              ev.push({tick:T,on:1,note:49,vel:Math.max(32,Math.min(72,Math.round((38+stg*8)*Math.max(0.7,inA))))});
+              ev.push({tick:T+Math.round(measure*0.9),on:0,note:49}); }
             if(firstBar && stg>=5 && gsel!=='cineSorrow'){ ev.push({tick:T,on:1,note:49,vel:Math.max(58,Math.min(96,Math.round(88*Math.max(0.8,inA))))}); ev.push({tick:T+Math.round(measure*0.9),on:0,note:49}); } // 크래시(카사) 완화 112→88(상한 96) — 오케 안에서 튀지 않게
-            if(stopWinAt(T+Math.round(measure*0.9))){ // 터짐 직전 마디: 서스펜디드 심벌 롤 — 음 하나를 길게 + CC 크레셴도(음원 롤 패치가 부풀어 오름)
-              const beatsC=Math.max(2,Math.round(meterQuarters())), endC=Math.round(measure*(beatsC-1)/beatsC);
-              rollLong(ev, 52, T, T+endC, 22, 104, 46); }
+            /* ── 서스펜디드 심벌 롤 ──
+               로직 기본 오케스트라 킷에서 롤은 **A#1(34)** 이다.
+               52 로 찍으면 그 자리에 다른 악기가 울린다.
+
+               ★ **롤은 끝나는 자리에서 터진다.** 찍힌 순간이 절정이 아니다 —
+                 굴러 올라와서 다음 마디 첫 박에 부딪히는 것이 그 어법이다.
+                 그러니 롤은 그 마디 **처음부터 끝까지** 끌고,
+                 끝을 다음 마디 첫 박에 걸쳐 둔다. 그래야 터지는 자리가 맞는다. */
+            if(stopWinAt(T+Math.round(measure*0.9))){
+              rollLong(ev, 34, T, T+measure-8, 18, 112, 52); }
           }
           else if(grp.role==='timpani'){ const stg=sec.stage||3; let tp=60+((((tonic+st[1])%12)+12)%12); while(tp>50)tp-=12; while(tp<36)tp+=12; // 팀파니: 코드의 근음(전위여도 근음 — 팀파니는 근음·5도만 침), 옥타브 접기로 음이름 보존
             if(gsel==='epicaeol'||gsel==='classic'||gsel==='gukvocal'){ // 오케 편성: 후렴부터 다운비트 강타, 하이라이트는 반마디마다 + 정지 마디는 롤로 밀어올림
               const tpV=(function(){ let x=tp+7; while(x>53)x-=12; while(x<38)x+=12; return x; })(); /* 딸림음(근음의 5도) — 팀파니 2대 조율(으뜸·딸림) */
-              if(stopWinAt(T+Math.round(measure*0.9))){ const beatsT=Math.max(2,Math.round(meterQuarters())), endT=Math.round(measure*(beatsT-1)/beatsT);
-                rollLong(ev, tp, T, T+endT, 20, 100, 44); } /* 롤: 롱노트+CC 크레셴도 */
+              /* ── 팀파니 3대 조율 ──
+                 근음·5도 두 음뿐이라 아무리 많이 쳐도 같은 소리로 들렸다
+                 (실측: 950음인데 음이 둘). 실제 오케스트라는 3~4대를 쓰고
+                 화음이 바뀌면 그 화음의 3음도 친다. 그 한 음이 웅장함을 만든다. */
+              const tpT=(function(){ const pcs=__barPcs[barAtTick(T,PAD,__barLen)]||[];
+                let third=null;
+                for(let z=0;z<pcs.length;z++){ const iv=((pcs[z]-((tp%12)+12)%12)%12+12)%12;
+                  if(iv===3||iv===4){ third=pcs[z]; break; } }
+                if(third==null) return null;
+                let x=36+((((third-36)%12)+12)%12); while(x<38)x+=12; while(x>53)x-=12; return x; })();
+              /* 팀파니 롤도 같다 — 마디 끝까지 굴려야 다음 마디 첫 박에서 터진다.
+                 마디의 3/4 지점에서 끊으면 김이 빠진 채로 다음 마디를 맞는다. */
+              if(stopWinAt(T+Math.round(measure*0.9))){
+                rollLong(ev, tp, T, T+measure-8, 16, 108, 50); } /* 롤: 롱노트+CC 크레셴도 */
               else if(stg>=6){ [0,0.5].forEach(pp=>{ const t2=T+Math.round(measure*pp), nt2=(pp===0?tp:tpV); ev.push({tick:t2,on:1,note:nt2,vel:Math.max(46,Math.min(94,Math.round((pp===0?84:72)*inA)))}); ev.push({tick:t2+150,on:0,note:nt2}); }); }
               else if(stg>=5){ ev.push({tick:T,on:1,note:tp,vel:Math.max(44,Math.min(90,Math.round(78*inA)))}); ev.push({tick:T+150,on:0,note:tp}); /* 심화: 다운비트 + 격마디 딸림음 응답(과하지 않게) */
                 if((si+r)%2===1){ const t3=T+Math.round(measure*0.75); ev.push({tick:t3,on:1,note:tpV,vel:Math.max(36,Math.min(76,Math.round(58*inA)))}); ev.push({tick:t3+130,on:0,note:tpV}); } }
               else if(stg>=4){ ev.push({tick:T,on:1,note:tp,vel:Math.max(42,Math.min(84,Math.round(72*inA)))}); ev.push({tick:T+150,on:0,note:tp}); }
               else if(stg===3 && (si+r)%4===0){ ev.push({tick:T,on:1,note:tp,vel:Math.max(30,Math.min(58,Math.round(46*inA)))}); ev.push({tick:T+140,on:0,note:tp}); } /* 프리코러스: 4마디에 한 번 낮게 예고 */
+              /* ── 다채로운 타격 ──
+                 단타와 롤만으로는 웅장해지지 않는다. 실연 팀파니스트는 이렇게 친다.
+                   더블 스트로크  같은 음을 아주 빠르게 두 번 — 힘이 실린다
+                   3음 타격       화음의 3음. 팀파니가 화음의 색을 받는다
+                   크레셴도 연타   여리게 시작해 커진다 — 구간 끝을 밀어 올린다
+                 (실측: 950음을 쳐도 음이 근음·5도 둘뿐이라 같은 소리로 들렸다.) */
+              (function(){
+                /* 라운지는 편이 여럿 이어져 30분이 된다 — 같은 빈도로 치면 1845음이 된다
+                   (실측 classic 라운지). 배경음악에서 팀파니가 쉬지 않고 치면 피로하다.
+                   라운지에서는 절반 이하로 솎는다. */
+                /* 라운지는 30분이라 같은 규칙이 수백 번 돈다 —
+                   일반 곡 기준으로 넣으면 1845음까지 불어난다(실측 classic 라운지).
+                   긴 곡에서는 넷에 한 번꼴로만 건다. 여백이 있어야 타격이 산다. */
+                if(loungeMode && ((((T>>>7)^_drumSeed)>>>0)%4)!==0) return;
+                /* 라운지는 30분이라 같은 규칙이 곱절로 쌓인다
+                   (실측 classic: 39음 -> 1845음 · 세기 폭도 42~70 으로 좁아졌다).
+                   긴 곡에서는 특별한 타격을 드물게 둔다 — 드물어야 그 한 번이 들린다. */
+                const _rare=loungeMode?3:1;
+                const _k=(((T>>>6)^_drumSeed)>>>0);
+                /* 라운지는 30분 동안 같은 자리가 되풀이된다 — 그대로 두면 1300음이 넘는다
+                   (실측 classic 라운지 1845음). 배경음악에서 팀파니가 쉬지 않고 치면 피로하다.
+                   넷에 한 마디만 친다. */
+                if(loungeMode && (_k%4)!==0) return;
+                if(loungeMode && (_k%3)!==0) return;
+                if(stg>=4 && (_k%(3*_rare))===0){
+                  const t0=T+Math.round(measure*0.5), d2=Math.round(TPQ/8);
+                  ev.push({tick:t0,on:1,note:tp,vel:Math.round(72*inA)});
+                  ev.push({tick:t0+Math.round(d2*0.8),on:0,note:tp});
+                  ev.push({tick:t0+d2,on:1,note:tp,vel:Math.round(88*inA)});
+                  ev.push({tick:t0+d2+Math.round(d2*0.8),on:0,note:tp});
+                }
+                if(tpT!=null && stg>=3 && (_k%(4*_rare))===1){
+                  const t1=T+Math.round(measure*0.75);
+                  ev.push({tick:t1,on:1,note:tpT,vel:Math.round(64*inA)});
+                  ev.push({tick:t1+Math.round(TPQ*0.45),on:0,note:tpT});
+                }
+                if(stg>=5 && (_k%(5*_rare))===2){
+                  const st2=Math.round(TPQ/4), t2=T+measure-st2*6;
+                  for(let z=0;z<6;z++){
+                    const nt=(z%2?tpV:tp), v=Math.round((46+z*11)*inA);
+                    ev.push({tick:t2+z*st2,on:1,note:nt,vel:Math.max(30,Math.min(118,v))});
+                    ev.push({tick:t2+z*st2+Math.round(st2*0.8),on:0,note:nt});
+                  }
+                }
+              })();
             }
             else
             if(gsel==='cineSoar' && stg>=4){ [0,0.5].forEach(pp=>{ const st2=T+Math.round(measure*pp); ev.push({tick:st2,on:1,note:tp,vel:Math.max(44,Math.min(88,Math.round(78*inA)))}); ev.push({tick:st2+140,on:0,note:tp}); }); } /* 완화 96→78 */
@@ -35061,7 +35269,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           winds3:'Sound: Bassoon patch | FX: EQ(HPF60)>Comp | low root support | Send: Hall',
           choir:'Sound: LABS Choir / Spitfire | FX: EQ(HPF200,10k +1) | Send: Orch Hall (most wet)',
           timpani:'Sound: Sampler Timpani (pitched!) / BBC Perc — 롤 구간은 Roll/Tremolo 아티큘레이션 로드, CC1=다이내믹 매핑 | FX: EQ(60-80 -2,5k +1) | Send: Orch Hall',
-          orchcym:'Sound: Orchestral Cymbals (crash + suspended roll) - separate from drum kit | FX: EQ(HPF200)>Hall 30% | note49=crash, note52=suspended roll',
+          orchcym:'Sound: Orchestral Cymbals (crash + suspended roll) - separate from drum kit | FX: EQ(HPF200)>Hall 30% | note49=crash, note34(A#1)=suspended roll (Logic 기본 오케스트라 킷 기준)',
           vocal2:'Sound: FEMALE VOCAL GUIDE (duet) - replace with your take | FX: EQ(HPF120,3-5k +2)>Comp 3:1 GR4-6 | Send: Plate 18%',
           piano2:'Sound: 2nd Piano (soft/felt, LABS) | FX: EQ(HPF200, 3k -1)>Comp 1.5:1 | theme ostinato, very quiet, grows with section | Send: Hall 20%',
           cbass:'Sound: Studio Strings Bass / BBC | FX: EQ(HPF40)>Comp | Send: Orch Hall' };
