@@ -12839,6 +12839,18 @@ const GENRES=[
    hint:'4온더플로어 · 빌드업→드롭 · 사이드체인 펌핑 · 슈퍼소/플럭.',
    chords:[['vi','IV','I','V'],['I','V','vi','IV'],['vi','V','IV','V'],['IVadd9','V','vi','I'],['I','vi','IV','V'],['vi','IV','V','I'],['IV','I','V','vi'],['I','IV','vi','V']],
    atmos:{riser:1,impact:1}},
+ /* ── 빅룸 EDM ──
+    페스티벌·러닝 플레이리스트에서 쓰는 그 계열이다.
+    running 은 '1보=1비트 페이스메이커' 라 목적이 다르고,
+    edm 은 122~130 으로 좁아 이 느낌이 안 난다.
+    훅이 주인공이라 화성은 단순하고, 사이드체인이 깊고, 드롭에서 리드가 터진다.
+    조성은 장·단조를 다 쓴다 — 밝은 훅과 어두운 훅이 섞여야 60분이 지루하지 않다. */
+ {id:'bigroom',name:'빅룸 EDM (페스티벌)',tempo:[126,150],swing:0,pad:true,lead:true,bass:'synth',form:'edm', defaultSec:200,
+   hint:'빅룸/페스티벌 — 훅이 크고 사이드체인이 깊다 · 드롭에서 리드가 터진다 · 빌드업 스네어 롤 가속 · 슈퍼소 옥타브 유니즌.',
+   chords:[['vi','IV','I','V'],['I','V','vi','IV'],['vi','V','IV','V'],['IV','I','V','vi'],
+           ['i','bVI','bIII','bVII'],['i','bVII','bVI','bVII'],['i','iv','bVI','V'],['i','bIII','bVII','iv'],
+           ['I','vi','IV','V'],['vi','IV','V','I'],['i','bVI','bVII','i'],['I','IV','V','IV']],
+   atmos:{riser:1,impact:1,revcrash:1,subdrop:1}},
  {id:'global',name:'글로벌 그루브',tempo:[100,140],swing:56,pad:true,lead:true,bass:'synth',form:'global', defaultSec:195,
    hint:'요즘 글로벌 댄스 그루브 — 아마피아노·아프로비츠·UK 개러지·저지클럽. 리듬이 정체성.',
    chords:[['vi','IV','I','V'],['I','V','vi','IV'],['ii7','V','IM7','vi7'],['i7','iv7','v7','i7'],['I','IV','vi','V'],['vi','bVI','bVII','I'],['i7','bVI','bVII','i7'],['ii7','IV','I','V']],
@@ -13069,7 +13081,19 @@ const MODES={
   dorian:   {ko:'도리안 (밝은 단조)',     off:[0,2,3,5,7,9,10],  qual:['min','min','maj','maj','min','dim','maj']},
   phrygian: {ko:'프리지안 (어두운·이국)', off:[0,1,3,5,7,8,10],  qual:['min','maj','maj','min','dim','maj','min']},
   mixolydian:{ko:'믹솔리디안 (블루지)',    off:[0,2,4,5,7,9,10],  qual:['maj','min','dim','maj','min','min','maj']},
-  lydian:   {ko:'리디안 (몽환)',          off:[0,2,4,6,7,9,11],  qual:['maj','maj','min','dim','maj','min','min']}
+  lydian:   {ko:'리디안 (몽환)',          off:[0,2,4,6,7,9,11],  qual:['maj','maj','min','dim','maj','min','min']},
+  /* ── 펜타토닉·블루스·화성단조 ──
+     펜타토닉은 5음이라 7음 화음표(qual)가 맞지 않는다.
+     **선율에만 쓰고 화음은 모(母)선법을 따른다** —
+     블루스·록에서 펜타 선율 아래 일반 화음이 깔리는 것이 그 어법이다.
+     그래서 off 는 5음이지만 qual 은 모선법 것을 그대로 쓴다.
+     parent 가 그 모선법을 가리킨다. */
+  majPenta: {ko:'메이저 펜타토닉',        off:[0,2,4,7,9],       qual:['maj','min','min','maj','maj','min','dim'], parent:'ionian'},
+  minPenta: {ko:'마이너 펜타토닉',        off:[0,3,5,7,10],      qual:['min','dim','maj','min','min','maj','maj'], parent:'aeolian'},
+  blues:    {ko:'블루스 (♭5 포함)',       off:[0,3,5,6,7,10],    qual:['min','dim','maj','min','min','maj','maj'], parent:'aeolian'},
+  harmMinor:{ko:'화성단조 (이끔음)',      off:[0,2,3,5,7,8,11],  qual:['min','dim','aug','min','maj','maj','dim']},
+  phrygDom: {ko:'프리지안 도미넌트 (이국)', off:[0,1,4,5,7,8,10],  qual:['maj','maj','dim','min','dim','maj','min']},
+  lydDom:   {ko:'리디안 도미넌트',        off:[0,2,4,6,7,9,10],  qual:['maj','maj','dim','dim','min','min','min']}
 };
 // 장르별 추천(기본) 모드 — 사용자가 바꿀 수 있음
 /* 다섯 장르가 빠져 있었다 — 빠지면 기본 선법으로 떨어져 색이 사라진다.
@@ -13101,9 +13125,20 @@ const MODE7={
   dorian:    ['m7','m7','M7','7','m7','ø7','M7'],
   phrygian:  ['m7','M7','7','m7','ø7','M7','m7'],
   mixolydian:['7','m7','ø7','M7','m7','m7','M7'],
-  lydian:    ['M7','7','m7','ø7','M7','m7','m7']
+  lydian:    ['M7','7','m7','ø7','M7','m7','m7'],
+  /* 펜타토닉·블루스는 모선법의 7화음을 그대로 쓴다 — 화음은 7음 체계다 */
+  majPenta:  ['M7','m7','m7','M7','7','m7','ø7'],
+  minPenta:  ['m7','ø7','M7','m7','m7','M7','7'],
+  blues:     ['m7','ø7','M7','m7','m7','M7','7'],
+  harmMinor: ['mM7','ø7','M7#5','m7','7','M7','dim7'],
+  phrygDom:  ['7','M7','dim7','m7','ø7','M7','m7'],
+  lydDom:    ['7','7','ø7','ø7','m7','m7','m7']
 };
-function applyMode(prog,modeKey){const M=MODES[modeKey]||MODES.ionian, S7=MODE7[modeKey]||MODE7.ionian;
+function applyMode(prog,modeKey){
+  /* 펜타토닉·블루스는 **선율 음계**다. 화음은 모선법을 따른다 —
+     5음짜리 off 로 음도를 계산하면 IV·V 가 없는 진행이 나온다. */
+  const _mk=(MODES[modeKey]&&MODES[modeKey].parent)?MODES[modeKey].parent:modeKey;
+  const M=MODES[_mk]||MODES.ionian, S7=MODE7[_mk]||MODE7.ionian;
   return prog.map(tok=>{const {deg,suf}=romanDegree(tok);if(deg==null)return tok;
     const baseQ=M.qual[deg];                                     // 이 음도의 모드 기본 성질(maj/min/dim)
     const off=M.off[deg];                                        // 으뜸 대비 반음
@@ -14425,7 +14460,7 @@ function updateLenTag(){const el=$('lenTag');if(!el)return;const cur=estTotalSec
 let runMixMode=false, runMixMin=60;
 /* 긴 믹스를 쓸 수 있는 장르 — 러닝만의 것이 아니다.
    카페·매장·행사에서 EDM·레트로·K팝도 60분이 필요하다. */
-const MIX_GENRES=['running','edm','retro','kpop','discofunk','hookpop','hooksong','country','global'];
+const MIX_GENRES=['running','edm','bigroom','retro','kpop','discofunk','hookpop','hooksong','country','global'];
 function mixOK(){ try{ return MIX_GENRES.indexOf(state.genre)>=0; }catch(e){ return false; } }
 const RUNMIX_BPM=[0,+2,-2,+3,-1,+1,-3,+2];        // 러닝 전용 — 케이던스 때문에 ±3 안
 const RUNMIX_KEY=[0,5,-5,2,-3,7,-7,4];            // 5도권 이웃
@@ -14436,6 +14471,7 @@ const RUNMIX_KEY=[0,5,-5,2,-3,7,-7,4];            // 5도권 이웃
    조도 5도권 이웃만이 아니라 3도 관계·나란한조까지 넓힌다. */
 const MIX_BPM={
   edm:       [0,+6,-4,+10,-6,+4,+14,-2,+8,-8],
+  bigroom:   [0,+8,-6,+14,-10,+5,+18,-4,+11,-8],
   retro:     [0,-5,+4,-8,+6,-3,+9,-6,+2,+7],
   kpop:      [0,+5,-6,+8,-3,+11,-8,+3,-4,+6],
   discofunk: [0,+4,-5,+7,-3,+9,-7,+2,+5,-4],
@@ -14467,9 +14503,29 @@ function buildRunMix(){
     let bpm=Math.round(base+_bt[k%_bt.length]);
     try{ const st=curGenre(); if(st&&st.tempo){ bpm=Math.max(st.tempo[0],Math.min(st.tempo[1],bpm)); } }catch(e){}
     const ks=_kt[k%_kt.length];
+    /* ── 편마다 선법 ──
+       조·빠르기·박자는 편마다 바뀌는데 선법은 30분 내내 하나였다.
+       선법이 곧 색이다 — 같은 조라도 도리안과 믹솔리디안은 전혀 다르게 들린다.
+       장르가 쓰는 선법 안에서만 돌린다. 그 장르로 안 들릴 만큼은 바꾸지 않는다. */
+    const MIX_MODE={
+      running:   ['ionian','mixolydian','majPenta','lydian','dorian'],
+      bigroom:   ['ionian','aeolian','dorian','minPenta','phrygDom'],
+      edm:       ['ionian','aeolian','dorian','mixolydian'],
+      retro:     ['ionian','aeolian','mixolydian','lydian'],
+      kpop:      ['ionian','aeolian','dorian','majPenta'],
+      discofunk: ['mixolydian','dorian','ionian','blues'],
+      hookpop:   ['ionian','aeolian','majPenta'],
+      hooksong:  ['ionian','dorian','mixolydian'],
+      country:   ['ionian','mixolydian','majPenta','blues'],
+      global:    ['mixolydian','dorian','aeolian','minPenta','phrygDom']
+    };
+    const _mt=MIX_MODE[_gid];
+    if(_mt && _mt.length>1){
+      try{ const sel=$('mode'); if(sel){ sel.value=_mt[k%_mt.length]; } }catch(e){}
+    }
     /* 장르가 쓰는 박자 — 없으면 4/4 하나 */
     const MIX_SIG={ retro:['4/4','3/4'], country:['4/4','3/4','6/8'],
-                    kpop:['4/4'], edm:['4/4'], discofunk:['4/4'],
+                    kpop:['4/4'], edm:['4/4'], bigroom:['4/4'], discofunk:['4/4'],
                     hookpop:['4/4'], hooksong:['4/4','6/8'],
                     global:['4/4','6/8'], running:['4/4','3/4'] };
     const _sg=MIX_SIG[_gid]||null;
@@ -15876,7 +15932,16 @@ function arrange(){
             prevBassMidi=ch.bass;}                                                      // 다음 코드가 여기서 미끄러져 들어오도록 기록
           else if(run){ // 러닝 베이스 — 골전도 중음 150~280Hz 창, 스타일별 그루브
             let rb=ch.bass+12;while(rb<50)rb+=12;while(rb>61)rb-=12;
-            const bp=runStyle().bassPat;
+            /* ── 편마다 다른 베이스 걸음 ──
+               스타일이 정한 걸음 하나로 30분을 흘렀다 —
+               러닝 네 스타일 중 셋이 'rror' 라 사실상 한 가지였다
+               (실측 60분 롱 믹스: 1232마디에 베이스 음형 197가지 · 최다 57회).
+               베이스가 곡의 걸음이라 그것이 같으면 곡이 다 같게 들린다.
+               편(runMix)마다 여섯 걸음 중 하나를 고른다. 한 편 안에서는 지킨다 —
+               걸음이 마디마다 바뀌면 흐름이 끊긴다. */
+            const _bpAll=['rror','drive8','oct16','pump4','walk8','offbeat'];
+            const _mvB=(sec&&sec.runMix)?sec.runMix:0;
+            const bp=_mvB ? _bpAll[(_mvB-1)%_bpAll.length] : runStyle().bassPat;
             if(bp==='drive8'){ // 락: 드라이빙 8분 + 5음·접근음
               const nxt=chordSymAt(si,bar+1),nc=nxt?chordFromSym(nxt):null;
               let ap=null;if(nc&&nc.bass%12!==ch.bass%12){let nrb=nc.bass+12;while(nrb<50)nrb+=12;while(nrb>61)nrb-=12;ap=approachTo(nrb,keyPc());if(ap<50)ap+=12;}
@@ -15886,6 +15951,17 @@ function arrange(){
                 tr.bass.push({t:b0+e*0.5,dur:0.42,midi:m,vel:Math.round((e%2===0?94:82)*eScale*ramp+rnd()*5),synthB:true});}}
             else if(bp==='oct16'){ // 신스웨이브: 16분 옥타브 교대 (80s)
               for(let e=0;e<16;e++)tr.bass.push({t:b0+e*0.25,dur:0.21,midi:rb+(e%2?12:0),vel:Math.round((e%4===0?92:e%2?72:84)*eScale*ramp+rnd()*4),synthB:true});}
+            else if(bp==='pump4'){ /* 4분 펌프 — 킥마다 한 방. 사이드체인이 깊을 때 어울린다 */
+              for(let e=0;e<4;e++)
+                tr.bass.push({t:b0+e,dur:0.86,midi:rb,vel:Math.round((e===0?96:86)*eScale*ramp+rnd()*4),synthB:true});}
+            else if(bp==='walk8'){ /* 걷는 8분 — 근음·5도·옥타브를 오르내린다 */
+              const step=[0,0,7,0,12,7,0,-5];
+              for(let e=0;e<8;e++){ let m=rb+step[e]; while(m<45)m+=12; while(m>73)m-=12;
+                tr.bass.push({t:b0+e*0.5,dur:0.44,midi:m,vel:Math.round((e%2===0?92:80)*eScale*ramp+rnd()*5),synthB:true});}}
+            else if(bp==='offbeat'){ /* 엇박 — 킥 사이를 채운다. 하우스·개러지의 걸음 */
+              for(let e=0;e<8;e++){ if(e%2===0) continue;
+                tr.bass.push({t:b0+e*0.5,dur:0.4,midi:rb,vel:Math.round(90*eScale*ramp+rnd()*5),synthB:true});}
+              tr.bass.push({t:b0,dur:0.4,midi:rb,vel:Math.round(96*eScale*ramp),synthB:true});}
             else {/* rror */ const nxt=chordSymAt(si,bar+1),nc=nxt?chordFromSym(nxt):null;
               let ap=null;if(nc&&nc.bass%12!==ch.bass%12){let nrb=nc.bass+12;while(nrb<50)nrb+=12;while(nrb>61)nrb-=12;ap=approachTo(nrb,keyPc());if(ap<50)ap+=12;}
               const fifth=rnd()<0.3;
@@ -19808,7 +19884,7 @@ function renderRunStyles(){const row=$('runStyleRow'),hint=$('runStyleHint');
   }
   /* 긴 믹스는 러닝만의 것이 아니다 — 카페·매장·행사에서 EDM·레트로·K팝도 60분이 필요하다 */
   { const rm=$('runMixRow');
-    const _mg=['running','edm','retro','kpop','discofunk','hookpop','hooksong','country','global'];
+    const _mg=['running','edm','bigroom','retro','kpop','discofunk','hookpop','hooksong','country','global'];
     if(rm) rm.style.display=(_mg.indexOf(state.genre)>=0)?'flex':'none'; }
   { const lm=$('lofiMixRow'); if(lm) lm.style.display=(state.genre==='lofi'||state.genre==='lofigirl')?'flex':'none'; }   // 로파이 믹스
   { const hm=$('houseMixRow'); if(hm) hm.style.display=(state.genre==='melodichouse'||state.genre==='deephouse')?'flex':'none'; }   // 하우스 셋
@@ -22325,6 +22401,7 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
   let _songBpm=0;    /* 이 곡의 확정 빠르기(0=장르 기본) */
   let _bpmUser=false; /* 사용자가 슬라이더·숫자칸으로 직접 정했는가 */
   let _kmUser=false;  /* 사용자가 조성을 직접 골랐는가 */
+  let _songPenta=false; /* 이 곡은 선율만 5음 음계로 (화음은 장르대로) */
   let _rhyUser=false; /* 사용자가 리듬을 직접 골랐는가 */
   let _drumSeed=0;    /* 이 곡의 드럼 변형 씨앗(0=변형 없음) */
   let gtrDuoMode=false;   /* 기타 듀오 편성 */
@@ -26488,11 +26565,23 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     /* 라운지가 늘 어둡게 나오던 이유 — 조성이 단조로 고정돼 단조 진행만 뽑혔다
        (실측: 여덟 장르 모두 keyMode=minor, 네오소울은 단화음 91%).
        배경음악은 밝은 쪽이 기본이다. 편마다 장조를 주로 쓰고 셋에 한 번만 단조로 내려간다. */
-    const LOUNGE_MODE=['major','major','minor','major','major','minor','major','minor'];
+    const /* ── 악장별 조성 ──
+   major/minor 만 돌렸더니 **modal 진행이 통째로 걸러졌다** —
+   celtic 은 열한 진행 중 다섯이 modal(믹솔리디안·도리안)인데 한 번도 안 쓰였다
+   (실측: 네 악장이 전부 ionian · 30분 내내 한 색).
+   modal 을 넣고, 곡마다 순서를 섞는다 — 늘 같은 차례로 나오면 그것도 되풀이다. */
+LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
     const savedMode=keyMode;
     const psAll=G[gsel].progs;
     if(!psAll||!psAll.length) return null;
     const MOVE=4.6*60;                                 // 악장 하나의 목표 길이 ≈ 4분 36초
+    /* 곡마다 조성 차례를 섞는다 — 늘 같은 순서로 나오면 그것도 되풀이다.
+       첫 악장은 그 장르가 실제로 쓰는 조성으로 둔다(성격을 먼저 세운다). */
+    const _lgModeSeq=(function(){
+      const a=LOUNGE_MODE.slice();
+      for(let i2=a.length-1;i2>0;i2--){ const j2=Math.floor(Math.random()*(i2+1)); const t=a[i2]; a[i2]=a[j2]; a[j2]=t; }
+      return a;
+    })();
     const TARGET=loungeMin*60;
     const spBar=loungeBarSec();
     const barsOf=arr=>arr.reduce((a,x)=>a+((x.prog&&x.prog.steps)?x.prog.steps.length:0)*(x.reps||1),0);
@@ -26502,10 +26591,32 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
          남은 시간이 악장 하나의 절반보다 짧으면 더 붙이지 않는다. */
       const done=barsOf(out)*spBar;
       if(k>=2 && done > TARGET - MOVE*0.5) break;
-      const wantMode=LOUNGE_MODE[k%LOUNGE_MODE.length];
+      /* ── 펜타토닉 선율 편 ──
+         화음은 그 장르대로 두고 **선율에서만** 5음 음계를 쓴다.
+         펜타는 회피음이 없어 어느 화음 위에 얹어도 안 부딪힌다 —
+         그래서 장르를 안 가리고 열 수 있는 유일한 음계다.
+         다섯 편에 한 편꼴. 그 편만 선율이 순해져서 도드라진다.
+         (그 밖의 선법을 장르 밖에 쓰면 실수처럼 들린다 —
+          리디안 도미넌트를 newage 에, 블루스를 classic 에 쓰는 식은 막는다.) */
+      const _pentaMv=((k>0) && (k%5)===3);
+      /* ── 악장마다 선법 ──
+         장·단조만 돌렸는데 그 장르에 그 조성의 진행이 없으면 그냥 원래대로 떨어진다
+         (실측: newage·jazz·celtic 네 악장이 전부 ionian · 30분 내내 한 색).
+         선법이 곧 색이다 — 같은 조라도 도리안과 믹솔리디안은 전혀 다르게 들린다.
+         **진행을 조성이 아니라 색으로 고른다** — 그 장르가 가진 진행 안에서
+         편마다 서로 다른 것을 쓰고, 앞 편에서 쓴 것은 피한다. */
+      const wantMode=_lgModeSeq[k%_lgModeSeq.length];
       let ps=psAll.filter(p=>p.mode===wantMode);
       if(!ps.length) ps=psAll.filter(p=>p.mode===savedMode);
       if(!ps.length) ps=psAll.slice();
+      /* 편마다 다른 진행 묶음을 쓴다 — 진행이 그 편의 색을 정한다 */
+      if(psAll.length>=3){
+        const _n=psAll.length, _off=(k*3)%_n;
+        const _rot=psAll.slice(_off).concat(psAll.slice(0,_off));
+        const _pick=_rot.filter(function(p){ return p.mode===wantMode; });
+        if(_pick.length>=2) ps=_pick;
+        else if(_rot.length>=2) ps=_rot.slice(0,Math.max(3,Math.floor(_n/2)));
+      }
       keyMode=(ps[0]&&ps[0].mode)||savedMode;
       const sh=shuffleArr(ps);
       const A=sh[0], B=sh[1]||sh[0], C=sh[2]||sh[1]||sh[0];
@@ -26598,6 +26709,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
         x.keyShift=(x.keyShift||0)+ks;
         x.intensity=Math.max(0.3, Math.min(1, (x.intensity||0.7)*arc));
         x.movement=k+1;                                // 몇 번째 악장인지 — 시트·마커에 쓴다
+        x.penta=_pentaMv;                              // 이 편은 선율만 5음 음계로 (화음은 그대로)
       });
       /* 악장 사이 다리: 다음 조의 딸림화음 두 마디. 성기게, 드럼 없이. */
       if(k>0 && out.length){
@@ -26733,6 +26845,12 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
             }
           }
         }catch(e){}
+        /* ── 일반 곡에도 펜타 선율 ──
+           라운지에만 넣었더니 한 곡씩 뽑을 때는 늘 7음 음계였다.
+           펜타는 회피음이 없어 어느 화음 위에도 얹힌다 —
+           다섯 곡에 한 곡꼴로 선율만 5음으로 둔다. 화음은 그 장르대로.
+           gugak 은 제외한다(평조·계면조가 이미 5음 체계다). */
+        _songPenta = (gsel!=='gugak') && (Math.random()<0.2);
         _celticSeed=(Math.random()*0x7fffffff)>>>0;
         /* GROOVE 를 읽는 자리가 여럿이라 한 곳에서 곱하면 다른 자리와 어긋난다.
            곡을 만들 때 이 곡의 빠르기를 확정해 두고 모두 그것을 보게 한다. */
@@ -26932,13 +27050,13 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
          && !ORCH_LOUNGE.has(gsel) && gsel!=='chanbul'){
         if(INST.bass){
           INST.bass.on=true;
-          /* 장르가 쓰는 저역 악기 — 없으면 어쿠스틱 베이스 */
-          const _lb={jazz:32, ambjazz:32, bossa:32, blues:32, neosoul:33,
-                     celtic:32, folk:32, shanty:32, gypsy:32,
-                     tango:42, rumba:32, classic:42, quartal:42,
-                     newage:0, lyric:0, lyricMid:0, lyricPenta:0, minimal:0,
-                     joypiano:0, kpiano:0, pop:33, ballad:33, citypop:33};
-          INST.bass.gm=(_lb[gsel]!=null)?_lb[gsel]:32;
+          /* ── 라운지 저역은 **피아노 왼손**이다 ──
+             베이스 걸음이 필요했던 것이지 베이스 악기를 넣으려던 것이 아니다.
+             라운지는 피아노 한 대(또는 그 편성)로 흐르는 음악인데
+             어쿠스틱 베이스가 끼면 그 편성이 아니게 된다.
+             GM 0(어쿠스틱 그랜드)으로 두고, 페달로 울림을 잇는다 —
+             왼손이 근음을 짚고 페달이 그 울림을 다음 화음까지 끌어 준다. */
+          INST.bass.gm=0;
         }
       }
       /* 편성을 고른 경우도 선율 악기를 그대로 둔다 —
@@ -33188,7 +33306,26 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                  사람이 부르는 선율은 그렇게 한 자리에만 있지 않다 —
                  악장마다 앉는 자리가 다르고, 한 악장 안에서도 오르내린다.
                  악장(movement)에 따라 중심을 옮기고 폭도 넓힌다. */
-              if(_lgMel){
+              if(_lgMel || (!loungeMode && _songPenta)){
+                /* 펜타 편에서는 4음·7음(반음 관계)을 피한다 — 그것이 곧 펜타토닉이다.
+                   장조면 도레미솔라, 단조면 라도레미솔. */
+                try{
+                  /* 라운지는 편 단위(sec.penta), 일반 곡은 곡 단위(_songPenta) */
+                  if((sec && sec.penta) || (!loungeMode && _songPenta)){
+                    const rt=(typeof tonic==='number')?tonic:null;
+                    if(rt!=null){
+                      const iv=((( _mn - rt )%12)+12)%12;
+                      const bad=(keyMode==='minor')?[1,2,6,8,11]:[1,3,5,6,8,10,11];
+                      if(bad.indexOf(iv)>=0){
+                        const good=(keyMode==='minor')?[0,3,5,7,10]:[0,2,4,7,9];
+                        let best=null,bd=99;
+                        good.forEach(function(g2){ const d2=Math.min((g2-iv+12)%12,(iv-g2+12)%12);
+                          if(d2<bd){ bd=d2; best=g2; } });
+                        if(best!=null) _mn += ((best-iv+18)%12)-6;
+                      }
+                    }
+                  }
+                }catch(e){}
                 const _mv=((sec&&sec.movement)||1);
                 const _off=[0,-5,3,-3,7,-7,5,-2][(_mv-1)%8];   /* 악장마다 앉는 자리 */
                 const _lo2=Math.max(60, 74+_off), _hi2=Math.min(105, _lo2+26);
@@ -34487,6 +34624,64 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         }
         try{ ev=coalesceNotes(ev); }catch(e){}
       }
+      /* ── 라운지 반주의 저역 정리 ──
+         C4 아래에서 장2도 이내로 붙으면 뭉갠다 — 페달까지 밟으니 더 흐리다
+         (실측 jazz 라운지 comping: 좁은 간격 291곳 · 그중 250곳이 C4 아래).
+         재즈 쉘 보이싱에서 2도는 어법이지만 그것은 C4 위에서의 이야기다.
+         아래쪽 음을 한 옥타브 내려 자리를 벌린다. */
+      /* ── 라운지 선율 트랙의 페달 ──
+         선율은 노래하는 선이라 끊기면 안 된다. 그런데 반주와 같은 규칙으로 떼니
+         화음이 바뀔 때마다 선율도 함께 끊겼다(밟힌 비율 75~83%).
+         피아니스트는 선율을 칠 때 **늦게 떼고 빨리 밟는다**(레가토 페달) —
+         다음 화음이 울린 뒤에 떼야 앞 음의 여운이 이어진다.
+         선율은 한 성부라 조금 겹쳐도 뭉치지 않는다. */
+      if(loungeMode && grp.key==='melody' && !gtrDuoMode
+         && INST.melody && INST.melody.gm===0){
+        try{
+          const _k64=[]; ev.forEach(function(e){ if(!(e.cc===64)) _k64.push(e); });
+          if(_k64.length<ev.length){ ev.length=0; _k64.forEach(function(e){ ev.push(e); }); }
+          const on5=ev.filter(function(e){ return e.cc==null && e.note!=null && e.on===1; });
+          if(on5.length>2){
+            let a5=1e9,b5=0;
+            on5.forEach(function(e){ if(e.tick<a5) a5=e.tick; if(e.tick>b5) b5=e.tick; });
+            /* 화음이 바뀌는 자리에서만 뗀다. 뗐다 밟는 사이를 8틱으로 좁혀
+               끊긴 느낌이 안 나게 한다(첫 판은 마디마다 떼서 오히려 68%로 줄었다).
+               같은 화음이 이어지면 페달도 그대로 이어 간다. */
+            ev.push({tick:a5-8, cc:64, val:127});
+            for(let tk=a5; tk<b5; tk+=__barLen){
+              const i1=barAtTick(tk, PAD, __barLen), i2=barAtTick(tk+__barLen, PAD, __barLen);
+              const same=(__barRoot&&__barRoot[i1]===__barRoot[i2]);
+              if(!same){
+                ev.push({tick:tk+__barLen+16, cc:64, val:0});   /* 다음 화음이 울린 뒤에 뗀다 */
+                ev.push({tick:tk+__barLen+24, cc:64, val:127});
+              }
+            }
+            ev.push({tick:b5+__barLen, cc:64, val:0});
+            ev.sort(function(x,y){ return (x.tick-y.tick)||((x.cc!=null?2:x.on)-(y.cc!=null?2:y.on)); });
+          }
+        }catch(e){}
+      }
+      if(loungeMode && (grp.key==='piano'||grp.key==='bass')){
+        try{
+          const by={};
+          ev.forEach(function(e){ if(e.cc==null && e.note!=null && e.on===1)
+            (by[e.tick]=by[e.tick]||[]).push(e); });
+          Object.keys(by).forEach(function(kk){
+            const g2=by[kk].slice().sort(function(a2,b2){ return a2.note-b2.note; });
+            for(let i2=0;i2<g2.length-1;i2++){
+              if(g2[i2].note<60 && g2[i2+1].note-g2[i2].note<=2){
+                const old=g2[i2].note, m=old-12;
+                if(m>=28){
+                  g2[i2].note=m;
+                  for(let z=0;z<ev.length;z++){
+                    if(ev[z].cc==null && ev[z].on===0 && ev[z].note===old && ev[z].tick>+kk){ ev[z].note=m; break; }
+                  }
+                }
+              }
+            }
+          });
+        }catch(e){}
+      }
       if(gayaTrioMode && ['melody','harp','bass'].indexOf(grp.key)>=0){
         const GY={hi:[60,80], mid:[48,72], lo:[39,60]};
         /* 곡마다 세 대의 자리를 돌린다. 같은 곡 안에서는 늘 같다 */
@@ -34658,9 +34853,28 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             }catch(e){}
           }
         }
-        /* 서스테인 페달은 쓰지 않는다 — 가야금에는 없다. 울림은 손이 정한다 */
-        { const _k2=[]; ev.forEach(function(e){ if(!(e.cc===64)) _k2.push(e); });
-          if(_k2.length<ev.length){ ev.length=0; _k2.forEach(function(e){ ev.push(e); }); } }
+        /* ── 페달 ──
+           실제 가야금에는 페달이 없다. 그런데 이 편성은 **MIDI 가상악기(하프·Koto)** 로 낸다 —
+           그 음원에서는 페달이 있어야 뜯은 음이 이어지고 여운이 남는다.
+           형이 로직에서 쓰는 방식에 맞춘다.
+           화음이 바뀌는 자리에서 떼고 다시 밟는다. */
+        try{
+          const _k2=[]; ev.forEach(function(e){ if(!(e.cc===64)) _k2.push(e); });
+          if(_k2.length<ev.length){ ev.length=0; _k2.forEach(function(e){ ev.push(e); }); }
+          const ons4=ev.filter(function(e){ return e.cc==null && e.note!=null && e.on===1; });
+          if(ons4.length>2){
+            let mn4=1e9,mx4=0;
+            ons4.forEach(function(e){ if(e.tick<mn4) mn4=e.tick; if(e.tick>mx4) mx4=e.tick; });
+            for(let tk=mn4; tk<mx4; tk+=__barLen){
+              const b1=barAtTick(tk, PAD, __barLen), b2=barAtTick(tk+__barLen, PAD, __barLen);
+              const same=(__barRoot&&__barRoot[b1]===__barRoot[b2]);
+              ev.push({tick:tk+8, cc:64, val:127});
+              if(!same) ev.push({tick:tk+__barLen-24, cc:64, val:0});
+            }
+            ev.push({tick:mx4+__barLen-8, cc:64, val:0});
+            ev.sort(function(a2,b2){ return (a2.tick-b2.tick)||((a2.cc!=null?2:a2.on)-(b2.cc!=null?2:b2.on)); });
+          }
+        }catch(e){}
         try{ ev=coalesceNotes(ev); }catch(e){}
       }
       if(gtrDuoMode && (grp.key==='melody' || grp.key==='harp')){
@@ -35014,6 +35228,26 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                 add.push({tick:t2+dur,on:0,note:m});
               });
             }
+            /* ── 페달 ──
+               피아노 왼손이라 페달이 있어야 저역이 이어진다.
+               화음이 바뀌는 자리에서 떼고 다시 밟는다 — 안 그러면 뭉갠다.
+               (기타·가야금 편성에는 페달을 넣지 않는다. 그 악기에는 페달이 없다.) */
+            /* 가야금은 실제로는 페달이 없지만, MIDI 가상악기(하프·Koto)로 낼 때는
+               페달이 있어야 뜯은 음이 이어진다. 형이 로직에서 쓰는 방식에 맞춘다.
+               기타 듀오만 뺀다 — 기타 음원은 페달 매핑이 오히려 뭉갠다. */
+            if(!gtrDuoMode){
+              const ped=[];
+              for(let tk=mn; tk<mx; tk+=__barLen){
+                const bi2=barAtTick(tk, PAD, __barLen);
+                const bi3=barAtTick(tk+__barLen, PAD, __barLen);
+                const same=(__barRoot&&__barRoot[bi2]===__barRoot[bi3]);
+                ped.push({tick:tk+8, cc:64, val:127});
+                /* 화음이 바뀌면 마디 끝에서 뗀다. 같으면 그대로 이어 간다 */
+                if(!same) ped.push({tick:tk+__barLen-24, cc:64, val:0});
+              }
+              ped.push({tick:mx+__barLen-8, cc:64, val:0});
+              ped.forEach(function(x){ ev.push(x); });
+            }
             if(add.length){
               /* 걸음꼴에 없는 자리의 원래 음을 솎는다(마디 첫 박은 지킨다) */
               const okAt={};
@@ -35242,7 +35476,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
            'Felt Piano'로 적혀 로직에서 잘못된 음원을 얹게 된다.
            gm 0(그랜드)만 펠트 피아노로 표기한다 — 이 앱의 기본 피아노 음색이 펠트이기 때문이다. */
         const _PN=function(gm){ return (gm==null||gm===0)?'Felt Piano':(GMN[gm]||'Piano'); };
-        const REC_SOUND={ piano:_PN(INST&&INST.piano?INST.piano.gm:0), melody:(INST.melody.gm===54?((vocType==='duet')?'Male Vocal':((vocType==='male')?'Male Vocal':'Female Vocal')):(INST.melody.gm===0?'Felt Piano':(GMN[INST.melody.gm]||'Lead'))), vocal2:'Female Vocal', piano2:_PN(INST&&INST.piano?INST.piano.gm:0), orchcym:'Orch Cymbals', timpani:'Timpani', counter:counterName(), strings:stringsName(), winds:(INST&&INST.winds&&INST.winds.gm===200?'Woodwind Sec':windsName()), bass:'Warm Bass', pad:'Warm Pad', sub:'Sine Sub', riser:'Riser FX',
+        const REC_SOUND={ piano:_PN(INST&&INST.piano?INST.piano.gm:0), melody:(INST.melody.gm===54?((vocType==='duet')?'Male Vocal':((vocType==='male')?'Male Vocal':'Female Vocal')):(INST.melody.gm===0?'Felt Piano':(GMN[INST.melody.gm]||'Lead'))), vocal2:'Female Vocal', piano2:_PN(INST&&INST.piano?INST.piano.gm:0), orchcym:'Orch Cymbals', timpani:'Timpani', counter:counterName(), strings:stringsName(), winds:(INST&&INST.winds&&INST.winds.gm===200?'Woodwind Sec':windsName()), bass:((INST&&INST.bass&&INST.bass.gm===0)?'Felt Piano':'Warm Bass'), pad:'Warm Pad', sub:'Sine Sub', riser:'Riser FX',
           horns:'French Horns', lowbrass:'Trombone/Tuba', harp:(({46:'Harp',24:'Nylon Guitar',25:'Steel Guitar',26:'Jazz Guitar',27:'Clean Guitar',28:'Muted Guitar',29:'Overdrive Guitar',30:'Distortion Guitar',9:'Glockenspiel',11:'Vibraphone',104:'Sitar',105:'Banjo'})[(INST&&INST.harp&&INST.harp.gm)||46]||'Harp'), brass:(INST&&INST.brass&&INST.brass.gm===61?'Horns (sec)':'Brass'), brass2:'Trombones', brass3:'Trumpets', winds2:'Oboe', winds3:'Bassoon', choir:'Choir Aahs', timpani:'Timpani', cbass:'Contrabass' };
         const REC_FEEL={ piano:'warm, intimate, soft-hammer (felt) - close mic', melody:(INST.melody.gm===54?'lead vocal - center, front of mix':'expressive, singing lead - sits above the mix'), vocal2:'duet partner - center, pairs with lead', piano2:'theme ostinato - quiet, behind the band', counter:'warm, mournful inner voice', strings:'lush, singing, slow-bow swell - not staccato',
           winds:'breathy, airy, agile', bass:'round, warm, foundational - felt not heard', pad:'soft, wide, atmospheric wash', sub:'pure low weight (mono)', riser:'rising tension into the drop',
