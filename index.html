@@ -13719,7 +13719,7 @@ function shapeDrumsFor(g,type,vix){
   if(run&&en>=3){const st=RUNSTYLES[state.runStyle]||RUNSTYLES.fresh;
     if(st.backbeat){d.snare=d.snare.map((v,i)=>v||i===4||i===12);d.clap=Array(16).fill(false);} // 락: 백비트 2·4
     if(st.name==='synth'&&en>=5)d.ohat=d.ohat.map((v,i)=>v||i===2||i===6||i===10||i===14);} // 뒷박 오픈햇
-  if(g.id==='edm'&&en>=3){const es=EDMSTYLES[state.edmStyle]||EDMSTYLES.house;
+  if((g.id==='edm'||g.id==='bigroom')&&en>=3){const es=EDMSTYLES[state.edmStyle]||EDMSTYLES.house;
     if(es.brk){                                                        // 브레이크비트: 아멘 (드럼앤베이스)
       d.kick=P(0,2,10,11);                                             // 킥: 앞 더블킥 + 후반 변위
       d.snare=P(4,12);                                                 // 메인 백비트 스네어 (5·13박)
@@ -13888,15 +13888,15 @@ function newSection(type,bars,vix){const g=curGenre(),km=keyPc();vix=vix|0;
      (실측: 패턴 스네어 0인데 벌스 구간에서 1이 켜져 32마디 내내 200번 넘게 쳤다.
       드럼 비중도 35%로 하우스 계열 중 가장 높았다). */
   drums:meterPat((g.id==='ambtechno')?genrePat(16):shapeDrumsFor(g,type,vix),(typeof curMeter==='function'?curMeter():null)),   // 박자표의 맥에 맞춰 깐다(비례 압축 금지)
-    chords:prog,chordBars:(g.id==='deephouse')?(deephouseStyle().chordBars||2):(g.id==='melodichouse')?(melodichouseStyle().chordBars||2):(g.id==='kpop')?(kpopStyle().chordBars||1):((g.id==='running'||isHouse(g.id)||g.id==='edm')?2:1),   // 하우스=서브스타일별, K-Pop=서브스타일별(하우스팝·앰비언트=2), 나머지 신스계열 2마디
-    arp:(g.id==='edm'&&en>=5)||(g.id==='running'&&en>=5&&(RUNSTYLES[state.runStyle]||RUNSTYLES.fresh)&&((RUNSTYLES[state.runStyle]||RUNSTYLES.fresh).arpHook||(RUNSTYLES[state.runStyle]||RUNSTYLES.fresh).leadStyle==='arp'))||(g.id==='kpop'&&en>=4&&kpopStyle().arp)||(g.id==='melodichouse'&&en>=4&&melodichouseStyle().arp),
-    bass:g.bass,pump:g.pad&&en>=4&&(g.id==='edm'||g.id==='global'),
+    chords:prog,chordBars:(g.id==='deephouse')?(deephouseStyle().chordBars||2):(g.id==='melodichouse')?(melodichouseStyle().chordBars||2):(g.id==='kpop')?(kpopStyle().chordBars||1):((g.id==='running'||isHouse(g.id)||(g.id==='edm'||g.id==='bigroom'))?2:1),   // 하우스=서브스타일별, K-Pop=서브스타일별(하우스팝·앰비언트=2), 나머지 신스계열 2마디
+    arp:((g.id==='edm'||g.id==='bigroom')&&en>=5)||(g.id==='running'&&en>=5&&(RUNSTYLES[state.runStyle]||RUNSTYLES.fresh)&&((RUNSTYLES[state.runStyle]||RUNSTYLES.fresh).arpHook||(RUNSTYLES[state.runStyle]||RUNSTYLES.fresh).leadStyle==='arp'))||(g.id==='kpop'&&en>=4&&kpopStyle().arp)||(g.id==='melodichouse'&&en>=4&&melodichouseStyle().arp),
+    bass:g.bass,pump:g.pad&&en>=4&&((g.id==='edm'||g.id==='bigroom')||g.id==='global'),
     atmos:Object.assign({},g.atmos)};
 }
 const introHeadQ=()=>({pickup:4,bowlIn:8}[state.introStyle]||0);   // 곡 앞에 붙는 여는 마디
 const MIN_SONG_SEC=180;                                 // 하한(폴백)
 function genreTargetSec(){const g=curGenre();
-  if(g&&g.id==='edm'){const es=edmStyle();if(es&&es.defaultSec)return es.defaultSec;}   // EDM: 하위 스타일별 길이(라디오/클럽 등)
+  if(g&&(g.id==='edm'||g.id==='bigroom')){const es=edmStyle();if(es&&es.defaultSec)return es.defaultSec;}   // EDM: 하위 스타일별 길이(라디오/클럽 등)
   return (g&&g.defaultSec)||MIN_SONG_SEC;}  // 장르별 표준 길이(2025~26 트렌드)
 function ensureMinLength(formArr){
   const B=+$('bpm').value,spb=(60/B)*barQ();   // 한 마디의 초 — 박자표 마디 기준
@@ -13919,7 +13919,7 @@ function applyGenreDefaults(randomize,opt){opt=opt||{};
     }
   }
   if(g.id==='running')g.atmos=runStyle().atmos||{sweep:0.4};   // 분위기 재료 = 스타일 소속
-  if(g.id==='edm')g.atmos=edmStyle().atmos||{};                 // EDM: 하위 스타일 소속
+  if((g.id==='edm'||g.id==='bigroom'))g.atmos=edmStyle().atmos||{};                 // EDM: 하위 스타일 소속
   if(g.id==='trap')g.atmos=trapStyle().atmos||{};               // Trap: 하위 스타일 소속
   if(g.id==='lofi')g.atmos=lofiStyle().atmos||{vinyl:0.5,rain:0.3};       // Lo-Fi: 하위 스타일 소속
   if(g.id==='boombap')g.atmos=boombapStyle().atmos||{vinyl:0.4};          // 붐뱁: 하위 스타일 소속
@@ -13933,7 +13933,7 @@ function applyGenreDefaults(randomize,opt){opt=opt||{};
   if(g.id==='running'){$('key').value=2;prevKeyPc=2;}  // 러닝 기본 키 D (대금·해금 궁합)
   state.seed=randomize?((Math.random()*1e9)|0)||1:state.seed||1;
   if(!opt.keepTempo){let t=randomize?g.tempo[0]+Math.floor(Math.random()*(g.tempo[1]-g.tempo[0]+1)):Math.round((g.tempo[0]+g.tempo[1])/2);
-    if(g.id==='edm'&&edmStyle().bpm)t=edmStyle().bpm;           // EDM: 하위 장르 기준 BPM
+    if((g.id==='edm'||g.id==='bigroom')&&edmStyle().bpm)t=edmStyle().bpm;           // EDM: 하위 장르 기준 BPM
     if(g.id==='trap'&&trapStyle().bpm)t=trapStyle().bpm;        // Trap: 하위 장르 기준 BPM
     if(g.id==='running'&&state.halfBpm)t=Math.max(30,Math.round(t/2)); // 하프타임 매칭 유지
     if(g.id==='lofi'&&lofiStyle().bpm)t=lofiStyle().bpm;        // Lo-Fi: 하위 스타일 기준 BPM
@@ -14043,8 +14043,8 @@ function songArc(rem,g){
 function timedSections(targetSec){
   const g=curGenre(),B=+$('bpm').value,spb=(60/B)*barQ();   // 한 마디의 초 = (60/BPM) × 마디 박수. 4/4=240/B, 12/8=360/B, 3/4=180/B
   const total=Math.max(6,Math.round(targetSec/spb));
-  const hookT=(g.id==='edm'||g.id==='melodichouse'||g.id==='deephouse')?'Drop':'Hook';   // 드롭 막구조: EDM·멜로딕하우스·딥하우스(딥은 미니멀한 드롭 — 레이어 추가/제거). 글로벌은 그루브/훅 순환
-  const clubby=(g.id==='edm'||g.id==='trap'||g.id==='global'||isHouse(g.id));
+  const hookT=((g.id==='edm'||g.id==='bigroom')||g.id==='melodichouse'||g.id==='deephouse')?'Drop':'Hook';   // 드롭 막구조: EDM·멜로딕하우스·딥하우스(딥은 미니멀한 드롭 — 레이어 추가/제거). 글로벌은 그루브/훅 순환
+  const clubby=((g.id==='edm'||g.id==='bigroom')||g.id==='trap'||g.id==='global'||isHouse(g.id));
   // 클럽 장르: 막(Act) 구조 — 드랍 수는 2~3개 고정, 길이가 늘면 드랍·브레이크 자체가 길어짐 (3분=8마디 드랍 7개가 아니라 16마디 드랍 2개)
   // 러닝·lofi·붐뱁: 반복 사이클이 장르 문법 (케이던스 유지·루프 문화) — 기존 배율 유지
   const k=(isHouse(g.id)) ? 1                              // 하우스: 사이클 섹션이 이미 8·16마디로 알맞음 — 배율 없이 반복 수만 늘림
@@ -14460,6 +14460,10 @@ function updateLenTag(){const el=$('lenTag');if(!el)return;const cur=estTotalSec
 let runMixMode=false, runMixMin=60;
 /* 긴 믹스를 쓸 수 있는 장르 — 러닝만의 것이 아니다.
    카페·매장·행사에서 EDM·레트로·K팝도 60분이 필요하다. */
+/* ★ 빅룸은 form:'edm' 이지만 **장르 id 로 가르는 자리**가 여럿이라
+   드럼 킷·사이드체인·필 풀이 전부 기본값으로 떨어졌다
+   (실측: EDM 스네어가 0.75박에 72개로 모이는데 빅룸은 0.25·0.75·1.25·1.75 로 흩어졌다).
+   그 자리들에서 EDM 과 같이 취급한다. */
 const MIX_GENRES=['running','edm','bigroom','retro','kpop','discofunk','hookpop','hooksong','country','global'];
 function mixOK(){ try{ return MIX_GENRES.indexOf(state.genre)>=0; }catch(e){ return false; } }
 const RUNMIX_BPM=[0,+2,-2,+3,-1,+1,-3,+2];        // 러닝 전용 — 케이던스 때문에 ±3 안
@@ -15356,9 +15360,44 @@ function genLead(tr,g,sec,start,en,rnd,HOOK){
            회피음은 반 박만 끌어도 드러난다 — 그 아래(경과음)만 통과시킨다. */
         const dg=du>=0.5?safeE(deg,pcs):deg;
         const fin=(lastBar&&rq>=3)?0:dg;                  // 섹션 끝: 근음 착지
-        const m=r5e+fin, v=Math.round((rq===0?90:80)+pOff+rnd()*6);
+        let m=r5e+fin, v=Math.round((rq===0?90:80)+pOff+rnd()*6);
+        /* ── 빅룸 리드는 좁은 자리에서 돈다 ──
+           실측: 도약(5도 이상) 69% · 순차 12% · 폭 25반음.
+           계속 뛰니 아르페지오처럼 들리고 귀에 남는 것이 없다 —
+           그것이 '촌스럽다' 의 정체다.
+           빅룸 훅은 몇 음 안에서 돌고, 같은 음을 되풀이해 각인시킨다.
+           도약은 절정에서만. 앞 음에서 5도 넘게 벌어지면 가까운 옥타브로 당긴다. */
+        if(state.genre==='bigroom' && tr.lead.length){
+          /* ★ window 에 이전 음을 기억시켰더니 여러 트랙이 그 값을 공유해
+             폭이 25 -> 33반음으로 오히려 늘었다.
+             **그 트랙의 마지막 음을 직접 읽는다.** */
+          const _ll=tr.lead[tr.lead.length-1].midi;
+          while(m-_ll>7) m-=12;
+          while(_ll-m>7) m+=12;
+          if(Math.abs(m-_ll)>7) m=_ll+(m>_ll?2:-2);
+          while(m>92) m-=12; while(m<66) m+=12;
+        }
         tr.lead.push({t:start+bar*barQ(sec)+rq,dur:du,midi:m,vel:v});
-        tr.lead.push({t:start+bar*barQ(sec)+rq,dur:du,midi:m+12,vel:Math.round(v*0.55)}); // 옥타브 유니즌 — 후크 두께
+        /* ── 옥타브 유니즌은 드롭·후렴에서만 ──
+           조건 없이 모든 음에 얹고 있었다
+           (실측 bigroom: 동시 자리 389개 중 349개가 옥타브 겹침 · 90%.
+            edm 84%. 하우스 계열은 0~8% 인데 이 둘만 튄다).
+           처음부터 끝까지 두 옥타브로 치면 두껍고 촌스럽다 —
+           90년대 유로댄스 느낌이 난다.
+           빅룸에서 옥타브 유니즌은 **터지는 자리의 장치**다.
+           벌스·빌드업은 한 옥타브로 두어야 드롭이 커진다. */
+        /* 구간 종류로 가르려 했더니 소용이 없었다 —
+           이 리드 경로는 애초에 Hook·Drop 에서만 도는 자리다
+           (실측: bigroom 357회 전부 Hook · edm 238회 전부 Drop).
+           **구간 안의 위치**로 가른다. 앞 절반은 한 옥타브로 두고
+           뒤 절반에서 옥타브를 얹으면 드롭이 점점 커진다 —
+           처음부터 두 옥타브면 더 커질 자리가 없다. */
+        /* sec.grid 를 이 자리에서 못 읽어 기본 8 로 떨어졌다(77% · 거의 안 줄었다).
+           **여덟 마디 프레이즈**를 기준으로 뒤 절반에서만 얹는다 —
+           앞 넷은 얇게, 뒤 넷은 두껍게. 그것이 드롭 안의 밀고 당김이다. */
+        const _oct8=((bar%8) >= 4);
+        if(_oct8)
+          tr.lead.push({t:start+bar*barQ(sec)+rq,dur:du,midi:m+12,vel:Math.round(v*0.55)}); // 옥타브 유니즌 — 후크 두께
       });
       if(longSec&&pos===3&&!lastBar){                     // 픽업: 종지 여백 끝에서 다음 문장으로 숨을 걸침 (다운비트 직전에 끝나도록)
         const pv=Math.round(66+rnd()*5);
@@ -15481,7 +15520,7 @@ function pushFill(tr,b0,o){
   } else {                                                                // 큰 전환 필(에너지 상승, 훅·드롭 직전): 화려하게
     if(run)                  pool=['accel32','hatroll','triplet','straight16','tomCascade','crashRun'];
     else if(g.id==='trap')   pool=['hatroll','triplet','buzz','accel32','stutter','trapRoll'];
-    else if(g.id==='edm')    pool=(state.edmStyle==='dnb')?['breakbeat','accel32','buzz','triplet','tomCascade','snareRush']:['accel32','buzz','triplet','straight16','kicksync','snareRush','crashRun'];
+    else if((g.id==='edm'||g.id==='bigroom'))    pool=(state.edmStyle==='dnb')?['breakbeat','accel32','buzz','triplet','tomCascade','snareRush']:['accel32','buzz','triplet','straight16','kicksync','snareRush','crashRun'];
     else if(g.id==='boombap')pool=['breakbeat','flam','ghost','straight16','kicksync','tomTumble','tomCascade'];
     else if(g.id==='lofi')   pool=(state.lofiStyle==='sleepy')?['ghost','rimShuffle']:['ghost','flam','rimfill','tomTumble','ghostRoll'];
     else if(g.id==='global') pool=['tomCascade','triplet','rimfill','snareRush','breakbeat','tomTumble'];
@@ -15766,7 +15805,7 @@ function arrange(){
         // 락 파워코드는 평행 이동이 어법이므로 성부유도 제외, 그 외엔 자리바꿈·최소이동 보이싱
         // 단, 고에너지(훅/드롭) 진입 첫 코드는 근음위치로 '도착감' — EDM 드롭은 진행 사이클마다 근음 리셋(직진·자극)
         const cycleLen=cb*sec.chords.length;
-        const forceRoot=en>=5&&(bar===0||(g.id==='edm'&&bar%cycleLen===0));
+        const forceRoot=en>=5&&(bar===0||((g.id==='edm'||g.id==='bigroom')&&bar%cycleLen===0));
         let voi=(rSt&&rSt.power)?[ch.notes[0],ch.notes[0]+7,ch.notes[0]+12]:(bar%cb===0?voiceChord(ch.notes,forceRoot):VL_PREV||ch.notes);
         const vBase=voi.length;
         if(!(rSt&&rSt.power)&&bar%cb===0)voi=addTensions(voi,ch,g,en,rnd);   // 텐션 얹기(파워코드 제외) — 패드·아르프에도 흘러듦
@@ -15789,7 +15828,7 @@ function arrange(){
         else if(g.id==='kpop'&&en>=5&&!doArp){ // 훅 브라스 스탭: 당김 리듬, 짧게
           [[0,1],[0.75,0.85],[1.5,0.9],[2.5,0.85],[3,0.95],[3.5,0.8]].forEach(([rq,a])=>{
             voi.forEach(n=>tr.chords.push({t:b0+rq+swQ(rq),dur:0.35,midi:n,vel:Math.round(78*a*eScale*ramp+rnd()*5)}));});}
-        else if(doArp&&g.id==='edm'){ // EDM은 전용 arpseq 아르프가 따로 있음 → 코드 트랙은 지속 화음만 유지(중복 방지)
+        else if(doArp&&(g.id==='edm'||g.id==='bigroom')){ // EDM은 전용 arpseq 아르프가 따로 있음 → 코드 트랙은 지속 화음만 유지(중복 방지)
           if(newChord)voi.forEach((n,vi)=>tr.chords.push({t:b0,dur:BQ*cb*0.96,midi:n,vel:Math.round((vi>=vBase?42:54)*eScale+rnd()*4)}));}
         else if(doArp){const asc=voi.slice().sort((a,b)=>a-b).concat(voi.slice().sort((a,b)=>a-b)[0]+12);
           const pat=sec.arpPat||'up',rate=sec.arpRate||8,steps=rate,dq=4/rate;
@@ -15808,7 +15847,7 @@ function arrange(){
       voi.forEach((n,vi)=>tr.chords.push({t:t+swQ(rq),dur:0.26,midi:n,vel:Math.round((66*a)*(vi>=vBase?0.82:1)*eScale*(typeof ramp!=='undefined'?ramp:1)+rnd()*4),pump:sec.pump})); }); } }
   else if(newChord){voi.forEach((n,vi)=>tr.chords.push({t:b0,dur:BQ*cb*0.96,midi:n,vel:Math.round((vi>=vBase?50:(vi===vBase-1?70:62))*eScale+rnd()*4)}));
           // 밀도 높은 구간: 서스테인 코드에 마디 중간 재타격(펄스)을 더해 채움 — 성긴 구간은 그냥 길게 유지(비움)
-          if(dens>=0.95&&en>=3&&!thin&&(g.id==='kpop'||g.id==='edm'||g.id==='running'||g.id==='hookpop'||g.id==='global')&&rnd()<(dens-0.9)*2){
+          if(dens>=0.95&&en>=3&&!thin&&(g.id==='kpop'||(g.id==='edm'||g.id==='bigroom')||g.id==='running'||g.id==='hookpop'||g.id==='global')&&rnd()<(dens-0.9)*2){
             const pulseAt=en>=5?[2,3,3.5]:[2.5];
             pulseAt.forEach(rq=>voi.forEach(n=>tr.chords.push({t:b0+rq+swQ(rq),dur:0.4,midi:n,vel:Math.round(48*eScale+rnd()*4)})));}}
         // ── 텐션 무브 — 코드 전환 직전 세컨더리 도미넌트 스탭(재즈 결) 또는 다음 코드 앤티시페이션 푸시(팝 결) ──
@@ -15816,7 +15855,7 @@ function arrange(){
           const nxtSym2=chordSymAt(si,bar+1),nc2=nxtSym2?chordFromSym(nxtSym2):null;
           const changing2=nc2&&(nc2.root!==ch.root||nc2.q!==ch.q);
           const jazzy=(g.id==='lofi'||g.id==='boombap'||g.id==='retro');
-          const poppy=(g.id==='kpop'||g.id==='country'||(g.id==='edm'&&en>=5));
+          const poppy=(g.id==='kpop'||g.id==='country'||((g.id==='edm'||g.id==='bigroom')&&en>=5));
           if(changing2&&(jazzy||poppy)&&((bar%4===3&&rnd()<0.4*dens)||rnd()<0.08*dens)){
             if(jazzy&&rnd()<0.55){                          // V7/next — 4박에 반마디 세컨더리 도미넌트 (다음 코드를 향한 긴장)
               const sd=makeChord((nc2.root+7)%12,'dom7'),ref=voi[0];
@@ -15922,7 +15961,7 @@ function arrange(){
           const vel=Math.round((isDrop?(60+lfo*54):(40+lfo*46))*acc*eScale*ramp+rnd()*4);  // 드롭은 더 세게
             tr.arpseq.push({t:b0+rq+swQ(rq),dur:dq*0.85,midi:Math.min(96,m),vel,pump:sec.pump,lfo:+lfo.toFixed(2)}); }
         }
-        if(g.id==='edm'&&en>=4&&!thin&&newChord){
+        if((g.id==='edm'||g.id==='bigroom')&&en>=4&&!thin&&newChord){
           const tri=[ch.notes[0],ch.notes[0]+(QUAL[ch.q]?QUAL[ch.q][1]:4),ch.notes[0]+(QUAL[ch.q]&&QUAL[ch.q][2]!=null?QUAL[ch.q][2]:7)];
           let base=60+((ch.bass%12)+12)%12; if(base>67)base-=12;                 // 아르프 레지스터(코드보다 위, 리드보다 아래)
           const seq=[]; tri.forEach(iv=>{const m=base+((iv-ch.notes[0]));seq.push(m);}); seq.push(seq[0]+12); // 3음+옥타브 = 4스텝
@@ -16086,7 +16125,7 @@ function arrange(){
       cur+=BQ;                                                       // 박자표 마디만큼 전진(12/8=6박·6/8=3박·3/4=3박)
     }
     // 크래시: 고에너지(E5) 구간 시작 + 8마디마다 (러닝·EDM)
-    if((run||g.id==='edm'||g.id==='global')&&en>=5)for(let b=0;b<sec.bars;b+=8)tr.crash.push({t:start+b*BQ,vel:Math.round(96+rnd()*8)});
+    if((run||(g.id==='edm'||g.id==='bigroom')||g.id==='global')&&en>=5)for(let b=0;b<sec.bars;b+=8)tr.crash.push({t:start+b*BQ,vel:Math.round(96+rnd()*8)});
     // 구간 시작 크래쉬 옵션 — 인트로 제외 모든 구간 다운비트에 (에너지에 따라 세기)
     if(state.secCrash&&si>0&&!tr.crash.some(c=>Math.abs(c.t-start)<0.1))tr.crash.push({t:start,vel:Math.round(84+en*5)});
     // 러닝 킥 유지형 드롭: E5 진입 직전 2마디 필터 스윕 (킥 정박은 그대로)
@@ -16303,7 +16342,7 @@ function arrange(){
   const tm=tempoSegments(headQ);
   if(tailQ){const L=tm.segs[tm.segs.length-1];L.endQ+=tailQ;tm.totalQ+=tailQ;tm.totalSec+=tailQ*L.spq;}
   // ── 드랍 직전 무음 갭 (클럽 관례): 훅 진입 1박 전 전 트랙 컷 → 낙차가 임팩트를 만든다 (crash·fx는 남겨 라이저가 갭을 채움)
-  if(state.genre==='edm'||state.genre==='trap'||state.genre==='global'){
+  if((state.genre==='edm'||state.genre==='bigroom')||state.genre==='trap'||state.genre==='global'){
     const cutT=['kick','snare','clap','hat','ohat','perc','bass','chords','pad','lead'];
     sview.forEach(s=>{ if(s.type!=='Hook'||s.startQ<=0) return;
       const g0=s.startQ-1, g1=s.startQ;
@@ -17559,7 +17598,7 @@ function scheduleWindow(t0,winS,winE,fxFrom){fxFrom=fxFrom==null?winS:fxFrom;
     else if(curKit==='kpop')supersaw('chords',at(n.t),ds(n),n.midi,n.vel,{voices:4,detune:9,lpf:2700,atk:0.006,rel:0.12,lvl:0.23,q:0.7}); // 브라스 스탭
     else if(curKit==='hooksong')supersaw('chords',at(n.t),ds(n),n.midi,n.vel,state.hookMode==='calm'?{voices:2,detune:2,lpf:2600,atk:0.005,rel:0.5,lvl:0.18,q:0.5,wave:'triangle'}:{voices:2,detune:4,lpf:3600,atk:0.003,rel:0.2,lvl:0.2,q:0.5,wave:'triangle'});
     else rhodes(at(n.t),ds(n),n.midi,n.vel);});
-  sched(MODEL.tracks.pad,n=>supersaw('pad',at(n.t),ds(n),n.midi,n.vel,run?{voices:rSt.pad.voices,detune:rSt.pad.detune,lpf:rSt.pad.lpf,hpf:rSt.pad.hpf,shimmer:rSt.pad.shimmer,wave:rSt.pad.wave,atk:0.1,rel:0.4,lvl:0.26,q:0.6}:isHouse(curKit)?{voices:4,detune:9,lpf:1700,hpf:180,atk:1.0,rel:1.8,lvl:0.19,q:0.4,wave:'sawtooth'}:{voices:curKit==='edm'?6:4,detune:curKit==='edm'?14:8,lpf:1700,atk:0.1,rel:0.4,lvl:0.26,q:0.6}));  // 멜로딕하우스: 부드러운 아날로그 패드(어택 느리게·필터 따뜻하게)
+  sched(MODEL.tracks.pad,n=>supersaw('pad',at(n.t),ds(n),n.midi,n.vel,run?{voices:rSt.pad.voices,detune:rSt.pad.detune,lpf:rSt.pad.lpf,hpf:rSt.pad.hpf,shimmer:rSt.pad.shimmer,wave:rSt.pad.wave,atk:0.1,rel:0.4,lvl:0.26,q:0.6}:isHouse(curKit)?{voices:4,detune:9,lpf:1700,hpf:180,atk:1.0,rel:1.8,lvl:0.19,q:0.4,wave:'sawtooth'}:{voices:(curKit==='edm'||curKit==='bigroom')?6:4,detune:(curKit==='edm'||curKit==='bigroom')?14:8,lpf:1700,atk:0.1,rel:0.4,lvl:0.26,q:0.6}));  // 멜로딕하우스: 부드러운 아날로그 패드(어택 느리게·필터 따뜻하게)
     /* 주 멜로디 음색 — 선택에 따라 실제 음원이 바뀐다. 리드이므로 레벨을 조금 올린다. */
     sched(MODEL.tracks.topmel,n=>{
       const F=state.topFam||'synth', t=at(n.t), d=ds(n);
@@ -17578,7 +17617,7 @@ function scheduleWindow(t0,winS,winE,fxFrom){fxFrom=fxFrom==null?winS:fxFrom;
     :curKit==='kpop'?{voices:4,detune:10,lpf:5600,atk:0.004,rel:0.1,lvl:0.3,q:0.8,wave:'square'}      // 챈트 스퀘어
     :{voices:5,detune:16,lpf:5200,atk:0.005,rel:0.12,lvl:0.3,q:0.8});
     // 음색 스택 (클럽 계열): 어택 플럭(발음) + 수퍼소(몸통) + 서브 사인(무게 — 원음에만, 옥타브 더블 제외)
-    if((curKit==='edm'||curKit==='global')&&!run){
+    if(((curKit==='edm'||curKit==='bigroom')||curKit==='global')&&!run){
       supersaw('lead',at(n.t),Math.min(ds(n),0.09),n.midi,Math.round(n.vel*0.8),{voices:1,detune:0,lpf:6800,atk:0.001,rel:0.05,lvl:0.13,q:0.7,wave:'triangle'});
       if(n.vel>=64) supersaw('lead',at(n.t),ds(n),n.midi-12,Math.round(n.vel*0.6),{voices:1,detune:0,lpf:420,atk:0.004,rel:0.1,lvl:0.15,q:0.5,wave:'sine'});
     }
@@ -17596,12 +17635,12 @@ function scheduleWindow(t0,winS,winE,fxFrom){fxFrom=fxFrom==null?winS:fxFrom;
   sched(MODEL.tracks.str||[],n=>supersaw('pad',at(n.t),ds(n),n.midi,n.vel,{voices:4,detune:6,lpf:2400,hpf:200,atk:0.15,rel:0.6,lvl:0.13,q:0.5,wave:'triangle'}));   // Hook-Pop 스트링 스웰
   // 사이드체인(킥 트리거) — pad/chords(+edm은 bass)
   const pumped=state.sections.some(s=>s.pump);
-  const depth=((curKit==='edm'&&state.edmStyle==='futurebass')?0.72:{edm:0.6,global:0.5,trap:0.42,boombap:0.22,lofi:0.18,country:0.1,kpop:0.5,retro:0.3,melodichouse:0.5,hooksong:state.hookMode==='calm'?0.05:0.15,running:(rSt&&rSt.pump)?0.55:0.4}[curKit]||0.2)*(pumped?1.15:1);
+  const depth=(((curKit==='edm'||curKit==='bigroom')&&state.edmStyle==='futurebass')?0.72:{edm:0.6,global:0.5,trap:0.42,boombap:0.22,lofi:0.18,country:0.1,kpop:0.5,retro:0.3,melodichouse:0.5,hooksong:state.hookMode==='calm'?0.05:0.15,running:(rSt&&rSt.pump)?0.55:0.4}[curKit]||0.2)*(pumped?1.15:1);
   const kq=MODEL.tracks.kick.filter(n=>n.t>=winS-1e-6&&n.t<winE-1e-6).map(n=>n.t);
   const duck=(g,sc)=>{if(!g)return;sc=sc||1;g.gain.cancelScheduledValues(t0);g.gain.setValueAtTime(1,t0);
     kq.forEach(q=>{const tt=at(q),beat=60/secBpmAtQ(q);g.gain.setValueAtTime(Math.max(0.05,1-depth*sc),tt);g.gain.linearRampToValueAtTime(1,tt+Math.min(0.3,beat*0.85));});};
-  duck(DUCK.pad,1);duck(DUCK.chords,1);if(curKit==='edm'||curKit==='global'||isHouse(curKit))duck(DUCK.bass,1);
-  if(curKit==='edm'||curKit==='trap'||curKit==='global'||isHouse(curKit))duck(DUCK.lead,0.7); // 리드·플럭도 눌러 펌핑 글루 (멜로딕하우스는 플럭이 시그니처라 좀 더)
+  duck(DUCK.pad,1);duck(DUCK.chords,1);if((curKit==='edm'||curKit==='bigroom')||curKit==='global'||isHouse(curKit))duck(DUCK.bass,1);
+  if((curKit==='edm'||curKit==='bigroom')||curKit==='trap'||curKit==='global'||isHouse(curKit))duck(DUCK.lead,0.7); // 리드·플럭도 눌러 펌핑 글루 (멜로딕하우스는 플럭이 시그니처라 좀 더)
   MODEL.tracks.fx.forEach(ev=>{const evEndQ=ev.t+(ev.dur||0);
     const inChunk=ev.t>=winS-1e-6&&ev.t<winE-1e-6;
     const spillIntoFirst=Math.abs(winS-fxFrom)<1e-6&&ev.t<winS&&evEndQ>winS-1e-6;
@@ -17609,7 +17648,7 @@ function scheduleWindow(t0,winS,winE,fxFrom){fxFrom=fxFrom==null?winS:fxFrom;
 }
 function playWin(winS,winE,loop){
   arrange();audioInit();if(ctx.state==='suspended')ctx.resume();stop(true);curKit=curGenre().id;
-  curSub=curKit==='trap'?state.trapStyle:curKit==='edm'?state.edmStyle:curKit==='running'?state.runStyle:curKit==='lofi'?state.lofiStyle:curKit==='retro'?state.retroStyle:curKit==='chillwave'?state.chillwaveStyle:curKit==='boombap'?state.boombapStyle:curKit==='global'?state.globalStyle:isHouse(curKit)?curKit:null;   // 서브스타일 드럼 킷 선택 (없으면 null → 기존 킷)
+  curSub=curKit==='trap'?state.trapStyle:(curKit==='edm'||curKit==='bigroom')?state.edmStyle:curKit==='running'?state.runStyle:curKit==='lofi'?state.lofiStyle:curKit==='retro'?state.retroStyle:curKit==='chillwave'?state.chillwaveStyle:curKit==='boombap'?state.boombapStyle:curKit==='global'?state.globalStyle:isHouse(curKit)?curKit:null;   // 서브스타일 드럼 킷 선택 (없으면 null → 기존 킷)
   // 장르별 마스터 컬러
   const lofi=curKit==='lofi';
   if(crusher.setBits)crusher.setBits(lofi?9:16);
@@ -18591,7 +18630,7 @@ function gmProgs(){
   if(state.genre==='hookpop')return {bass:34,chords:29,pad:90,lead:85,gtr:30,str:49};    // APT식: 픽 베이스·오버드라이브 기타 파워코드·브라이트 패드·보이스 챈트 리드
   if(state.genre==='retro')return {bass:33,chords:4,pad:89,lead:80};        // 핑거베이스·EP·웜패드·스퀘어
   if(state.genre==='hooksong')return state.hookMode==='calm'?{bass:89,chords:88,pad:89,lead:73}:{bass:38,chords:4,pad:90,lead:80}; // 명상=플루트/패드, 교육=스퀘어
-  if(state.genre==='edm')return ({house:{bass:38,chords:4,pad:89,lead:81},techno:{bass:38,chords:90,pad:90,lead:81},trance:{bass:38,chords:90,pad:90,lead:81},dubstep:{bass:38,chords:89,pad:89,lead:81},futurebass:{bass:38,chords:90,pad:90,lead:80},dnb:{bass:38,chords:4,pad:89,lead:81},melodic:{bass:38,chords:90,pad:89,lead:81}}[state.edmStyle])||{bass:38,chords:90,pad:90,lead:81};
+  if((state.genre==='edm'||state.genre==='bigroom'))return ({house:{bass:38,chords:4,pad:89,lead:81},techno:{bass:38,chords:90,pad:90,lead:81},trance:{bass:38,chords:90,pad:90,lead:81},dubstep:{bass:38,chords:89,pad:89,lead:81},futurebass:{bass:38,chords:90,pad:90,lead:80},dnb:{bass:38,chords:4,pad:89,lead:81},melodic:{bass:38,chords:90,pad:89,lead:81}}[state.edmStyle])||{bass:38,chords:90,pad:90,lead:81};
   if(state.genre==='trap')return {bass:38,chords:state.trapStyle==='phonk'?12:98,pad:89,lead:81};   // 다크벨(크리스탈)·폰크=카우벨 계열(마림바)
   if(state.genre==='lofi')return {bass:33,chords:4,pad:89,lead:73};         // 핑거베이스·EP·웜패드·플루트
   if(state.genre==='boombap')return {bass:33,chords:4,pad:89,lead:81};      // 핑거베이스·EP
@@ -19103,7 +19142,7 @@ function buildSongSheet(){
       L.push('  ※ 드럼 MIDI 노트 맵 (Drum Machine Designer는 기본으로 GM 드럼 맵을 따릅니다 — 패드에 GM 이름 표시: Action 메뉴 → Show GM Drum Names)');
       L.push('     '+used.map(([l,ko])=>ko+'='+DRUMMIDI[l]+'('+NN(DRUMMIDI[l])+')').join(' · '));
       if(MODEL.tracks.perc&&MODEL.tracks.perc.length){
-        const pu=isHouse(state.genre)||state.genre==='global'||state.genre==='edm'?'셰이커'
+        const pu=isHouse(state.genre)||state.genre==='global'||(state.genre==='edm'||state.genre==='bigroom')?'셰이커'
                 :state.genre==='country'?'탬버린':'림/퍼커션 악센트';
         L.push('     ※ 퍼커션(37)은 GM에서 Side Stick(림 클릭) 자리입니다. 이 곡에서는 '+pu+' 용도이므로,');
         L.push('       Drum Machine Designer에서 37번 패드를 클릭해 원하는 '+pu+' 음색으로 교체하세요.');
@@ -19779,7 +19818,7 @@ function generateSong(fullRandom){
   if(g.id==='running'){const ks=Object.keys(RUNSTYLES);state.runStyle=ks[Math.floor(Math.random()*ks.length)];}
   if(g.id==='melodichouse'){const ks=Object.keys(MELODICHOUSESTYLES);state.melodichouseStyle=ks[Math.floor(Math.random()*ks.length)];} // 하위 스타일 곡마다 회전(멜로딕·테크노·프로그레시브·앰비언트·오가닉) — 진행 풀·드럼·분위기가 함께 바뀜
   if(g.id==='deephouse'){const ks=Object.keys(DEEPHOUSESTYLES);state.deephouseStyle=ks[Math.floor(Math.random()*ks.length)];} // 그루비·앰비언트·소울풀·오가닉·아프로 회전
-  if(g.id==='edm' && !state.edmUser){ const ks=Object.keys(EDMSTYLES); state.edmStyle=ks[Math.floor(Math.random()*ks.length)]; // EDM 하위 9종 회전(라디오~DnB) — 사용자가 칩으로 고르면 유지
+  if((g.id==='edm'||g.id==='bigroom') && !state.edmUser){ const ks=Object.keys(EDMSTYLES); state.edmStyle=ks[Math.floor(Math.random()*ks.length)]; // EDM 하위 9종 회전(라디오~DnB) — 사용자가 칩으로 고르면 유지
     const st=EDMSTYLES[state.edmStyle]; const at=st.atmos||{}; state.palette={}; ATMOS.forEach(a=>{state.palette[a.id]=at[a.id]!=null;});
     if($('mode'))$('mode').value=(st.mode&&MODES[st.mode])?st.mode:(GENRE_MODE[state.genre]||'ionian');
     if(typeof applySubstyleCfg==='function') applySubstyleCfg(st); }
@@ -19789,7 +19828,7 @@ function generateSong(fullRandom){
     g.atmos=at2; state.palette={}; ATMOS.forEach(a=>{state.palette[a.id]=at2[a.id]!=null;});
     if($('mode'))$('mode').value=(st2.mode&&MODES[st2.mode])?st2.mode:(GENRE_MODE[state.genre]||'ionian');
     if(typeof applySubstyleCfg==='function') applySubstyleCfg(st2); }
-  const _stB=(g.id==='edm'&&!state.edmUser)?((EDMSTYLES[state.edmStyle]||{}).bpm):(g.id==='lofi')?((LOFISTYLES[state.lofiStyle]||{}).bpm):(g.id==='retro')?((RETROSTYLES[state.retroStyle]||{}).bpm):(g.id==='chillwave')?((CHILLWAVESTYLES[state.chillwaveStyle]||{}).bpm):(g.id==='hookpop')?((HOOKPOPSTYLES[state.hookpopStyle]||{}).bpm):null;
+  const _stB=((g.id==='edm'||g.id==='bigroom')&&!state.edmUser)?((EDMSTYLES[state.edmStyle]||{}).bpm):(g.id==='lofi')?((LOFISTYLES[state.lofiStyle]||{}).bpm):(g.id==='retro')?((RETROSTYLES[state.retroStyle]||{}).bpm):(g.id==='chillwave')?((CHILLWAVESTYLES[state.chillwaveStyle]||{}).bpm):(g.id==='hookpop')?((HOOKPOPSTYLES[state.hookpopStyle]||{}).bpm):null;
   const base=_stB?(_stB+Math.round(Math.random()*6-3)):(g.tempo[0]+Math.round(Math.random()*(g.tempo[1]-g.tempo[0]))); // 하위 스타일 기준 BPM(±3) — EDM·로파이·레트로
   $('bpm').value=base;$('bpmOut').textContent=base;
   const _stS=(g.id==='lofi')?((LOFISTYLES[state.lofiStyle]||{}).swing):(g.id==='retro')?((RETROSTYLES[state.retroStyle]||{}).swing):(g.id==='chillwave')?((CHILLWAVESTYLES[state.chillwaveStyle]||{}).swing):(g.id==='hookpop')?((HOOKPOPSTYLES[state.hookpopStyle]||{}).swing):null;
@@ -19899,7 +19938,7 @@ function applySubstyleCfg(st){                       // 하위 스타일의 구�
   }
 }
 function renderRunStyles(){const row=$('runStyleRow'),hint=$('runStyleHint');
-  const isRun=state.genre==='running', isEdm=state.genre==='edm', isTrap=state.genre==='trap', isLofi=state.genre==='lofi', isBoombap=state.genre==='boombap', isGlobal=state.genre==='global', isDeep=state.genre==='deephouse', isMelo=state.genre==='melodichouse', isRetro=state.genre==='retro', isHookpop=state.genre==='hookpop', isKpop=state.genre==='kpop', on=isRun||isEdm||isTrap||isLofi||isBoombap||isGlobal||isDeep||isMelo||isRetro||isHookpop||isKpop;
+  const isRun=state.genre==='running', isEdm=(state.genre==='edm'||state.genre==='bigroom'), isTrap=state.genre==='trap', isLofi=state.genre==='lofi', isBoombap=state.genre==='boombap', isGlobal=state.genre==='global', isDeep=state.genre==='deephouse', isMelo=state.genre==='melodichouse', isRetro=state.genre==='retro', isHookpop=state.genre==='hookpop', isKpop=state.genre==='kpop', on=isRun||isEdm||isTrap||isLofi||isBoombap||isGlobal||isDeep||isMelo||isRetro||isHookpop||isKpop;
   row.style.display=on?'flex':'none';hint.style.display='none';
   /* 믹스 토글은 장르 전용이다. 장르를 바꾸면 숨겨진 채 켜져 있는 상태가 남아
      나중에 그 장르로 돌아왔을 때 왜 켜져 있는지 알 수 없다 — 장르가 바뀌면 해제한다.
