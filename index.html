@@ -23714,6 +23714,9 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
     else if(t<0.70) v=0.75+0.25*((t-0.45)/0.25);
     else if(t<0.85) v=1.00-0.42*((t-0.70)/0.15);
     else            v=0.58-0.40*((t-0.85)/0.15);
+    /* 상한을 0.72 로 내려 봤지만 효과가 없었다 —
+       실제로 쓰이는 밀도는 이미 0.22~0.38 이었다(계수기 확인).
+       마디당 8.5음은 이 곡선이 아니라 **다른 층**에서 온다. */
     return Math.max(0.10,Math.min(1,v*pk));
   }
   /* 편별 절정 높이 — 편이 바뀔 때마다 크기가 달라진다 */
@@ -23868,8 +23871,19 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
         if(!atStrong && build<(_thin?0.55:0.42)) return;     /* 초반: 강박만 */
         if(build<(_thin?0.38:0.30))      _av=_av.slice(-1);  /* 성김: 꼭대기 한 음 */
         else if(build<(_thin?0.68:0.55)) _av=_av.slice(-2);  /* 채움: 두 음 */
+        /* ── 라운지 앵커가 절반을 차지한다 ──
+           층별로 세어 보니 celtic 라운지 9812음 중 앵커가 5145음이었다
+           (왼손 2660 · 모션 2007). 박마다 화음을 통째로 짚으니 그렇다.
+           ★ 약박을 return 으로 건너뛰게 했더니 celtic·jazz 가 통째로 안 만들어졌다 —
+             뒤 로직이 이 자리를 지나야 한다. **성부만 줄인다.** */
+        if(!atStrong && _av.length>2) _av=_av.slice(-2);
       }
-      _av.forEach((n,k)=>add(b+roll*k, blockDur, n, (atStrong?strongV:weakV)*(style==='ballad'?0.9:1)));
+      /* ── 재즈 컴핑은 엇박에 놓는다 ──
+         (이 앵커 경로는 재즈에서 안 돈다 — 계수기로 확인했다.
+          재즈는 comp:[4,11] 슬롯을 쓰는 다른 경로로 만들어진다.
+          엇박 처리는 그쪽에서 한다.) */
+      let _b2=b;
+      _av.forEach((n,k)=>add(_b2+roll*k, blockDur, n, (atStrong?strongV:weakV)*(style==='ballad'?0.9:1)));
       if(octave && atStrong && style!=='newage') add(b, beatDur*0.6, topAt(b)+12, weakV*0.7); }); // 절정 옥타브
 
     // ── 모션 레이어(분산·브로큰·오프비트) : 앵커 없는 8분 슬롯을 빌드업만큼 채움 → 블록과 겹침 ──
@@ -33502,6 +33516,10 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
               emitTheme(ev,T,c,measure,{ baseV:baseV, build:isBuild, buildPos:(isBuild?Math.min(1,(bIdx-(tBars-2))/1):0), every:(isBuild||soloG)?1:(songTheme.every||1), lowRoot:true, octShift:(soloG&&(bIdx%2===1))?1:0 });
             } else {
             if(pedalOn){ pushPedal(ev, T, st, measure, T===PAD); } // 첫 마디는 다운비트 전에 페달(앞 공백 PAD 고려) // 레가토 페달: 코드 친 직후 교체
+            /* 재즈 컴핑 엇박: comp 슬롯을 +2(반 박) 밀어 봤더니
+               jazz·gypsy 에서 곡 생성 자체가 실패했다 —
+               뒤 관문이 이 슬롯 배열의 값 범위나 순서를 전제로 하는 것으로 보인다.
+               슬롯을 손대는 대신 다른 자리를 찾아야 한다. */
             const slots=(dens==='sparse'?compSec.filter(s=>s%8===0):compSec).filter(sl=>!(brkBar&&sl>=8));
             let cn=((vleadM&&vleadM[si])?vleadM[si].notes:c.notes).slice(); if(dens==='sparse'&&cn.length>2) cn=[cn[0],cn[cn.length-1]]; else if(dens==='full'&&!clearMel&&!introClr) cn=cn.concat([cn[cn.length-1]+12]);
             if(clearMel||introClr) cn=lowerClear(cn); cn=declash(cn);
@@ -33809,7 +33827,11 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
               const stg=sec.stage||3;
               const solo=LYRIC_G.has(gsel)||pianoNA; // 기악독주곡: 피아노 한 대가 주인공 → 테마는 그 위에서 종처럼 성기게
               const baseV=solo? Math.max(16,Math.min(44,Math.round((14+stg*4)*inA))) : Math.max(18,Math.min(64,Math.round((16+stg*7)*inA)));
-              const every=solo? ((stg<=3)?8:4) : ((stg<=2)?4:((stg<=4)?2:1)); // 독주곡=마디당 1회 이하 · 그 외=스테이지 따라
+              let every=solo? ((stg<=3)?8:4) : ((stg<=2)?4:((stg<=4)?2:1)); // 독주곡=마디당 1회 이하 · 그 외=스테이지 따라
+              /* 재즈는 오스티나토가 반이면 된다. 컴핑·워킹 베이스·솔로가 이미 층을 이루는데
+                 마디당 8.8음짜리 오스티나토가 얹히면 자리가 없다
+                 (실측: 44마디 전부가 마디당 8.8음 · 성근 마디 0). */
+              if(gsel==='jazz'||gsel==='ambjazz') every=every*2;
               emitTheme(ev,T,c,measure,{ baseV:baseV, every:every, lowRoot:false, octShift:solo?2:1,
                 loClamp:solo?84:40, hiClamp:solo?100:88 }); } } // 독주곡은 C6 위(피아노 최고역 83 위)에서 종처럼 울려 코드와 안 부딪힘
           else if(grp.role==='riser'){ const nxSt=nextSec?(nextSec.stage||3):(typeof midiNextStage==='number'?midiNextStage:0); if(lastBarM && nxSt>=5 && nxSt>(sec.stage||3)){ // 라이저: 큰 섹션 진입 1마디 전 리버스 심벌 스웰 — 회차별 길이·세기(1회차=반마디·2회차부터 온마디·3회차부터 더 세게)
@@ -34688,6 +34710,60 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             }
             ev.push({tick:b5+__barLen, cc:64, val:0});
             ev.sort(function(x,y){ return (x.tick-y.tick)||((x.cc!=null?2:x.on)-(y.cc!=null?2:y.on)); });
+          }
+        }catch(e){}
+      }
+      /* ── 재즈 라운지 컴핑 정리 ──
+         실제 마디를 펼쳐 보니 1박에 네 음이 몰리고 길이가 제각각이었다
+         (마디25: 0.0박에 40·55·62·70 · 길이 1.5 / 0.45 / 0.12 / 1.5).
+         0.12박은 32분음표 수준이라 딸깍거리고, 겹침이 46% 라 페달까지 밟으면 뭉갠다.
+         재즈 컴핑은 왼손 근음 하나에 오른손 두 음(3도·7도)이 정상이다 —
+         한 자리에 셋까지만 두고, 너무 짧은 음은 걷어낸다. */
+      if(loungeMode && grp.key==='piano' && (gsel==='jazz'||gsel==='ambjazz')){
+        try{
+          const MINDUR=Math.round(TPQ*0.3);
+          const on6=[], off6={};
+          ev.forEach(function(e){
+            if(e.cc!=null || e.note==null) return;
+            if(e.on===1) on6.push(e); else (off6[e.note]=off6[e.note]||[]).push(e);
+          });
+          /* ① 너무 짧은 음은 뺀다 — 단, C4 아래(왼손)는 남긴다.
+             왼손을 지우면 그 마디에 낮은 음이 사라져
+             GUARD ⑤(양손 갖춘 마디 85%)에 걸린다. */
+          const drop=new Set();
+          on6.forEach(function(e){
+            if(e.note<60) return;
+            const q=off6[e.note]||[];
+            for(let i2=0;i2<q.length;i2++){
+              if(q[i2].tick>e.tick){
+                if(q[i2].tick-e.tick < MINDUR){ drop.add(e); drop.add(q[i2]); }
+                break;
+              }
+            }
+          });
+          /* ② 한 자리에 셋까지 — 가장 낮은 음(근음)과 위 둘만 남긴다 */
+          const by6={};
+          on6.forEach(function(e){ if(!drop.has(e)) (by6[e.tick]=by6[e.tick]||[]).push(e); });
+          Object.keys(by6).forEach(function(k){
+            const g6=by6[k].slice().sort(function(a2,b2){ return a2.note-b2.note; });
+            if(g6.length<=3) return;
+            /* 낮은 음(왼손)과 높은 음(오른손)이 둘 다 남아야 한다 —
+               위쪽만 남기면 왼손이 사라져 GUARD ⑤(양손 갖춘 마디 85%)에 걸린다.
+               근음 하나 + C4 위 둘. 위가 없으면 그냥 아래에서 셋. */
+            const hi6=g6.filter(function(e){ return e.note>=60; });
+            const keep=(hi6.length>=2)
+              ? [g6[0], hi6[hi6.length-2], hi6[hi6.length-1]]
+              : [g6[0], g6[g6.length-2], g6[g6.length-1]];
+            g6.forEach(function(e){
+              if(keep.indexOf(e)>=0) return;
+              drop.add(e);
+              const q=off6[e.note]||[];
+              for(let i2=0;i2<q.length;i2++){ if(q[i2].tick>e.tick){ drop.add(q[i2]); break; } }
+            });
+          });
+          if(drop.size){
+            const keep2=[]; ev.forEach(function(e){ if(!drop.has(e)) keep2.push(e); });
+            if(keep2.length>8){ ev.length=0; keep2.forEach(function(e){ ev.push(e); }); }
           }
         }catch(e){}
       }
