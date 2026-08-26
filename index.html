@@ -15632,7 +15632,7 @@ function grooveVel(lane,s16,rnd){
   return 0;
 }
 function arrange(){
-  const tr={kick:[],snare:[],clap:[],hat:[],ohat:[],perc:[],crash:[],bass:[],chords:[],pad:[],lead:[],topmel:[],arpseq:[],drone:[],piano:[],fx:[]},sview=[];
+  const tr={kick:[],snare:[],clap:[],hat:[],ohat:[],perc:[],crash:[],bass:[],chords:[],pad:[],lead:[],topmel:[],arpseq:[],drone:[],piano:[],piano2:[],fx:[]},sview=[];
 
   const IS=state.introStyle||'stack',headQ=introHeadQ();
   let cur=headQ;const g=curGenre(),rnd=mul32(state.seed||1),run=g.id==='running',N=state.sections.length;
@@ -15863,21 +15863,44 @@ function arrange(){
            const MOTIF_DROP=[ [0,0,1.5],[4,2,1.5] ];                               // 드롭: 2음(플럭이 채우니 피아노는 성글게)
            const MOTIF_DROP2=[ [7,0,2.0],[5,2.5,1.5] ];                            // 드롭 후반: 높은 2음
            const barIdx=Math.round((b0-start)/4);
-           const half2=barIdx>=8;                                                    // 8마디 이후 = 후반부(성격 대비 변주)
+           const half2=(Math.floor(barIdx/4)%2)===1;                                  // 4마디마다 성격을 바꾼다
            const answer=(barIdx%2===1);
            let line;
            if(sec.type==='Break') line = half2?MOTIF_BREAK2:MOTIF_BREAK;
            else if(en>=5)        line = half2?MOTIF_DROP2:MOTIF_DROP;
            else if(!half2)       line = answer?MOTIF_B:MOTIF;                         // 전반부: A/B
            else {                                                                    // 후반부: 4마디마다 또 변주(A2/B2 → A3/B3)해 반복 회피
-             const late=barIdx>=12;
+             const late=(Math.floor(barIdx/8)%2)===1;
              line = answer ? (late?MOTIF_B3:MOTIF_B2) : (late?MOTIF_A3:MOTIF_A2);
            }
            const chPcs=(ch.notes||[]).map(n=>((n%12)+12)%12);
            const isCT=pc=>chPcs.includes(((pc%12)+12)%12);
            const snapCT=(midi)=>{ for(let d=0;d<=3;d++){ if(isCT(midi+d))return midi+d; if(isCT(midi-d))return midi-d; } return midi; };
            const avoidClash=(midi)=>{ for(const cp of chPcs){ if(Math.min(((midi%12)-cp+12)%12,(cp-(midi%12)+12)%12)===1){ return isCT(midi+1)?midi+1:(isCT(midi-1)?midi-1:midi+1); } } return midi; };
-           const mOff=[0,1,2,4][ (state.seed>>>3) % 4 ]; // 곡마다 모티프 시작 도수 회전(으뜸/2음/3음/5음) — 여러 곡 생성 시 같은 멜로디 윤곽 반복 방지, snapCT가 화성 안전 보장
+           /* ── 모티프 변형 주기 ──
+              열 가지 모티프가 있는데 8마디·12마디에서만 갈려서
+              32마디짜리 짧은 곡은 네 가지밖에 안 썼다
+              (실측 melodichouse: 32마디에 음형 4가지 · 최다 21회).
+              4마디마다 갈리게 하고, 구간마다 시작 도수도 옮긴다. */
+           const mOff=[0,1,2,4,3,5][ ((state.seed>>>3)+si) % 6 ];
+          /* ── 세컨 피아노 ──
+             멜로딕 하우스는 피아노 둘이 흔하다 — 하나가 모티프를 치면
+             다른 하나가 높은 자리에서 대답한다.
+             모티프와 겹치지 않게 한 옥타브 위(72~96)에서, 모티프가 쉬는 자리에 놓는다.
+             둘이 같은 자리에서 울리면 두꺼워지기만 한다. */
+          if(tr.piano2 && sec.type!=='Break' && ((barIdx%4)===2 || (barIdx%4)===3)){
+            const P2=[[[2,0.5,1.0],[4,2,1.5]],[[4,0,1.5],[2,2.5,1.0]],
+                      [[7,1,1.0],[4,2.5,1.5]],[[0,0.5,2.0]]];
+            const l2=P2[((barIdx>>>1)+(state.seed>>>5))%P2.length];
+            l2.forEach(([deg,rq,du])=>{
+              const dg3=deg+mOff;
+              let m2=pRoot+12+MINP[dg3%MINP.length]+(Math.floor(dg3/MINP.length)*12);
+              m2=snapCT(m2); m2=avoidClash(m2);
+              while(m2<72) m2+=12; while(m2>96) m2-=12;
+              tr.piano2.push({t:b0+rq+swQ(rq),dur:du*0.92,midi:m2,
+                vel:Math.round(52*eScale*ramp+rnd()*6)});
+            });
+          }
           line.forEach(([deg,rq,du])=>{ const dg2=deg+mOff; let mn=pRoot+MINP[dg2%MINP.length]+(Math.floor(dg2/MINP.length)*12);
              if(rq%2===0 || du>=0.9 || sec.type==='Break') mn=snapCT(mn);
              else mn=avoidClash(mn);
@@ -17563,6 +17586,7 @@ function scheduleWindow(t0,winS,winE,fxFrom){fxFrom=fxFrom==null?winS:fxFrom;
   // 플럭/아르프 시퀀스 — 밝고 짧은 발음(스퀘어+빠른 필터 감쇠). 코드보다 위, 리드보다 얇게.
   if(window.SO_motive){ window.SO_motive('beat').forEach(n=>rhodes(at(n.t),ds(n),n.midi,Math.round((n.vel||70)*0.9))); }   // 모티브 미리듣기(인트로·간주·아웃트로)
   sched(MODEL.tracks.piano||[],n=>piano(at(n.t),ds(n),n.midi,n.vel));  // 그랜드 피아노 모티프 (멜로딕 하우스)
+  sched(MODEL.tracks.piano2||[],n=>piano(at(n.t),ds(n),n.midi,n.vel)); // 세컨 피아노
   sched(MODEL.tracks.drone||[],n=>supersaw('pad',at(n.t),ds(n),n.midi,n.vel,{voices:3,detune:8,lpf:600,hpf:30,atk:2.0,rel:2.5,lvl:0.2,q:0.4,wave:'sawtooth'}));  // 앰비언트 드론: 낮고 어두운 지속 페달(느린 스웰)
   sched(MODEL.tracks.arpseq||[],n=>{
     if(isHouse(curKit)){const cut=1200+((n.lfo!=null?n.lfo:0.5)*2800);   // LFO 컷오프 스윕 완화(1.2k→4.0k) = 덜 날카롭게
@@ -19592,6 +19616,12 @@ function exportAll(){arrange();
     const drName='[Alchemy] 앰비언트 드론 — '+feelFor('drone')+'  |  추천: Alchemy 검색 Pad(음색 Dark/Warm), 로우패스 낮게  ||ALT: ES2 지속 서브 패드 (LPF 600)';
     const drIN='앰비언트 드론 | 주법: 으뜸음+5도 지속 페달(곡 전체, 느린 스웰) | GM: '+gmName(89);
     tr.push(noteTrack(MODEL.tracks.drone,8,89,false,drName,withSoftEdges('drone',null),drIN)); }      // GM 89 = Pad 2 (warm)
+  if(MODEL.tracks.piano2&&MODEL.tracks.piano2.length){        // 세컨 피아노 — 높은 자리의 대답
+    tr.push(noteTrack(MODEL.tracks.piano2,6,0,false,
+      '[Studio Piano] 세컨 피아노 — 모티프에 대답하는 높은 자리  |  첫째 대와 다른 마이크/톤으로 (같은 패치 둘이면 뭉갠다)',
+      withSoftEdges('piano',pianoCC()),
+      '세컨 피아노 | 주법: 모티프가 쉬는 자리에서 대답 · C5~C7 · 첫째 대보다 여리게 | GM: '+gmName(0)));
+  }
   if(MODEL.tracks.piano&&MODEL.tracks.piano.length){          // 그랜드 피아노 모티프 (멜로딕 하우스)
     const pName='[Studio Piano] 그랜드 피아노 모티프 — '+feelFor('piano')+'  |  추천: Studio Piano(펠트/소프트) 또는 라이브러리 Piano  ||ALT: Vintage Electric Piano (Rhodes)';
     const pIN='그랜드 피아노 | 주법: 노래하는 멜로디 모티프(16마디 발전) · 서스테인 페달(CC64) 레가토 페달링 | GM: '+gmName(0);
