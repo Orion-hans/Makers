@@ -13760,6 +13760,10 @@ function shapeDrumsFor(g,type,vix){
     if(state.trapStyle==='phonk'){d.perc&&(d.perc=P(2,6,10,14));}       // 펑크: 카우벨(퍼크 레인에 오프비트)
     if(state.trapStyle==='rage'&&en>=4){d.kick=d.kick.map((v,i)=>v||i===7);} // 레이지: 킥 더 격하게
   }
+  /* ★ en>=3 으로 막아 두면 인트로·브레이크(en<3)에서 **기본 lofi 패턴**이 남는다.
+     글로벌은 하위 스타일마다 리듬이 곧 정체성이라 그 자리에서도 스네어를 비워야 한다.
+     아마피아노·아프로비츠 등은 클랩이 백비트를 맡고 스네어를 안 쓴다. */
+  if(g.id==='global'&&en<3){ try{ d.snare=Array(16).fill(false); }catch(e){} }
   if(g.id==='global'&&en>=3){const gs=state.globalStyle;   // 글로벌 그루브: 리듬이 정체성
     if(gs==='amapiano'){d.kick=P(0,4,8,12);d.snare=Array(16).fill(false);d.clap=P(4,12);
       d.hat=P(0,2,4,6,8,10,12,14);d.ohat=P(6,14);d.perc&&(d.perc=P(3,7,11,15));}              // 소프트 4플로어 + 셰이커 + 오프비트 림
@@ -13871,7 +13875,19 @@ function varyDrums(d,g,type,vix){
   if(chance(0.4)){const cand=[1,3,5,7,9,11,13,15].filter(i=>!has('hat',i)); if(cand.length) on('hat',pick(cand));}
   if(chance(0.33)){on('hat',15); if(chance(0.5)) on('hat',14);}
   // 2) 고스트 스네어 — 백비트 사이 모던 그루브
-  if(chance(en>=5?0.6:0.45)){const cand=[3,7,10,11,14,15].filter(i=>!has('snare',i)&&!has('clap',i)); if(cand.length) on('snare',pick(cand));}
+  /* ── 고스트 스네어는 백비트가 있을 때만 ──
+     ★ 이 한 줄이 스네어가 절뚝거리게 만든 주범이다.
+       [3,7,10,11,14,15] 중 하나를 무작위로 켜는데,
+       EDM·빅룸·러닝처럼 **스네어 패턴이 비어 있는 장르**에서는
+       그 한 음이 그 마디의 유일한 스네어가 된다
+       (실측 running: 마디마다 [15] · [7] · [10] · [11] 이 제각각).
+       고스트는 백비트 사이를 메우는 것이라 백비트가 있어야 뜻이 있다.
+     클랩이 백비트를 맡는 장르(EDM 계열)에서는 스네어를 건드리지 않는다. */
+  const _hasBack=has('snare',4)||has('snare',12);
+  if(_hasBack && chance(en>=5?0.6:0.45)){
+    const cand=[3,7,10,11,14,15].filter(i=>!has('snare',i)&&!has('clap',i));
+    if(cand.length) on('snare',pick(cand));
+  }
   // 3) 킥 싱코페이션 — 4플로어는 픽업만, 그 외는 당김 킥 (멜로딕 하우스는 순수 4온더플로어 유지 — 픽업 없음)
   if(g&&isHouse(g.id)){ /* 순수 4플로어: 추가 킥 없음(미니멀·타이트) */ }
   else if(floor){ if(chance(0.3)) on('kick',15); if(en>=5&&chance(0.25)) on('kick',chance(0.5)?6:10); }
@@ -16859,7 +16875,19 @@ function applyDrumArtic(tr,sview){
       여기서 16분 뒷자리에 여린 스네어를 흩뿌린다. 그것이 스네어 158~217음의 정체였다.
       표식을 다섯 번 심고서야 찾았다 — push 를 감싸는 방식은 배열이 filter 로
       통째로 교체되면서 무력화됐다. **단계마다 개수를 세는 것이 확실하다.**) */
-  try{ if(curGenre().id==='ambtechno') return; }catch(e){}
+  /* ── EDM 계열에도 고스트 스네어가 없다 ──
+     빅룸·EDM·러닝은 **클랩이 2·4박 백비트**를 맡고 스네어는 필에만 쓴다.
+     그런데 이 함수가 16분 뒷자리에 여린 스네어를 흩뿌려
+     마디마다 다른 자리에 하나씩 찍혔다
+     (실측 빅룸: 마디8 [0.25,0.75] · 마디9 [0.25,2.75] · 마디10 [1.25] …
+      백비트도 아니고 필도 아닌 자리라 절뚝거린다).
+     하우스 계열도 같다 — 4온더플로어에 고스트가 끼면 박이 흐려진다. */
+  try{
+    const _gid=curGenre().id;
+    if(['ambtechno','bigroom','edm','running','melodichouse','deephouse','trance',
+        'global','discofunk','kpop','trap','hookpop','synthwave','retro']
+       .indexOf(_gid)>=0) return;
+  }catch(e){}
   const A=drumArtic(); if(!tr.snare)return;
   const rng=mul32(((state.seed>>>0)^0x2545F491)>>>0||1), chance=p=>rng()<p;
   // ── 벨로시티 폭: 각 레인 평균을 축으로 넓히거나 좁힌다(머신 vs 손) ──
@@ -29877,6 +29905,54 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
         const q=open[e.note]; if(q&&q.length) e.note=q.shift();
       }
     });
+    /* ── 길게 뻗는 선율 ──
+       제1바이올린만 길고(평균 1.42박) 제2바이올린·비올라는 0.4박짜리 짧은 반주만 했다.
+       현악 4중주에서 두 성부가 계속 끊어 치면 딱딱하다 —
+       실제로는 길게 받치거나 대선율을 주고받는 자리가 있다.
+       네 마디마다 한 성부가 그 마디를 통째로 끄는 자리를 만든다.
+       (성부마다 다른 마디를 골라 둘이 동시에 멈추지 않게 한다.) */
+    try{
+      const LONGIX={counter:1, strings:2, cbass:0};   /* 성부마다 다른 마디 */
+      const off=LONGIX[gkey];
+      if(off!=null){
+        const byBar={};
+        ev.forEach(function(e){
+          if(e.cc!=null || e.note==null || e.on!==1) return;
+          const bi=barAtTick(e.tick, padTick, barLen);
+          (byBar[bi]=byBar[bi]||[]).push(e);
+        });
+        Object.keys(byBar).forEach(function(k){
+          const bi=+k;
+          if((bi%4)!==off) return;                    /* 네 마디에 한 번 */
+          const g2=byBar[k];
+          if(g2.length<2) return;
+          /* 그 마디의 첫 음만 남기고 나머지를 걷어 한 음으로 길게 끈다 */
+          const keep=g2[0], barStart=padTick+bi*barLen;
+          const drop=new Set();
+          g2.forEach(function(e,i2){ if(i2>0) drop.add(e); });
+          const dropNote=[];
+          drop.forEach(function(e){ dropNote.push(e); });
+          const rm=new Set();
+          dropNote.forEach(function(e){
+            rm.add(e);
+            for(let z=0;z<ev.length;z++){
+              if(ev[z].cc==null && ev[z].on===0 && ev[z].note===e.note && ev[z].tick>e.tick){ rm.add(ev[z]); break; }
+            }
+          });
+          /* keep 의 오프를 마디 끝까지 늘린다 */
+          for(let z=0;z<ev.length;z++){
+            if(ev[z].cc==null && ev[z].on===0 && ev[z].note===keep.note && ev[z].tick>keep.tick){
+              ev[z].tick=barStart+barLen-12; break;
+            }
+          }
+          if(rm.size){
+            const keep2=[]; ev.forEach(function(e){ if(!rm.has(e)) keep2.push(e); });
+            if(keep2.length>4){ ev.length=0; keep2.forEach(function(e){ ev.push(e); }); }
+          }
+        });
+        ev.sort(function(a2,b2){ return (a2.tick-b2.tick)||((a2.cc!=null?2:a2.on)-(b2.cc!=null?2:b2.on)); });
+      }
+    }catch(e){}
     return ev;
   }
 
@@ -33606,7 +33682,12 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
               const _fe=(gsel==='jazz'||gsel==='bossa'||gsel==='gypsy')?0.42:1;
               ev.push({tick:tk,on:1,note:36,vel:Math.max(_fe<1?26:45,Math.min(122,Math.round((sl%8===0?102:88)*inA*_fe)))}); ev.push({tick:tk+30,on:0,note:36}); });
                   (dr.snare||[]).forEach(sl=>{ if(brkBar&&sl>=8)return; const tk=T+stk(sl); ev.push({tick:tk,on:1,note:38,vel:Math.max(45,Math.min(120,Math.round(98*inA)))}); ev.push({tick:tk+30,on:0,note:38}); });
-                  if(['neosoul','citypop','pop','rock'].indexOf(gsel)>=0 && !brkBar && (sec.stage||3)>=3){ [6,14].forEach(sl=>{ if((dr.snare||[]).indexOf(sl)<0){ const tk=T+stk(sl); ev.push({tick:tk,on:1,note:38,vel:Math.round(38*inA)}); ev.push({tick:tk+20,on:0,note:38}); } }); } // 고스트 스네어(그루브감)
+                  /* 고스트 스네어는 백비트 사이를 메우는 것이다.
+                     ★ 마디마다 두 개씩 넣으니 본 스네어(55개)와 개수가 같아졌다(53개) —
+                       그러면 고스트가 아니라 그 자체가 리듬이 되어 절뚝거린다.
+                     두 마디에 한 번, 그중 한 자리만 넣는다. */
+                  if(['neosoul','citypop','pop','rock'].indexOf(gsel)>=0 && !brkBar && (sec.stage||3)>=3
+                     && ((((r>>>0)^(si*2654435761))>>>0)%2===0)){ [((((r>>>2)^si)>>>0)%2)?6:14].forEach(sl=>{ if((dr.snare||[]).indexOf(sl)<0){ const tk=T+stk(sl); ev.push({tick:tk,on:1,note:38,vel:Math.round(38*inA)}); ev.push({tick:tk+20,on:0,note:38}); } }); } // 고스트 스네어(그루브감)
                   const cym=swingG?51:42; // 스윙 장르=라이드(51), 그 외=클로즈 하이햇(42)
                   (dr.hat||[]).forEach(sl=>{ if(brkBar&&sl>=8)return; const tk=T+stk(sl); const acc=(sl%4===0); ev.push({tick:tk,on:1,note:cym,vel:Math.max(28,Math.min(98,Math.round((acc?70:48)*inA)))}); ev.push({tick:tk+20,on:0,note:cym}); });
                   if(swingG && !brkBar){ [4,12].forEach(sl=>{ const tk=T+stk(sl); ev.push({tick:tk,on:1,note:44,vel:Math.round(50*inA)}); ev.push({tick:tk+20,on:0,note:44}); }); } // 하이햇 페달 2·4박(스윙)
@@ -35833,8 +35914,54 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             ev.sort(function(a2,b2){ return (a2.tick-b2.tick)||((a2.cc!=null?2:a2.on)-(b2.cc!=null?2:b2.on)); });
           }catch(e){}
         }
-        const soundFront=(grp.ch===9 && grp.role!=='orchcym')?'Drum Kit':(REC_SOUND[grp.key]||GMN[grp.gm]||('GM '+grp.gm));
-        const roleTag=(grp.role==='kickonly')?'Kick (분리) - 사이드체인 소스'
+        /* ── 현악 4·5중주 음원 이름 ──
+           비올라에 'Legato Strings'(앙상블), 첼로에 'Contrabass' 가 붙어 있었다.
+           4중주는 네 사람이 각자 한 대씩 켜는 편성이다 — 앙상블 패치가 아니다.
+           로직에서 무엇을 얹을지 이름으로 알려 준다. */
+        /* ── 제2바이올린도 길게 뻗는 자리를 갖는다 ──
+           quartetSnap 은 counter 를 안 탄다(실측: strings·cbass 만 도달).
+           그래서 제2바이올린만 0.4박짜리 짧은 음으로 남았다.
+           네 마디에 한 번(bi%4===3) 그 마디를 한 음으로 끈다. */
+        if((quartetMode||quintetMode) && grp.key==='counter'){
+          try{
+            const byB={};
+            ev.forEach(function(e){
+              if(e.cc!=null || e.note==null || e.on!==1) return;
+              (byB[barAtTick(e.tick,PAD,__barLen)]=byB[barAtTick(e.tick,PAD,__barLen)]||[]).push(e);
+            });
+            const rm=new Set();
+            Object.keys(byB).forEach(function(k){
+              const bi=+k; if((bi%4)!==3) return;
+              const g2=byB[k]; if(g2.length<2) return;
+              const keep=g2[0], bs=PAD+bi*__barLen;
+              g2.forEach(function(e,i2){
+                if(i2===0) return;
+                rm.add(e);
+                for(let z=0;z<ev.length;z++){
+                  if(ev[z].cc==null && ev[z].on===0 && ev[z].note===e.note && ev[z].tick>e.tick){ rm.add(ev[z]); break; }
+                }
+              });
+              for(let z=0;z<ev.length;z++){
+                if(ev[z].cc==null && ev[z].on===0 && ev[z].note===keep.note && ev[z].tick>keep.tick){
+                  ev[z].tick=bs+__barLen-12; break;
+                }
+              }
+            });
+            if(rm.size){
+              const k2=[]; ev.forEach(function(e){ if(!rm.has(e)) k2.push(e); });
+              if(k2.length>4){ ev.length=0; k2.forEach(function(e){ ev.push(e); }); }
+              ev.sort(function(a2,b2){ return (a2.tick-b2.tick)||((a2.cc!=null?2:a2.on)-(b2.cc!=null?2:b2.on)); });
+            }
+          }catch(e){}
+        }
+        if(quartetMode||quintetMode){
+          const _SN={counter:'Solo Violin', strings:'Solo Viola',
+                     cbass:'Solo Cello', qbass:'Double Bass', melody:'Solo Violin'};
+          if(_SN[grp.key]) grp.__snm=_SN[grp.key];
+        }
+        const soundFront=grp.__snm?grp.__snm:((grp.ch===9 && grp.role!=='orchcym')?'Drum Kit':(REC_SOUND[grp.key]||GMN[grp.gm]||('GM '+grp.gm)));
+        const roleTag=(grp.key==='qbass')?'Double Bass'
+                     :(grp.role==='kickonly')?'Kick (분리) - 사이드체인 소스'
                      :((grp.ch===9 && grp.role!=='orchcym')?'Drums / Perc':(roleEn[grp.key]||grp.key));
         let nm=(grp.ch===9 && grp.role!=='orchcym')?roleTag:(soundFront.replace(/ \(sec\)$/,'')===roleTag.replace(/ \(section[^)]*\)$/,'')?roleTag:(soundFront+' | '+roleTag)); // 추천 악기가 맨 앞(중복이면 역할만)
         if(__melMuted) nm='[뮤트] '+nm;
