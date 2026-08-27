@@ -12806,6 +12806,12 @@ const LANE_KO={kick:'킥',snare:'스네어',clap:'클랩',hat:'하이햇',ohat:'
 const P=(...steps)=>{const a=Array(16).fill(false);steps.forEach(s=>a[s]=true);return a;};
 const PAT={
   edm:{kick:P(0,4,8,12),snare:P(),clap:P(4,12),hat:P(2,6,10,14),ohat:P(),perc:P()},
+  /* ★ 빅룸이 이 표에 없어서 기본 킷으로 떨어졌다 —
+     EDM 은 **클랩이 2·4박 백비트**를 맡고 스네어는 필에만 쓴다.
+     빅룸에는 클랩이 아예 없고 스네어가 0.75·2.75·2.25 로 흩어져 박이 안 잡혔다
+     (실측: EDM 클랩 96개가 1.0·3.0 에 48개씩 · 빅룸 클랩 0개).
+     페스티벌 빅룸은 여기에 오픈햇 리프트가 더해진다. */
+  bigroom:{kick:P(0,4,8,12),snare:P(),clap:P(4,12),hat:P(2,6,10,14),ohat:P(6,14),perc:P()},
   boombap:{kick:P(0,7,10),snare:P(4,12),clap:P(),hat:P(0,2,4,6,8,10,12,14),ohat:P(14),perc:P()},
   trap:{kick:P(0,6,10),snare:P(),clap:P(8),hat:P(0,2,3,4,6,8,10,11,12,14),ohat:P(),perc:P()},
   lofi:{kick:P(0,10),snare:P(4,12),clap:P(),hat:P(2,6,10,14),ohat:P(),perc:P(7)},
@@ -14543,7 +14549,12 @@ function buildRunMix(){
          다만 아무 박자나 넣으면 그 장르가 아니게 된다 —
          디스코·EDM 은 4/4 가 어법이고, 레트로·컨트리는 3/4 왈츠가 자연스럽다.
          장르가 쓰는 박자 안에서만 돌린다. 넷에 한 편꼴로 바뀐다. */
+      /* 장르가 쓰는 박자만 남긴다. 목록이 하나뿐이면 그것으로 고정한다 —
+         빅룸에 ['4/4'] 를 줬는데 3/4 이 섞여 나왔다.
+         구간이 스스로 가진 meter(대곡 전개부용)가 그대로 통과했기 때문이다.
+         빅룸·EDM 에서 3/4 은 어법이 아니다. */
       if(_sg && _sg.length>1 && (k%4)===3) x.meter=_sg[(Math.floor(k/4))%_sg.length];
+      else if(_sg && _sg.length===1) x.meter=_sg[0];
       x.chords=(x.chords||[]).map(c=>c);            // 진행은 그 스타일 풀에서 이미 뽑혔다
     });
     if(k>0 && out.length){
@@ -15355,6 +15366,32 @@ function genLead(tr,g,sec,start,en,rnd,HOOK){
       }
       const clamped=_ph.map((x,k)=>{const nextRq=k<_ph.length-1?_ph[k+1][1]:(hasPickup?barCap:4+nextBarFirstRq);
         const maxDur=Math.max(0.1,nextRq-x[1]-0.02); return [x[0],x[1],Math.min(x[2],maxDur)];});
+      /* ── 대선율(Counter) ──
+         EDM 계열에 없던 층이다. 드롭에서 리드와 얽히고,
+         리드가 쉴 때 대신 노래한다.
+         리드보다 한 옥타브 아래에서 3도 위·6도 아래를 번갈아 — 부딪히지 않는다.
+         절반만 따라간다. 다 따라가면 리드가 두 겹이 되어 두꺼워진다. */
+      if((state.genre==='edm'||state.genre==='bigroom') && tr.counter && clamped.length){
+        /* sec.energy 가 없어 늘 4로 읽혔다 — 이 자리에서는 en 이 그 값이다 */
+        const _en2=(typeof en==='number')?en:4;
+        if(_en2>=5 && (bar%2)===1){
+          clamped.forEach(([deg,rq,du],ci)=>{
+            if(ci%2!==0) return;
+            /* snapCT 는 이 스코프에 없다 — safeE 로 화음 안전을 본다 */
+            let m4=r5e+(du>=0.5?safeE(deg+((ci%4)?2:-3),pcs):(deg+((ci%4)?2:-3)))-12;
+            while(m4>76) m4-=12; while(m4<52) m4+=12;
+            tr.counter.push({t:start+bar*barQ(sec)+rq,dur:du*0.9,midi:m4,
+              vel:Math.round(58+rnd()*6)});
+          });
+        }
+      }
+      /* ── 서브베이스 ──
+         빅룸은 킥과 서브가 따로다. Bass(30~52)가 서브 영역을 안 덮는다.
+         마디 첫 박에 근음 하나만 길게 — 움직이면 킥과 부딪힌다. */
+      if(state.genre==='bigroom' && tr.sub && ((typeof en==='number')?en:4)>=5){
+        let ms=r5e-24; while(ms<24) ms+=12; while(ms>40) ms-=12;
+        tr.sub.push({t:start+bar*barQ(sec),dur:barQ(sec)*0.94,midi:ms,vel:96});
+      }
       clamped.forEach(([deg,rq,du])=>{
         /* 0.9박 넘는 음만 걸렀더니 0.5~0.9박 음이 그대로 남았다.
            회피음은 반 박만 끌어도 드러난다 — 그 아래(경과음)만 통과시킨다. */
@@ -15671,7 +15708,7 @@ function grooveVel(lane,s16,rnd){
   return 0;
 }
 function arrange(){
-  const tr={kick:[],snare:[],clap:[],hat:[],ohat:[],perc:[],crash:[],bass:[],chords:[],pad:[],lead:[],topmel:[],arpseq:[],drone:[],piano:[],piano2:[],fx:[]},sview=[];
+  const tr={kick:[],snare:[],clap:[],hat:[],ohat:[],perc:[],crash:[],bass:[],chords:[],pad:[],lead:[],topmel:[],arpseq:[],drone:[],piano:[],piano2:[],counter:[],sub:[],fx:[]},sview=[];
 
   const IS=state.introStyle||'stack',headQ=introHeadQ();
   let cur=headQ;const g=curGenre(),rnd=mul32(state.seed||1),run=g.id==='running',N=state.sections.length;
@@ -16140,7 +16177,16 @@ function arrange(){
     ATMOS.forEach(a=>{if(!state.palette[a.id])return;const v=sec.atmos[a.id];
       if(a.cont){if(v&&v>0)tr.fx.push({type:a.id,t:start,dur:cur-start,amt:v});}
       else{if(v){
-        if(a.id==='impact'||a.id==='bowl'||a.id==='subdrop')tr.fx.push({type:a.id,t:start});
+        if(a.id==='impact'||a.id==='bowl'||a.id==='subdrop'){
+          tr.fx.push({type:a.id,t:start});
+          /* ── 라이저는 부머(임팩트)와 짝이다 ──
+             라이저가 올라가고 그 끝에서 임팩트가 터진다.
+             지금까지 라이저는 atmos.riser 가 켜진 구간에만 찍혀
+             한 곡에 아예 없는 경우가 있었다(실측 빅룸: 임팩트 9곳 · 라이저 0곳).
+             MIDI 로는 라이저를 못 만든다 — **어디에 얹을지 표시**하는 트랙이다.
+             그러니 임팩트가 터지는 자리마다 그 앞 두 마디에 라이저를 표시한다. */
+          if(a.id==='impact' && start>=8) tr.fx.push({type:'riser',t:start-8,dur:8,amt:0.8});
+        }
         if(a.id==='riser')tr.fx.push({type:'riser',t:Math.max(start,cur-4),dur:Math.min(4,cur-start)});
         if(a.id==='revcrash')tr.fx.push({type:'revcrash',t:Math.max(start,cur-2),dur:Math.min(2,cur-start)});}}
     });
@@ -16233,7 +16279,14 @@ function arrange(){
       const b0=sv.endQ-barQ(sc);
       for(let k=0;k<4;k++)tr.snare.push({t:b0+k*0.5,vel:Math.min(118,72+k*6)});
       for(let k=0;k<8;k++)tr.snare.push({t:b0+2+k*0.25,vel:Math.min(122,88+k*4)});
+      /* ── 라이저는 부머(임팩트)와 짝이다 ──
+         라이저가 올라가고 그 끝에서 임팩트가 터진다.
+         지금은 라이저가 드물게만 찍혀 곡에 아예 없는 경우가 있었다
+         (실측 빅룸: 임팩트 9곳인데 라이저 0곳).
+         MIDI 로는 라이저를 못 만든다 — **어디에 얹을지 표시**하는 트랙이다.
+         그래서 짧은 것과 긴 것을 둘 다 찍어 로직에서 고르게 한다. */
       tr.fx.push({type:'riser',t:Math.max(sv.startQ,sv.endQ-8),dur:Math.min(8,sv.endQ-sv.startQ),amt:0.8});
+      tr.fx.push({type:'riser',t:Math.max(sv.startQ,sv.endQ-2),dur:Math.min(2,sv.endQ-sv.startQ),amt:0.95});
       if(g.id==='melodichouse'){                                            // 멜로딕 하우스 '레이트 드롭' — 드롭 직전 반박 정적 → 서브붐+더블 크래시로 확 터뜨림
         const dv=sview[i+1];                                                // 다음(드롭) 구간
         if(dv){
@@ -16246,8 +16299,10 @@ function arrange(){
           tr.kick.push({t:dv.startQ,vel:122});                             // 드롭 킥 강조(다운비트 확실히)
         }
       }
-    } else {                                                                // 일반 상승: 짧은 라이저만
+    } else {                                                                // 일반 상승: 짧은 라이저 + 그 끝의 부머
       tr.fx.push({type:'riser',t:sv.endQ-2,dur:2,amt:0.45});
+      /* 라이저 끝 = 다음 구간 첫 박. 거기에 부머가 붙어야 터지는 느낌이 난다 */
+      try{ tr.fx.push({type:'impact',t:sv.endQ,amt:0.7}); }catch(e){}
     }});}
   // ===== 스트립 구간 — 전반은 킥만 남기고 비우고, 후반은 마디마다 급격히 다시 쌓는다(킥→+베이스→+리듬→+백비트) → 다음 다운비트 착지 =====
   // 소리 재료는 다음 구간(클라이맥스)의 그루브를 미리 당겨와 레이어별로 벗겨 보여준다 — DJ 리빌드 관례.
@@ -17626,6 +17681,8 @@ function scheduleWindow(t0,winS,winE,fxFrom){fxFrom=fxFrom==null?winS:fxFrom;
   if(window.SO_motive){ window.SO_motive('beat').forEach(n=>rhodes(at(n.t),ds(n),n.midi,Math.round((n.vel||70)*0.9))); }   // 모티브 미리듣기(인트로·간주·아웃트로)
   sched(MODEL.tracks.piano||[],n=>piano(at(n.t),ds(n),n.midi,n.vel));  // 그랜드 피아노 모티프 (멜로딕 하우스)
   sched(MODEL.tracks.piano2||[],n=>piano(at(n.t),ds(n),n.midi,n.vel)); // 세컨 피아노
+  sched(MODEL.tracks.counter||[],n=>lead(at(n.t),ds(n),n.midi,Math.round(n.vel*0.8))); // 대선율
+  sched(MODEL.tracks.sub||[],n=>bass(at(n.t),ds(n),n.midi,n.vel));     // 서브베이스
   sched(MODEL.tracks.drone||[],n=>supersaw('pad',at(n.t),ds(n),n.midi,n.vel,{voices:3,detune:8,lpf:600,hpf:30,atk:2.0,rel:2.5,lvl:0.2,q:0.4,wave:'sawtooth'}));  // 앰비언트 드론: 낮고 어두운 지속 페달(느린 스웰)
   sched(MODEL.tracks.arpseq||[],n=>{
     if(isHouse(curKit)){const cut=1200+((n.lfo!=null?n.lfo:0.5)*2800);   // LFO 컷오프 스윕 완화(1.2k→4.0k) = 덜 날카롭게
@@ -18267,7 +18324,13 @@ function leadExprCC(){const cc=[];const notes=(MODEL.tracks.lead||[]).slice().so
 function tempoTrack(){const PPQ=480,PAD=EXPORT_PADQ;let evs=[{tick:0,type:'ts',m:curMeter()}],lastBpm=null,segI=0;
   // 구간별 박자가 바뀌는 지점마다 박자표 메타를 새로 찍는다 — 대곡 전개부에서 박자가 달라져도 로직 마디선이 맞게
   {let prev=curMeter();
+   /* 곡이 끝난 뒤의 박자표는 찍지 않는다 —
+      MODEL.sections 가 곡 길이보다 길게 남아 있으면
+      마디 31360 같은 자리에 3/4 이 찍힌다(실측 빅룸 롱 믹스).
+      들을 때는 영향이 없지만 로직에서 보면 지저분하다. */
+   const _endQ=(MODEL.totalQ||0);
    (MODEL.sections||[]).forEach((sv,i)=>{const sc=state.sections[i];if(!sc)return;
+     if(sv.startQ>_endQ) return;
      const m=meterOf(sc);
      if(m!==prev){evs.push({tick:Math.round((sv.startQ+PAD)*PPQ),type:'ts',m});prev=m;}});}
   (MODEL.tempoMap||[]).forEach(s=>{if(s.bpm!==lastBpm){evs.push({tick:segI===0?0:Math.round((s.startQ+PAD)*PPQ),type:'tempo',bpm:s.bpm});lastBpm=s.bpm;}segI++;}); // 첫 템포는 0틱(여백 마디도 정속)
@@ -18383,6 +18446,26 @@ function drumMidiNotes(){const raw=[];
 function drumMidiTrack(){const lp=logicPatches().drums||'';
   const inst=/Drummer/.test(lp)?'Drummer + Drum Kit Designer':(/Drum Kit Designer/.test(lp)?'Drum Kit Designer':'Drum Machine Designer');
   return noteTrack(drumMidiNotes(),9,null,true,'['+inst+'] Drums — '+feelFor('drums'),null,'추천: '+recNames().drums+' | '+lp);}
+/* ── 킥 분리 트랙 ──
+   사이드체인을 걸려면 킥이 **독립 트랙**이어야 한다.
+   드럼이 한 트랙에 다 들어 있으면 로직에서 복제하고 지우는 손질을 해야 한다.
+   그 수고를 앱이 대신한다 — 킥만 따로, 나머지 킷 따로.
+   둘 다 ch10(GM 드럼)이라 같은 킷 음원을 얹으면 소리는 원래와 같다. */
+function drumSplitTracks(){
+  const lp=logicPatches().drums||'';
+  const inst=/Drummer/.test(lp)?'Drummer + Drum Kit Designer':(/Drum Kit Designer/.test(lp)?'Drum Kit Designer':'Drum Machine Designer');
+  const all=drumMidiNotes();
+  const kick=all.filter(function(n){ return n.midi===36 || n.midi===35; });
+  const rest=all.filter(function(n){ return !(n.midi===36 || n.midi===35); });
+  const out=[];
+  if(kick.length) out.push(noteTrack(kick,9,null,true,
+    '['+inst+'] Kick (분리) — 사이드체인 소스',null,
+    '킥만 분리한 트랙 | 사이드체인 소스로 쓴다: Bass·Sub·Pad·Chords 의 Compressor > Side Chain 에서 이 트랙을 고른다 (Ratio 4:1~8:1 · Attack 0~1ms · Release 80~150ms · GR -6dB) | 같은 킷 음원을 얹으면 소리는 원래와 같다'));
+  if(rest.length) out.push(noteTrack(rest,9,null,true,
+    '['+inst+'] Drums (킥 제외) — 스네어·햇·퍼커션',null,
+    '킥을 뺀 나머지 킷 | 추천: '+recNames().drums+' | '+lp));
+  return out;
+}
 const GMNAME={1:'Bright Acoustic Piano',4:'Electric Piano 1',12:'Marimba',16:'Drawbar Organ',25:'Acoustic Guitar (steel)',29:'Overdriven Guitar',30:'Distortion Guitar',
   32:'Acoustic Bass',33:'Electric Bass (finger)',34:'Electric Bass (pick)',38:'Synth Bass 1',48:'String Ensemble 1',62:'Synth Brass 1',
   73:'Flute',80:'Lead 1 (Square)',81:'Lead 2 (Sawtooth)',85:'Lead 6 (Voice)',88:'Pad 1 (New Age)',89:'Pad 2 (Warm)',90:'Pad 3 (Polysynth)',
@@ -19655,6 +19738,20 @@ function exportAll(){arrange();
     const drName='[Alchemy] 앰비언트 드론 — '+feelFor('drone')+'  |  추천: Alchemy 검색 Pad(음색 Dark/Warm), 로우패스 낮게  ||ALT: ES2 지속 서브 패드 (LPF 600)';
     const drIN='앰비언트 드론 | 주법: 으뜸음+5도 지속 페달(곡 전체, 느린 스웰) | GM: '+gmName(89);
     tr.push(noteTrack(MODEL.tracks.drone,8,89,false,drName,withSoftEdges('drone',null),drIN)); }      // GM 89 = Pad 2 (warm)
+  /* 킥 분리 트랙 — 사이드체인용. 원래 Drums 트랙과 함께 낸다(둘 중 하나를 쓰면 된다) */
+  try{ drumSplitTracks().forEach(function(t){ tr.push(t); }); }catch(e){}
+  if(MODEL.tracks.counter&&MODEL.tracks.counter.length){      // 대선율 — 리드와 얽히는 두 번째 선
+    tr.push(noteTrack(MODEL.tracks.counter,7,81,false,
+      '[Alchemy/Serum] Counter — 대선율  |  리드와 다른 음색(더 어둡고 좁은 필터) · 리드보다 3~5dB 낮게',
+      null,
+      '대선율 | 주법: 리드보다 한 옥타브 아래에서 3도·6도로 얽힘 · 드롭·후렴에서만 · C3~E5 | 로직: 리드와 같은 패치를 쓰면 두 겹으로만 들린다 — 반드시 다른 음색으로'));
+  }
+  if(MODEL.tracks.sub&&MODEL.tracks.sub.length){              // 서브베이스 — 킥 아래를 받친다
+    tr.push(noteTrack(MODEL.tracks.sub,8,38,false,
+      '[ES2 / Sub Bass] Sub — 사인파 서브베이스  |  C1~E2 · 킥과 사이드체인 필수',
+      null,
+      '서브베이스 | 주법: 마디 첫 박에 근음 하나만 길게(움직이면 킥과 부딪힘) | 로직: 사인파 한 겹 · HPF 끄고 LPF 120Hz · 킥에 -6dB 사이드체인 · 모노로 둘 것'));
+  }
   if(MODEL.tracks.piano2&&MODEL.tracks.piano2.length){        // 세컨 피아노 — 높은 자리의 대답
     tr.push(noteTrack(MODEL.tracks.piano2,6,0,false,
       '[Studio Piano] 세컨 피아노 — 모티프에 대답하는 높은 자리  |  첫째 대와 다른 마이크/톤으로 (같은 패치 둘이면 뭉갠다)',
