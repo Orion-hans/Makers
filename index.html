@@ -27813,7 +27813,17 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
   const LOUNGE_TEMPO=[1.00, 0.96, 1.04, 0.98, 1.03, 0.95, 1.02, 0.97];
   function secTempoMul(sec){ // 섹션별 템포 배율(재생·MIDI 동일)
     if(loungeMode && gsel==='chanbul' && sec && sec.movement) return cbMovFor(sec.movement).tempo;
-    if(loungeMode && quartetMode && sec && sec.movement) return qtMovFor(sec.movement).tempo;
+    /* 현악 편성(4중주·5중주·실내악)은 편마다 빠르기가 크게 갈린다.
+       ★ quartetMode 만 보고 있어 실내악은 87~112 로 좁았다.
+       ★ 5중주는 기준 BPM 이 높아 161 까지 갔다 — 실연 범위를 벗어난다.
+         60~145 로 가둔다. */
+    if(loungeMode && (quartetMode||quintetMode||chamberMode) && sec && sec.movement){
+      const _base=(typeof bpm==='number'&&bpm>0)?bpm:100;
+      const _t=qtMovFor(sec.movement).tempo;
+      const _want=_base*_t;
+      const _cl=Math.max(60,Math.min(145,_want));
+      return _cl/_base;
+    }
     if(loungeMode && sec && sec.movement) return LOUNGE_TEMPO[(sec.movement-1)%LOUNGE_TEMPO.length];
     if(gsel!=='gukvocal'||!sec) return 1;
     if(sec.label==='간주') return 0.97;
@@ -30775,14 +30785,23 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
        전체 피치카토로 가면 봄비처럼, 전체 트레몰로면 폭풍처럼 들린다.
      · 조는 5도권 이웃으로만 옮긴다 — 멀리 뛰면 배경음악에서 튄다.
      라운지(배경음악)이므로 세기는 눌러 두되, 악장 간 대비는 살린다. */
+  /* ── 편별 빠르기 ──
+     악상 이름은 라르고·아다지오·알레그로인데 배수가 0.90~1.08 뿐이었다.
+     실측 83~113 — 폭이 30 밖에 안 된다.
+     실제 실내악은 훨씬 넓다. 라르고는 60대, 알레그로는 140대까지 간다.
+     느린 악장은 웅장하고 빠른 악장은 박진감이 난다 — 그 대비가 곡을 끌고 간다.
+     기준 100 기준으로 배수를 잡으면 60~145 가 나온다. */
   const QT_MOV=[
-    {n:'봄 · 알레그로',   tempo:1.06, meter:null,  ks:0,  art:'legato',  dyn:1.00, dens:'medium'},
-    {n:'여름 · 아다지오', tempo:0.92, meter:'3/4', ks:-3, art:'tenuto',  dyn:0.88, dens:'sparse'},
-    {n:'가을 · 스케르초', tempo:1.04, meter:'6/8', ks:+2, art:'staccato',dyn:0.96, dens:'medium'},
-    {n:'겨울 · 라르고',   tempo:0.90, meter:null,  ks:-1, art:'pizz',    dyn:0.84, dens:'sparse'},
-    {n:'전개 · 아지타토', tempo:1.08, meter:null,  ks:+4, art:'marcato', dyn:1.04, dens:'full'},
-    {n:'회상 · 칸타빌레', tempo:0.94, meter:'3/4', ks:-5, art:'legato',  dyn:0.90, dens:'medium'},
-    {n:'종결 · 마에스토소',tempo:1.02, meter:null, ks:+5, art:'tenuto',  dyn:1.00, dens:'full'}
+    {n:'봄 · 알레그로',   tempo:1.38, meter:null,  ks:0,  art:'legato',  dyn:1.00, dens:'medium'},
+    {n:'여름 · 아다지오', tempo:0.68, meter:'3/4', ks:-3, art:'tenuto',  dyn:0.88, dens:'sparse'},
+    {n:'가을 · 스케르초', tempo:1.26, meter:'6/8', ks:+2, art:'staccato',dyn:0.96, dens:'medium'},
+    {n:'겨울 · 라르고',   tempo:0.62, meter:null,  ks:-1, art:'pizz',    dyn:0.84, dens:'sparse'},
+    {n:'전개 · 아지타토', tempo:1.45, meter:null,  ks:+4, art:'marcato', dyn:1.04, dens:'full'},
+    {n:'회상 · 칸타빌레', tempo:0.78, meter:'3/4', ks:-5, art:'legato',  dyn:0.90, dens:'medium'},
+    {n:'종결 · 마에스토소',tempo:0.88, meter:null, ks:+5, art:'tenuto',  dyn:1.00, dens:'full'},
+    {n:'서곡 · 비바체',   tempo:1.42, meter:null,  ks:+7, art:'staccato',dyn:1.02, dens:'full'},
+    {n:'애가 · 렌토',     tempo:0.66, meter:'3/4', ks:-7, art:'legato',  dyn:0.82, dens:'sparse'},
+    {n:'질주 · 프레스토', tempo:1.48, meter:null,  ks:+2, art:'marcato', dyn:1.06, dens:'full'}
   ];
   function qtMovFor(mv){ return QT_MOV[((mv||1)-1)%QT_MOV.length]; }
 
