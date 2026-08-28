@@ -11575,6 +11575,39 @@ function logicGuide(){
   line('  타악(Drums·Timpani·Cymbals·Perc) → 베이스 → 화성(Piano·Guitar·Harp)');
   line('  → 현·패드(Strings·Pad) → 아르프 → 대선율 → 멜로디(Lead·Brass·Winds) → FX 가이드');
   line('');
+  line('── 트랙별 수치 (기본값 · 장르에 따라 조절) ──');
+  line('트랙          HPF     EQ                        컴프              리버브 센드   사이드체인');
+  line('Drums(킥)     끈다    60 +2 · 400 -3 · 4k +2    4:1 GR-4 R80ms    -27dB       소스로 씀');
+  line('Drums(그 밖)  120Hz   200 -2 · 6k +1.5          4:1 GR-3 R100ms   -21dB       걸지 않음');
+  line('Bass           30Hz   80 +1 · 300 -2 · 1k +1    6:1 GR-6 R100ms   없음        킥에 -6dB');
+  line('Piano          80Hz   250 -2 · 3k +1            3:1 GR-2 R150ms   -18dB       -3dB');
+  line('Guitar        120Hz   200 -2 · 2.5k +2          4:1 GR-3 R120ms   -18dB       -3dB');
+  line('Strings       150Hz   400 -2 · 8k +1            3:1 GR-2 R220ms   -12dB       -3dB');
+  line('Pad           150Hz   300 -3                    3:1 GR-2 R250ms   -12dB       -4dB');
+  line('Counter       250Hz   2.5k +1                   4:1 GR-2 R120ms   -16dB       -2dB');
+  line('Lead / Vocal  200Hz   3k +2 · 200 -2            4:1 GR-3 R100ms   -16dB       -2dB');
+  line('Brass / Winds 200Hz   1.5k +1 · 5k +1           4:1 GR-3 R150ms   -15dB       -2dB');
+  line('');
+  line('장르별 조절');
+  line('  EDM·하우스·트랩  표 그대로 · 사이드체인이 그 장르의 소리다');
+  line('  록·팝록          사이드체인 GR 을 절반으로 · Guitar 는 걸지 않는다');
+  line('  재즈·어쿠스틱     사이드체인 없음 · 컴프 GR -2 로 얕게 · 리버브 룸 1.4초');
+  line('  오케스트라       사이드체인 없음 · 컴프 3:1 GR-2 · 리버브 홀 2.4초 하나로 통일');
+  line('  발라드          Vocal 만 4:1 GR-4 · 나머지는 얕게 · 리버브 플레이트 1.8초');
+  line('');
+  line('── EQ 노브 세 개 중 무엇을 만지나 ──');
+  line('  Frequency  자르는 지점 · 표의 값을 넣는다   ← 이것만 만진다');
+  line('  Q          0.71 기본값 그대로');
+  line('  Slope      12 dB/Oct 기본값 그대로');
+  line('  한 옥타브 내려갈 때 12dB 씩 줄어든다는 뜻이다.');
+  line('  가파르게(24·48) 자르면 그 지점 소리가 부자연스러워진다 — 필요할 때만 올린다.');
+  line('  Sub 트랙만 예외 — LPF 120Hz 에 Slope 24 로 두면 서브 대역만 깔끔히 남는다.');
+  line('  EQ 의 +2 · -3 은 Gain 이다. Q 는 1.0 근처로 넓게 — 좁으면 티가 난다.');
+  line('');
+  line('* HPF 는 트랙마다 다르다 — 저역은 한 트랙만 담당한다.');
+  line('* 사이드체인 소스는 Kick 트랙. 드럼 자신에게는 걸지 않는다.');
+  line('* 리버브는 센드로 보낸다. 버스 하나에 모아야 같은 공간에 있는 것처럼 들린다.');
+  line('');
 
   // ② 트랙별 셋업 — 한 트랙을 끝내고 다음으로 (예전엔 음원·연주·EQ·컴프·센드가 섹션마다 흩어져 있었다)
   const PANV={
@@ -19116,6 +19149,15 @@ function buildSongSheet(){
   L.push('■ 트랙 배치 순서 (TRACK ORDER)');
   L.push('  내보낸 MIDI 가 이 순서로 정렬되어 있습니다. 위에서 아래로 그대로 두면 됩니다.');
   L.push('  타악 → 저역 → 화성 → 선율 → FX · 낮은 소리가 위입니다.');
+  L.push('');
+  L.push('── EQ 노브 세 개 중 무엇을 만지나 ──');
+  L.push('  Frequency  자르는 지점 · 표의 값을 넣는다   ← 이것만 만진다');
+  L.push('  Q          0.71 기본값 그대로');
+  L.push('  Slope      12 dB/Oct 기본값 그대로');
+  L.push('  한 옥타브 내려갈 때 12dB 씩 줄어든다는 뜻입니다.');
+  L.push('  가파르게(24·48) 자르면 그 지점 소리가 부자연스러워집니다 — 필요할 때만 올립니다.');
+  L.push('  Sub 트랙만 예외 — LPF 120Hz 에 Slope 24 로 두면 서브 대역만 깔끔히 남습니다.');
+  L.push('  EQ 의 +2 · -3 은 Gain 입니다. Q 는 1.0 근처로 넓게 — 좁으면 티가 납니다.');
   /* 순서 = MIDI 내보내기 순서와 같아야 한다 —
      로직에서 트랙을 위에서 아래로 대조하며 셋업하기 때문이다.
      타악 → 저역 → 화성 → 선율 → FX · 가이드. 낮은 소리가 위다. */
@@ -37526,6 +37568,16 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('');
     }
     if(gtrDuoMode){
+      L.push('   ── 트랙별 수치 ──');
+      L.push('   트랙          HPF     EQ                       컴프              리버브 센드');
+      L.push('   Steel Gtr 1   120Hz   2.5k +2 (픽 어택)        4:1 GR-3 R100ms   -18dB');
+      L.push('   Steel Gtr 2   150Hz   200 -2 · 3k +1          4:1 GR-2 R130ms   -21dB');
+      L.push('   * 1번은 선율이라 밝게, 2번은 반주라 중역을 비웁니다.');
+      L.push('   * 팬 L25 / R25 — 두 사람이 마주 앉은 그림입니다.');
+      L.push('   * 사이드체인 없음. 컴프는 어택 15ms 로 픽 소리를 살립니다.');
+      L.push('   * HPF 는 Frequency 만 만집니다 — Q 0.71 · Slope 12 dB/Oct 기본값 그대로.');
+      L.push('   * EQ Gain 의 Q 는 1.0 근처. 픽 어택(2.5k)만 Q 1.4 로 좁혀도 됩니다.');
+      L.push('');
       L.push('');
       L.push('  ── 편성: 기타 듀오 (어쿠스틱 2대) ──');
       L.push('  트랙은 둘뿐이다. 베이스도 드럼도 없다 — 낮은 기타가 저역과 박을 다 만든다.');
@@ -37704,6 +37756,59 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('            세 곡에 두 곡꼴로 나오고, 겹치는 양도 곡마다 다릅니다.');
       L.push('   믹스   : 하이 R12 · 미들 중앙 · 베이스 L12. 세 사람이 나란히 앉은 그림입니다.');
       L.push('            룸 리버브 1.4s 15% 정도. 발현 악기라 잔향이 길면 뭉갭니다.');
+      L.push('');
+      L.push('   ── 트랙별 수치 ──');
+      L.push('   트랙        HPF     EQ                        컴프              리버브 센드');
+      L.push('   Harp 1(하이) 180Hz   3k +1.5 (뜯는 소리)        4:1 GR-2 R120ms   -16dB');
+      L.push('   Harp 2(미들) 150Hz   400 -2 (중저역 뭉침)       4:1 GR-2 R140ms   -19dB');
+      L.push('   Harp 3(로우) 100Hz   250 -1.5 · 2k +1          3:1 GR-2 R160ms   -22dB');
+      L.push('   Bass         60Hz    80 +1 · 300 -2            4:1 GR-3 R120ms   -28dB');
+      L.push('   * 세 대가 같은 음원이면 하이만 살짝 밝게, 로우는 어둡게 — 자리가 갈립니다.');
+      L.push('   * 사이드체인은 걸지 않습니다. 드럼이 없어 누를 신호가 없습니다.');
+      L.push('   * HPF 는 Frequency 만 만집니다 — Q 0.71 · Slope 12 dB/Oct 기본값 그대로.');
+      L.push('     한 옥타브 내려갈 때 12dB 씩 줄어든다는 뜻입니다. 가파르게 자르면 그 지점이 부자연스럽습니다.');
+      L.push('   * EQ 의 +1.5 · -2 는 Gain 입니다. Q 는 1.0 근처로 넓게 — 좁으면 티가 납니다.');
+      L.push('');
+    }
+    if(quartetMode||quintetMode||chamberMode){
+      L.push('   ── 트랙별 수치 (현악 편성) ──');
+      L.push('   트랙          HPF     EQ                       컴프              리버브 센드');
+      L.push('   Violin I      200Hz   3k +1.5 · 8k +1 (광택)   3:1 GR-2 R200ms   -12dB');
+      L.push('   Violin II     180Hz   2.5k +1                 3:1 GR-2 R200ms   -14dB');
+      L.push('   Viola         120Hz   500 -2 (박스 울림)       3:1 GR-2 R220ms   -14dB');
+      L.push('   Cello          60Hz   250 -1.5 · 1.5k +1      3:1 GR-3 R240ms   -16dB');
+      if(quintetMode) L.push('   Double Bass    40Hz   80 +1 · 400 -2          3:1 GR-3 R260ms   -20dB');
+      L.push('   * 실내악은 컴프를 얕게 겁니다 — 셈여림이 곧 표현입니다.');
+      L.push('   * 리버브 홀 2.2초 · 프리딜레이 25ms. 네 트랙을 같은 버스로.');
+      L.push('   * 사이드체인 없음. 활 소리가 눌리면 어색합니다.');
+      L.push('   * 팬 — Vn1 L20 · Vn2 L8 · Va R10 · Vc R20 (연주자 자리 그대로)');
+      L.push('   * HPF 는 Frequency 만 만집니다 — Q 0.71 · Slope 12 dB/Oct 기본값 그대로.');
+      L.push('   * 현악은 EQ Q 를 0.8~1.0 으로 넓게 — 좁게 깎으면 악기 소리가 아니게 됩니다.');
+      L.push('');
+    }
+    if(pianoDuoMode||pianoDuetMode){
+      L.push('   ── 트랙별 수치 (피아노 듀오 · 연탄) ──');
+      L.push('   트랙        HPF     EQ                        컴프              리버브 센드');
+      L.push('   Piano 1      60Hz   250 -1.5 · 4k +1 (윤곽)   3:1 GR-2 R200ms   -15dB');
+      L.push('   Piano 2      50Hz   200 -2 · 2.5k +0.5       3:1 GR-2 R220ms   -18dB');
+      L.push('   * 두 대가 같은 음원이면 1번을 살짝 밝게 — 자리가 갈립니다.');
+      L.push('   * 팬 L20 / R20. 연탄은 한 대라 L10 / R10 으로 좁힙니다.');
+      L.push('   * 사이드체인 없음. 페달이 겹치므로 리버브는 짧게(1.8초).');
+      L.push('   * HPF 는 Frequency 만 만집니다 — Q 0.71 · Slope 12 dB/Oct 기본값 그대로.');
+      L.push('');
+    }
+    if(loungeMode && !quartetMode && !quintetMode && !chamberMode && !gtrDuoMode && !gayaTrioMode){
+      L.push('   ── 트랙별 수치 (라운지 · 피아노) ──');
+      L.push('   트랙        HPF     EQ                        컴프              리버브 센드');
+      L.push('   Melody       80Hz   3k +1 (노래하는 선)        3:1 GR-2 R250ms   -14dB');
+      L.push('   Piano        60Hz   300 -2 (반주 자리 비움)     3:1 GR-2 R250ms   -18dB');
+      L.push('   Bass(왼손)   40Hz   80 +1 · 400 -1.5          3:1 GR-2 R280ms   -26dB');
+      L.push('   * 저역 트랙은 베이스 악기가 아니라 **피아노 왼손**입니다(GM 0 · 페달).');
+      L.push('   * 세 트랙에 같은 펠트 피아노를 얹고 EQ 로만 자리를 가릅니다.');
+      L.push('   * 라운지는 배경음악이라 컴프를 얕게 — 셈여림이 살아야 지루하지 않습니다.');
+      L.push('   * 리버브 홀 2.6초 · 프리딜레이 30ms. 사이드체인 없음.');
+      L.push('   * HPF 는 Frequency 만 만집니다 — Q 0.71 · Slope 12 dB/Oct 기본값 그대로.');
+      L.push('   * 라운지는 EQ 도 얕게 — ±2dB 안에서 · Q 1.0 근처.');
       L.push('');
     }
     if(gtrDuoMode){
