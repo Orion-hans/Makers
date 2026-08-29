@@ -2409,17 +2409,7 @@ window.SO_HUB = { blueprint: null };
 /* ── 가이드 공통부(모든 앱 공유): 용어·MIDI 임포트·가상악기·플러그인·게인·EQ·라우팅·사이드체인·마스터 ── */
 window.SO_GUIDE_COMMON={
  terms:[
-  '【용어】 이 가이드에 나오는 로직 용어 뜻:',
-  '· 채널 스트립(Channel Strip): 믹서에서 트랙 하나를 세로로 나타낸 것. 페이더·노브·플러그인 슬롯이 세로로 있음',
-  '· Audio FX(인서트): 채널 스트립 중간의 플러그인 꽂는 슬롯. 여기 꽂은 건 그 트랙 소리에 "직접" 걸림(EQ·컴프)',
-  '· Send(센드): 트랙 소리의 "복사본"을 다른 곳(버스)으로 보내는 것. 원본은 그대로 두고 일부만 보냄(리버브용)',
-  '· Bus(버스): 소리가 지나가는 통로(파이프). 여러 트랙을 한 곳으로 모으는 길',
-  '· Aux(보조 채널): 버스로 보낸 소리가 도착하는 채널. 여기에 리버브를 꽂으면 보낸 트랙들이 공유',
-  '· 인서트 vs 센드: EQ·컴프=인서트(트랙에 직접). 리버브·딜레이=센드(버스로 보내 공유). 이게 표준',
-  '· 서밍 스택(Summing Stack): 여러 트랙을 하나로 합쳐 "메인 트랙(=그룹 버스)"으로 모으는 것. 메인 트랙에 컴프·EQ 걸면 그룹 전체 처리',
-  '· 메인 트랙(서밍 스택): 스택 맨 위 채널. 그룹 전체를 제어(볼륨·플러그인). 서브트랙은 그 안의 개별 트랙',
-  '· post-fader: 센드가 페이더 "뒤"라 페이더 내리면 리버브 양도 함께 줆(리버브·딜레이는 이게 기본이자 정답)',
-  '· dBFS/dBTP/LUFS: dBFS=디지털 음량, dBTP=진짜 최고점(리미터 기준), LUFS=체감 라우드니스(스트리밍 기준)'],
+  ],
  import:[
   '① 로직에서 File > Open으로 .mid 파일을 엽니다. 템포·박자표·조표·마커가 그대로 따라옵니다.',
   '   (빈 프로젝트에 드래그하면 프로젝트 기본값 4/4·120BPM이 남습니다. 드래그할 때는 팝업의 "Import tempo information"을 체크하세요)',
@@ -2541,7 +2531,6 @@ window.SO_renderCommon = function(opts){
   if(!CS) return L;
   if(CS.terms && !S.terms){ CS.terms.forEach(x=>line(x)); line(''); }
   let n=0; const step=(title,arr)=>{ if(!arr) return; n++; line('■ '+n+'단계. '+title); arr.forEach(x=>line(' '+x)); line(''); };
-  if(!S.import) step('MIDI 임포트', CS.import);
   if(!S.vinst) step('가상악기 로드 (어디를 누르나)', CS.vinst);
   if(!S.plugin) step('플러그인 넣는 위치 (공통)', CS.plugin);
   if(!S.gain) step('게인 스테이징', CS.gain);
@@ -11551,7 +11540,6 @@ function logicGuide(){
   if(typeof window!=='undefined'&&window.SO_renderCommon){ window.SO_renderCommon().forEach(x=>line(x)); }
   else if(CS){
    if(CS.terms){CS.terms.forEach(x=>line(x));line('');}
-   line('■ 1단계. MIDI 임포트'); CS.import.forEach(x=>line('  '+x)); line('');
    line('■ 2단계. 가상악기 로드 (어디를 누르나)'); CS.vinst.forEach(x=>line('  '+x)); line('');
    line('■ 3단계. 플러그인 넣는 위치 (공통)'); CS.plugin.forEach(x=>line('  '+x)); line('');
    line('■ 4단계. 게인 스테이징'); CS.gain.forEach(x=>line('  '+x)); line('');
@@ -19136,16 +19124,7 @@ function buildSongSheet(){
       let msg='※ 전조(KEY CHANGE): 마지막 브릿지 후 코러스에서 '+kn(base)+' → '+kn(base+shifts[0])+' (+'+shifts[0]+' 반음)';
       if(shifts.length>1) msg+='  →  마지막 훅에서 한 번 더 '+kn(base+shifts[shifts.length-1])+' (+'+shifts[shifts.length-1]+' 반음, 이중 전조)';
       L.push(msg); L.push(''); }
-    if(state.sections.some(x=>x.strip)){ L.push('※ 스트립: 전반은 킥만 남기고 비우고, 후반은 마디마다 급격히 쌓아(베이스→리듬→백비트+라이저·스네어 롤) 다음 구간 다운비트에 착지'); L.push(''); }
-    { const dv=state.sections.filter(s=>s._density!=null).map(s=>s._density);
-      if(dv.length&&(Math.max.apply(null,dv)-Math.min.apply(null,dv))>0.2){
-        L.push('※ 밀도 아크: 곡이 길어 악기 밀도가 구간마다 채워지고 비워집니다 — 초반 벌스는 성기게(베이스 솎음·장식 억제), 클라이맥스로 갈수록 촘촘하게(코드 펄스·텐션 무브·경과음↑), 정점 뒤 이완. 골격(코드·베이스 진행)은 유지.'); L.push(''); } } }
-  L.push('■ 구간별 코드 (CHORDS)');
-  const seen=new Set();
-  state.sections.forEach((sec,i)=>{const k=sec.type+':'+sec.chords.join('-');if(seen.has(k))return;seen.add(k);
-    const vv=state.sections.filter((x,j)=>j<i&&x.type===sec.type).length?' (변형)':'';
-    L.push('• '+sec.type+vv+' : '+sec.chords.join(' - ')+(sec.chordBars>1?'  ('+sec.chordBars+'마디/코드)':''));});
-  L.push('');
+  }
   L.push('■ 트랙 배치 순서 (TRACK ORDER)');
   L.push('  내보낸 MIDI 가 이 순서로 정렬되어 있습니다. 위에서 아래로 그대로 두면 됩니다.');
   L.push('  타악 → 저역 → 화성 → 선율 → FX · 낮은 소리가 위입니다.');
