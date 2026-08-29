@@ -11565,12 +11565,12 @@ function logicGuide(){
   line('');
   line('── 트랙별 수치 (기본값 · 장르에 따라 조절) ──');
   line('트랙          HPF     EQ                        컴프              리버브 센드   사이드체인');
-  line('Drums(킥)     끈다    60 +2 · 400 -3 · 4k +2    4:1 GR-4 R80ms    -27dB       소스로 씀');
-  line('Drums(그 밖)  120Hz   200 -2 · 6k +1.5          4:1 GR-3 R100ms   -21dB       걸지 않음');
-  line('Bass           30Hz   80 +1 · 300 -2 · 1k +1    6:1 GR-6 R100ms   없음        킥에 -6dB');
+  line('Drums(킥)      30Hz   60 +2 · 400 -3 · 4k +2    4:1 GR-3 Atk15ms  -27dB       소스로 씀');
+  line('Drums(그 밖)   80Hz   200 -2 · 6k +1.5          4:1 GR-3 Atk20ms  -21dB       걸지 않음');
+  line('Bass           35Hz   80 +1 · 300 -2 · 1k +1    4:1 GR-3 Atk10ms  없음        사이드체인은 별도 컴프 6:1 GR-6 Atk0ms');
   line('Piano          80Hz   250 -2 · 3k +1            3:1 GR-2 R150ms   -18dB       -3dB');
   line('Guitar        120Hz   200 -2 · 2.5k +2          4:1 GR-3 R120ms   -18dB       -3dB');
-  line('Strings       150Hz   400 -2 · 8k +1            3:1 GR-2 R220ms   -12dB       -3dB');
+  line('Strings        70Hz   400 -2 · 8k +1            3:1 GR-2 Atk25ms  -12dB       -3dB');
   line('Pad           150Hz   300 -3                    3:1 GR-2 R250ms   -12dB       -4dB');
   line('Counter       250Hz   2.5k +1                   4:1 GR-2 R120ms   -16dB       -2dB');
   line('Lead / Vocal  200Hz   3k +2 · 200 -2            4:1 GR-3 R100ms   -16dB       -2dB');
@@ -11591,6 +11591,10 @@ function logicGuide(){
   line('  가파르게(24·48) 자르면 그 지점 소리가 부자연스러워진다 — 필요할 때만 올린다.');
   line('  Sub 트랙만 예외 — LPF 120Hz 에 Slope 24 로 두면 서브 대역만 깔끔히 남는다.');
   line('  EQ 의 +2 · -3 은 Gain 이다. Q 는 1.0 근처로 넓게 — 좁으면 티가 난다.');
+  line('');
+  line('※ 여기 적지 않은 값은 모두 로직 기본값 그대로 두면 된다.');
+  line('  Knee · Auto Gain · Make Up · Lookahead · Mix — 적혀 있지 않으면 손대지 않는다.');
+  line('  적힌 값만 바꾸는 것이 가장 빠르고, 나머지는 로직이 이미 무난하게 잡아 둔다.');
   line('');
   line('* HPF 는 트랙마다 다르다 — 저역은 한 트랙만 담당한다.');
   line('* 사이드체인 소스는 Kick 트랙. 드럼 자신에게는 걸지 않는다.');
@@ -11619,15 +11623,39 @@ function logicGuide(){
     line('• ['+(m?m.n:k)+']   '+(NAMES[k]||k));
     line('   ① 음원      : '+(t.inst||'—'));
     line('   ② 볼륨·팬   : '+(PANV[k]||'중앙 · 0dB'));
-    line('   ③ EQ        : '+(t.eq?('Audio FX 슬롯 → EQ > Channel EQ → '+t.eq):'건드리지 않아도 됨'));
-    line('   ④ 컴프      : '+((t.dyn&&t.dyn!=='없음')?('Audio FX 슬롯(EQ 다음) → Dynamics > Compressor → '+t.dyn):'걸지 않음'));
+    /* ── 값이 없을 때 채우는 기본 수치 ──
+       '건드리지 않아도 됨' · '걸지 않음' · '없음 — 드라이' 만 적혀 있으면
+       로직에서 무엇을 넣을지 알 수 없다. 트랙 성격에 맞는 수치를 채운다.
+       Q 0.71 · Slope 12dB/Oct 는 기본값 그대로 둔다. */
+    const _D={
+      drums:  ['HPF 80Hz · 200 -2 · 6k +1.5','4:1 GR-3 Atk 20ms Rel 120ms','Bus1 -21dB','타악 — 사이드체인 안 걸음 · HPF 를 높이면 스네어 몸통이 깎인다'],
+      bass:   ['HPF 35Hz · 80 +1 · 300 -2 · 1k +1','일반 컴프 4:1 GR-3 Atk 10ms Rel 120ms','없음 (저역은 안 보냄)','사이드체인은 별도 Compressor 로: 6:1 GR-6 Atk 0ms'],
+      piano:  ['HPF 80Hz · 250 -2 · 3k +1','3:1 GR-2 Atk 15ms Rel 150ms','Bus1 -18dB','화성 — 사이드체인 -3dB'],
+      piano2: ['HPF 100Hz · 300 -2','3:1 GR-2 Atk 20ms Rel 180ms','Bus1 -21dB','배경 오스티나토 — 앞으로 튀지 않게'],
+      gtr:    ['HPF 120Hz · 200 -2 · 2.5k +2','4:1 GR-3 Atk 15ms Rel 120ms','Bus1 -18dB','픽 어택을 살리려면 Attack 을 늦게'],
+      gtr2:   ['HPF 150Hz · 250 -2 · 3k +1','4:1 GR-3 Atk 15ms Rel 130ms','Bus1 -21dB','반주 기타 — 선율보다 3dB 낮게'],
+      strings:['HPF 70Hz · 400 -2 · 8k +1','3:1 GR-2 Atk 25ms Rel 250ms','Bus2 -12dB','현 — 활 소리가 눌리면 어색하다 · 첼로 저역을 남긴다'],
+      pad:    ['HPF 150Hz · 300 -3','3:1 GR-2 Atk 30ms Rel 250ms','Bus2 -12dB','배경 — 가장 넉넉히 보낸다'],
+      lead:   ['HPF 250Hz · 3k +2 · 200 -2','4:1 GR-3 Atk 5ms Rel 100ms','Bus1 -16dB','주선율 — 가장 앞에 세운다'],
+      counter:['HPF 250Hz · 2.5k +1','4:1 GR-2 Atk 5ms Rel 120ms','Bus2 -16dB','대선율 — 리드와 다른 음색으로'],
+      melody: ['HPF 200Hz · 3k +2','4:1 GR-3 Atk 5ms Rel 100ms','Bus1 -16dB','노래하는 선'],
+      brass:  ['HPF 200Hz · 1.5k +1 · 5k +1','4:1 GR-3 Atk 10ms Rel 150ms','Bus2 -15dB','금관 — 세게 부는 자리에서만 눌린다'],
+      winds:  ['HPF 200Hz · 1k +1 · 6k +1','3:1 GR-2 Atk 15ms Rel 180ms','Bus2 -15dB','목관 — 숨소리를 살린다'],
+      timp:   ['HPF 35Hz · 80 +1 · 3k +1','3:1 GR-2 Atk 30ms Rel 220ms','Bus2 -18dB','팀파니 — 어택을 살려야 때리는 소리가 난다'],
+      harp:   ['HPF 120Hz · 3k +1.5','4:1 GR-2 Atk 5ms Rel 120ms','Bus1 -16dB','발현 — 잔향이 길면 뭉갠다']
+    };
+    const _d=_D[k]||['HPF 150Hz · 300 -2','4:1 GR-3 Atk 10ms Rel 120ms','Bus1 -18dB',''];
+    line('   ③ EQ        : '+(t.eq?('Audio FX 슬롯 → EQ > Channel EQ → '+t.eq):('Audio FX 슬롯 → EQ > Channel EQ → '+_d[0])));
+    line('                 (HPF 는 Frequency 만 · Q 0.71 · Slope 12dB/Oct 기본값 그대로)');
+    line('   ④ 컴프      : '+((t.dyn&&t.dyn!=='없음')?('Audio FX 슬롯(EQ 다음) → Dynamics > Compressor → '+t.dyn):('Audio FX 슬롯(EQ 다음) → Dynamics > Compressor → '+_d[1])));
     { const r=t.rev, dl=t.dly;
       const hasR=r&&r!=='없음', hasD=dl&&dl!=='없음'&&dl!=='';
       let sd='';
       if(hasR) sd+='Sends 슬롯 → Bus1(리버브) '+r;
       if(hasR&&hasD) sd+='  /  ';
       if(hasD) sd+='Sends 슬롯 → Bus2(딜레이) '+dl;
-      line('   ⑤ 센드      : '+(sd||'없음 — 드라이')); }
+      line('   ⑤ 센드      : '+(sd||('Sends 슬롯 → '+_d[2]+'  (Aux 에 리버브 · Mix 100% Wet)'))); }
+    if(_d[3]) line('   ⑥ 이 트랙은 : '+_d[3]);
     if(t.set)  line('   ⑥ 연주      : '+t.set);
     if(t.more) line('   ⑦ 그 외     : '+t.more);
     line('');
@@ -14604,10 +14632,15 @@ function buildRunMix(){
       try{ const sel=$('mode'); if(sel){ sel.value=_mt[k%_mt.length]; } }catch(e){}
     }
     /* 장르가 쓰는 박자 — 없으면 4/4 하나 */
+    /* ★ running 에서 3/4 를 뺀다.
+       리듬 자체는 3/4 에서도 멀쩡히 나온다(실측: 킥 간격 1.0박 정확).
+       문제는 그 장르의 어법이 아니라는 것이다 —
+       러닝은 1보=1비트 페이서라 좌우 두 박이 몸의 리듬이다.
+       세 걸음마다 마디가 바뀌면 페이스가 흐트러진다. */
     const MIX_SIG={ retro:['4/4','3/4'], country:['4/4','3/4','6/8'],
                     kpop:['4/4'], edm:['4/4'], bigroom:['4/4'], discofunk:['4/4'],
                     hookpop:['4/4'], hooksong:['4/4','6/8'],
-                    global:['4/4','6/8'], running:['4/4','3/4'] };
+                    global:['4/4','6/8'], running:['4/4'] };
     const _sg=MIX_SIG[_gid]||null;
     secs.forEach(x=>{
       x.tempo=bpm;                                  // 편 안에서는 한 속도로
@@ -14633,6 +14666,26 @@ function buildRunMix(){
       prev.atmos=prev.atmos||{}; prev.atmos.riser=1;      // 앞 편 끝에 라이저
       secs[0].atmos=secs[0].atmos||{}; secs[0].atmos.impact=1; secs[0].atmos.revcrash=1;
       secs[0].crash=true;                                  // 다음 편 첫 마디에 임팩트·리버스 크래시
+    }
+    /* ── 편마다 아웃트로 · 인트로 ──
+       편이 그냥 다음 벌스로 넘어가 곡 하나하나가 완결되어 들리지 않았다
+       (실측 러닝 30분: 101구간 중 Intro 1 · Outro 1 — 곡 전체의 처음·끝에만).
+       앞 편 끝에 아웃트로, 다음 편 앞에 인트로를 둔다.
+       ★ 길이는 4마디와 8마디를 오간다 — 늘 같으면 그것대로 기계 같다. */
+    if(k>0 && out.length){
+      const _o8=((((k*40503)>>>7)&1)===0)?8:4;
+      const _tail=out[out.length-1];
+      const _outro=Object.assign({},_tail,{
+        type:'Outro', bars:_o8, energy:2, runMix:k,
+        atmos:Object.assign({},_tail.atmos||{},{riser:1})
+      });
+      out.push(_outro);
+      const _i8=((((k*2654435761)>>>9)&1)===0)?8:4;
+      const _intro=Object.assign({},secs[0],{
+        type:'Intro', bars:_i8, energy:2, runMix:k+1,
+        atmos:Object.assign({},secs[0].atmos||{})
+      });
+      secs.unshift(_intro);
     }
     secs.forEach(x=>out.push(x));
     acc=out.reduce((a,x)=>a+x.bars,0)*(60/base)*barQ();
@@ -18478,7 +18531,16 @@ function tempoTrack(){const PPQ=480,PAD=EXPORT_PADQ;let evs=[{tick:0,type:'ts',m
    const _endQ=(MODEL.totalQ||0);
    (MODEL.sections||[]).forEach((sv,i)=>{const sc=state.sections[i];if(!sc)return;
      if(sv.startQ>_endQ) return;
-     const m=meterOf(sc);
+     /* ── EDM·러닝 계열은 4/4 를 벗어나지 않는다 ──
+        리듬 자체는 3/4 에서도 멀쩡히 나온다(실측: 킥 간격 1.0박 정확).
+        문제는 그 장르의 어법이 아니라는 것이다.
+        러닝은 1보=1비트 페이서라 좌우 두 박이 몸의 리듬이고,
+        EDM 은 4온더플로어가 정의라 3/4 에서는 그 말이 성립하지 않는다.
+        클럽에서 다른 곡과 이어 붙일 수도 없다. */
+     const _F44=['running','edm','bigroom','house','deephouse','melodichouse',
+                 'trance','techno','ambtechno','discofunk','trap','global'];
+     let m=meterOf(sc);
+     if(_F44.indexOf(state.genre)>=0) m=METERS['4/4'];
      if(m!==prev){evs.push({tick:Math.round((sv.startQ+PAD)*PPQ),type:'ts',m});prev=m;}});}
   (MODEL.tempoMap||[]).forEach(s=>{if(s.bpm!==lastBpm){evs.push({tick:segI===0?0:Math.round((s.startQ+PAD)*PPQ),type:'tempo',bpm:s.bpm});lastBpm=s.bpm;}segI++;}); // 첫 템포는 0틱(여백 마디도 정속)
   if(PAD>0)evs.push({tick:0,type:'marker',text:'— 편집 여백 4마디 —'});
@@ -18508,6 +18570,16 @@ function tempoTrack(){const PPQ=480,PAD=EXPORT_PADQ;let evs=[{tick:0,type:'ts',m
      '--- CHORDS ---',...progLines];
    lines.forEach(tx=>evs.push({tick:0,type:'text',text:tx}));}
   const ORD={ts:0,tempo:1,text:2,marker:3};
+  /* ── 곡 밖 이벤트를 버린다 ──
+     박자표가 곡 끝(마디 2427)보다 한참 뒤인 마디 69692 에 찍혀 있었다.
+     소리에는 닿지 않지만 로직 글로벌 트랙에 눈금이 남고 프로젝트 길이가 늘어난다.
+     tick 이 곡 길이를 넘는 것은 내보내지 않는다. */
+  /* ★ MODEL 은 이 시점에 없다(곡 생성 중 지역 변수).
+     evs 안에서 가장 늦은 **마커** 위치를 곡 끝으로 본다 —
+     마커는 구간마다 찍히므로 마지막 마커 뒤에는 소리가 없다. */
+  /* ★ 박자표는 곡 안에 있다. 롱 믹스에서 편마다 박자가 바뀌는 것이 정상이다.
+     (실측 러닝 30분: 4/4 마디0 · 3/4 마디488 · 4/4 마디825 — 곡 길이 1346마디)
+     이전에 '곡 밖 마디 69692' 로 보였던 것은 파서가 델타를 잘못 누적한 오차였다. */
   evs.sort((a,b)=>a.tick-b.tick||(ORD[a.type]||9)-(ORD[b.type]||9));let body=[],last=0;
   body.push(...vlq(0),...metaText(0x03,'Tempo & Markers'));
   // 조표 (FF 59): 키 pc → 샤프(+)/플랫(−) 개수 · 장/단은 홈 코드로 판별 (vi 단3화음 = 관계단조)
@@ -19137,6 +19209,10 @@ function buildSongSheet(){
   L.push('  가파르게(24·48) 자르면 그 지점 소리가 부자연스러워집니다 — 필요할 때만 올립니다.');
   L.push('  Sub 트랙만 예외 — LPF 120Hz 에 Slope 24 로 두면 서브 대역만 깔끔히 남습니다.');
   L.push('  EQ 의 +2 · -3 은 Gain 입니다. Q 는 1.0 근처로 넓게 — 좁으면 티가 납니다.');
+  L.push('');
+  L.push('※ 여기 적지 않은 값은 모두 로직 기본값 그대로 두시면 됩니다.');
+  L.push('  Knee · Auto Gain · Make Up · Lookahead · Mix — 적혀 있지 않으면 손대지 않습니다.');
+  L.push('  적힌 값만 바꾸는 것이 가장 빠르고, 나머지는 로직이 이미 무난하게 잡아 둡니다.');
   /* 순서 = MIDI 내보내기 순서와 같아야 한다 —
      로직에서 트랙을 위에서 아래로 대조하며 셋업하기 때문이다.
      타악 → 저역 → 화성 → 선율 → FX · 가이드. 낮은 소리가 위다. */
@@ -19383,11 +19459,47 @@ function buildSongSheet(){
       L.push('  ① 음원      : '+(rec?(rec+(lp?(' → '+lp):'')+(ap?('  ‖  '+ap):'')):(lp||'음원 유지 · 트랙명으로 라이브러리 검색')));
       const fxL=fxOf(n); const syn=(ss&&ss[n])?ss[n]:'';
       L.push('  ② 볼륨·팬   : '+(role?('팬 '+role[1]+' · 레벨 '+role[2]):'중앙(C) · 기준 0'));
-      L.push('  ③ EQ·컴프   : Audio FX 슬롯 → '+(role?role[3]:'HPF로 저역 정리 · 젠틀 컴프 2:1'));
-      L.push('                · 주파수 대역: '+(FREQ[n]||'—'));
-      if(fxL.length){ L.push('  ④ 센드·기타 : Sends 슬롯(공간계) / Audio FX(그 외)');
-                      fxL.forEach(x=>L.push('                · '+x)); }
-      else            L.push('  ④ 센드      : 없음 — 드라이');
+      /* ── 트랙별 실제 수치 ──
+         'HPF로 저역 정리 · 젠틀 컴프 2:1' 처럼 값이 없으면 로직에서 무엇을 넣을지 모른다
+         (실측: HPF 없음 5트랙 · 컴프 없음 8트랙 · 센드는 전부 '없음 — 드라이').
+         트랙마다 HPF · EQ · 컴프 · 센드를 숫자로 적는다.
+         Q 0.71 · Slope 12dB/Oct 는 기본값 그대로 둔다. */
+      /* ★ 사이드체인과 일반 컴프는 다른 것이다.
+           Attack 0ms · Ratio 6:1 은 사이드체인 값이다 —
+           일반 컴프로 쓰면 픽 어택과 몸통이 죽는다. 둘을 나눠 적는다.
+         ★ Drums HPF 120 은 스네어 몸통(150~250Hz)을 깎는다 — 60~80 이 맞다.
+         ★ Kick Attack 3ms 는 때리는 소리를 눌러 버린다 — 10~20ms 로 늦춘다. */
+      const _SET={
+        'Drums':      ['80Hz','200 -2 · 6k +1.5','4:1 GR-3 Atk 20ms Rel 120ms','-21dB (Bus1 짧은 룸)','타악 — 사이드체인은 걸지 않는다(킥이 자기를 누른다)'],
+        'Kick':       ['30Hz (초저역 쓰레기만)','60 +2 · 400 -3 · 4k +2','4:1 GR-3 Atk 15ms Rel 90ms','-27dB','사이드체인 소스로 쓴다 · 어택을 살려야 때리는 소리가 난다'],
+        'Bass':       ['35Hz','80 +1 · 300 -2 · 1k +1','일반 컴프 4:1 GR-3 Atk 10ms Rel 120ms','없음 — 저역은 리버브를 안 보낸다','그 뒤에 사이드체인용 Compressor 를 하나 더: 6:1 GR-6 Atk 0ms Rel 100ms'],
+        'Sub':        ['끈다 (LPF 120Hz Slope 24)','만지지 않는다 — 사인파 한 겹','컴프 없음 — 사이드체인만: 8:1 GR-8 Atk 0ms Rel 100ms','없음','모노로 둘 것 · 스테레오면 저역이 흐려진다'],
+        'Chords':     ['150Hz','300 -2 · 3k +1','4:1 GR-3 Atk 10ms Rel 120ms','-18dB (Bus1) · -24dB (Bus2)','킥에 사이드체인 -3dB'],
+        'Pad':        ['150Hz','300 -3 (리드 자리를 비운다)','3:1 GR-2 Atk 20ms Rel 250ms','-12dB (Bus2 긴 홀) — 가장 넉넉히','킥에 사이드체인 -4dB'],
+        'Lead':       ['250Hz','3k +2 · 200 -2','4:1 GR-3 Atk 5ms Rel 100ms','-24dB (Bus1) · -18dB (Bus2)','킥에 사이드체인 -2dB (빅룸은 거는 편)'],
+        'Arp':        ['300Hz','8k +1.5 (반짝임) · 400 -2','4:1 GR-3 Atk 8ms Rel 100ms','-21dB (Bus1) · -21dB (Bus2)','리드가 쉴 때 자리를 메우는 층 — 리드보다 3dB 낮게'],
+        'Counter':    ['250Hz','2.5k +1 (리드보다 어둡게)','4:1 GR-2 Atk 5ms Rel 120ms','-24dB (Bus1) · -15dB (Bus2)','리드와 다른 음색으로 — 같은 패치면 두 겹으로만 들린다'],
+        'Piano':      ['80Hz','250 -2 · 3k +1','3:1 GR-2 Atk 15ms Rel 150ms','-18dB','킥에 사이드체인 -3dB'],
+        'Guitar':     ['120Hz','200 -2 · 2.5k +2','4:1 GR-3 Atk 15ms Rel 120ms','-18dB','픽 어택을 살리려면 Attack 을 늦게'],
+        'Strings':    ['70Hz (첼로 저역을 남긴다)','400 -2 · 8k +1','3:1 GR-2 Atk 25ms Rel 250ms','-12dB (Bus2)','활 소리가 눌리면 어색하다 — 컴프는 얕게'],
+        'TopMel':     ['250Hz','3k +2','4:1 GR-3 Atk 5ms Rel 100ms','-20dB','주선율 — 가장 앞에 세운다']
+      };
+      const _k=(function(){ for(const kk in _SET){ if(n.indexOf(kk)>=0) return kk; } return null; })();
+      if(_k){
+        const v=_SET[_k];
+        L.push('  ③ HPF       : '+v[0]+'   (Q 0.71 · Slope 12dB/Oct 기본값 그대로)');
+        L.push('  ④ EQ Gain   : '+v[1]+'   (Q 는 1.0 근처로 넓게)');
+        L.push('  ⑤ 컴프      : '+v[2]);
+        L.push('  ⑥ 리버브 센드 : '+v[3]);
+        L.push('  ⑦ 이 트랙은  : '+v[4]);
+        if(fxL.length){ L.push('  ⑧ 그 밖     : '); fxL.forEach(x=>L.push('                · '+x)); }
+      } else {
+        L.push('  ③ EQ·컴프   : Audio FX 슬롯 → '+(role?role[3]:'HPF 150Hz · 컴프 4:1 GR-3 Atk 10ms Rel 120ms'));
+        L.push('                · 주파수 대역: '+(FREQ[n]||'—'));
+        if(fxL.length){ L.push('  ④ 센드·기타 : Sends 슬롯(공간계) / Audio FX(그 외)');
+                        fxL.forEach(x=>L.push('                · '+x)); }
+        else            L.push('  ④ 센드      : -21dB (Bus1 짧은 룸) — 드라이하게 두려면 보내지 않는다');
+      }
       if(syn)         L.push('  ⑤ 음원 설정 : '+syn);
     });
     L.push('');
@@ -27021,10 +27133,26 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
       }
       let secs=songStructure(A,B,C,_sk);
       if(!secs||!secs.length) continue;
-      /* 가운데 악장은 인트로·아웃트로를 뺀다 — 다리가 그 역할을 하므로 매번 다시 시작하는 느낌을 없앤다 */
-      if(k>0) secs=secs.filter(x=>x.label!=='인트로');
+      /* ── 편마다 인트로·아웃트로를 남긴다 ──
+         전에는 가운데 악장에서 둘 다 걸러 냈다. 그러면 편이 그냥 벌스로 시작해
+         곡 하나하나가 완결되어 들리지 않는다(실측: 62구간 중 인트로 1 · 아웃트로 0).
+         편 끝에 아웃트로 → 다리 → 다음 편 인트로 순으로 이어진다.
+         ★ 길이는 4마디와 8마디를 오간다 — 늘 같으면 그것대로 기계 같다.
+           reps 를 1 또는 2 로 바꿔 4·8마디를 만든다. */
       const _last=(k>=2) && ((barsOf(out)+barsOf(secs))*spBar > TARGET - MOVE*0.5);
-      if(!_last) secs=secs.filter(x=>x.label!=='아웃트로');   // 마지막 편에만 마무리를 남긴다
+      if(k>0){
+        const _r8=((((k*2654435761)>>>9)&1)===0)?2:1;
+        secs.forEach(function(x){ if(x.label==='인트로'){ x.reps=_r8; x.lounge='mvIntro'; } });
+      }
+      if(!_last){
+        const _r9=((((k*40503)>>>7)&1)===0)?2:1;
+        let _has=false;
+        secs.forEach(function(x){ if(x.label==='아웃트로'){ x.reps=_r9; x.lounge='mvOutro'; _has=true; } });
+        if(!_has){ /* 구조에 아웃트로가 없으면 마지막 구간을 줄여 맺음으로 쓴다 */
+          const _tail=secs[secs.length-1];
+          if(_tail){ _tail.tailFade=true; }
+        }
+      }
       secs=loungeStretch(secs, MOVE, sh);              // 편 하나가 4~5분이 되도록 · 남는 진행으로 다른 부분을 만든다
       secs.forEach(x=>{ if(x.prog&&x.prog.steps) x.prog.steps=loungeSimplify(x.prog.steps); });
       const ks=LOUNGE_KEYPATH[k%LOUNGE_KEYPATH.length];
@@ -37555,6 +37683,7 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('   * 팬 L25 / R25 — 두 사람이 마주 앉은 그림입니다.');
       L.push('   * 사이드체인 없음. 컴프는 어택 15ms 로 픽 소리를 살립니다.');
       L.push('   * HPF 는 Frequency 만 만집니다 — Q 0.71 · Slope 12 dB/Oct 기본값 그대로.');
+      L.push('   ※ 여기 적지 않은 값은 모두 로직 기본값 그대로 두시면 됩니다.');
       L.push('   * EQ Gain 의 Q 는 1.0 근처. 픽 어택(2.5k)만 Q 1.4 로 좁혀도 됩니다.');
       L.push('');
       L.push('');
@@ -37745,6 +37874,7 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('   * 세 대가 같은 음원이면 하이만 살짝 밝게, 로우는 어둡게 — 자리가 갈립니다.');
       L.push('   * 사이드체인은 걸지 않습니다. 드럼이 없어 누를 신호가 없습니다.');
       L.push('   * HPF 는 Frequency 만 만집니다 — Q 0.71 · Slope 12 dB/Oct 기본값 그대로.');
+      L.push('   ※ 여기 적지 않은 값은 모두 로직 기본값 그대로 두시면 됩니다.');
       L.push('     한 옥타브 내려갈 때 12dB 씩 줄어든다는 뜻입니다. 가파르게 자르면 그 지점이 부자연스럽습니다.');
       L.push('   * EQ 의 +1.5 · -2 는 Gain 입니다. Q 는 1.0 근처로 넓게 — 좁으면 티가 납니다.');
       L.push('');
@@ -37754,14 +37884,15 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('   트랙          HPF     EQ                       컴프              리버브 센드');
       L.push('   Violin I      200Hz   3k +1.5 · 8k +1 (광택)   3:1 GR-2 R200ms   -12dB');
       L.push('   Violin II     180Hz   2.5k +1                 3:1 GR-2 R200ms   -14dB');
-      L.push('   Viola         120Hz   500 -2 (박스 울림)       3:1 GR-2 R220ms   -14dB');
-      L.push('   Cello          60Hz   250 -1.5 · 1.5k +1      3:1 GR-3 R240ms   -16dB');
+      L.push('   Viola          90Hz   500 -2 (박스 울림)       3:1 GR-2 R220ms   -14dB');
+      L.push('   Cello          45Hz   250 -1.5 · 1.5k +1      3:1 GR-2 R250ms   -16dB');
       if(quintetMode) L.push('   Double Bass    40Hz   80 +1 · 400 -2          3:1 GR-3 R260ms   -20dB');
       L.push('   * 실내악은 컴프를 얕게 겁니다 — 셈여림이 곧 표현입니다.');
       L.push('   * 리버브 홀 2.2초 · 프리딜레이 25ms. 네 트랙을 같은 버스로.');
       L.push('   * 사이드체인 없음. 활 소리가 눌리면 어색합니다.');
       L.push('   * 팬 — Vn1 L20 · Vn2 L8 · Va R10 · Vc R20 (연주자 자리 그대로)');
       L.push('   * HPF 는 Frequency 만 만집니다 — Q 0.71 · Slope 12 dB/Oct 기본값 그대로.');
+      L.push('   ※ 여기 적지 않은 값은 모두 로직 기본값 그대로 두시면 됩니다.');
       L.push('   * 현악은 EQ Q 를 0.8~1.0 으로 넓게 — 좁게 깎으면 악기 소리가 아니게 됩니다.');
       L.push('');
     }
@@ -37774,6 +37905,7 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('   * 팬 L20 / R20. 연탄은 한 대라 L10 / R10 으로 좁힙니다.');
       L.push('   * 사이드체인 없음. 페달이 겹치므로 리버브는 짧게(1.8초).');
       L.push('   * HPF 는 Frequency 만 만집니다 — Q 0.71 · Slope 12 dB/Oct 기본값 그대로.');
+      L.push('   ※ 여기 적지 않은 값은 모두 로직 기본값 그대로 두시면 됩니다.');
       L.push('');
     }
     if(loungeMode && !quartetMode && !quintetMode && !chamberMode && !gtrDuoMode && !gayaTrioMode){
@@ -37787,6 +37919,7 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('   * 라운지는 배경음악이라 컴프를 얕게 — 셈여림이 살아야 지루하지 않습니다.');
       L.push('   * 리버브 홀 2.6초 · 프리딜레이 30ms. 사이드체인 없음.');
       L.push('   * HPF 는 Frequency 만 만집니다 — Q 0.71 · Slope 12 dB/Oct 기본값 그대로.');
+      L.push('   ※ 여기 적지 않은 값은 모두 로직 기본값 그대로 두시면 됩니다.');
       L.push('   * 라운지는 EQ 도 얕게 — ±2dB 안에서 · Q 1.0 근처.');
       L.push('');
     }
@@ -38006,6 +38139,10 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       window.SO_renderCommon({skip:{vinst:1,plugin:1,gain:1,eqBasic:1,routing:1,sidechain:1,master:1}}).forEach(function(x){ L.push(x); });
     }
     L.push('──────────────────────────────────────────────────');
+    L.push('※ 여기 적지 않은 값은 모두 로직 기본값 그대로 두시면 됩니다.');
+    L.push('  Knee · Auto Gain · Make Up · Lookahead · Mix — 적혀 있지 않으면 손대지 않습니다.');
+    L.push('  HPF 는 Frequency 만 · Q 0.71 · Slope 12 dB/Oct 기본값 그대로.');
+    L.push('');
     L.push('■ 트랙 배치 순서 (로직에서 위→아래, 그룹으로)');
     L.push('──────────────────────────────────────────────────');
     { const order=[];
