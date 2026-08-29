@@ -13399,8 +13399,11 @@ const runStyle=()=>RUNSTYLES[state.runStyle]||RUNSTYLES.fresh;
 const EDMSTYLES={
   radio:{name:'라디오 에딧',bpm:126,hat:'offbeat',defaultSec:170,cfg:{introStyle:'impact',endStyle:'finale',beatSwitch:'off',groove:'straight'},
     hint:'라디오·스트리밍용 짧은 버전(~2:45) · 인트로 짧게·바로 훅 · 8마디 드롭 · 편집 타이트',
-    progs:[['vi','IV','I','V'],['IM7','vi7','IV','V'],['vi7','IV','I','V'],['IVadd9','V','vi','I'],
-           ['vi','V','IV','V'],['IM7','V','vi7','IV'],['vi7','ii7','V','IM7'],['IVM7','V','iii7','vi7']],
+    /* ★ vi 로 시작하는 진행이 많아 곡이 늘 단조로 들렸다.
+       장조 으뜸(I)으로 시작하는 진행을 절반으로 맞춘다 — EDM 도 밝은 곡이 많다. */
+    progs:[['I','V','vi','IV'],['IM7','vi7','IV','V'],['I','IV','V','vi'],['IVadd9','V','vi','I'],
+           ['vi','IV','I','V'],['IM7','V','vi7','IV'],['I','vi7','IV','V'],['IVM7','V','iii7','vi7'],
+           ['I','V','IV','V'],['vi7','IV','I','V']],
     bassPat:'house',leadStyle:'stab',arpHook:false,pump:true,atmos:{sweep:0.35,riser:1},
     pad:{voices:5,detune:10,lpf:2600},lead:{voices:4,detune:10,lpf:5600},bassSyn:{lpf:1400,lvl:0.6}},
   club:{name:'클럽 익스텐디드',bpm:126,hat:'offbeat',defaultSec:330,cfg:{introStyle:'stack',endStyle:'fade',beatSwitch:'off',groove:'straight'},
@@ -14623,8 +14626,23 @@ let runMixMode=false, runMixMin=60;
    드럼 킷·사이드체인·필 풀이 전부 기본값으로 떨어졌다
    (실측: EDM 스네어가 0.75박에 72개로 모이는데 빅룸은 0.25·0.75·1.25·1.75 로 흩어졌다).
    그 자리들에서 EDM 과 같이 취급한다. */
-const MIX_GENRES=['running','edm','bigroom','retro','kpop','discofunk','hookpop','hooksong','country','global'];
+const /* ── 롱 믹스를 쓰는 장르 ──
+   ★ 롱 믹스 토글은 **장르마다 따로** 있다. runMixTog 만 보고 판단하면 안 된다.
+     runMixTog    러닝·EDM 계열 (이 목록)
+     lofiMixTog   로파이·로파이걸
+     houseMixTog  멜로딕하우스·딥하우스
+     waveMixTog   신스웨이브
+   각자 다른 경로로 긴 곡을 만든다. */
+MIX_GENRES=['running','edm','bigroom','retro','kpop','discofunk','hookpop','hooksong','country','global'];
 function mixOK(){ try{ return MIX_GENRES.indexOf(state.genre)>=0; }catch(e){ return false; } }
+/* ── 편 번호는 네 곳에 흩어져 있다 ──
+   ★ 롱 믹스 토글이 장르마다 따로라 필드 이름도 다르다.
+     runMix(러닝·EDM) · lofiMix(로파이) · houseMix(하우스) · waveMix(신스웨이브)
+   runMix 만 읽으면 하우스·신스웨이브·로파이에서 늘 0 이 되어
+   편별 변화가 통째로 안 걸린다(실측: 하우스 Bass 리듬꼴 1가지 · 100%).
+   한 곳에서 넷을 모두 읽는다. */
+function mvOf(sec){ if(!sec) return 0;
+  return sec.runMix || sec.lofiMix || sec.houseMix || sec.waveMix || 0; }
 const RUNMIX_BPM=[0,+2,-2,+3,-1,+1,-3,+2];        // 러닝 전용 — 케이던스 때문에 ±3 안
 const RUNMIX_KEY=[0,5,-5,2,-3,7,-7,4];            // 5도권 이웃
 /* ── 러닝이 아닌 장르의 긴 믹스 ──
@@ -15383,7 +15401,7 @@ function genSongLead(tr,g,sec,start,en,rnd,HOOK){
          연주자는 같은 프레이즈를 되풀이할 때 매번 똑같이 치지 않는다 —
          한 음을 펜타 한 칸 옮기거나, 둘을 하나로 잇거나, 하나를 둘로 쪼갠다.
          뼈대(첫 음·끝 음)는 지켜야 후크로 남는다. */
-      const _mv2=(sec&&sec.runMix)?sec.runMix:0;
+      const _mv2=mvOf(sec);
       let sh=shapes[(HOOK.shape+_mv2*2+c)%shapes.length].map(([d,rq,du])=>[du>=0.9?safeDeg(d,cpc):d,rq,du]);
       if(c%2===1 && sh.length>=4){
         const _vk=((c*2654435761)^(_mv2*40503)^(HOOK.shape*7919))>>>0;
@@ -15483,7 +15501,7 @@ function genLead(tr,g,sec,start,en,rnd,HOOK){
        (실측 retro 롱 믹스: 1435마디 중 242마디가 같은 음형 · 서로 다른 음형 153개).
        60분짜리에서는 그 되풀이가 더 크게 들린다.
        롱 믹스는 편(runMix)마다, 일반 곡은 구간마다 다른 음형을 고른다. */
-    const _mv=(sec&&sec.runMix)?sec.runMix:0;
+    const _mv=mvOf(sec);
     const _si=(sec&&sec.idx!=null)?sec.idx:0;
     const call=CALLS[(HOOK.shape+_mv*3+(_mv?0:_si))%CALLS.length];
     // 리스폰스 = 콜과 같은 리듬, 끝 두 음만 하행 → 근음 (문답)
@@ -15514,7 +15532,7 @@ function genLead(tr,g,sec,start,en,rnd,HOOK){
          연주자는 같은 프레이즈를 되풀이할 때 매번 똑같이 치지 않는다 —
          한 음을 위아래로 옮기거나, 둘을 하나로 잇거나, 하나를 둘로 쪼갠다.
          마디마다 셋 중 하나를 골라 건다. 뼈대(첫 음·끝 음)는 지킨다. */
-      const _vk=((bar*2654435761)^((sec&&sec.runMix)||0)*40503^(HOOK.shape*7919))>>>0;
+      const _vk=((bar*2654435761)^(mvOf(sec))*40503^(HOOK.shape*7919))>>>0;
       let _ph=phrase;
       if(bar%2===1 && phrase.length>=3){
         const _mode=_vk%4;
@@ -15599,7 +15617,7 @@ function genLead(tr,g,sec,start,en,rnd,HOOK){
            수치가 아니라 **성격**이 늘 같았기 때문이다 —
            같은 음역에서 같은 밀도로 쉬지 않고 노래한다.
            편(runMix)마다 리드의 역할을 바꾼다. 여섯 가지를 돈다. */
-        const _mvL=(sec&&sec.runMix)?sec.runMix:0;
+        const _mvL=mvOf(sec);
         if(_mvL){
           /* ── 가요풍 편 ──
              러닝 리드는 '1보=1비트 페이스메이커' 라 흐르는 선이다.
@@ -16117,12 +16135,16 @@ function arrange(){
         else if(g.id==='kpop'&&en>=5&&!doArp){ // 훅 브라스 스탭: 당김 리듬, 짧게
           [[0,1],[0.75,0.85],[1.5,0.9],[2.5,0.85],[3,0.95],[3.5,0.8]].forEach(([rq,a])=>{
             voi.forEach(n=>tr.chords.push({t:b0+rq+swQ(rq),dur:0.35,midi:n,vel:Math.round(78*a*eScale*ramp+rnd()*5)}));});}
-        else if(doArp&&(g.id==='edm'||g.id==='bigroom'||g.id==='running')){
+        else if(doArp&&(g.id==='edm'||g.id==='bigroom'||g.id==='running'
+                        ||g.id==='melodichouse'||g.id==='deephouse'||g.id==='synthwave')){
           /* ── 편마다 화음 리듬을 바꾼다 ──
              30분 롱 믹스에서 코드가 리듬꼴 3가지 · 최다 83% 였다 —
              지속 화음 하나만 깔아서다. 30분 내내 같은 화음 층이 흐른다.
              편(runMix)마다 다섯 가지를 돈다. 지속·8분 펄스·당김·하프·스탭. */
-          const _mvC=(sec&&sec.runMix)?((sec.runMix-1)%5):0;
+          /* ★ runMix 가 없으면(일반 곡) 늘 0 이라 한 가지로 고정됐다
+             (실측 melodichouse: Chords 리듬꼴 1가지 · 100%).
+             롱 믹스가 아니면 **구간 번호**로 가른다. */
+          const _mvC=mvOf(sec)?((mvOf(sec)-1)%5):((((si||0)*2654435761)>>>7)%5);
           const _push=function(rq,du,a){ voi.forEach(function(n,vi){
             tr.chords.push({t:b0+rq+swQ(rq),dur:du,midi:n,
               vel:Math.round((vi>=vBase?42:54)*a*eScale+rnd()*4)}); }); };
@@ -16133,13 +16155,25 @@ function arrange(){
           else { [0,0.5,1.5,2,3,3.5].forEach(function(rq){ _push(rq,0.35,0.82); });        /* 스탭 */ }
         }
         else if(doArp){const asc=voi.slice().sort((a,b)=>a-b).concat(voi.slice().sort((a,b)=>a-b)[0]+12);
-          const pat=sec.arpPat||'up',rate=sec.arpRate||8,steps=rate,dq=4/rate;
+          /* ★ arpPat 이 구간 값 하나라 30분 내내 같은 아르프였다
+               (실측 deephouse: Arp 리듬꼴 1가지 · 100%).
+             편(mvOf)마다 방향과 빠르기를 돌린다. */
+          const _mvA=mvOf(sec);
+          const _apR=['up','updown','down','up','random','updown','down','up'];
+          const _rtR=[8,8,16,8,16,8,8,16];
+          const pat=_mvA?_apR[(_mvA-1)%_apR.length]:(sec.arpPat||'up');
+          const rate=_mvA?_rtR[(_mvA-1)%_rtR.length]:(sec.arpRate||8);
+          const steps=rate,dq=4/rate;
           let order;
           if(pat==='down')order=asc.slice().reverse();
           else if(pat==='updown'){const dn=asc.slice(1,-1).reverse();order=asc.concat(dn);}   // 봉우리 왕복
           else order=asc;                                                                     // up / random은 아래서 처리
           // 아르페지오는 '아르프' 역할 → arpseq 트랙으로 (코드 트랙은 화음 역할 유지)
+          /* 편마다 자리도 솎는다 — 안 그러면 늘 꽉 찬다 */
+          const _asR=[[],[3],[1,5],[2,6],[3,7],[1,3,5,7],[5],[2,4,6]];
+          const _ask=new Set(_mvA?_asR[(_mvA-1)%_asR.length]:[]);
           for(let k=0;k<steps;k++){const rq=k*dq;
+            if(_ask.has(k%8))continue;
             const n=pat==='random'?asc[Math.floor(rnd()*asc.length)]:order[k%order.length];
             tr.arpseq.push({t:b0+rq+swQ(rq),dur:dq,midi:n,vel:Math.round((k%(rate/4)===0?74:64)*eScale+rnd()*6)});}
           // 코드 트랙은 그 아래 지속 화음을 깔아 화성 역할 유지(아르프가 화성 위를 흐르게)
@@ -16184,7 +16218,7 @@ function arrange(){
              편마다 나눠 넣거나(둘·넷) 통째로 쉰다. */
           const p5=pl+(iv[2]!=null?iv[2]:7);                                   // 5음(dim/aug도 코드 그대로)
           let p3=pl+12+(iv[1]!=null?iv[1]:4);if(p3>76)p3-=12;                  // 3음은 옥타브 위 오픈 보이싱
-          const _mvP=(sec&&sec.runMix)?((sec.runMix-1)%5):0;
+          const _mvP=mvOf(sec)?((mvOf(sec)-1)%5):((((si||0)*40503+7)>>>5)%5);
           const _pn=[...new Set([pl,p5,p3])];
           if(_mvP===4 && en<5){ /* 이 편은 패드가 쉰다 — 드롭에서만 돌아온다 */ }
           else if(_mvP===1){    /* 두 덩이로 나눈다 */
@@ -16267,14 +16301,28 @@ function arrange(){
           if(isDrop)base+=0;                                                        // 드롭은 옥타브 반짝을 더 크게(아래 octShift)
           const seq=tri.map(iv=>base+(iv-ch.notes[0])); seq.push(seq[1]+12);         // 근·3·5·옥타브3 = 4스텝(넓은 도약감)
           const roll16=(g.id==='melodichouse'&&isDrop); // 멜로딕 드롭: 16분 롤링 아르프(Lane 8·Ben Böhmer 시그니처) — 벌스는 8분 오프비트 유지
-          const rate=roll16?16:8, dq=4/rate, per=cb*rate;
+          /* ★ roll16 이 구간 값이라 편이 바뀌어도 같은 자리였다
+               (실측 deephouse·synthwave: Arp 리듬꼴 1가지 · 100%).
+             편(mvOf)마다 빠르기와 솎는 자리를 돌린다. */
+          const _mvAh=mvOf(sec);
+          const _rt2=[8,16,8,16,8,8,16,8];
+          const rate=_mvAh?_rt2[(_mvAh-1)%_rt2.length]:(roll16?16:8), dq=4/rate, per=cb*rate;
+          const _sk2=[[],[3],[1,5],[2,6],[3,7],[1,3],[5,7],[2,4,6]];
+          const _ask2=new Set(_mvAh?_sk2[(_mvAh-1)%_sk2.length]:[]);
           const globalBar=Math.round((b0-introHeadQ())/4);                          // 2마디 LFO 위상
           for(let k=0;k<per && en>=2;k++){ const rq=k*dq;                            // 플럭은 en>=2 (브레이크다운에선 피아노·드론만)
             if(rate===8&&k%2===0)continue;                                          // 8분 모드: 오프비트만(엇박 플럭)
+            if(_ask2.has(k%8))continue;
             const beatInCycle=(globalBar*rate+k)/(rate*2);                          // 2마디 = 1 LFO 사이클
             const lfo=0.5-0.5*Math.cos(2*Math.PI*beatInCycle);                      // 0→1→0 스웰
             const octShift=(Math.floor(k/seq.length)%2===1?12:0)+(isDrop?12:0);     // 드롭은 한 옥타브 위로 더 반짝(존재감↑)
-            const AP=[[0,1,2,3],[0,2,1,3],[0,3,2,1],[0,1,3,2]][ (state.seed>>>5) % 4 ]; // 곡마다 아르프 패턴(업/브로큰/다운턴/펜듈럼)
+            /* ★ 곡마다 하나로 고정이라 30분 내내 같은 아르프였다
+                 (실측 deephouse: Arp 리듬꼴 1가지 · 100%).
+               편(mvOf)마다 패턴을 돌린다. 여덟 가지 — 업·브로큰·다운턴·펜듈럼 계열. */
+            const _apAll=[[0,1,2,3],[0,2,1,3],[0,3,2,1],[0,1,3,2],
+                          [3,2,1,0],[0,2,3,1],[1,0,3,2],[2,0,1,3]];
+            const _mvA=mvOf(sec);
+            const AP=_apAll[ _mvA ? ((_mvA-1)%_apAll.length) : ((state.seed>>>5)%4) ];
           const m=seq[AP[k%AP.length]]+octShift;
             const acc=roll16?(k%4===0?1:0.82):1; // 16분 롤링: 박마다 액센트(그루브)
           const vel=Math.round((isDrop?(60+lfo*54):(40+lfo*46))*acc*eScale*ramp+rnd()*4);  // 드롭은 더 세게
@@ -16321,7 +16369,10 @@ function arrange(){
                편(runMix)마다 여섯 걸음 중 하나를 고른다. 한 편 안에서는 지킨다 —
                걸음이 마디마다 바뀌면 흐름이 끊긴다. */
             const _bpAll=['rror','drive8','oct16','pump4','walk8','offbeat'];
-            const _mvB=(sec&&sec.runMix)?sec.runMix:0;
+            const _mvB=mvOf(sec);
+            /* ★ _mvB 가 0 이면 장르 기본 패턴 하나로 고정된다 —
+               하우스·신스웨이브는 runMix 가 없어 늘 그랬다(Bass 리듬꼴 1가지·100%).
+               mvOf 로 네 필드를 다 읽으니 이제 편마다 갈린다. */
             const bp=_mvB ? _bpAll[(_mvB-1)%_bpAll.length] : runStyle().bassPat;
             if(bp==='drive8'){ // 락: 드라이빙 8분 + 5음·접근음
               const nxt=chordSymAt(si,bar+1),nc=nxt?chordFromSym(nxt):null;
@@ -16415,8 +16466,22 @@ function arrange(){
                 킥과 같은 자리에서 같은 세기로 부딪혔다.) */
             const _mh=(g.id==='melodichouse'), _dh=(g.id==='deephouse');
             const _mhBase=tr.bass.length;
-            const skip=_dh?new Set([0,2,4,6])
-                     :(dens<0.7?new Set([1,3,5]):dens<0.88?new Set([3]):new Set());
+            /* ── 편마다 베이스 자리를 바꾼다 ──
+               ★ skip 이 밀도만 보고 정해져 30분 내내 같은 리듬이었다
+                 (실측 하우스·신스웨이브: Bass 리듬꼴 1가지 · 100%).
+               편(mvOf)마다 솎는 자리를 돌린다. 딥하우스는 오프비트가 어법이라
+               그 뼈대(홀수 자리)는 지키고 안에서만 갈른다. */
+            const _mvBs=mvOf(sec);
+            let skip;
+            if(_dh){
+              const _dhv=[[0,2,4,6],[0,2,4,6],[0,2,4],[0,4,6],[0,2,6],[2,4,6]];
+              skip=new Set(_dhv[_mvBs%_dhv.length]);
+            } else if(_mvBs){
+              const _hv=[[1,3,5],[3],[],[1,5],[2,6],[1,3,5,7],[3,7],[5]];
+              skip=new Set(_hv[(_mvBs-1)%_hv.length]);
+            } else {
+              skip=(dens<0.7?new Set([1,3,5]):dens<0.88?new Set([3]):new Set());
+            }
             for(let e=0;e<8;e++){if(skip.has(e))continue;const rq=e*0.5;let m=ch.bass;
               if(e===5&&rnd()<0.35*dens)m=ch.bass+7;                              // 5음(밀도 반영)
               if(e===7&&changing){let tgt=nc.bass;while(Math.abs(tgt-ch.bass)>6)tgt+=tgt>ch.bass?-12:12;m=approachTo(tgt,keyPc());} // 접근음
@@ -16429,8 +16494,17 @@ function arrange(){
             if(_mh){
               tr.bass.length=_mhBase;                       /* 위에서 넣은 8분을 걷어낸다 */
               const barV=[100,84,96,88][bar%4];             /* 마디마다 세기가 다르다 */
+              /* ── 편마다 16분 자리를 솎는다 ──
+                 ★ 16분을 빠짐없이 찍어 30분 내내 같은 리듬이었다
+                   (실측 melodichouse: Bass 리듬꼴 1가지 · 100%).
+                 편(mvOf)마다 빼는 자리를 돌린다. 1박 정박(s=0)은 늘 남긴다 —
+                 그게 이 어법의 뼈대다. */
+              const _mvH=mvOf(sec);
+              const _hs=[[],[3,11],[5,13],[2,6,10,14],[1,7,9,15],[3,7,11,15],[6,14],[1,5,9,13]];
+              const _hskip=new Set(_mvH?_hs[(_mvH-1)%_hs.length]:[]);
               for(let s=0;s<16;s++){
                 if(s%4===0 && s!==0) continue;              /* 2·3·4박 정박은 킥 자리 */
+                if(_hskip.has(s)) continue;
                 let m=ch.bass;
                 if(s===10&&rnd()<0.35)m=ch.bass+7;          /* 가끔 5도로 올라갔다 온다 */
                 if(s===15&&changing){let tgt=nc.bass;while(Math.abs(tgt-ch.bass)>6)tgt+=tgt>ch.bass?-12:12;m=approachTo(tgt,keyPc());}
@@ -17858,6 +17932,20 @@ function buildTopMelody(M){
     chillwave:{r:'sparse', c:'fall'}
   };
   const _mg=MEL_BY_GENRE[state.genre]||{r:'drive', c:'arch'};
+  /* ── 편마다 리듬 표를 바꾼다 ──
+     ★ 장르마다 리듬 표 하나만 써서 60분 내내 같은 격자였다.
+       자리를 밀거나 솎아도 같은 표 안에서만 움직여 최다 47% 였다.
+       **표 자체를 갈라야** 리듬이 넓어진다.
+     장르 본래 표를 첫 자리에 두고 이웃 표를 섞는다. */
+  const _RHK=Object.keys(MEL_RH);
+  const _CNK=Object.keys(MEL_CON);
+  const _rot=function(base, keys, mv){
+    if(!mv) return base;
+    const i0=keys.indexOf(base); if(i0<0) return base;
+    return keys[(i0 + ((mv*3)%keys.length)) % keys.length];
+  };
+  const RH_BY_MV=function(mv){ return MEL_RH[_rot(_mg.r,_RHK,mv)]||MEL_RH.drive; };
+  const CON_BY_MV=function(mv){ return MEL_CON[_rot(_mg.c,_CNK,mv)]||MEL_CON.arch; };
   const RH=MEL_RH[_mg.r]||MEL_RH.drive;
   const CON=MEL_CON[_mg.c]||MEL_CON.arch;
   const motif=RH.map(function(r,i){ return {g:r[0], dur:r[1], deg:CON[i%CON.length]}; });
@@ -17876,15 +17964,39 @@ function buildTopMelody(M){
     const E=sc.energy||3;
     if(/Intro|Outro/i.test(sc.type) && E<=2) return;
     const dens = /Hook|Chorus|Drop/i.test(sc.type) ? 1 : (/Verse/i.test(sc.type) ? 0.65 : 0.5);
-    const key=sc.type;
+    /* ── 편마다 음형을 갈른다 ──
+       전에는 구간 종류(Hook·Verse) 하나마다 음형 하나였다.
+       60분이면 Hook 이 서른 번 넘게 나오는데 전부 같은 음형이 된다
+       (형이 로직에서 'Top Line 이 계속 같다'고 지적한 자리).
+       편(runMix)과 8마디 묶음을 키에 더해 갈른다. */
+    const _mvT=sc.runMix||0;
+    const _blk=Math.floor((sc.startQ||0)/(bar*8));
+    const key=sc.type+'|'+_mvT+'|'+(_blk%3);
     if(!tmplByType[key]){
       const T=[];
+      /* 음형 자체도 편마다 바꾼다 — 자리를 밀거나 솎는다 */
+      /* ★ 넷으로만 갈랐더니 리듬 최다가 47% 였다 — 자리 자체가 겹친다.
+         여덟으로 늘리고 자리를 미는 폭도 갈른다. */
+      const _sh=(_mvT*5+_blk*3)%8;
+      /* 이 편의 리듬 표를 골라 음형을 새로 짠다 */
+      const _RH2=RH_BY_MV(_mvT), _CN2=CON_BY_MV(_mvT);
+      const motif2=_RH2.map(function(r,i){ return {g:r[0], dur:r[1], deg:_CN2[i%_CN2.length]}; });
       for(let b2=0; b2<Math.min(nb,2); b2++){
-        motif.forEach(function(mo){
+        motif2.forEach(function(mo,mi){
           if(rnd()>dens) return;
-          T.push({dt:b2*bar + mo.g*(bar/16), dur:mo.dur, deg:mo.deg});
+          if(_sh===1 && mi%2===1) return;                       /* 절반만 */
+          if(_sh===2 && mi%3===1) return;                       /* 셋에 하나 뺀다 */
+          if(_sh===5 && mi%3===2) return;
+          if(_sh===7 && mi%4===0) return;
+          let _g=mo.g;
+          if(_sh===3) _g=Math.min(15, mo.g+2);                  /* 반 박 뒤로 */
+          else if(_sh===4) _g=Math.min(15, mo.g+1);             /* 16분 뒤로 */
+          else if(_sh===6) _g=Math.max(0, mo.g-1);              /* 16분 앞으로 */
+          T.push({dt:b2*bar + _g*(bar/16), dur:mo.dur,
+                  deg:mo.deg + ((_sh===2)?1:(_sh===5?-1:0))});
         });
       }
+      if(!T.length){ motif2.forEach(function(mo){ T.push({dt:mo.g*(bar/16), dur:mo.dur, deg:mo.deg}); }); }
       tmplByType[key]=T;
     }
     const T=tmplByType[key]; if(!T.length) return;
@@ -28236,7 +28348,12 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
      한 시간을 한 빠르기로 흐르면 편이 바뀌어도 같은 곡처럼 들린다.
      폭은 ±4% — 배경음악이라 크게 흔들면 대화의 흐름을 방해한다.
      느린 편 다음에 조금 빠른 편이 오도록 번갈아 둔다. */
-  const LOUNGE_TEMPO=[1.00, 0.96, 1.04, 0.98, 1.03, 0.95, 1.02, 0.97];
+  /* ── 라운지 편별 빠르기 ──
+     배수가 0.95~1.04 뿐이라 실측 newage 48~80 · jazz 55~82 였다.
+     한 시간 동안 빠르기가 거의 안 바뀌면 그 자체로 단조롭다.
+     현악 편성처럼 넓힌다 — 느린 편은 가라앉고 빠른 편은 흐른다.
+     결과는 60~145 로 가둔다(secTempoMul 에서 클램프). */
+  const LOUNGE_TEMPO=[1.00, 0.78, 1.34, 0.88, 1.46, 0.72, 1.22, 0.94];
   function secTempoMul(sec){ // 섹션별 템포 배율(재생·MIDI 동일)
     if(loungeMode && gsel==='chanbul' && sec && sec.movement) return cbMovFor(sec.movement).tempo;
     /* 현악 편성(4중주·5중주·실내악)은 편마다 빠르기가 크게 갈린다.
@@ -28250,7 +28367,12 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
       const _cl=Math.max(60,Math.min(145,_want));
       return _cl/_base;
     }
-    if(loungeMode && sec && sec.movement) return LOUNGE_TEMPO[(sec.movement-1)%LOUNGE_TEMPO.length];
+    if(loungeMode && sec && sec.movement){
+      /* ★ 이 함수 안에는 곡의 기준 BPM 이 없다(bpm 은 다른 스코프다).
+         호출부가 rh.bpm 을 곱하므로 여기서는 배수만 돌려준다.
+         범위 제한은 **템포 이벤트를 쓰는 자리**에서 한다. */
+      return LOUNGE_TEMPO[(sec.movement-1)%LOUNGE_TEMPO.length];
+    }
     if(gsel!=='gukvocal'||!sec) return 1;
     if(sec.label==='간주') return 0.97;
     if(sec.label==='브릿지') return 0.94;
@@ -28279,7 +28401,15 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
       const _ES=endingStyle();
       const rit=((sec.label==='아웃트로')||isLastSec) && _ES.rit>0.15; // 점점 느리게: 마지막 섹션에 장르별 강도로(EDM 등 rit 낮으면 유지)
       const ritMul=1-(1-0.80)*_ES.rit; // rit=1 → 0.80배(강한 리타르단도), rit=0.3 → 0.94배(살짝)
-      const tMul=secTempoMul(sec); // 섹션 템포 배율(국악 성악곡 트렌드 곡선)
+      let tMul=secTempoMul(sec); // 섹션 템포 배율(국악 성악곡 트렌드 곡선)
+      /* 라운지 편별 빠르기를 넓혔으니 실연 범위 밖으로 나가지 않게 가둔다.
+         실측: 배수만 넓혔더니 jazz 가 197 BPM 까지 갔다. 60~145 로 제한한다. */
+      if(loungeMode){
+        const _b0=(rh.bpm||gv.bpm||100);
+        const _want=_b0*tMul;
+        if(_want>145) tMul=145/_b0;
+        else if(_want<60) tMul=60/_b0;
+      }
       const secRh=secRhythm(sec, rit?Object.assign({},rh,{bpm:(rh.bpm||gv.bpm)*ritMul}):(tMul!==1?Object.assign({},rh,{bpm:(rh.bpm||gv.bpm)*tMul}):rh)); // 섹션별 반주 결 혼합(국악 성악곡)
       const secSpb=60/(secRh.bpm||gv.bpm), secMeasure=secSpb*meterQuarters();
       const nextSec=songArr[secIdx+1];
@@ -33173,7 +33303,14 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
     let merged=[]; mkQueue.forEach(m=>merged.push({tk:m.tk,type:'mk',txt:m.txt})); tempoEvs.forEach(te=>merged.push({tk:te.tick,type:'tempo',bpm:te.bpm})); ksQueue.forEach(k=>merged.push({tk:k.tk,type:'keysig',ks:k.ks})); sigQueue.forEach(q=>merged.push({tk:q.tk,type:'timesig',sig:q.sig}));
     merged.sort((a,b)=>a.tk-b.tk || ((a.type==='timesig')?-3:(a.type==='tempo'?-2:(a.type==='keysig'?-1:1))) - ((b.type==='timesig')?-3:(b.type==='tempo'?-2:(b.type==='keysig'?-1:1))));
     merged.forEach(e=>{ tBytes=tBytes.concat(vlq(e.tk-lastTk)); lastTk=e.tk;
-      if(e.type==='tempo'){ const mq=Math.round(60000000/e.bpm); tBytes=tBytes.concat([0xFF,0x51,0x03,(mq>>16)&0xff,(mq>>8)&0xff,mq&0xff]); }
+      if(e.type==='tempo'){
+        /* ── 라운지 빠르기 범위 ──
+           편별 배수를 넓혔더니 celtic 165 · jazz 171 까지 갔다.
+           ★ secTempoMul 에서 가두려 했으나 그 뒤에 드리프트가 또 곱해진다.
+             **템포 바이트를 쓰는 이 자리**에서 가둔다. 60~145 BPM. */
+        let _bp=e.bpm;
+        if(loungeMode){ if(_bp>145) _bp=145; else if(_bp<60) _bp=60; }
+        const mq=Math.round(60000000/_bp); tBytes=tBytes.concat([0xFF,0x51,0x03,(mq>>16)&0xff,(mq>>8)&0xff,mq&0xff]); }
       else if(e.type==='keysig'){ tBytes=tBytes.concat(keySigFor(baseTonicKS+e.ks)); }
       else if(e.type==='timesig'){ const _b=e.sig.split(' ')[0], _n=+_b.split('/')[0]||4, _d=+_b.split('/')[1]||4;
         { const _dd=Math.round(Math.log2(_d))||2, _ck=(_dd===3)?((_n%3===0&&_n>3)?36:12):24;
