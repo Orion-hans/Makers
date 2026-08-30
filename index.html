@@ -16333,9 +16333,19 @@ function arrange(){
           let base=60+((ch.bass%12)+12)%12; if(base>67)base-=12;                 // 아르프 레지스터(코드보다 위, 리드보다 아래)
           const seq=[]; tri.forEach(iv=>{const m=base+((iv-ch.notes[0]));seq.push(m);}); seq.push(seq[0]+12); // 3음+옥타브 = 4스텝
           const rate=16, dq=4/rate, per=cb*rate;                                 // 마디당 16분
+          /* ── 아르프도 쉰다 ──
+             ★ 16분을 빠짐없이 채워 마디당 16음 · 길이도 0.23박 한 가지였다
+               (실측 bigroom: 406마디가 똑같이 16음).
+             아르페지오는 흐르는 층이지만 숨이 있어야 리듬이 산다.
+             편마다 비우는 자리와 음 길이를 갈른다. */
+          const _mvE=mvOf(sec);
+          const _eSk=[[],[3,7,11,15],[1,5,9,13],[2,6,10,14],[3,11],[1,3,9,11],[5,7,13,15],[0,8]];
+          const _eskip=new Set(_mvE?_eSk[(_mvE-1)%_eSk.length]:[]);
+          const _eLen=[1,1.7,0.6,1,1.3,0.75,1.5,1][_mvE?((_mvE-1)%8):0];
           for(let k=0;k<per;k++){ const rq=k*dq; if(en===4&&(k%2===1))continue;   // 빌드는 8분(성글게)→드롭에서 16분 꽉
+            if(_eskip.has(k%16))continue;
             const m=seq[k%seq.length]+ (Math.floor(k/seq.length)%2===1?12:0);     // 한 바퀴마다 옥타브 반짝
-            tr.arpseq.push({t:b0+rq+swQ(rq),dur:dq*0.9,midi:Math.min(96,m),vel:Math.round((k%4===0?70:56)*eScale*ramp+rnd()*5),pump:sec.pump}); }
+            tr.arpseq.push({t:b0+rq+swQ(rq),dur:dq*0.9*_eLen,midi:Math.min(96,m),vel:Math.round((k%4===0?70:56)*eScale*ramp+rnd()*5),pump:sec.pump}); }
         }
         // 베이스: 브레이크(E1)는 쉼 — 단 러닝은 상시(골전도 그루브 유지) · 인트로 스테이징은 후반 진입
         if((en>=2||run)&&!thin){
@@ -17981,7 +17991,9 @@ function buildTopMelody(M){
       /* ── 쉼과 리듬 ──
          ★ 소리 나는 마디가 91~99% 였다 — 30분 내내 노래하면 훅이 안 각인된다.
            노래는 부르고 쉬고를 되풀이한다. 그 사이가 있어야 다음 구절이 들린다. */
-      const _rest=(((_blk*2654435761)^(_mvT*40503))>>>0)%5;
+      /* 한 곡에서는 덜 쉰다 — 3~5분에 구간을 통째로 비우면 곡이 빈다 */
+      const _rest=_mvT ? ((((_blk*2654435761)^(_mvT*40503))>>>0)%5)
+                       : (1+((((_blk*2654435761)>>>0)%4)));
       const _phrase=Math.floor((sc.startQ||0)/bar)%4;
       /* 이 편의 리듬 표를 골라 음형을 새로 짠다 */
       const _RH2=RH_BY_MV(_mvT), _CN2=CON_BY_MV(_mvT);
@@ -17992,13 +18004,19 @@ function buildTopMelody(M){
          그 한 박이 비어야 리듬이 생긴다. 편마다 시작 자리를 옮긴다. */
       /* 시작 자리 여덟 가지. 3박·3박 반은 마디 끝에서 '어-' 하고 들어와
          다음 마디 첫 박에 착지하는 픽업이다 — 팝 훅에서 가장 흔한 형태다. */
+      /* ★ 한 곡 모드에서는 _mvT 가 0 이라 _blk 만으로 정해져
+         시작 자리가 거의 엇박으로만 갔다(실측 kpop: 정박 8회 · 3.75박 24회).
+         3~5분짜리 한 곡에서 매번 픽업으로 들어오면 뼈대가 흐려진다.
+         **롱 믹스일 때만** 여덟 가지를 돌리고, 한 곡은 정박을 기본으로 둔다. */
       const _up=(((_blk*40503)^(_mvT*7919))>>>0)%8;
-      const _upG=[0,2,4,6,3,12,14,1][_up];
+      const _upG=_mvT ? [0,2,4,6,3,12,14,1][_up]
+                      : [0,0,0,2,0,0,4,0][_up];   /* 한 곡: 넷에 셋은 정박 */
       /* 0=정박 · 2=8분뒤 · 4=2박 · 6=2박반 · 3=1박반 · 12=4박 · 14=4박반 · 1=16분뒤 */
       /* ── 마디 안에서 쉬는 자리 ──
          시작만 옮기면 그 뒤로는 음형이 그대로 이어져 여전히 촘촘하다.
          노래는 한 구절 안에서도 숨을 쉰다. 편마다 비우는 박을 정한다. */
-      const _hole=(((_blk*2654435761)^(_mvT*104729))>>>0)%6;
+      const _hole=_mvT ? ((((_blk*2654435761)^(_mvT*104729))>>>0)%6)
+                       : ((((_blk*104729)>>>0)%6)<2?0:1);   /* 한 곡: 마디 안 비우기 없음 */
       const _holeSet=[[],[],[4,5,6,7],[8,9,10,11],[2,3],[10,11,12,13]][_hole];
       /* 다섯에 하나는 이 구간 전체를 쉰다 — 리드와 아르프에 자리를 넘긴다 */
       /* ★ 훅·드롭까지 다 살렸더니 딥하우스처럼 구간이 훅뿐인 장르는 98% 로 남았다.
@@ -20285,6 +20303,22 @@ function guideTracks(){
   return L;
 }
 function exportAll(){arrange();
+  /* ── 겹치는 음을 자른다 ──
+     ★ 곡 생성 중에 잘라도 tr.arpseq 를 .filter() 로 통째로 갈아 끼우는 자리가
+       뒤에 있어 앞선 수정이 사라진다. **arrange() 뒤 · 트랙 만들기 전**에 한다.
+     아르프·리드·대선율은 한 음씩 흐르는 층이라 겹치면 화음처럼 뭉친다. */
+  try{
+    ['arpseq','lead','counter','topmel'].forEach(function(k){
+      const A=MODEL.tracks[k];
+      if(!A || A.length<2) return;
+      A.sort(function(a,b){ return a.t-b.t; });
+      for(let z=0; z<A.length-1; z++){
+        const a2=A[z], b2=A[z+1];
+        if(b2.t>a2.t && a2.t+(a2.dur||0) > b2.t-0.01)
+          a2.dur=Math.max(0.05, b2.t-a2.t-0.01);
+      }
+    });
+  }catch(e){}
   /* 앞뒤 편집 여백 — 4마디. 16박으로 못박아 두면 6/8(마디 3박)에서 5.33마디가 되어
      곡이 마디 중간에서 시작한다(로직에서 마디선과 어긋남). 박자표의 마디 길이로 계산한다. */
   EXPORT_PADQ=4*barQ();const P=gmProgs(),RN=recNames(),LP=logicPatches(),AP=altPatches(),BS=bassStyle();  // 앞뒤 4마디 편집 여백
