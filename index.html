@@ -2611,6 +2611,17 @@ document.getElementById('so-tabs').addEventListener('click', (e)=>{
   if(el) el.addEventListener('click',()=>{ if(window.SO_HUB){
     let keep=false;
     try{ const lg=document.querySelector('#app-play #loungeTog'); keep=!!(app==='app-play' && lg && lg.checked); }catch(e){}
+    /* ── 방금 받은 멜로디는 지키지 않는다 ──
+       ★ 이 처리는 '새 곡을 처음부터'를 위한 것인데
+         멜로디 앱에서 막 보낸 것까지 지웠다
+         (실측: 보낸 직후 180음 -> [새 곡 생성] 뒤 0음).
+       멜로디 앱은 보내고 나서 곧바로 생성을 누르는 것이 정상 흐름이다.
+       '가져온 멜로디' 토글이 켜져 있으면 그 뜻이 곧 '쓰겠다'는 것이므로 지키다. */
+    try{
+      const _mk={'app-beat':'soBeatMelSrc','app-band':'soBandMelSrc','app-play':'soPlayMelSrc'}[app];
+      const _c=_mk?document.getElementById(_mk):null;
+      if(_c && _c.checked && window.SO_HUB.importedMelody && window.SO_HUB.importedMelody.length) keep=true;
+    }catch(e){}
     if(!keep){ window.SO_HUB.importedMelody=null; if(window.SO_HUB.melSrc){window.SO_HUB.melSrc[app.replace('app-','')]=undefined;} }
   } }, true);
 });
@@ -5838,10 +5849,27 @@ function soBuildBlueprintMelody(){   // 멜로디 먼저 워크플로: 구조·�
   let startBar=1;
   const sections=[]; state.sections.forEach(s=>{ const reps=Math.max(1,s.reps||1); for(let rp=0;rp<reps;rp++){ sections.push({role:s.role, name:s.role, chords:(s.chords||['C']).slice(), bars:s.bars, startBar}); startBar+=s.bars; } });   // 반복 구간은 펼쳐서(멜로디와 동일 길이)
   const key=(typeof state.key==='string')?state.key:'C';
-  return { v:3, from:'melody', style:state.genre, key, mode:(state.keyMode==='minor'?'minor':'major'),
+  /* ── 넘어온 장르를 되돌려 보낸다 ──
+     ★ 비트에서 bigroom 곡을 멜로디로 보냈다가 돌아오면 style 이 'pop' 이 됐다.
+       멜로디 앱은 자기 장르(state.genre)를 실어 보내는데,
+       그 값은 'band|ballad' 같은 자기 목록이라 비트가 못 알아본다.
+     받을 때 원래 장르를 기억해 두고 되돌려 보낼 때 그대로 쓴다.
+     사용자가 멜로디 앱에서 장르를 바꿨으면 그때는 바꾼 값을 쓴다. */
+  let _st=state.genre;
+  try{
+    const _src=window.SO_HUB && window.SO_HUB.srcStyle;
+    if(_src && !window.SO_HUB.melGenreTouched) _st=_src;
+  }catch(e){}
+  return { v:3, from:'melody', style:_st, key, mode:(state.keyMode==='minor'?'minor':'major'),
     bpm:+state.bpm||96, meter:state.meter||'4/4', sections,
     melody:(state.notes||[]).map(n=>({t:+(+n.t).toFixed(3),dur:+(+n.dur).toFixed(3),midi:n.midi,vel:n.vel||90})) };   // 멜로디 payload(절대 박 타이밍)
 }
+/* 멜로디 앱에서 장르를 직접 바꾸면 그 값을 쓴다 — 안 바꿨으면 넘어온 장르를 유지 */
+(function(){ try{
+  const _g=document.getElementById('genre');
+  if(_g) _g.addEventListener('change',function(){
+    window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.melGenreTouched=true; });
+}catch(e){} })();
 (function(){   // 🥁 비트로 (멜로디 유지) : 멜로디+구조·코드를 비트메이커로 — 멜로디는 보존, 프로덕션만 새로
   const host=$('soFromBand')||$('pickMidi'); if(!host)return;
   const b=document.createElement('button'); b.className='filebtn'; b.id='soMelToBeat'; b.textContent='🥁 비트로 (멜로디 유지)';
@@ -14107,6 +14135,9 @@ function applyGenreDefaults(randomize,opt){opt=opt||{};
     if(g.id==='chillwave'&&chillwaveStyle().bpm)t=chillwaveStyle().bpm; // 칠웨이브: 하위 스타일 BPM
     if(g.id==='hookpop'&&hookpopStyle().bpm)t=hookpopStyle().bpm;  // 훅팝: 하위 스타일 BPM
     if(g.id==='kpop'&&kpopStyle().bpm)t=kpopStyle().bpm;           // K-Pop: 하위 스타일 BPM
+    /* ★ 멜로디 앱에서 넘어온 템포는 사용자가 정한 값이다 —
+       장르 기본값으로 덮어쓰지 않는다(실측: 72 -> 85 로 바뀌었다). */
+    try{ if(window.SO_HUB && window.SO_HUB.keepBpm) t=window.SO_HUB.keepBpm; }catch(e){}
     $('bpm').value=t;$('bpmOut').textContent=t;
     let sw=g.swing;                                             // 스윙도 하위 스타일이 있으면 소속 (재지·더스티는 더 강한 스윙)
     if(g.id==='lofi'&&lofiStyle().swing!=null)sw=lofiStyle().swing;
@@ -21188,12 +21219,32 @@ function soApplyBlueprintBeat(bp){
   const PCN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
   const kpc=Math.max(0,PCN.indexOf(bp.key));
   if($('key')){$('key').value=String(kpc);}
-  const TMAP={Intro:'Intro',Verse:'Verse',PreChorus:'Pre',Buildup:'Build',Chorus:'Hook',PostChorus:'Post',Bridge:'Bridge',Outro:'Outro'};
-  state.sections=bp.sections.map((sc,i)=>newSection(TMAP[sc.type]||'Verse', sc.bars, i));
+  /* ── 구간 이름 표 ──
+     ★ 멜로디 앱은 role 을 **소문자**로 보낸다(intro · verse · prechorus · hook).
+       표에 대문자만 있어 전부 기본값 Verse 가 됐다
+       (실측: intro/verse/prechorus/hook/verse -> Verse 다섯 개).
+     대소문자를 모두 받고, 없으면 소문자로 낮춰 다시 찾는다. */
+  const TMAP={Intro:'Intro',Verse:'Verse',PreChorus:'Pre',Buildup:'Build',Chorus:'Hook',PostChorus:'Post',Bridge:'Bridge',Outro:'Outro',
+              intro:'Intro',verse:'Verse',prechorus:'Pre',pre:'Pre',buildup:'Build',build:'Build',
+              chorus:'Hook',hook:'Hook',postchorus:'Post',post:'Post',posthook:'Post',bridge:'Bridge',outro:'Outro',
+              drop:'Hook',breakdown:'Break',brk:'Break'};
+  const _ty=sc=>{ const k=sc.type||sc.role||'';
+    return TMAP[k] || TMAP[String(k).toLowerCase()] || 'Verse'; };
+  state.sections=bp.sections.map((sc,i)=>newSection(_ty(sc), sc.bars, i));
   if(typeof finalizeSections==='function')finalizeSections();
   state.sections.forEach((sec,i)=>{ sec.chords=bp.sections[i].chords.slice(); });   // finalize 뒤에 코드 부과 — harmonizeFlow는 이 경로에서 안 불려 유지됨
   window.SO_HUB.importedMelody=(bp.melody&&bp.melody.length)?bp.melody.slice():null;   // 멜로디 앵커 보존(export·재전송에 그대로 실림)
+  try{ window.SO_HUB.srcStyle=bp.style; window.SO_HUB.melGenreTouched=false; }catch(e){}   // 원래 장르 기억
   applyState({v:2,seed:state.seed,genre:g,key:String(kpc),bpm:bp.bpm,meter:bp.meter,swing:0,sections:state.sections,active:0});
+  /* ── 넘어온 템포를 지킨다 ──
+     ★ applyState 로 넣어도 [새 곡 생성] 을 누르면 장르 기본 BPM 으로 덮어써진다
+       (실측: 멜로디 앱 72 -> 내보낸 MIDI 85 · 로파이 기본값).
+     사용자가 정한 값이 우선이다. 생성 뒤에도 다시 세운다. */
+  try{
+    window.SO_HUB.keepBpm=bp.bpm;
+    const _bp=document.getElementById('bpm');
+    if(_bp){ _bp.value=bp.bpm; _bp.dispatchEvent(new Event('change',{bubbles:true})); }
+  }catch(e){}
   flashMsg('✓ 밴드 곡 적용: '+bp.sections.length+'구간 · '+PCN[kpc]+' · '+bp.bpm+'BPM'+(subbed?' · 장르 '+bp.style+'→'+g+' 대체':''));
 }
 window.addEventListener('so:blueprint-beat',()=>soApplyBlueprintBeat(window.SO_HUB&&window.SO_HUB.blueprint));
@@ -21228,6 +21279,12 @@ if(__soBeatOrigDl){ dl=function(tracks,name){ if(__soBeatCap){ __soBeatCap.track
   b.onclick=()=>{ const bp=soBuildBlueprintBeat();
     if(!bp.sections.length){alert('먼저 곡을 만든 뒤 눌러 주세요');return;}
     window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.blueprint=bp;
+    /* ── 보낸 쪽 장르를 기억한다 ──
+       ★ 비트 bigroom 곡을 멜로디로 보냈다가 돌아오면 style 이 'pop' 이 됐다.
+         멜로디 앱은 자기 장르(state.genre)를 실어 보내는데
+         그 값은 'band|ballad' 같은 자기 목록이라 비트가 못 알아본다.
+       돌아올 때 원래 장르를 쓴다. 멜로디 앱에서 장르를 직접 바꿨으면 그 값을 쓴다. */
+    try{ window.SO_HUB.srcStyle=bp.style; window.SO_HUB.srcApp='beat'; window.SO_HUB.melGenreTouched=false; }catch(e){}
     if(__soBeatOrigDl){ try{ __soBeatCap={}; exportAll(); window.SO_HUB.bandTracks=__soBeatCap.tracks||null; window.SO_HUB.bandMidName=__soBeatCap.name||('beat_'+bp.style+'.mid'); window.SO_HUB.bandPadQ=16; }catch(e){ window.SO_HUB.bandTracks=null; } __soBeatCap=null; }   // 반주 트랙 캡처
     window.dispatchEvent(new CustomEvent('so:blueprint'));
     try{ if(typeof flashMsg==='function') flashMsg('🎼 멜로디메이커로 보냈어요 · '+bp.sections.length+'구간'+(window.SO_HUB.bandTracks?' · 반주 '+window.SO_HUB.bandTracks.length+'트랙':'')); }catch(e){} };
