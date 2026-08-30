@@ -13192,7 +13192,12 @@ const GENRES=[
    atmos:{vinyl:0.6,rain:0.25}, style:'lofi'},
   {id:'synthwave',name:'신스웨이브 (Synthwave)',tempo:[86,112],swing:0,bass:'synth',pad:true,lead:true,form:'edm', defaultSec:200,
    hint:'참고: 킵쉘리 · 더 미드나잇 · 건쉽. 80년대 레트로 퓨처 — 마이너 화성·16분 펄스 옥타브 베이스·게이트 리버브 스네어·넓은 패드·상역 아르페지오.',
-   chords:[['i','bVI','bIII','bVII'],['i','bVII','bVI','bVII'],['i','iv','bVI','v'],['i','bIII','bVII','iv'],['i','bVII','bIII','bVI'],['bVI','bVII','i','v'],['i','iv','bVII','bIII'],['i','bVI','iv','bVII']],
+   /* ★ 여덟 진행이 전부 단조라 10곡 중 1곡만 장조였다.
+      신스웨이브에도 밝은 곡이 많다 — 더 미드나잇·글로파이 계열이 그렇다.
+      장조로 시작하는 진행을 절반으로 넣는다(하위 스타일 glo·dreampop 은 원래 ionian). */
+   chords:[['I','V','vi','IV'],['i','bVI','bIII','bVII'],['I','IV','V','vi'],['i','bVII','bVI','bVII'],
+           ['IM7','V','vi','IV'],['i','iv','bVI','v'],['I','vi','IV','V'],['i','bIII','bVII','iv'],
+           ['IV','V','I','vi'],['i','bVII','bIII','bVI'],['I','V','IV','V'],['bVI','bVII','i','v']],
    atmos:{sweep:0.35,riser:1}, style:'synthwave'},
   {id:'discofunk',name:'디스코·펑크 (Disco Funk)',tempo:[112,126],swing:0,bass:'synth',pad:true,lead:true,form:'edm', defaultSec:200,
    hint:'참고: 셉템버 · 어스 윈드 앤 파이어 · 다프트 펑크 · 브루노 마스. 70s 디스코·펑크 — 옥타브 베이스·4온더플로어·16분 커팅 기타·훅에 브라스 스탭. 장조로 밝게.',
@@ -13537,7 +13542,7 @@ const runStyle=()=>RUNSTYLES[state.runStyle]||RUNSTYLES.fresh;
 
 /* ===== EDM 하위 스타일 — 4-on-the-floor 공통, 리듬 디테일·베이스·색깔이 달라진다 ===== */
 const EDMSTYLES={
-  radio:{name:'라디오 에딧',bpm:126,hat:'offbeat',defaultSec:170,cfg:{introStyle:'impact',endStyle:'finale',beatSwitch:'off',groove:'straight'},
+  radio:{name:'라디오 에딧',mode:'ionian',bpm:126,hat:'offbeat',defaultSec:170,cfg:{introStyle:'impact',endStyle:'finale',beatSwitch:'off',groove:'straight'},
     hint:'라디오·스트리밍용 짧은 버전(~2:45) · 인트로 짧게·바로 훅 · 8마디 드롭 · 편집 타이트',
     /* ★ vi 로 시작하는 진행이 많아 곡이 늘 단조로 들렸다.
        장조 으뜸(I)으로 시작하는 진행을 절반으로 맞춘다 — EDM 도 밝은 곡이 많다. */
@@ -13546,13 +13551,13 @@ const EDMSTYLES={
            ['I','V','IV','V'],['vi7','IV','I','V']],
     bassPat:'house',leadStyle:'stab',arpHook:false,pump:true,atmos:{sweep:0.35,riser:1},
     pad:{voices:5,detune:10,lpf:2600},lead:{voices:4,detune:10,lpf:5600},bassSyn:{lpf:1400,lvl:0.6}},
-  club:{name:'클럽 익스텐디드',bpm:126,hat:'offbeat',defaultSec:330,cfg:{introStyle:'stack',endStyle:'fade',beatSwitch:'off',groove:'straight'},
+  club:{name:'클럽 익스텐디드',mode:'ionian',bpm:126,hat:'offbeat',defaultSec:330,cfg:{introStyle:'stack',endStyle:'fade',beatSwitch:'off',groove:'straight'},
     hint:'클럽·DJ용 확장 버전(~5:30) · 긴 인트로/아웃트로(믹싱용) · 16마디 드롭 · 브레이크다운 김',
     progs:[['vi','IV','I','V'],['IM7','vi7','IV','V'],['vi7','IV','I','V'],['IVadd9','V','vi','I'],
            ['vi','V','IV','V'],['IM7','V','vi7','IV'],['vi7','ii7','V','IM7'],['IVM7','V','iii7','vi7']],
     bassPat:'house',leadStyle:'stab',arpHook:false,pump:true,atmos:{sweep:0.4,riser:1,impact:1},
     pad:{voices:5,detune:10,lpf:2600},lead:{voices:4,detune:10,lpf:5600},bassSyn:{lpf:1400,lvl:0.6}},
-  house:{name:'House',bpm:124,hat:'offbeat',defaultSec:240,cfg:{introStyle:'stack',endStyle:'fade',beatSwitch:'off',groove:'straight'},
+  house:{name:'House',mode:'ionian',bpm:124,hat:'offbeat',defaultSec:240,cfg:{introStyle:'stack',endStyle:'fade',beatSwitch:'off',groove:'straight'},
     hint:'딥 하우스 그루브 · 오프비트 오픈햇 · 소울풀 7th 코드 · 딥 베이스',
     progs:[['ii7','V7','IM7','vi7'],['IM7','vi7','ii7','V7'],['vi7','IV','I','V'],['IM7','IVM7','ii7','V7'],
            ['ii7','V7','iii7','vi7'],['IM7','V','vi7','IV'],['vi7','ii7','V7','IM7'],['IVM7','V','iii7','vi7']],
@@ -13597,25 +13602,25 @@ const edmStyle=()=>EDMSTYLES[state.edmStyle]||EDMSTYLES.house;
 
 /* ===== Trap 하위 스타일 — 808 + 하프타임 백비트 공통, 하이햇·베이스·색깔이 달라진다 ===== */
 const TRAPSTYLES={
-  trap:{name:'Trap',bpm:140,hats:'roll',
+  trap:{name:'Trap',mode:'aeolian',bpm:140,hats:'roll',
     hint:'롤링 하이햇(트리플렛 롤) · 808 글라이드 · 하프타임 스네어 3박 · 어두운 단조',
     progs:[['i','i','bVI','bVII'],['i','bVI','bVII','i'],['i','v','bVI','iv'],['i','iv','i','bVII'],
            ['i','i','i','bVII'],['i','bVII','bVI','v'],['i','bVI','iv','v'],['i','i','iv','bVI']],
     bassGlide:true,glideCfg:{depth:4,time:0.055,note:0.08,freq:0,down:0},dark:true,atmos:{},
     pad:{voices:4,detune:8,lpf:2000},lead:{voices:3,detune:6,lpf:4000},bassSyn:{lpf:1000,lvl:0.68}},
-  drill:{name:'Drill',bpm:142,hats:'sparse',
+  drill:{name:'Drill',mode:'phrygian',bpm:142,hats:'sparse',
     hint:'슬라이드 808(미끄러지는 베이스) · 성긴 어두운 드럼 · 클립된 스네어 · UK 드릴',
     progs:[['i','i','bVI','v'],['i','bVI','iv','v'],['i','v','bVI','iv'],['i','iv','bVII','bVI'],
            ['i','i','v','bVI'],['i','bVI','bVII','v'],['i','iv','v','i'],['i','v','iv','bVI']],
     bassGlide:true,slide:true,glideCfg:{depth:6,time:0.11,note:0.14,freq:0.42,down:0},dark:true,atmos:{},
     pad:{voices:4,detune:6,lpf:1800},lead:{voices:2,detune:5,lpf:3600},bassSyn:{lpf:900,lvl:0.7}},
-  phonk:{name:'Phonk',bpm:135,hats:'roll',
+  phonk:{name:'Phonk',mode:'aeolian',bpm:135,hats:'roll',
     hint:'카우벨 멜로디 · 왜곡 808 · lo-fi 멤피스 질감 · 드리프트 phonk',
     progs:[['i','i','bVI','bVII'],['i','bVI','v','iv'],['i','iv','i','v'],['i','bVII','bVI','v'],
            ['i','i','v','i'],['i','bVI','iv','bVII'],['i','v','bVI','iv'],['i','i','bVII','bVI']],
     bassGlide:false,dark:true,cowbell:true,atmos:{hiss:0.35},
     pad:{voices:3,detune:5,lpf:1600},lead:{voices:2,detune:4,lpf:3200},bassSyn:{lpf:800,lvl:0.72}},
-  rage:{name:'Rage',bpm:160,hats:'roll',
+  rage:{name:'Rage',mode:'mixolydian',bpm:160,hats:'roll',
     hint:'왜곡·깨진 808 · 와이드 슈퍼소 리드 · 하이퍼팝 DNA · 격한 에너지',
     progs:[['i','bVI','bVII','v'],['i','bVI','bIII','bVII'],['i','iv','bVI','bVII'],['i','bVII','bVI','bVII'],
            ['i','bVII','bVI','bVII'],['i','v','bVI','iv'],['i','bVI','iv','v'],['i','iv','bVII','bVI']],   // vi-IV-V-i(Am-F-G-Cm)는 E/E♭ 충돌 → 단조 진행으로 교체
@@ -13702,19 +13707,19 @@ const globalStyle=()=>GLOBALSTYLES[state.globalStyle]||GLOBALSTYLES.amapiano;
 
 /* ===== 딥하우스 하위 스타일 — 무드로 나눔. 앰비언트틱하냐(코드 길게·드럼 최소) 그루비하냐(롤링) + 2026 트렌드(오가닉·아프로) ===== */
 const DEEPHOUSESTYLES={
-  groovy:{name:'그루비',bpm:122,chordBars:2,hint:'기본 딥하우스 · 롤링 서브 베이스 · 둥근 킥 4온더플로어 · 최면적 반복. 코딩·카페 그루브.',
+  groovy:{name:'그루비',mode:'dorian',bpm:122,chordBars:2,hint:'기본 딥하우스 · 롤링 서브 베이스 · 둥근 킥 4온더플로어 · 최면적 반복. 코딩·카페 그루브.',
     progs:[['i7','iv7','bVIIM7','i7'],['i9','iv9','v7','i7'],['i7','v7','iv7','i7'],['i7','bIIIM7','iv7','bVIIM7'],
            ['i9','bVIIM7','IV7','i9'],['i7','iv9','i7','v7'],['ii7','v7','i7','iv7'],['i7','IV7','bIIIM7','iv7']],   // IV7=도리안 IV(F7) — IVM7은 장3도 E가 으뜸 E♭과 충돌
     atmos:{sweep:0.2}},
-  ambient:{name:'앰비언트',bpm:120,chordBars:4,flat:true,hint:'플로팅 앰비언트 하우스 · 코드 4마디 길게 · 드롭·브레이크 없이 균일 · 넓은 패드·드론. 명상·수면 결.',
+  ambient:{name:'앰비언트',mode:'ionian',bpm:120,chordBars:4,flat:true,hint:'플로팅 앰비언트 하우스 · 코드 4마디 길게 · 드롭·브레이크 없이 균일 · 넓은 패드·드론. 명상·수면 결.',
     progs:[['i9','i9','IV7','IV7'],['i7','bVIM7','bIIIM7','bVIIM7'],['i9','IV7','i9','v7'],['i7','iv7','i7','bVIIM7'],
            ['i9','bIIIM7','IV7','i9'],['i7','v7','iv7','i7'],['i9','IV9','bVIM7','v7'],['i7','iv9','bVIIM7','i7']],
     atmos:{sweep:0.15}},
-  soulful:{name:'소울풀',bpm:123,chordBars:2,hint:'재지·따뜻한 소울풀 하우스 · 확장 로즈 코드(9·11·13) · 소울 무드 · 122~127 BPM.',
+  soulful:{name:'소울풀',mode:'ionian',bpm:123,chordBars:2,hint:'재지·따뜻한 소울풀 하우스 · 확장 로즈 코드(9·11·13) · 소울 무드 · 122~127 BPM.',
     progs:[['ii7','v7','i7','iv7'],['i9','iv9','bVIIM7','bIIIM7'],['bVIM7','ii7','v7','i7'],['i7','bVIM7','ii7','v7'],
            ['iv9','bVIIM7','bIIIM7','bVIM7'],['ii7','v7','bIIIM7','bVIM7'],['i9','iv9','v9','i9'],['bVIM7','bVIIM7','i7','i7']],   // vi7/iii7(장3도 E)→bVIM7/bIIIM7: 단조 으뜸과 충돌 제거
     atmos:{sweep:0.2}},
-  organic:{name:'오가닉',bpm:120,chordBars:2,hint:'2026 트렌드 · 어쿠스틱 퍼커션·자연음 · 유기적 질감 · 따뜻한 베이스. 오가닉 하우스.',
+  organic:{name:'오가닉',mode:'ionian',bpm:120,chordBars:2,hint:'2026 트렌드 · 어쿠스틱 퍼커션·자연음 · 유기적 질감 · 따뜻한 베이스. 오가닉 하우스.',
     progs:[['i7','iv7','v7','i7'],['i9','bVIIM7','IV7','i9'],['i7','bVIM7','v7','iv7'],['ii7','v7','i7','bVIM7'],
            ['i7','iv9','i7','bVIIM7'],['bVIM7','IV7','i7','v7'],['i9','iv7','bVIIM7','bVIM7'],['i7','v7','iv7','i7']],
     atmos:{sweep:0.25}},
@@ -13731,7 +13736,7 @@ const MELODICHOUSESTYLES={
     progs:[['i','bVI','bIII','bVII'],['i','bVII','bVI','bVII'],['i7','bVIM7','bIIIM7','bVII'],['i','v','bVI','iv'],
            ['i','bVI','bVII','v'],['isus2','bVI','bIII','bVII'],['i','iv','bVI','bVII'],['i7','iv7','bVIM7','v7']],
     atmos:{sweep:0.4,riser:1,impact:1}},
-  melodictechno:{name:'멜로딕테크노',bpm:126,chordBars:4,arp:true,hint:'2026 Afterlife 사운드(Anyma·Tale of Us) · 최면적·시네마틱 · 아르페지오 마이너 · 긴 텐션/릴리즈(4마디). 122~130 BPM.',
+  melodictechno:{name:'멜로딕테크노',mode:'aeolian',bpm:126,chordBars:4,arp:true,hint:'2026 Afterlife 사운드(Anyma·Tale of Us) · 최면적·시네마틱 · 아르페지오 마이너 · 긴 텐션/릴리즈(4마디). 122~130 BPM.',
     progs:[['i','i','bVI','bVI'],['i','bVII','bVI','bVII'],['i','v','bVI','iv'],['i7','bVIM7','iv7','v7'],
            ['i','bVI','iv','v'],['i','bII','i','bVII'],['i','bVI','bVII','i'],['i7','iv7','bVIM7','v7']],
     atmos:{sweep:0.4,riser:1,impact:1}},
@@ -13752,6 +13757,20 @@ const melodichouseStyle=()=>MELODICHOUSESTYLES[state.melodichouseStyle]||MELODIC
 
 /* ===== 레트로 하위 스타일 — 80s 리바이벌 계보 ===== */
 const RETROSTYLES={
+    /* ★ state 초기값이 'citypop' 인데 표에 없어 조성을 못 찾고 단조로 떨어졌다.
+       레트로 80s 는 밝은 곡이 많다 — 시티팝·펑크·이탈로는 장조가 어법이다. */
+    citypop:{name:'시티팝',mode:'ionian',bpm:104,
+      progs:[['IM7','vi7','ii7','V7'],['IM7','IVM7','iii7','vi7'],['ii7','V7','IM7','vi7'],['IVM7','V','iii7','vi7'],
+             ['IM9','vi7','ii9','V7'],['I','V','vi','IV'],['IM7','V','vi7','IV'],['ii7','V7','iii7','vi7']],
+      atmos:{sweep:0.2}},
+    italo:{name:'이탈로 디스코',mode:'ionian',bpm:120,
+      progs:[['I','V','vi','IV'],['I','IV','V','vi'],['vi','IV','I','V'],['I','vi','IV','V'],
+             ['IM7','V','vi','IV'],['IV','V','I','vi'],['I','V','IV','V'],['vi','V','IV','V']],
+      atmos:{sweep:0.25}},
+    funk80:{name:'80s 펑크',mode:'mixolydian',bpm:112,
+      progs:[['I7','IV7','I7','V7'],['I7','bVII','IV','I7'],['I7','IV7','bVII','IV7'],['I7','V7','IV7','I7'],
+             ['IM7','IV7','I7','bVII'],['I7','bIII','IV','I7'],['I7','IV7','V7','IV7'],['I7','bVII','V7','I7']],
+      atmos:{sweep:0.15}},
   citypop:{name:'시티팝',bpm:110,swing:54,hint:'일본 80s 시티팝(재지·세련) · 7th/9th 왕도진행 · 펑키 베이스 · 로즈/FM. 나이트 드라이브.',
     progs:[['IVM7','V','iii7','vi7'],['IM7','vi7','ii7','V'],['ii7','V','IM7','vi7'],['IVM7','iii7','vi7','V'],
            ['vi7','ii7','V','IM7'],['IM7','IVM7','iii7','vi7'],['IVM7','V','iii7','vi7'],['ii7','V7','IM9','vi7']],
@@ -13786,6 +13805,16 @@ const retroStyle=()=>RETROSTYLES[state.retroStyle]||RETROSTYLES.citypop;
 
 /* ===== 훅팝 하위 스타일 — 중독성 훅 중심, 트렌드 팝 ===== */
 const HOOKPOPSTYLES={
+    /* ★ girlcrush·housepop 둘 다 aeolian 이라 K팝이 늘 단조였다.
+       K팝에는 밝은 곡도 많다 — 상큼·시티팝 계열을 넣는다. */
+    freshpop:{name:'프레시 팝',mode:'ionian',bpm:120,
+      progs:[['I','V','vi','IV'],['IM7','vi7','IV','V'],['I','IV','V','vi'],['IV','V','iii7','vi'],
+             ['I','iii7','IV','V'],['vi','IV','I','V'],['IM7','V','vi7','IV'],['I','vi7','ii7','V']],
+      atmos:{}},
+    citypopk:{name:'K 시티팝',mode:'ionian',bpm:112,
+      progs:[['IM7','vi7','ii7','V7'],['ii7','V7','IM7','vi7'],['IM9','IVM9','iii7','vi7'],['IVM7','V','iii7','vi7'],
+             ['IM7','IVM7','ii7','V7'],['I','V','vi','IV'],['IM9','vi7','ii9','V7'],['ii7','V7','iii7','vi7']],
+      atmos:{}},
   powerpop:{name:'파워팝',bpm:125,swing:0,hint:'APT식 파워팝 · 4온더플로어 킥+백비트 · 파워코드 기타 · 밝은 신스 스탭 · 떼창 훅.',
     progs:[['I','V','vi','IV'],['vi','IV','I','V'],['I','vi','IV','V'],['IV','I','V','vi'],
            ['I','V','IV','V'],['vi','V','IV','I'],['I','IV','vi','V'],['vi','IV','V','I']],
@@ -20464,10 +20493,17 @@ function exportAll(){arrange();
       const A=MODEL.tracks[k];
       if(!A || A.length<2) return;
       A.sort(function(a,b){ return a.t-b.t; });
+      /* ★ 바로 다음 음만 보면 스윙(swQ)으로 자리가 밀린 음을 놓친다 —
+         정렬 뒤에도 t 가 같은 음이 여럿이거나 뒤쪽 음이 더 앞에서 시작할 수 있다.
+         **뒤쪽 다섯 음까지** 훑어 가장 이른 시작 자리에 맞춘다. */
       for(let z=0; z<A.length-1; z++){
-        const a2=A[z], b2=A[z+1];
-        if(b2.t>a2.t && a2.t+(a2.dur||0) > b2.t-0.01)
-          a2.dur=Math.max(0.05, b2.t-a2.t-0.01);
+        const a2=A[z];
+        let nx=Infinity;
+        for(let w=z+1; w<Math.min(A.length, z+6); w++){
+          if(A[w].t>a2.t+1e-6 && A[w].t<nx) nx=A[w].t;
+        }
+        if(nx===Infinity) continue;
+        if(a2.t+(a2.dur||0) > nx-0.01) a2.dur=Math.max(0.05, nx-a2.t-0.01);
       }
     });
   }catch(e){}
@@ -20761,6 +20797,25 @@ $('groove').onchange=e=>{state.groove=e.target.value;const nm={straight:'정직�
 /* 완성곡 랜덤 — 장르는 사용자의 의도이므로 유지, 나머지는 음악 규칙 안에서 전부 랜덤 */
 function generateSong(fullRandom){
   const g=curGenre();
+  /* ── 하위 스타일도 곡마다 갈른다 ──
+     ★ state 의 초기값(retroStyle:'citypop' · kpopStyle:'girlcrush' 등)이 굳어
+       곡을 새로 만들어도 같은 하위 스타일만 나왔다.
+       그 스타일 조성이 recModeFor 에서 GENRE_MODE 를 이기므로
+       **아홉 장르가 단조만 나왔다**
+       (실측 global·trap·lofi·boombap·kpop·retro·ambtechno·deephouse·lofigirl 0/8).
+     ★ applyGenreDefaults 는 장르를 바꿀 때만 불린다 — 여기(생성)에서 해야 한다.
+     사용자가 직접 고른 게 아니면 표에서 뽑고, 조성도 그에 맞춰 세운다. */
+  try{
+    const _sk=STYLE_KEY[g.id], _T=_sk?subTablesFor(g.id):null;
+    if(_sk && _T && !state[_sk+'User']){
+      const _ks=Object.keys(_T);
+      if(_ks.length>0){
+        state[_sk]=_ks[Math.floor(Math.random()*_ks.length)];
+        const _m=recModeFor(g.id);
+        if(_m && $('mode') && MODES[_m]) $('mode').value=_m;
+      }
+    }
+  }catch(e){}
   /* 긴 시간 모드는 여기서도 걸러야 한다 — 화면의 '새 곡 생성' 버튼은 genFlow가 아니라 이 함수를 부른다.
      그래서 토글을 켜도 3~4분짜리 일반 곡이 나오고 있었다. */
   if(runMixMode||lofiMixMode||houseMixMode||waveMixMode) state.seed=((Math.random()*1e9)|0)||1;
