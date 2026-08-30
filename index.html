@@ -17979,21 +17979,29 @@ function buildTopMelody(M){
        60분이면 Hook 이 서른 번 넘게 나오는데 전부 같은 음형이 된다
        (형이 로직에서 'Top Line 이 계속 같다'고 지적한 자리).
        편(runMix)과 8마디 묶음을 키에 더해 갈른다. */
-    const _mvT=sc.runMix||0;
+    const _mvT=mvOf(sc);
     const _blk=Math.floor((sc.startQ||0)/(bar*8));
-    const key=sc.type+'|'+_mvT+'|'+(_blk%3);
+    /* ── 훅은 되풀이되어야 각인된다 ──
+       ★ 편·묶음마다 음형을 갈랐더니 **같은 음형이 두 번 나오는 경우가 0%** 가 됐다.
+         다양해졌지만 훅이 사라졌다 — 훅은 '또 나온다'는 느낌이 정체다.
+       훅·드롭·코러스는 **편 안에서 같은 음형**을 쓴다(묶음을 키에서 뺀다).
+       벌스·브릿지만 묶음마다 갈른다. */
+    const _isHook=/Hook|Chorus|Drop/i.test(sc.type);
+    const key=sc.type+'|'+_mvT+(_isHook?'':('|'+(_blk%3)));
     if(!tmplByType[key]){
       const T=[];
       /* 음형 자체도 편마다 바꾼다 — 자리를 밀거나 솎는다 */
       /* ★ 넷으로만 갈랐더니 리듬 최다가 47% 였다 — 자리 자체가 겹친다.
          여덟으로 늘리고 자리를 미는 폭도 갈른다. */
-      const _sh=(_mvT*5+_blk*3)%8;
+      const _sh=_isHook ? ((_mvT*5)%8) : ((_mvT*5+_blk*3)%8);
       /* ── 쉼과 리듬 ──
          ★ 소리 나는 마디가 91~99% 였다 — 30분 내내 노래하면 훅이 안 각인된다.
            노래는 부르고 쉬고를 되풀이한다. 그 사이가 있어야 다음 구절이 들린다. */
       /* 한 곡에서는 덜 쉰다 — 3~5분에 구간을 통째로 비우면 곡이 빈다 */
-      const _rest=_mvT ? ((((_blk*2654435761)^(_mvT*40503))>>>0)%5)
-                       : (1+((((_blk*2654435761)>>>0)%4)));
+      /* 훅은 쉬지 않는다 — 훅 자리에서 비면 그 구절이 사라진다 */
+      const _rest=_isHook ? 1
+                : (_mvT ? ((((_blk*2654435761)^(_mvT*40503))>>>0)%5)
+                        : (1+((((_blk*2654435761)>>>0)%4))));
       const _phrase=Math.floor((sc.startQ||0)/bar)%4;
       /* 이 편의 리듬 표를 골라 음형을 새로 짠다 */
       const _RH2=RH_BY_MV(_mvT), _CN2=CON_BY_MV(_mvT);
@@ -18008,14 +18016,15 @@ function buildTopMelody(M){
          시작 자리가 거의 엇박으로만 갔다(실측 kpop: 정박 8회 · 3.75박 24회).
          3~5분짜리 한 곡에서 매번 픽업으로 들어오면 뼈대가 흐려진다.
          **롱 믹스일 때만** 여덟 가지를 돌리고, 한 곡은 정박을 기본으로 둔다. */
-      const _up=(((_blk*40503)^(_mvT*7919))>>>0)%8;
+      const _up=_isHook ? (((_mvT*7919)>>>0)%8) : ((((_blk*40503)^(_mvT*7919))>>>0)%8);
       const _upG=_mvT ? [0,2,4,6,3,12,14,1][_up]
                       : [0,0,0,2,0,0,4,0][_up];   /* 한 곡: 넷에 셋은 정박 */
       /* 0=정박 · 2=8분뒤 · 4=2박 · 6=2박반 · 3=1박반 · 12=4박 · 14=4박반 · 1=16분뒤 */
       /* ── 마디 안에서 쉬는 자리 ──
          시작만 옮기면 그 뒤로는 음형이 그대로 이어져 여전히 촘촘하다.
          노래는 한 구절 안에서도 숨을 쉰다. 편마다 비우는 박을 정한다. */
-      const _hole=_mvT ? ((((_blk*2654435761)^(_mvT*104729))>>>0)%6)
+      const _hole=_isHook ? 0
+                : _mvT ? ((((_blk*2654435761)^(_mvT*104729))>>>0)%6)
                        : ((((_blk*104729)>>>0)%6)<2?0:1);   /* 한 곡: 마디 안 비우기 없음 */
       const _holeSet=[[],[],[4,5,6,7],[8,9,10,11],[2,3],[10,11,12,13]][_hole];
       /* 다섯에 하나는 이 구간 전체를 쉰다 — 리드와 아르프에 자리를 넘긴다 */
@@ -25071,7 +25080,12 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     const n=steps.length;
     const ic=(opts&&opts.instClass)||'wind';
     const bowed=ic==='bowed', windy=ic==='wind', plucked=ic==='plucked';
-    const durMul=windy?1.3:(plucked?0.86:1.0);
+    /* ── 활 악기는 길게 끈다 ──
+       ★ bowed 배수가 1.0 이라 현악 선율이 0.2~0.3박으로 잘게 쪼개졌다
+         (실측 cineWar 긴음 0% · 마디당 7음 · 평균 0.04박).
+       활은 한 번 그으면 그 음이 이어진다 — 관악보다 길다.
+       시네마틱·오케스트라 선율의 정체가 그 긴 선이다. */
+    const durMul=windy?1.3:(plucked?0.86:(bowed?2.1:1.0));
     const narrow=(opts&&opts.narrow);
     const role=(opts&&opts.role)||null, regShift=(opts&&opts.regShift)||0;
     const RND=(opts&&opts.rseed!=null)?(function(){let s2=((opts.rseed>>>0)||1);return function(){s2=(1664525*s2+1013904223)>>>0;return s2/4294967296;};})():Math.random; // 훅 결정성: 같은 시드=같은 멜로디
@@ -34322,6 +34336,13 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                    ★ 이 자리에 _seed 는 없다. 마디 번호만으로 가른다. */
                 const barIdx=r*nsteps.length+si;
                 const _mk=(((barIdx*2654435761)>>>0)%12);
+                /* ── 엇박으로 들어오는 구절 ──
+                   ★ Play 선율은 첫 음이 거의 정박이었다(실측: 0.0박이 29/29 · 188/236).
+                     노래는 늘 마디 첫 박에서 시작하지 않는다.
+                     여덟 마디에 셋쯤은 반 박이나 한 박 뒤에서 들어온다.
+                   마디 안에서만 밀어 격자는 지킨다. */
+                const _mu=(((barIdx*40503+7)>>>0)%8);
+                const _uoff=[0,0,0,0.5,0,1,0.5,0][_mu];   /* 넷에 하나쯤 픽업 */
                 if(_mk<4) _ml=[];                        /* 쉬는 마디: 열둘 중 넷 */
                 else {
                   /* ★ 남기는 음 수만 갈랐더니 최다 리듬이 아직 40% 였다.
@@ -34339,10 +34360,31 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                     if(_p.length<2) _p.push.apply(_p,_s.slice(0,2));
                     _s=_p;
                   }
-                  _ml=_s.sort(function(a2,b2){return a2.pos-b2.pos;});
+                  _s=_s.sort(function(a2,b2){return a2.pos-b2.pos;});
+                  if(_uoff>0){
+                    _s=_s.map(function(mn){ return Object.assign({},mn,{pos:mn.pos+_uoff}); })
+                         .filter(function(mn){ return mn.pos < 3.95; });   /* 마디를 넘치면 뺀다 */
+                    if(!_s.length) _s=_ml.slice(0,2);
+                  }
+                  _ml=_s;
                 }
               }
-              _ml.forEach(mn=>{ const mt=T+Math.round(mn.pos*measure), md=Math.max(60,Math.round(mn.dur*TPQ));
+              /* ── 시네마틱 선율은 길게 끈다 ──
+                 ★ 재 보니 긴 음이 0~4% 뿐이고 마디당 4.6~7.9음이었다
+                   (cineWar 0% · cineDrive 2% · classic 만 35%).
+                   오케스트라는 길게 끄는 선이 핵심이다.
+                 ★★ _ml 은 sec.mels 원본의 참조다 — mn.dur 를 바꾸면
+                   다음 구간에서도 그 값이 남아 시네마틱 빌드가 통째로 실패한다
+                   (네 번 시도해 네 번 다 실패했다).
+                   **원본을 건드리지 말고 여기서 계산된 md 만 늘린다.** */
+              const _cine=(gsel.indexOf('cine')===0);
+              /* ★ 원래 음 길이가 90~132틱(0.2~0.3박)이라 2배를 곱해도 짧았다.
+                 오케스트라 선율은 한 음이 한 박 이상 간다.
+                 **최소 길이를 두고** 배수를 건다 — 0.2박짜리도 1박 넘게 만든다. */
+              const _cMul=_cine ? [5,3.5,7,4][(((r*7+si)*40503+13)>>>0)%4] : 1;
+              _ml.forEach(mn=>{ const mt=T+Math.round(mn.pos*measure),
+                    md=_cine ? Math.max(Math.round(TPQ*0.9), Math.round(mn.dur*TPQ*_cMul))
+                             : Math.max(60,Math.round(mn.dur*TPQ));
               let _mn=mn.midi;
               /* 라운지 오블리가토: 반주 위에서 반짝이도록 더 높게.
                  고역은 배음이 넓게 벌어져 겹쳐도 뭉치지 않고 공간감이 난다.
@@ -36770,6 +36812,42 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
               o.note=nn;
             });
             ev.forEach(function(e){ if(e.__d2) delete e.__d2; });
+          }catch(e){}
+        }
+        /* ── 겹치는 음을 자른다 ──
+           ★ Play 전 편성을 재 보니 단선율 트랙이 서로 물고 있었다
+             (기타 듀오 라운지 68% · 가야금 라운지 60% · 4중주 라운지 28%).
+           한 음씩 흐르는 층은 겹치면 화음처럼 뭉친다.
+           같은 음높이가 이어지는 자리만 자른다 — 화음(동시 타건)은 건드리지 않는다. */
+        /* ★ 기타는 'gtr' 이 아니라 'gtrlead' 다. 가야금·기타는 편성 안에서
+             한 키(harp·gtrlead)를 여러 트랙이 나눠 쓰므로 그 키도 넣는다. */
+        const _cineTrim=(gsel.indexOf('cine')===0 && ['melody','counter','strings'].indexOf(grp.key)>=0);
+        if(['melody','counter','strings','cbass','qbass','bass',
+            'gtrlead','harp','piano2','winds','brass','horns'].indexOf(grp.key)>=0){
+          try{
+            const ons=[], offs=[];
+            ev.forEach(function(e){
+              if(e.cc!=null || e.note==null) return;
+              (e.on===1?ons:offs).push(e);
+            });
+            ons.sort(function(a2,b2){ return a2.tick-b2.tick; });
+            for(let z=0; z<ons.length-1; z++){
+              const a2=ons[z], b2=ons[z+1];
+              if(b2.tick<=a2.tick) continue;          /* 동시 타건 = 화음 */
+              /* ★ 시네마틱 선율은 길게 끄는 것이 어법이다.
+                 다음 음과 조금 겹치는 것은 레가토로 들린다 —
+                 한 박 넘게 물릴 때만 자른다. */
+              const _lim=_cineTrim ? (b2.tick-TPQ) : (b2.tick-8);
+              for(let w=0; w<offs.length; w++){
+                const f=offs[w];
+                if(f.note===a2.note && f.tick>a2.tick && !f.__cut){
+                  if(f.tick > _lim){ f.tick=Math.max(a2.tick+16, _lim); f.__cut=1; }
+                  break;
+                }
+              }
+            }
+            ev.forEach(function(e){ if(e.__cut) delete e.__cut; });
+            ev.sort(function(a2,b2){ return (a2.tick-b2.tick)||((a2.cc!=null?2:a2.on)-(b2.cc!=null?2:b2.on)); });
           }catch(e){}
         }
         if(quartetMode||quintetMode){
