@@ -2741,6 +2741,63 @@ const document = __scopedDoc('app-melody');
   // 장르 리듬 문법 — 2020년대 트렌드 반영: 멜로디는 미니멀·반복·여백 중심
   // density=음 밀도(↓적을수록 성김), restBias=쉼 선호, motific=모티프 반복, simple=도약 억제, longTail=긴 음
   var GENRES = {
+    /* ── 다른 앱에 있는데 여기 없던 장르 ──
+       ★ 멜로디 앱 58개 · Beat 19 · Play 48 · Band 28 을 대조해 보니 54개가 빠져 있었다.
+         APPG 목록에 이름만 넣어도 안 나온다 — 여기 정의가 있어야 옵션이 만들어진다.
+       각 장르의 어법에 맞춰 값을 준다.
+       density 음 밀도 · syncopate 당김 · longTail 긴 음 · restBias 쉼
+       pickup 엇박 시작 · motific 모티프 되풀이 · simple 단순함 · chroma 반음계 */
+    bigroom:  { density:0.6, syncopate:0.22, longTail:0.62,swing:0.0,  restBias:0.5,  pickup:0.3, motific:0.85,simple:0.72,chroma:0.02, label:'빅룸 EDM' },
+    synthwave:{ density:0.66,syncopate:0.2,  longTail:0.6, swing:0.0,  restBias:0.44, pickup:0.35,motific:0.78,simple:0.6, chroma:0.04, label:'신스웨이브' },
+    retro:    { density:0.7, syncopate:0.3,  longTail:0.5, swing:0.0,  restBias:0.4,  pickup:0.45,motific:0.7, simple:0.58,chroma:0.04, label:'레트로 80s' },
+    boombap:  { density:0.68,syncopate:0.48, longTail:0.42,swing:0.1,  restBias:0.45, pickup:0.4, motific:0.6, simple:0.5, chroma:0.07, label:'붐뱁' },
+    lofigirl: { density:0.5, syncopate:0.35, longTail:0.6, swing:0.12, restBias:0.55, pickup:0.3, motific:0.5, simple:0.55,chroma:0.06, label:'로파이 걸' },
+    discofunk:{ density:0.8, syncopate:0.55, longTail:0.35,swing:0.0,  restBias:0.3,  pickup:0.5, motific:0.65,simple:0.45,chroma:0.05, label:'디스코 펑크' },
+    ambtechno:{ density:0.4, syncopate:0.12, longTail:0.82,swing:0.0,  restBias:0.62, pickup:0.2, motific:0.55,simple:0.6, chroma:0.03, label:'앰비언트 테크노' },
+    global:   { density:0.72,syncopate:0.4,  longTail:0.45,swing:0.0,  restBias:0.38, pickup:0.42,motific:0.7, simple:0.55,chroma:0.05, label:'글로벌 팝' },
+    kpopc:    { density:0.7, syncopate:0.4,  longTail:0.48,swing:0.0,  restBias:0.42, pickup:0.45,motific:0.78,simple:0.65,chroma:0.03, label:'K-팝 컨템퍼러리' },
+    newage:   { density:0.45,syncopate:0.08, longTail:0.8, swing:0.0,  restBias:0.6,  pickup:0.3, motific:0.42,simple:0.5, chroma:0.03, label:'뉴에이지' },
+    joypiano: { density:0.62,syncopate:0.2,  longTail:0.55,swing:0.0,  restBias:0.45, pickup:0.4, motific:0.55,simple:0.55,chroma:0.03, label:'밝은 피아노' },
+    kpiano:   { density:0.5, syncopate:0.12, longTail:0.72,swing:0.0,  restBias:0.55, pickup:0.35,motific:0.45,simple:0.5, chroma:0.03, label:'한국 피아노' },
+    minimal:  { density:0.4, syncopate:0.1,  longTail:0.7, swing:0.0,  restBias:0.5,  pickup:0.2, motific:0.9, simple:0.75,chroma:0.02, label:'미니멀' },
+    classic:  { density:0.55,syncopate:0.1,  longTail:0.78,swing:0.0,  restBias:0.5,  pickup:0.4, motific:0.5, simple:0.45,chroma:0.06, label:'클래식' },
+    blues:    { density:0.6, syncopate:0.4,  longTail:0.5, swing:0.3,  restBias:0.45, pickup:0.5, motific:0.6, simple:0.5, chroma:0.12, label:'블루스' },
+    ambjazz:  { density:0.45,syncopate:0.3,  longTail:0.75,swing:0.15, restBias:0.58, pickup:0.35,motific:0.4, simple:0.35,chroma:0.1,  label:'앰비언트 재즈' },
+    gypsy:    { density:0.82,syncopate:0.35, longTail:0.35,swing:0.2,  restBias:0.3,  pickup:0.5, motific:0.6, simple:0.35,chroma:0.14, label:'집시 스윙' },
+    tango:    { density:0.7, syncopate:0.45, longTail:0.5, swing:0.0,  restBias:0.38, pickup:0.45,motific:0.65,simple:0.4, chroma:0.1,  label:'탱고' },
+    rumba:    { density:0.68,syncopate:0.5,  longTail:0.45,swing:0.0,  restBias:0.4,  pickup:0.45,motific:0.6, simple:0.45,chroma:0.06, label:'룸바' },
+    balkan:   { density:0.8, syncopate:0.5,  longTail:0.35,swing:0.0,  restBias:0.32, pickup:0.45,motific:0.6, simple:0.35,chroma:0.13, label:'발칸' },
+    shanty:   { density:0.6, syncopate:0.15, longTail:0.55,swing:0.0,  restBias:0.42, pickup:0.5, motific:0.8, simple:0.7, chroma:0.02, label:'바다 노동요' },
+    kids:     { density:0.55,syncopate:0.1,  longTail:0.5, swing:0.0,  restBias:0.45, pickup:0.35,motific:0.85,simple:0.85,chroma:0.01, label:'동요' },
+    kband:    { density:0.75,syncopate:0.3,  longTail:0.45,swing:0.0,  restBias:0.35, pickup:0.45,motific:0.65,simple:0.5, chroma:0.04, label:'한국 밴드' },
+    countrypop:{density:0.68,syncopate:0.22, longTail:0.5, swing:0.05, restBias:0.4,  pickup:0.45,motific:0.7, simple:0.6, chroma:0.03, label:'컨트리 팝' },
+    marusa:   { density:0.6, syncopate:0.25, longTail:0.6, swing:0.08, restBias:0.45, pickup:0.4, motific:0.6, simple:0.5, chroma:0.06, label:'마루사' },
+    cineWar:  { density:0.75,syncopate:0.25, longTail:0.45,swing:0.0,  restBias:0.35, pickup:0.35,motific:0.75,simple:0.55,chroma:0.06, label:'시네마틱 전투' },
+    cineSoar: { density:0.42,syncopate:0.08, longTail:0.88,swing:0.0,  restBias:0.55, pickup:0.4, motific:0.55,simple:0.45,chroma:0.04, label:'시네마틱 비상' },
+    cineSorrow:{density:0.4, syncopate:0.06, longTail:0.9, swing:0.0,  restBias:0.6,  pickup:0.35,motific:0.5, simple:0.4, chroma:0.07, label:'시네마틱 비탄' },
+    cineJoy:  { density:0.65,syncopate:0.2,  longTail:0.55,swing:0.0,  restBias:0.4,  pickup:0.45,motific:0.7, simple:0.55,chroma:0.04, label:'시네마틱 환희' },
+    cineTension:{density:0.55,syncopate:0.3, longTail:0.6, swing:0.0,  restBias:0.5,  pickup:0.3, motific:0.8, simple:0.6, chroma:0.1,  label:'시네마틱 긴장' },
+    cineDrive:{ density:0.72,syncopate:0.28, longTail:0.45,swing:0.0,  restBias:0.35, pickup:0.4, motific:0.78,simple:0.6, chroma:0.05, label:'시네마틱 추격' },
+    cineSuite:{ density:0.45,syncopate:0.12, longTail:0.8, swing:0.0,  restBias:0.55, pickup:0.4, motific:0.5, simple:0.45,chroma:0.05, label:'시네마틱 모음곡' },
+    epicaeol: { density:0.5, syncopate:0.12, longTail:0.78,swing:0.0,  restBias:0.55, pickup:0.35,motific:0.6, simple:0.5, chroma:0.04, label:'에픽 에올리안' },
+    /* ── 음계가 고유한 장르 ──
+       mode 값을 주면 그 음계 하나만 쓴다(위 _NAMED 표).
+       국악은 평조·계면조 5음 음계다 — 서양 장·단조와 다르다. */
+    gugak:    { density:0.5, syncopate:0.15, longTail:0.75,swing:0.0,  restBias:0.55, pickup:0.3, motific:0.55,simple:0.5, chroma:0.0, mode:'gyemyeonjo', label:'국악풍 모달' },
+    gukvocal: { density:0.45,syncopate:0.12, longTail:0.82,swing:0.0,  restBias:0.58, pickup:0.35,motific:0.5, simple:0.45,chroma:0.0, mode:'gyemyeonjo', label:'국악 성악' },
+    chanbul:  { density:0.4, syncopate:0.08, longTail:0.85,swing:0.0,  restBias:0.62, pickup:0.25,motific:0.6, simple:0.6, chroma:0.0, mode:'pyeongjo',   label:'찬불가' },
+    lyric:    { density:0.55,syncopate:0.15, longTail:0.7, swing:0.0,  restBias:0.5,  pickup:0.4, motific:0.6, simple:0.55,chroma:0.02,mode:'majpenta',   label:'서정 가요' },
+    lyricPenta:{density:0.5, syncopate:0.12, longTail:0.75,swing:0.0,  restBias:0.55, pickup:0.35,motific:0.6, simple:0.6, chroma:0.0, mode:'majpenta',   label:'서정 5음' },
+    lyricMid: { density:0.55,syncopate:0.18, longTail:0.68,swing:0.0,  restBias:0.5,  pickup:0.4, motific:0.58,simple:0.55,chroma:0.02,mode:'aeolian',    label:'서정 중간' },
+    lyricMinyo:{density:0.6, syncopate:0.2,  longTail:0.6, swing:0.0,  restBias:0.45, pickup:0.4, motific:0.7, simple:0.6, chroma:0.0, mode:'minpenta',   label:'민요풍' },
+    dorian:   { density:0.6, syncopate:0.25, longTail:0.6, swing:0.0,  restBias:0.45, pickup:0.4, motific:0.55,simple:0.5, chroma:0.03,mode:'dorian',     label:'도리안' },
+    lydian:   { density:0.58,syncopate:0.2,  longTail:0.68,swing:0.0,  restBias:0.48, pickup:0.4, motific:0.55,simple:0.5, chroma:0.03,mode:'lydian',     label:'리디안' },
+    mixolydian:{density:0.65,syncopate:0.3,  longTail:0.55,swing:0.05, restBias:0.42, pickup:0.45,motific:0.6, simple:0.5, chroma:0.04,mode:'mixolydian', label:'믹솔리디안' },
+    phrygian: { density:0.6, syncopate:0.25, longTail:0.62,swing:0.0,  restBias:0.48, pickup:0.35,motific:0.6, simple:0.45,chroma:0.05,mode:'phrygian',   label:'프리지안' },
+    phrygdom: { density:0.65,syncopate:0.3,  longTail:0.55,swing:0.0,  restBias:0.42, pickup:0.4, motific:0.6, simple:0.4, chroma:0.08,mode:'phrygdom',   label:'프리지안 도미넌트' },
+    doubleharm:{density:0.62,syncopate:0.28, longTail:0.6, swing:0.0,  restBias:0.45, pickup:0.4, motific:0.6, simple:0.4, chroma:0.1, mode:'doubleharm', label:'더블 하모닉' },
+    hungarian:{ density:0.7, syncopate:0.35, longTail:0.5, swing:0.05, restBias:0.4,  pickup:0.45,motific:0.6, simple:0.35,chroma:0.12,mode:'hungarian',  label:'헝가리안' },
+    quartal:  { density:0.5, syncopate:0.2,  longTail:0.72,swing:0.0,  restBias:0.52, pickup:0.35,motific:0.5, simple:0.4, chroma:0.06,mode:'dorian',     label:'4도 화성' },
     pop:      { density:0.7, syncopate:0.28, longTail:0.5, swing:0.0,  restBias:0.4,  pickup:0.4, motific:0.68,simple:0.55,chroma:0.03, label:'팝' },
     kpop:     { density:0.68,syncopate:0.42, longTail:0.45,swing:0.0,  restBias:0.45, pickup:0.45,motific:0.8, simple:0.68,chroma:0.03, label:'K-팝' },
     edm:      { density:0.72,syncopate:0.3,  longTail:0.55,swing:0.0,  restBias:0.42, pickup:0.35,motific:0.72,simple:0.6, chroma:0.03, label:'EDM' },
@@ -3093,6 +3150,22 @@ const document = __scopedDoc('app-melody');
     // 조성 스케일(7음)의 반음 배열 — contour 도(계이름)를 이 스케일로 실제 음 만듦
     var SCALE = isMinor ? [0,2,3,5,7,8,10]   // 자연단음계: 근 2 b3 4 5 b6 b7
                         : [0,2,4,5,7,9,11];  // 장음계:     근 2 3 4 5 6 7
+    /* ── 장르 고유 음계 ──
+       ★ 선법 표(MAJ_MODES·MIN_MODES)와 이름 지정은 **if(genre.free) 안**에 있어
+         프리 앰비언트 장르만 탔다. 국악·선법 장르를 넣어도 늘 에올리안이 나왔다
+         (실측 lydian·phrygian·gugak 셋 다 [0,2,3,5,7,8,10]).
+       밖으로 꺼내 어느 장르든 mode 를 지정하면 그 음계를 쓰게 한다.
+       국악은 평조(장 5음)·계면조(단 5음) — 서양 장단조와 다르다. */
+    { var _NAMED2={
+        ionian:[0,2,4,5,7,9,11], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
+        aeolian:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10], phrygian:[0,1,3,5,7,8,10],
+        harmonicminor:[0,2,3,5,7,8,11], phrygdom:[0,1,4,5,7,8,10],
+        doubleharm:[0,1,4,5,7,8,11], hungarian:[0,2,3,6,7,8,11],
+        pyeongjo:[0,2,4,7,9], gyemyeonjo:[0,3,5,7,10],
+        minpenta:[0,3,5,7,10], majpenta:[0,2,4,7,9] };
+      var _gm2=(genre&&genre.mode)?genre.mode:(_NAMED2[opts.keyMode]?opts.keyMode:null);
+      if(_gm2 && _NAMED2[_gm2]) SCALE=_NAMED2[_gm2];
+    }
     // ── 프리 앰비언트: 생성(시드)마다 선법을 바꿔 매번 다른 색 — 7음계라 degToSemi 호환 ──
     if(genre&&genre.free){
       var _fsr=makeRnd((opts.seed||1)*23+7);
@@ -3110,10 +3183,29 @@ const document = __scopedDoc('app-melody');
         [0,2,3,5,7,9,11],  // 멜로딕 마이너
         [0,1,4,5,7,8,10]   // 프리지안 도미넌트(중동·스페인 색)
       ];
+      /* ── 선법을 직접 고를 수 있게 ──
+         ★ keyMode 가 minor·major 둘뿐이라 국악·선법 장르를 넣을 수 없었다.
+           MAJ_MODES·MIN_MODES 표에는 이미 리디안·도리안·프리지안 등이 있는데
+           무작위로 뽑힐 뿐 지정할 수가 없었다.
+         이름으로 고르면 그 음계 하나만 쓴다. */
+      var _NAMED={
+        ionian:[0,2,4,5,7,9,11], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
+        aeolian:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10], phrygian:[0,1,3,5,7,8,10],
+        harmonicminor:[0,2,3,5,7,8,11], phrygdom:[0,1,4,5,7,8,10],
+        doubleharm:[0,1,4,5,7,8,11], hungarian:[0,2,3,6,7,8,11],
+        /* 국악 — 평조(장조 계열 5음)·계면조(단조 계열 5음) */
+        pyeongjo:[0,2,4,7,9], gyemyeonjo:[0,3,5,7,10],
+        minpenta:[0,3,5,7,10], majpenta:[0,2,4,7,9]
+      };
+      var _gm=(genre&&genre.mode)?genre.mode:null;   /* 장르 고유 음계가 우선 */
+      if(_gm && _NAMED[_gm]){ SCALE=_NAMED[_gm]; }
+      else if(_NAMED[opts.keyMode]){ SCALE=_NAMED[opts.keyMode]; }
+      else {
       var _mpool = (opts.keyMode==='major') ? MAJ_MODES
                  : (opts.keyMode==='minor') ? MIN_MODES
                  : MAJ_MODES.concat(MIN_MODES);   // 자동이면 전부에서
       SCALE = _mpool[Math.floor(_fsr()*_mpool.length)];
+      }
     }
     var penta=prof.penta==='min'?MIN_PENTA:prof.penta==='maj'?MAJ_PENTA:(isMinor?MIN_PENTA:MAJ_PENTA);
     var barLen=meter.barLen;
@@ -4252,7 +4344,19 @@ var GENRE_BPM={   // 장르별 기본 템포(비-free). free 장르(ambient·cin
   epic:88, animeost:96, disney:100, saguk:72,
   jazz:120, bossa:132, latin:104, afrobeat:112, reggae:78,
   folk:100, celtic:112, country:100, waltz:150,
-  ambient:64, cinematic:72, chillwave:90
+  ambient:64, cinematic:72, chillwave:90,
+  /* ── 새로 넣은 장르의 기본 템포 ──
+     ★ 표에 없으면 템포가 안 걸려 이전 값이나 free 기본(46)이 남는다
+       (실측: band|animerock 을 Play 로 보내면 BPM 44~56 으로 떨어졌다). */
+  bigroom:128, synthwave:100, retro:118, boombap:88, lofigirl:78, discofunk:116,
+  ambtechno:120, global:110, kpopc:112, newage:68, joypiano:96, kpiano:72,
+  minimal:84, classic:80, blues:92, ambjazz:70, gypsy:180, tango:120, rumba:100,
+  balkan:150, shanty:96, kids:104, kband:126, countrypop:104, marusa:92,
+  cineWar:120, cineSoar:76, cineSorrow:60, cineJoy:108, cineTension:92,
+  cineDrive:130, cineSuite:72, epicaeol:80,
+  gugak:64, gukvocal:60, chanbul:56, lyric:76, lyricPenta:72, lyricMid:80,
+  lyricMinyo:88, dorian:100, lydian:96, mixolydian:110, phrygian:96,
+  phrygdom:108, doubleharm:100, hungarian:132, quartal:88
 };
 function applyGenreBpm(){ var g=state.genre; if((ME.GENRES[g]||{}).free && !GENRE_BPM[g]) return;   // free는 시간주도(46 유지), 단 맵에 값 있으면 적용
   var bpm=GENRE_BPM[g]; if(bpm){ state.bpm=bpm; var bi=$('bpm'); if(bi) bi.value=bpm; } }
@@ -4265,9 +4369,9 @@ function updateMelTarget(app){   // 선택 장르의 대상 앱 전송 버튼 �
 function fillGenres(){
   const sel=$('genre');
   const APPG=[
-    ['band','🎸 밴드', ['ballad','jballad','komuro','royalroad','ukpop','animerock','billie','worship','celtic','funk','neosoul','gospel','poppunk','country','kpop','motown','epic','animeost','disney','saguk','citypop']],
-    ['beat','🥁 비트', ['edm','melodichouse','deephouse','trap','lofi','running','hooksong','hookpop','house','dnb','afrobeat','hiphop','kpop','country','citypop','chillwave']],
-    ['play','🎹 플레이', ['pop','ballad','jazz','neosoul','bossa','rock','edm','lofi','folk','celtic','cinematic','waltz','latin','epic','disco','reggae','kballad']],
+    ['band','🎸 밴드', ['ballad','jballad','komuro','royalroad','ukpop','animerock','billie','worship','celtic','funk','neosoul','gospel','poppunk','country','kpop','jazz','gypsy','tango','rumba','balkan','kband','countrypop','marusa','saguk','motown','disney','animeost','epic','citypop','folk','latin']],
+    ['beat','🥁 비트', ['edm','bigroom','melodichouse','deephouse','trap','lofi','lofigirl','running','hooksong','hookpop','house','dnb','afrobeat','hiphop','kpop','country','citypop','retro','synthwave','boombap','discofunk','ambtechno','global','chillwave']],
+    ['play','🎹 플레이', ['pop','ballad','jazz','neosoul','bossa','rock','edm','lofi','folk','celtic','cinematic','waltz','latin','epic','disco','reggae','kballad','newage','joypiano','kpiano','minimal','classic','blues','ambjazz','gypsy','tango','rumba','citypop','trap','kpopc','kids','shanty','epicaeol','cineWar','cineSoar','cineSorrow','cineJoy','cineTension','cineDrive','cineSuite','gugak','gukvocal','chanbul','lyric','lyricPenta','lyricMid','lyricMinyo','dorian','lydian','mixolydian','phrygian','phrygdom','doubleharm','hungarian','quartal']],
     ['solo','✍ 멜로디 단독', ['freesolo','ambient','metal','rnb']]
   ];
   const seen=new Set();
@@ -5357,8 +5461,14 @@ function buildMidi(){
   const evs=[];notes.forEach(n=>{evs.push({tick:Math.round(n.t*PPQ),t:0x90,m:n.midi,v:n.vel});evs.push({tick:Math.round((n.t+n.dur)*PPQ),t:0x80,m:n.midi,v:0});});
   // 페달 장르: CC64 서스테인 — 시작 프레스, 프레이즈 경계(무음 ≥1박)마다 리프트→재프레스, 끝에서 릴리즈
   const gG=ME.GENRES[state.genre]||{};
-  const famX=((gG.free||state.soloPiano)?(state.instFam||'piano'):'piano');   // 독주 편곡이면 선택한 악기군 그대로
-  if((gG.free||state.soloPiano) && famX!=='piano'){
+  /* ── 익스프레션은 늘 건다 ──
+     ★ 전에는 독주 편곡(gG.free)이나 solo 피아노일 때만 CC 를 실었다.
+       그래서 보통 장르로 뽑으면 **CC 가 하나도 없었다**(실측 0개).
+       악기군을 고르게 해 놓고 그에 맞는 표현을 안 실으면 노래하듯 들리지 않는다.
+     사용자가 고른 악기군을 늘 따른다 — 현악·관악·보컬은 CC11,
+     피아노는 CC64 서스테인. */
+  const famX=(state.instFam||'piano');
+  if(famX!=='piano'){
     let lastEndB=0; notes.forEach(n=>{ if(n.t+n.dur>lastEndB)lastEndB=n.t+n.dur; });
     if(famX==='synth'){
       // 신스: 패드가 겹쳐 음별 CC11이 충돌하므로 전역 호흡 파형으로 — 16박 주기 코사인(48↔94)
@@ -5434,7 +5544,9 @@ function buildMidi(){
     // 파일 길이를 목표 시간에 정확히: 종단 CC11 페이드
     evs.push({tick:Math.round((state.durMin*60+state.durSec)/60*state.bpm*PPQ),t:0xB0,m:11,v:0});
   }
-  if((gG.pedal||state.soloPiano) && famX==='piano'){   // 독주 루바토는 페달이 핵심
+  /* ★ 피아노도 늘 페달을 건다 — 끊김 없이 이어지는 소리가 피아노 선율의 정체다.
+     전에는 pedal 장르나 독주일 때만 걸어 대부분의 곡에 CC64 가 없었다. */
+  if(famX==='piano'){   // 독주 루바토는 페달이 핵심
     const firstTick=Math.max(0,Math.round(notes[0].t*PPQ)-10);
     let lastEnd=0; notes.forEach(n=>{ if(n.t+n.dur>lastEnd)lastEnd=n.t+n.dur; });
     evs.push({tick:firstTick,t:0xB0,m:64,v:127});
@@ -39958,6 +40070,17 @@ function soApplyBlueprintPlay(bp){   // 받는 쪽: 구조·코드로 편곡 재
     return { label:lbl, prog:{name:lbl, mode:keyMode, steps}, reps:1, drums:(role!=='intro'&&role!=='outro'),
       density:(role==='hook'||role==='posthook')?'full':(role==='verse'?'medium':'sparse'),
       intensity:(role==='hook'||role==='posthook')?0.95:(role==='verse'?0.82:0.6), stage:(STG[role]||3), keyShift:0 }; });
+  /* ── 넘어온 템포를 쓴다 ──
+     ★ 여기서 bpm 을 아예 안 읽고 있었다 — 조성·박자·구간·코드는 옮기는데 템포만 빠졌다
+       (실측: 멜로디 앱 150 -> Play 42~65 · 장르 기본값이 그대로 남았다).
+     Play 의 사용자 템포 칸(userBpmNum)에 넣는다. */
+  try{
+    if(bp.bpm){
+      const _b=document.querySelector('#app-play #userBpmNum')||document.getElementById('userBpmNum');
+      if(_b){ _b.value=bp.bpm; _b.dispatchEvent(new Event('input',{bubbles:true}));
+              _b.dispatchEvent(new Event('change',{bubbles:true})); }
+    }
+  }catch(e){}
   try{ if(bp.melody&&bp.melody.length&&typeof INST!=='undefined'&&INST.melody) INST.melody.on=true; }catch(e){}   // 듀얼 추출 대비: 자체 멜로디도 생성
   try{ currentSong.forEach(sec=>bakeSec(sec)); }catch(e){}
   window.SO_HUB=window.SO_HUB||{}; window.SO_HUB.importedMelody=(bp.melody&&bp.melody.length)?bp.melody.slice():null;   // 멜로디 앵커 보존
