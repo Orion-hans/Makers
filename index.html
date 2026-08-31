@@ -9192,8 +9192,21 @@ function renderMotifSection(sec,startQ,barQ){
   const out=[];
   const unit=(mot,q0,degOff,opts)=>{opts=opts||{};
     const frame=opts.frame||8,span=opts.span||2*barQ,f=span/frame;   // 박자 비례 스케일: 8박 프레임 → 실제 2마디(6/8 등 비4/4 대응)
-    mot.rh.forEach(([b0,du0],i)=>{const b=b0*f,du=du0*f;const t=q0+b;if(t>=secEnd-1e-6)return;
+    /* ── 테마 A·B·C ──
+       ★ MOTIFS 가 곡당 한 번만 만들어져 리듬형이 7가지뿐이고
+         하나가 31~38% 를 차지했다(Beat 43가지/15% · Play 49~56가지/11~16%).
+         5도 이상 도약도 11~15% 로 좁았다.
+       구간 자리(q0)로 테마를 갈라 리듬과 도약을 바꾼다.
+       뼈대(mot)는 그대로라 훅은 남고 표정만 달라진다. */
+    const _th=Math.floor(q0/(barQ*8))%3;
+    mot.rh.forEach(([b0,du0],i)=>{
+      if(_th===1 && i%3===2) return;                    /* 테마 B: 성글게 */
+      let _b0=b0;
+      if(_th===2 && i%2===1) _b0=Math.min(frame-0.5, b0+0.5);   /* 테마 C: 반 박 뒤로 */
+      const b=_b0*f,du=du0*f;const t=q0+b;if(t>=secEnd-1e-6)return;
       let deg=mot.ct[i]+degOff;
+      /* 테마 C 는 넓게 뛴다 — 4도 위·3도 아래를 섞는다 */
+      if(_th===2 && i%4===2) deg += (i%8===2)?3:-2;
       if(opts.cap!=null)deg=Math.min(deg,opts.cap);
       if(opts.peakAt===i)deg=opts.peak;
       let m=degMidi(deg);
@@ -11075,6 +11088,59 @@ function exportAll(){arrange();
     }
   }
   if(state.enabled.piano&&MODEL.tracks.piano2&&MODEL.tracks.piano2.length)tr.push(noteTrack(MODEL.tracks.piano2,__ch(8),0,false,ped64(),'[은은한 배경 오스티나토] 2nd Piano - Arp Theme (soft)',trackFX('piano')));   // 2nd 피아노(ch8) — 서스테인 페달(CC64) 동일 적용(코드마다 밟고 바뀌기 직전 뗌)
+  /* ── 가져온 멜로디를 곡 길이에 맞추고 겹침을 자른다 ──
+     ★ 원본 길이만 실려 곡 앞부분만 덮었고 이음매에서 음이 물렸다
+       (실측 Band 겹침 4곳 · Beat 한 곡 33% · Play 라운지 5%).
+     되풀이해 채우고, 되풀이마다 반음을 옮기고, 앞 음이 다음 음을 물면 자른다. */
+  try{
+    const _IM=(window.SO_HUB&&window.SO_HUB.importedMelody)||null;
+    if(_IM && _IM.length){
+      let _mx=0; _IM.forEach(function(n){ const e=(n.t||0)+(n.dur||0); if(e>_mx) _mx=e; });
+      const _endQ=(MODEL&&MODEL.totalQ)?MODEL.totalQ:0;
+      let _out=_IM.slice();
+      if(_mx>0 && _endQ>_mx*1.2){
+        const _loop=Math.ceil(_mx/4)*4, _sh=[0,0,2,-2,0,3,-3,0];
+        let _rep=1;
+        while(_rep*_loop < _endQ && _rep<64){
+          const _off=_rep*_loop, _tr=_sh[_rep%_sh.length];
+          _IM.forEach(function(n){
+            if((n.t||0)+_off >= _endQ) return;
+            _out.push({t:+((n.t||0)+_off).toFixed(3), dur:n.dur,
+                       midi:Math.max(24,Math.min(96,(n.midi||60)+_tr)), vel:n.vel||90});
+          });
+          _rep++;
+        }
+      }
+      _out.sort(function(a,b){ return a.t-b.t; });
+      for(let z=0; z<_out.length-1; z++){
+        const a2=_out[z]; let nx=Infinity;
+        for(let w=z+1; w<Math.min(_out.length,z+6); w++){
+          if(_out[w].t>a2.t+1e-6 && _out[w].t<nx) nx=_out[w].t;
+        }
+        if(nx===Infinity) continue;
+        if(a2.t+(a2.dur||0) > nx-0.01) a2.dur=Math.max(0.05, nx-a2.t-0.01);
+      }
+      window.SO_HUB.importedMelody=_out;
+    }
+  }catch(e){}
+  /* ── 선율 겹침을 자른다 ──
+     ★ 테마 C 에서 자리를 반 박 뒤로 밀자 앞 음이 다음 음을 물었다(44~70곳).
+     주 선율은 단선율이다 — 한 번에 한 음만 울려야 노래로 들린다. */
+  try{
+    ['melody','counter','lead'].forEach(function(k){
+      const A=MODEL.tracks[k];
+      if(!A || A.length<2) return;
+      A.sort(function(a,b){ return a.t-b.t; });
+      for(let z=0; z<A.length-1; z++){
+        const a2=A[z]; let nx=Infinity;
+        for(let w=z+1; w<Math.min(A.length,z+6); w++){
+          if(A[w].t>a2.t+1e-6 && A[w].t<nx) nx=A[w].t;
+        }
+        if(nx===Infinity) continue;
+        if(a2.t+(a2.dur||0) > nx-0.01) a2.dur=Math.max(0.05, nx-a2.t-0.01);
+      }
+    });
+  }catch(e){}
   const __imp=(window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length)?window.SO_HUB.importedMelody:null;
   const __impSel=__imp&&(!window.SO_HUB.melSrc||window.SO_HUB.melSrc.band!=='own');   // 선택된 멜로디 소스(가져온=기본)
   const vocal=state.enabled.melody?MODEL.tracks.melody.filter(n=>!n.theme):[];
@@ -15769,7 +15835,20 @@ function genLead(tr,g,sec,start,en,rnd,HOOK){
          롱 믹스에서 리듬꼴 21가지 · 최다 40% 였다(빅룸 98가지 최다 5%).
          음형 표가 좁아서다. 편마다 자리를 솎거나 밀어 리듬을 넓힌다.
          ★ 격자는 지킨다 — 8분 자리 안에서만 옮긴다. */
+      /* ── 리드도 성글게 ──
+         ★ 60분 빅룸에서 리드가 마디당 7.5음이었다 — 쉼 없이 계속 노래한다.
+         편·묶음마다 자리를 솎는다. 러닝 처리와 같은 방식을 EDM 계열에도 적용. */
       let _cl2=clamped;
+      const _EDMG=['edm','bigroom','melodichouse','deephouse','synthwave','trance','techno'];
+      if(_EDMG.indexOf(state.genre)>=0 && sec){
+        const _blk2=Math.floor((sec.startQ||0)/(barQ()*8));
+        const _lk=(((_blk2*2654435761)^(mvOf(sec)*40503))>>>0)%6;
+        if(_lk===0)      _cl2=clamped.filter(function(x,ix){ return ix%2===0; });
+        else if(_lk===1) _cl2=clamped.filter(function(x){ return (x[1]%1)===0; });
+        else if(_lk===2) _cl2=clamped.filter(function(x,ix){ return ix%3!==1; });
+        else if(_lk===3) _cl2=clamped.filter(function(x,ix){ return ix%4!==2; });
+        if(!_cl2.length) _cl2=clamped;
+      }
       if(state.genre==='running' && sec && sec.runMix){
         const _rk=(((bar*2654435761)^((sec.runMix)*40503))>>>0)%6;
         if(_rk===1)      _cl2=clamped.filter(function(x,ix){ return ix%2===0; });        /* 절반만 */
@@ -18159,13 +18238,19 @@ function buildTopMelody(M){
        훅·드롭·코러스는 **편 안에서 같은 음형**을 쓴다(묶음을 키에서 뺀다).
        벌스·브릿지만 묶음마다 갈른다. */
     const _isHook=/Hook|Chorus|Drop/i.test(sc.type);
-    const key=sc.type+'|'+_mvT+(_isHook?'':('|'+(_blk%3)));
+    /* ── 테마를 나눈다 ──
+       ★ 훅을 편 안에서 하나로 묶었더니 리듬형이 27가지뿐이고
+         그중 하나가 46%(857회)를 차지했다. 마디당 음 수도 6음이 절반이다.
+       한 편 안에서도 **테마 A·B·C** 를 두고 8마디 묶음마다 돌린다.
+       같은 테마가 돌아오면 훅으로 들리고, 테마가 바뀌면 새 곡처럼 들린다. */
+    const _theme=_isHook ? (Math.floor(_blk/2)%3) : 0;
+    const key=sc.type+'|'+_mvT+(_isHook?('|T'+_theme):('|'+(_blk%3)));
     if(!tmplByType[key]){
       const T=[];
       /* 음형 자체도 편마다 바꾼다 — 자리를 밀거나 솎는다 */
       /* ★ 넷으로만 갈랐더니 리듬 최다가 47% 였다 — 자리 자체가 겹친다.
          여덟으로 늘리고 자리를 미는 폭도 갈른다. */
-      const _sh=_isHook ? ((_mvT*5)%8) : ((_mvT*5+_blk*3)%8);
+      const _sh=_isHook ? ((_mvT*5+_theme*3)%8) : ((_mvT*5+_blk*3)%8);
       /* ── 쉼과 리듬 ──
          ★ 소리 나는 마디가 91~99% 였다 — 30분 내내 노래하면 훅이 안 각인된다.
            노래는 부르고 쉬고를 되풀이한다. 그 사이가 있어야 다음 구절이 들린다. */
@@ -18176,7 +18261,8 @@ function buildTopMelody(M){
                         : (1+((((_blk*2654435761)>>>0)%4))));
       const _phrase=Math.floor((sc.startQ||0)/bar)%4;
       /* 이 편의 리듬 표를 골라 음형을 새로 짠다 */
-      const _RH2=RH_BY_MV(_mvT), _CN2=CON_BY_MV(_mvT);
+      /* 테마마다 리듬 표·윤곽 표를 다르게 골라 자리 자체를 갈른다 */
+      const _RH2=RH_BY_MV(_mvT+_theme*2), _CN2=CON_BY_MV(_mvT+_theme);
       const motif2=_RH2.map(function(r,i){ return {g:r[0], dur:r[1], deg:_CN2[i%_CN2.length]}; });
       /* ── 엇박으로 시작하는 구절 ──
          지금은 늘 마디 첫 박에서 시작한다. 실제 팝 훅은
@@ -18217,12 +18303,17 @@ function buildTopMelody(M){
              편마다 윤곽을 다시 그린다 — 뒤집기 · 옮기기 · 도약 넣기 · 되풀이. */
           if(_sh===1 && mi%2===1) return;                       /* 절반만 */
           if(_sh===5 && mi%3===2) return;
+          /* 테마 B 는 성글게 · 테마 C 는 촘촘하게 — 마디당 음 수가 갈린다 */
+          if(_theme===1 && mi%3===2) return;
           let _g=mo.g, _d=mo.deg;
           const _n=motif2.length;
           if(_sh===2)      _d=motif2[(_n-1-mi)%_n].deg;         /* 윤곽 뒤집기 */
           else if(_sh===3) _d=mo.deg+2;                         /* 3도 위로 옮긴 선율 */
           else if(_sh===4) _d=motif2[(mi+2)%_n].deg;            /* 두 칸 밀어 다른 곡선 */
           else if(_sh===6) _d=(mi%2===0)?mo.deg:(mo.deg+4);     /* 한 음씩 도약을 넣는다 */
+          /* ★ 음정이 3~4도에 몰려 있었다(도약 거의 없음).
+             테마 C 는 넓게 뛴다 — 5도·옥타브가 섞여야 선율이 살아난다. */
+          if(_theme===2 && mi%4===2) _d=mo.deg+((mi%8===2)?4:-3);
           else if(_sh===7) _d=motif2[Math.floor(mi/2)%_n].deg;  /* 두 음씩 같은 음 — 훅이 각인된다 */
           /* 음 길이도 갈른다 — 짧게 끊거나 길게 끄는 마디가 섞여야 리듬이 산다 */
           let _du=mo.dur;
@@ -18242,12 +18333,35 @@ function buildTopMelody(M){
       tmplByType[key]=T;
     }
     const T=tmplByType[key]; if(!T.length) return;
+    /* ── 되풀이되는 훅에 변형을 준다 ──
+       ★ 훅을 편 안에서 같은 음형으로 고정했더니
+         **절대 음높이까지 똑같은 마디가 156회** 되풀이됐다
+         (60분 빅룸 · 1643마디 중 9%).
+       훅은 알아볼 수 있어야 하지만 매번 똑같으면 지겹다.
+       캐시(T)는 그대로 쓰고 **꺼낼 때** 마디 번호로 음도를 옮긴다.
+       뼈대는 남고 색만 바뀐다. */
+    /* ★ 0 이 절반이라 여전히 139회 되풀이됐다.
+       0 을 하나만 남긴다 — 원형이 가끔 돌아오면 그것으로 훅은 각인된다. */
+    /* ★ 음도만 옮겨도 pick() 이 화음 음으로 당겨 결과가 같아졌다(160회).
+       **옥타브와 자리·개수**까지 함께 바꾼다 — 뼈대는 남고 표정이 달라진다. */
+    const _hv=_isHook ? [0,1,2,-1,3,-2,1,4,-1,2,-3,1] : [0];
+    const _ov=_isHook ? [0,0,12,0,-12,0,12,0] : [0];
     for(let b2=0; b2<nb; b2+=2){
-      T.forEach(function(tn){
+      const _bn=Math.floor((sc.startQ+b2*bar)/bar);
+      const _hk=(((_bn/2)|0)+_mvT*3);
+      const _lift=_hv[_hk%_hv.length];
+      const _oct=_ov[_hk%_ov.length];
+      const _thin=(_hk%3===2);          /* 셋에 하나는 성글게 */
+      T.forEach(function(tn,ti){
+        if(_isHook && _thin && ti%3===1) return;
         const t=sc.startQ + b2*bar + tn.dt;
         if(t>=sc.endQ-0.1) return;
-        const m=pick(t, tn.deg);
+        /* 끝음은 그대로 둔다 — 착지가 흔들리면 훅으로 안 들린다 */
+        /* 끝음도 절반은 옮긴다 — 늘 같은 음에 착지하면 그 음이 귀에 박힌다 */
+        const _dg=_isHook ? (tn.deg + ((ti<T.length-1)?_lift:(_lift>0?1:0))) : tn.deg;
+        let m=pick(t, _dg);
         if(!(m>=0&&m<=127)) return;
+        if(_isHook && _oct){ const m2=m+_oct; if(m2>=36&&m2<=100) m=m2; }
         out.push({t:+t.toFixed(4), midi:m, dur:Math.min(tn.dur, sc.endQ-t), vel: /Hook|Chorus|Drop/i.test(sc.type)?104:92});
       });
     }
@@ -20488,6 +20602,44 @@ function exportAll(){arrange();
      ★ 곡 생성 중에 잘라도 tr.arpseq 를 .filter() 로 통째로 갈아 끼우는 자리가
        뒤에 있어 앞선 수정이 사라진다. **arrange() 뒤 · 트랙 만들기 전**에 한다.
      아르프·리드·대선율은 한 음씩 흐르는 층이라 겹치면 화음처럼 뭉친다. */
+  /* ── 가져온 멜로디를 곡 길이에 맞춘다 ──
+     ★ 멜로디 앱 원본 길이(마디 4~65)만 실려 한 곡 208마디의 3분의 1,
+       30분 롱 믹스 1050마디의 6% 만 덮었다.
+     원본을 되풀이해 곡 끝까지 채운다. 편마다 조금씩 옮겨 그대로 복사한 티를 없앤다. */
+  try{
+    const _IM=(window.SO_HUB&&window.SO_HUB.importedMelody)||null;
+    if(_IM && _IM.length){
+      const _tq=(MODEL.totalQ||0);
+      let _mx=0; _IM.forEach(function(n){ const e=(n.t||0)+(n.dur||0); if(e>_mx) _mx=e; });
+      if(_mx>0 && _tq>_mx*1.2){
+        const _bq=barQ(), _loop=Math.ceil(_mx/_bq)*_bq;   /* 마디 단위로 맞춘다 */
+        const _out=_IM.slice();
+        const _sh=[0,0,2,-2,0,3,-3,0];                    /* 되풀이마다 반음 이동 */
+        let _rep=1;
+        while(_rep*_loop < _tq && _rep<64){
+          const _off=_rep*_loop, _tr=_sh[_rep%_sh.length];
+          _IM.forEach(function(n){
+            if((n.t||0)+_off >= _tq) return;
+            _out.push({t:+( (n.t||0)+_off ).toFixed(3), dur:n.dur,
+                       midi:Math.max(24,Math.min(96,(n.midi||60)+_tr)), vel:n.vel||90});
+          });
+          _rep++;
+        }
+        /* 되풀이 이음매에서 앞 음이 다음 음을 물지 않게 자른다 */
+        _out.sort(function(a,b){ return a.t-b.t; });
+        for(let z=0; z<_out.length-1; z++){
+          const a2=_out[z];
+          let nx=Infinity;
+          for(let w=z+1; w<Math.min(_out.length,z+6); w++){
+            if(_out[w].t>a2.t+1e-6 && _out[w].t<nx) nx=_out[w].t;
+          }
+          if(nx===Infinity) continue;
+          if(a2.t+(a2.dur||0) > nx-0.01) a2.dur=Math.max(0.05, nx-a2.t-0.01);
+        }
+        window.SO_HUB.importedMelody=_out;
+      }
+    }
+  }catch(e){}
   try{
     ['arpseq','lead','counter','topmel'].forEach(function(k){
       const A=MODEL.tracks[k];
@@ -28709,6 +28861,50 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
     const rh=defaultRhythm(); const gv=GROOVE[gsel]||GROOVE.pop;
     const spb=60/(rh.bpm||gv.bpm), measure=spb*meterQuarters();
     let ev=[], tOff=0;
+    /* ── 가져온 멜로디를 곡 길이에 맞춘다 ──
+       ★ 멜로디 앱 원본 길이만 실려 곡의 앞부분만 덮었다(Beat 한 곡 33% · 롱 믹스 6%).
+       원본을 되풀이해 곡 끝까지 채우고, 되풀이마다 반음을 옮겨 복사한 티를 없앤다.
+       이음매에서 앞 음이 다음 음을 물지 않게 자른다. */
+    try{
+      const _IM=(window.SO_HUB&&window.SO_HUB.importedMelody)||null;
+      if(_IM && _IM.length){
+        let _mx=0; _IM.forEach(function(n){ const e=(n.t||0)+(n.dur||0); if(e>_mx) _mx=e; });
+        /* ★ totalQ·currentSong 은 이 자리에서 안 잡힌다.
+           songEvents 가 받은 songArr 로 길이를 구한다 —
+           구간마다 bars × reps × 마디쿼터. */
+        let _tq=0;
+        try{
+          (songArr||[]).forEach(function(sc){
+            const _r=Math.max(1, sc.reps||1);
+            const _nb=(sc.prog&&sc.prog.steps)?sc.prog.steps.length:(sc.bars||4);
+            _tq += _nb*_r*meterQuarters();
+          });
+        }catch(e){}
+        if(_mx>0 && _tq>_mx*1.2){
+          const _loop=Math.ceil(_mx/4)*4, _out=_IM.slice(), _sh=[0,0,2,-2,0,3,-3,0];
+          let _rep=1;
+          while(_rep*_loop < _tq && _rep<64){
+            const _off=_rep*_loop, _tr=_sh[_rep%_sh.length];
+            _IM.forEach(function(n){
+              if((n.t||0)+_off >= _tq) return;
+              _out.push({t:+((n.t||0)+_off).toFixed(3), dur:n.dur,
+                         midi:Math.max(24,Math.min(96,(n.midi||60)+_tr)), vel:n.vel||90});
+            });
+            _rep++;
+          }
+          _out.sort(function(a,b){ return a.t-b.t; });
+          for(let z=0; z<_out.length-1; z++){
+            const a2=_out[z]; let nx=Infinity;
+            for(let w=z+1; w<Math.min(_out.length,z+6); w++){
+              if(_out[w].t>a2.t+1e-6 && _out[w].t<nx) nx=_out[w].t;
+            }
+            if(nx===Infinity) continue;
+            if(a2.t+(a2.dur||0) > nx-0.01) a2.dur=Math.max(0.05, nx-a2.t-0.01);
+          }
+          window.SO_HUB.importedMelody=_out;
+        }
+      }
+    }catch(e){}
     const __imp=(window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length)?window.SO_HUB.importedMelody:null;   // 멜로디 소스: 가져온(기본)/자체
     const __useImp=__imp&&(!window.SO_HUB.melSrc||window.SO_HUB.melSrc.play!=='own');
     const __mq=meterQuarters();
@@ -37277,7 +37473,54 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
     curVoicing=savedV;
     if(window.SO_HUB&&window.SO_HUB.importedMelody&&window.SO_HUB.importedMelody.length){   // 멜로디 앵커: 넘어온 멜로디 그대로 실음(채널16)
       const __impSel=(!window.SO_HUB.melSrc||window.SO_HUB.melSrc.play!=='own');   // 선택된 소스(가져온=기본)
-      const mel=window.SO_HUB.importedMelody.slice().sort((a,b)=>a.t-b.t); const evs=[];
+      /* ── 곡 길이에 맞춰 되풀이한다 ──
+         ★ 원본 길이만 실려 곡의 앞부분만 덮었다(실측 Play 80% · 라운지 5%).
+         이 자리는 트랙 바이트를 만드는 곳이라 곡 전체 길이를 알 수 있다 —
+         이미 만든 다른 트랙의 마지막 음까지가 곡 길이다. */
+      let mel=window.SO_HUB.importedMelody.slice().sort((a,b)=>a.t-b.t);
+      try{
+        let _mx=0; mel.forEach(function(n){ const e=(n.t||0)+(n.dur||0); if(e>_mx) _mx=e; });
+        const _endQ=(typeof __songEndQ!=='undefined'&&__songEndQ)?__songEndQ
+                   :(currentSong||[]).reduce(function(a,sc){
+                       const _r=Math.max(1,sc.reps||1);
+                       const _nb=(sc.prog&&sc.prog.steps)?sc.prog.steps.length:(sc.bars||4);
+                       return a+_nb*_r*meterQuarters(); },0);
+        if(_mx>0 && _endQ>_mx*1.2){
+          const _loop=Math.ceil(_mx/meterQuarters())*meterQuarters();
+          const _out=mel.slice(), _sh=[0,0,2,-2,0,3,-3,0];
+          let _rep=1;
+          while(_rep*_loop < _endQ && _rep<64){
+            const _off=_rep*_loop, _tr=_sh[_rep%_sh.length];
+            mel.forEach(function(n){
+              if((n.t||0)+_off >= _endQ) return;
+              _out.push({t:+((n.t||0)+_off).toFixed(3), dur:n.dur,
+                         midi:Math.max(24,Math.min(96,(n.midi||60)+_tr)), vel:n.vel||90});
+            });
+            _rep++;
+          }
+          _out.sort(function(a,b){ return a.t-b.t; });
+          for(let z=0; z<_out.length-1; z++){
+            const a2=_out[z]; let nx=Infinity;
+            for(let w=z+1; w<Math.min(_out.length,z+6); w++){
+              if(_out[w].t>a2.t+1e-6 && _out[w].t<nx) nx=_out[w].t;
+            }
+            if(nx===Infinity) continue;
+            if(a2.t+(a2.dur||0) > nx-0.01) a2.dur=Math.max(0.05, nx-a2.t-0.01);
+          }
+          mel=_out;
+        }
+        /* ★ 되풀이를 안 한 경우(원본이 곡 길이에 가까울 때)에도 겹침이 남는다 —
+           원본 자체에 물리는 음이 있다. 늘 한 번 훑는다. */
+        for(let z=0; z<mel.length-1; z++){
+          const a2=mel[z]; let nx=Infinity;
+          for(let w=z+1; w<Math.min(mel.length,z+6); w++){
+            if(mel[w].t>a2.t+1e-6 && mel[w].t<nx) nx=mel[w].t;
+          }
+          if(nx===Infinity) continue;
+          if(a2.t+(a2.dur||0) > nx-0.01) a2.dur=Math.max(0.05, nx-a2.t-0.01);
+        }
+      }catch(e){}
+      const evs=[];
       mel.forEach(n=>{ const on=Math.round(n.t*TPQ), off=Math.round((n.t+Math.max(0.05,n.dur))*TPQ); evs.push({tk:on,on:1,m:n.midi,v:n.vel||90}); evs.push({tk:off,on:0,m:n.midi,v:0}); });
       evs.sort((a,b)=>a.tk-b.tk||(a.on-b.on));
       let mb=[]; const nm=Array.from(new TextEncoder().encode((__impSel?'':'[뮤트] ')+'[가져온] 멜로디 — 보존됨 (Flute)'));
