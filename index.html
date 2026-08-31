@@ -34746,6 +34746,30 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                             INST.harp && INST.harp.on && INST.harp.gm>=24 && INST.harp.gm<=31);
             if((sec.label!=='인트로' || compStyle!=='auto' || sec.introMelOn) && !themeHold && !duetSkip && !_gtrSolo){
               let _ml=((sec.mels&&sec.mels[r])||mel).filter(mn=>mn.bar===si);
+              /* ── 한 곡 모드에도 테마를 둔다 ──
+                 ★ 라운지는 악장마다 성격이 갈려 리듬형이 41~83가지인데
+                   한 곡은 2~27가지뿐이고 하나가 26~67% 를 차지했다.
+                 ★★ 세 번 실패했다 — forEach 안에서 거르거나 자리를 옮기면
+                   한 곡이 통째로 안 만들어진다. 한 곡은 마디당 음이 2.5개뿐이라
+                   솎으면 남는 게 없고, 콜백 서명을 바꾸는 것도 안 통했다.
+                   라운지가 되는 이유는 **_ml 을 새 배열로 갈아 끼우기** 때문이다.
+                   같은 방식으로 한다 — 원본 객체는 그대로 두고 복사본을 만든다. */
+              if(!_lgMel && _ml.length>1){
+                /* ★ 8마디 묶음으로는 곡이 짧아 테마가 한두 번밖에 안 바뀐다 —
+                   한 곡은 28마디 남짓이다. **4마디 묶음**으로 하고 넷으로 갈른다. */
+                const _pt=Math.floor((r*nsteps.length+si)/4)%4;
+                if(_pt>0){
+                  _ml=_ml.map(function(mn,ix){
+                    let _o=0, _dm=1;
+                    if(_pt===1){ _o=(ix%2===1)?0.5:0; }
+                    else if(_pt===2){ _o=(ix%3===1)?0.25:0; _dm=1.4; }
+                    else { _o=(ix%2===0)?0.25:0; _dm=0.7; }
+                    if(!_o && _dm===1) return mn;
+                    return {bar:mn.bar, pos:Math.min(3.9,(mn.pos||0)+_o),
+                            dur:(mn.dur||0.5)*_dm, midi:mn.midi, vel:mn.vel};
+                  });
+                }
+              }
               if(_lgMel && _ml.length){
                 /* ── 라운지 선율 ──
                    전에는 두 마디에 한 번 · 긴 음 세 개로 고정이었다.
@@ -37242,6 +37266,9 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         /* ★ 기타는 'gtr' 이 아니라 'gtrlead' 다. 가야금·기타는 편성 안에서
              한 키(harp·gtrlead)를 여러 트랙이 나눠 쓰므로 그 키도 넣는다. */
         const _cineTrim=(gsel.indexOf('cine')===0 && ['melody','counter','strings'].indexOf(grp.key)>=0);
+        /* ★ 기타 듀오·가야금은 한 키(gtrlead·harp)를 여러 대가 나눠 쓴다 —
+           키만 보고 자르면 다른 연주자의 음까지 자른다.
+           **같은 음높이가 이어지는 자리만** 자르므로 성부가 섞여도 안전하다. */
         if(['melody','counter','strings','cbass','qbass','bass',
             'gtrlead','harp','piano2','winds','brass','horns'].indexOf(grp.key)>=0){
           try{
