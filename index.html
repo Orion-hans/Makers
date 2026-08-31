@@ -1646,6 +1646,12 @@ input[type=range]{accent-color:var(--teal)}
       <input type="number" id="fitSec" min="0" max="59" value="0" style="width:40px;" inputmode="numeric"><span class="mini">초</span>
       <button class="sm primary" id="fitBtn" style="padding:5px 9px;font-size:12px;flex:0 0 auto;">⏱ 맞추기</button>
       <label class="chk" id="suiteWrap" style="display:none;flex:0 0 auto;margin-left:4px;"><input type="checkbox" id="suiteTog"> 🎼 조곡</label>
+      <!-- 긴 믹스: 새 곡을 여러 개 만들어 이어 붙인다(조곡은 한 곡을 악장으로 나눈다) -->
+      <label class="chk" id="bandMixWrap" style="flex:0 0 auto;margin-left:4px;"><input type="checkbox" id="bandMixTog"> 🔁 긴 믹스</label>
+      <select id="bandMixLen" style="display:none;margin-left:4px;font-size:12px;">
+        <option value="15">15분</option><option value="30" selected>30분</option>
+        <option value="45">45분</option><option value="60">60분</option>
+      </select>
       <span class="mini" id="fitOut" style="letter-spacing:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
     </div>
     <div class="btnrow" style="margin-top:10px;align-items:center;">
@@ -6667,7 +6673,16 @@ function applyStyleDefaults(randomize){
      · 드럼킷을 쓰지 않는다 — 실제 오케스트라에는 드럼세트가 없다.
        팀파니·대북(Gran Cassa)·심벌·탐탐만 남긴다.
    악장 성격은 고전 모음곡의 흐름을 따른다: 서곡 → 느린 악장 → 스케르초 → 피날레. */
-const SUITE_STYLES=new Set(['epic','animeost','disney','saguk']);
+const /* ── 모음곡을 쓸 수 있는 스타일 ──
+   ★ 네 스타일만 되어 나머지 24개는 길게 만들 수 없었다.
+   밴드 편성은 어느 스타일이든 악장 형식을 쓸 수 있다 —
+   서곡·느린 악장·스케르초·피날레는 편성이 아니라 형식의 문제다.
+   전 스타일에 연다. */
+SUITE_STYLES=new Set(['epic','animeost','disney','saguk',
+  'ballad','jballad','kballad','komuro','royalroad','ukpop','animerock','billie',
+  'worship','celtic','funk','neosoul','gospel','poppunk','country','kpop','jazz',
+  'gypsy','tango','rumba','balkan','kband','countrypop','marusa','motown',
+  'citypop','folk','latin','disco','metal','rock','bossa','afrobeat','reggae','waltz']);
 /* tRel = 기준 빠르기에 대한 배수. 악장 성격이 곧 빠르기다 —
    느린 악장이 서곡과 같은 속도로 흐르면 '느린 악장' 이 아니다
    (실측: 조곡 15분을 뽑았는데 BPM 이 108 하나였다).
@@ -6679,7 +6694,20 @@ const SUITE_MOV=[
   {n:'간주곡',    types:['Intro','Verse','Bridge','Verse'],                    lift:-1, meter:null, tRel:0.85},
   {n:'전개',      types:['Verse','PreChorus','Chorus','Verse','Chorus'],       lift:+4, meter:null, tRel:1.12},
   {n:'느린 악장 II', types:['Intro','Verse','Verse','Bridge'],                 lift:-5, meter:'3/4', tRel:0.55},
-  {n:'피날레',    types:['Buildup','Chorus','Chorus','Outro'],                 lift:+5, meter:null, tRel:1.20}
+  {n:'피날레',    types:['Buildup','Chorus','Chorus','Outro'],                 lift:+5, meter:null, tRel:1.20},
+  /* ── 60분까지 늘리기 위한 악장 ──
+     ★ 일곱 악장뿐이라 targetSec/240 이 28분에서 상한에 걸렸다.
+       10분·30분·60분을 골라도 구간이 18개로 같았다.
+     빠름-느림-빠름의 대비를 이어 가며 여덟 개를 더한다.
+     같은 이름을 되풀이하지 않는다 — 악장마다 성격이 달라야 한다. */
+  {n:'무곡',      types:['Verse','Chorus','Verse','Chorus'],                   lift:+1, meter:'3/4', tRel:1.10},
+  {n:'야상곡',    types:['Intro','Verse','Verse','Bridge'],                    lift:-4, meter:null, tRel:0.58},
+  {n:'행진',      types:['Intro','Verse','Chorus','Chorus'],                   lift:+3, meter:null, tRel:1.15},
+  {n:'변주',      types:['Verse','Verse','Bridge','Verse','Chorus'],           lift:0,  meter:null, tRel:0.92},
+  {n:'아리아',    types:['Intro','Verse','Chorus','Verse'],                    lift:-2, meter:null, tRel:0.68},
+  {n:'질주',      types:['Buildup','Chorus','Verse','Chorus'],                 lift:+4, meter:null, tRel:1.32},
+  {n:'회상',      types:['Intro','Verse','Bridge','Verse'],                    lift:-1, meter:null, tRel:0.75},
+  {n:'대단원',    types:['Buildup','Chorus','Chorus','Bridge','Outro'],        lift:+6, meter:null, tRel:1.08}
 ];
 function suiteOn(){ return !!state.suite && SUITE_STYLES.has(state.style); }
 /* 목표 길이에서 악장 수를 정한다 — 한 악장이 3~5분이 되도록 */
@@ -6828,8 +6856,40 @@ function fitToDuration(targetSec){
   const fast=bpm>=140;                                             // 빠른 템포: 벌스/코러스 16마디(관습)
   let n=Math.max(8,Math.round(targetSec/secPerBar/4)*4);            // 4마디 블록으로 환산(프레이즈 유지)
   state.active=0;
-  state.sections=(suiteOn()?buildSuiteForm(n,targetSec):buildFormForBars(n,energetic,fast,targetSec)).map(([type,bars,opts])=>{const o=opts||{};
-    return {type,meter:o.meter||'inherit',groove:o.groove||grooveForType(type,rock,energetic),grid:Array.from({length:bars},()=>['']),_planLift:o.lift||0,
+  /* ── 긴 시간은 곡을 여러 개 이어 붙인다 ──
+     ★ 모음곡(suite)은 한 곡을 악장으로 나누는 방식이라 17분에서 멈췄다.
+       그 밖의 스타일은 **새 곡을 만들어 이어 붙여야** 60분이 다채롭게 채워진다.
+     한 곡을 3~5분으로 잡고 필요한 만큼 되풀이한다.
+     곡마다 조성·빠르기를 옮기고 사이에 마무리·시작을 둔다. */
+  let _form;
+  if(!suiteOn() && targetSec>420){
+    const _one=Math.max(8, Math.round(200/secPerBar/4)*4);      /* 한 곡 약 3분 20초 */
+    const _cnt=Math.max(2, Math.min(20, Math.round(targetSec/200)));
+    _form=[];
+    for(let c=0;c<_cnt;c++){
+      const _f=buildFormForBars(_one,energetic,fast,200);
+      _f.forEach(function(x,ix){
+        const _o=Object.assign({},x[2]||{});
+        _o.songNo=c+1;                                   /* 몇 번째 곡인지 */
+        /* ★ 조는 바뀌는데 **리듬형이 10가지로 고정**이었다(10등분 전 구간 동일).
+           MOTIFS 가 곡당 한 번 만들어지므로 긴 믹스에서는 곡마다 다시 만들어야 한다.
+           곡 번호를 실어 렌더링 때 씨앗으로 쓴다. */
+        _o.motSeed=(c+1)*7919;
+        /* 곡마다 조를 옮긴다 — 5도권 이웃으로 */
+        _o.lift=(_o.lift||0)+[0,5,-5,2,-3,7,-7,4,-2,3][c%10];
+        /* 곡마다 빠르기를 바꾼다 — 같은 속도로 60분이면 지친다.
+           ★ o.tempo 는 **절대 BPM** 이다. 배수를 넣었더니 4~23 BPM 이 나왔다.
+             장르 기준 BPM 에 배수를 곱해 넣는다. */
+        _o.tempo=Math.max(40, Math.min(200,
+          Math.round(bpm*[1.00,0.92,1.08,0.86,1.12,0.96,1.04,0.90][c%8])));
+        _form.push([x[0],x[1],_o]);
+      });
+    }
+  } else {
+    _form=(suiteOn()?buildSuiteForm(n,targetSec):buildFormForBars(n,energetic,fast,targetSec));
+  }
+  state.sections=_form.map(([type,bars,opts])=>{const o=opts||{};
+    return {type,meter:o.meter||'inherit',groove:o.groove||grooveForType(type,rock,energetic),grid:Array.from({length:bars},()=>['']),_motSeed:o.motSeed||0,_planLift:o.lift||0,
             /* 조곡의 악장별 빠르기 — buildSuiteForm 이 o.tempo 로 넘긴다.
                이 자리에서 옮기지 않으면 그대로 버려진다(실측: 15분 조곡의 BPM 이 하나였다). */
             tempo:(o.tempo!=null?o.tempo:'inherit'),
@@ -9147,12 +9207,26 @@ function buildMotifs(){
     bounce:[[0,.5],[0.75,.25],[1,.5],[2,.5],[2.75,.25],[3,.5],[3.5,.5],[4,.5],[4.75,.25],[5,.5],[6,1.5]],
     ballad8:[[0,1],[1,1],[2,1],[3,.5],[3.5,.5],[4,1],[5,1],[6,1.5]],
     chant:[[0,.5],[0.5,.5],[1,1],[2,.5],[2.5,.5],[3,1],[4,.5],[4.5,.5],[5,1],[6,2]],
+    /* ── 리듬 표를 넓힌다 ──
+       ★ 일곱 가지뿐이고 장르마다 둘·셋에서만 골라 긴 믹스에서 곡을 바꿔도
+         리듬형이 12가지로 같았다(60분 열 구간 전부 동일).
+       여덟 가지를 더한다. 8박 프레임 · 마지막은 길게 끌어 프레이즈를 맺는다. */
+    pickup:[[0.5,.5],[1,.5],[1.5,.5],[2,1],[3,.5],[3.5,1],[4.5,.5],[5,1],[6,2]],
+    dotted:[[0,.75],[0.75,.25],[1,1],[2,.75],[2.75,.25],[3,1],[4,1.5],[5.5,.5],[6,2]],
+    sparse:[[0,1.5],[2,1],[3,1],[4,2],[6,2]],
+    gallop:[[0,.5],[0.5,.25],[0.75,.25],[1,.5],[2,.5],[2.5,.25],[2.75,.25],[3,1],[4,.5],[4.5,.5],[5,1],[6,2]],
+    offbeat:[[0.5,.5],[1.5,.5],[2.5,.5],[3.5,.5],[4.5,.5],[5.5,.5],[6,2]],
+    triplet:[[0,.667],[0.667,.667],[1.333,.667],[2,1],[3,.667],[3.667,.667],[4.333,.667],[5,1],[6,2]],
+    call:[[0,.5],[0.5,.5],[1,2],[3,.5],[3.5,.5],[4,2],[6,2]],
+    rise:[[0,.5],[0.5,.5],[1,.5],[1.5,.5],[2,.5],[2.5,.5],[3,1],[4,.75],[4.75,.75],[5.5,.5],[6,2]],
   };
   const balladish=['ballad','jballad','worship','neosoul','animeost'].includes(state.style);
   const gospelish=['gospel','worship','motown'].includes(state.style);
-  const rhythm=rock?pick([RH.drive,RH.anthem]):funkish?pick([RH.sync,RH.bounce]):
-    balladish?pick([RH.long,RH.ballad8,RH.anthem]):gospelish?pick([RH.chant,RH.sync]):
-    state.style==='kpop'?pick([RH.bounce,RH.sync,RH.drive]):state.style==='epic'?pick([RH.anthem,RH.long]):pick([RH.sync,RH.long,RH.drive,RH.bounce,RH.chant]);
+  /* ★ 고를 수 있는 표가 둘·셋뿐이라 다시 뽑아도 비슷한 것이 나왔다.
+     장르 본래 표에 새 표를 섞어 고른다 — 어법은 지키되 폭을 넓힌다. */
+  const rhythm=rock?pick([RH.drive,RH.anthem,RH.gallop,RH.rise]):funkish?pick([RH.sync,RH.bounce,RH.offbeat,RH.dotted]):
+    balladish?pick([RH.long,RH.ballad8,RH.anthem,RH.sparse,RH.call]):gospelish?pick([RH.chant,RH.sync,RH.call,RH.triplet]):
+    state.style==='kpop'?pick([RH.bounce,RH.sync,RH.drive,RH.pickup,RH.offbeat,RH.dotted]):state.style==='epic'?pick([RH.anthem,RH.long,RH.rise,RH.sparse]):pick([RH.sync,RH.long,RH.drive,RH.bounce,RH.chant]);
   const mkContour=n=>{let d=pick([0,1,2]);const c=[d];let leap=false;   // 순차 위주 + 도약 1회
     for(let i=1;i<n;i++){let st;const x=r();
       if(!leap&&x<0.14){st=r()<0.5?3:-3;leap=true;}else if(x<0.55)st=1;else if(x<0.85)st=-1;else st=0;
@@ -9173,6 +9247,23 @@ function motifScale(){
 }
 function renderMotifSection(sec,startQ,barQ){
   if(!MOTIFS||!['Verse','PreChorus','Chorus','PostChorus'].includes(sec.type))return null;
+  /* ── 긴 믹스: 곡마다 훅을 새로 만든다 ──
+     ★ MOTIFS 는 **곡당 한 번** 만들어진다. 긴 믹스는 곡 여러 개를 이어 붙이는데
+       그 표를 계속 써서 조는 바뀌는데 **리듬형이 구간마다 11~12가지로 같았다**.
+     _motSeed 가 있으면(긴 믹스) 그 곡 전용 표를 만들어 쓴다.
+     같은 곡 안에서는 캐시로 유지해야 훅이 훅으로 들린다. */
+  let MOT=MOTIFS;
+  if(sec && sec._motSeed){
+    window.__BMOT=window.__BMOT||{};
+    const _k=String(sec._motSeed);
+    if(!window.__BMOT[_k]){
+      const _save=melRng;
+      melRng=mul32(((state.melSeed||1)^sec._motSeed)>>>0);
+      try{ window.__BMOT[_k]=buildMotifs(); }catch(e){ window.__BMOT[_k]=MOTIFS; }
+      melRng=_save;
+    }
+    MOT=window.__BMOT[_k]||MOTIFS;
+  }
   const {km,pcs}=motifScale(),type=sec.type;
   const anchor=type==='Verse'?72:type==='PreChorus'?75:type==='PostChorus'?78:77;   // 벌스 저역·코러스 고역 대비
   let lift=0;                                                            // 파이널 리프트: 마지막 코러스 훅 +1도
@@ -9198,18 +9289,28 @@ function renderMotifSection(sec,startQ,barQ){
          5도 이상 도약도 11~15% 로 좁았다.
        구간 자리(q0)로 테마를 갈라 리듬과 도약을 바꾼다.
        뼈대(mot)는 그대로라 훅은 남고 표정만 달라진다. */
-    const _th=Math.floor(q0/(barQ*8))%3;
+    const _th=(Math.floor(q0/(barQ*8))+((sec&&sec._motSeed)?sec._motSeed:0))%3;
+    /* ★ 테마 셋만으로는 60분에서 **절대 음높이까지 같은 마디가 106회**(7%) 나왔다.
+       리듬형은 18가지로 괜찮은데 같은 음이 계속 돌아온다.
+       Beat 에서 쓴 방식과 같게 — **음도 옮김과 옥타브**를 함께 건다.
+       뼈대는 남고 표정이 달라진다. */
+    /* 곡마다 리듬 자리를 통째로 바꾼다 — 씨앗이 있으면 그것으로 가른다 */
+    const _ms=(sec&&sec._motSeed)?sec._motSeed:0;
+    const _hk2=Math.floor(q0/(barQ*4))+_ms;
+    const _lf2=[0,1,2,-1,3,-2,1,4,-1,2,-3,1][_hk2%12];
+    const _oc2=[0,0,12,0,-12,0,12,0][_hk2%8];
     mot.rh.forEach(([b0,du0],i)=>{
       if(_th===1 && i%3===2) return;                    /* 테마 B: 성글게 */
       let _b0=b0;
       if(_th===2 && i%2===1) _b0=Math.min(frame-0.5, b0+0.5);   /* 테마 C: 반 박 뒤로 */
       const b=_b0*f,du=du0*f;const t=q0+b;if(t>=secEnd-1e-6)return;
-      let deg=mot.ct[i]+degOff;
+      let deg=mot.ct[i]+degOff+_lf2;
       /* 테마 C 는 넓게 뛴다 — 4도 위·3도 아래를 섞는다 */
       if(_th===2 && i%4===2) deg += (i%8===2)?3:-2;
       if(opts.cap!=null)deg=Math.min(deg,opts.cap);
       if(opts.peakAt===i)deg=opts.peak;
       let m=degMidi(deg);
+      if(_oc2){ const _m2=m+_oc2; if(_m2>=48&&_m2<=96) m=_m2; }
       const strong=(b%barQ===0)||du>=1;
       if(strong)m=snap(m,t);
       let dur=du,vel=(b%barQ===0)?86:(b%1!==0)?76:70;
@@ -9218,16 +9319,16 @@ function renderMotifSection(sec,startQ,barQ){
   };
   const bars=sec.grid.length;
   if(type==='Chorus'){
-    const maxA=Math.max(...MOTIFS.cho.ct),peak=maxA+2+lift;
+    const maxA=Math.max(...MOT.cho.ct),peak=maxA+2+lift;
     for(let w=0;w*2<bars;w++){const q0=startQ+w*2*barQ,lastW=(w+1)*2>=bars;
-      if(!lastW&&w%4===2)unit(MOTIFS.cho,q0,1+lift,{peakAt:MOTIFS.cho.ct.indexOf(maxA),peak});      // B: 리프트+피크 1회
-      else unit(MOTIFS.cho,q0,lift,{cap:maxA+lift,cadLast:lastW,winEnd:q0+2*barQ});}
+      if(!lastW&&w%4===2)unit(MOT.cho,q0,1+lift,{peakAt:MOT.cho.ct.indexOf(maxA),peak});      // B: 리프트+피크 1회
+      else unit(MOT.cho,q0,lift,{cap:maxA+lift,cadLast:lastW,winEnd:q0+2*barQ});}
   }else if(type==='Verse'){
-    for(let w=0;w*2<bars;w++)unit(MOTIFS.ver,startQ+w*2*barQ,0,{cadLast:(w+1)*2>=bars,winEnd:startQ+(w+1)*2*barQ});
+    for(let w=0;w*2<bars;w++)unit(MOT.ver,startQ+w*2*barQ,0,{cadLast:(w+1)*2>=bars,winEnd:startQ+(w+1)*2*barQ});
   }else if(type==='PreChorus'){
-    for(let b=0;b<bars;b++)unit(MOTIFS.pre,startQ+b*barQ,Math.min(b,3),{frame:4,span:barQ});    // 상승 시퀀스
+    for(let b=0;b<bars;b++)unit(MOT.pre,startQ+b*barQ,Math.min(b,3),{frame:4,span:barQ});    // 상승 시퀀스
   }else{
-    for(let b=0;b<bars;b++)unit(MOTIFS.post,startQ+b*barQ,0,{frame:4,span:barQ});               // 챈트 반복
+    for(let b=0;b<bars;b++)unit(MOT.post,startQ+b*barQ,0,{frame:4,span:barQ});               // 챈트 반복
   }
   out.sort((a,b)=>a.t-b.t);return out;
 }
@@ -12602,6 +12703,29 @@ $('reroll').onclick=()=>{
    코드가 값을 바꿀 때도 이벤트가 나므로 isTrusted 로 가른다
    (Play 의 userBpm 에서 같은 함정을 겪었다 — 자동값이 사용자값으로 굳었다). */
 try{ $('bpm').addEventListener('input', function(e){ if(e.isTrusted) window.__bandBpmUser=true; }); }catch(e){}
+/* ── 긴 믹스 ──
+   ★ 조곡은 한 곡을 악장으로 나누는 방식이라 17분에서 멈춘다.
+     긴 믹스는 **새 곡을 여러 개 만들어 이어 붙인다** — 60분이 다채롭게 채워진다.
+   한 곡을 3분 20초로 잡고 필요한 만큼 되풀이한다.
+   곡마다 조를 5도권 이웃으로 옮기고 빠르기를 0.86~1.12배로 바꾼다. */
+$('bandMixTog').onchange=e=>{
+  const on=e.target.checked;
+  const sel=$('bandMixLen'); if(sel) sel.style.display=on?'':'none';
+  if(on){
+    const mins=+($('bandMixLen')&&$('bandMixLen').value)||30;
+    state.targetSec=mins*60;
+    if($('suiteTog')&&$('suiteTog').checked){ $('suiteTog').checked=false; state.suite=false; }
+    fitToDuration(state.targetSec); assignByType(true);
+    renderEditor(); updateRibbon();
+    try{ $('panel2').classList.remove('collapsed'); }catch(err){}
+  } else { state.targetSec=null; }
+};
+$('bandMixLen').onchange=e=>{
+  if(!$('bandMixTog').checked) return;
+  state.targetSec=(+e.target.value||30)*60;
+  fitToDuration(state.targetSec); assignByType(true);
+  renderEditor(); updateRibbon();
+};
 $('modalMix').onchange=e=>{state.modalMix=e.target.checked;if(MODEL){assignByType(true);renderEditor();updateRibbon();$('panel2').classList.remove('collapsed');if(playing)playSection(state.active);}};
 $('arrDyn').onchange=e=>{state.arrDyn=e.target.checked;if(MODEL){arrange();if(playing)playSection(state.active);}};
 /* ===== 앱 내 장르별 조합 가이드 ===== */
