@@ -9299,12 +9299,18 @@ function renderMotifSection(sec,startQ,barQ){
     const _hk2=Math.floor(q0/(barQ*4))+_ms;
     const _lf2=[0,1,2,-1,3,-2,1,4,-1,2,-3,1][_hk2%12];
     const _oc2=[0,0,12,0,-12,0,12,0][_hk2%8];
+    /* ── 한 음 훅 ──
+       같은 음을 리듬만 바꿔 두 마디 두드린다. 드물게 — 열여섯에 한 번.
+       조곡·긴 믹스·한 곡 모두 적용된다(이 함수를 다 지난다). */
+    /* ★ 열여섯에 한 번으로 잡았는데 조곡에서 22% 가 나왔다 —
+       한 악장 안에서 같은 자리가 여러 번 걸린다. 서른둘에 한 번으로 낮춘다. */
+    const _one2=((_hk2%32)===5);
     mot.rh.forEach(([b0,du0],i)=>{
       if(_th===1 && i%3===2) return;                    /* 테마 B: 성글게 */
       let _b0=b0;
       if(_th===2 && i%2===1) _b0=Math.min(frame-0.5, b0+0.5);   /* 테마 C: 반 박 뒤로 */
       const b=_b0*f,du=du0*f;const t=q0+b;if(t>=secEnd-1e-6)return;
-      let deg=mot.ct[i]+degOff+_lf2;
+      let deg=_one2 ? (mot.ct[0]+degOff+_lf2) : (mot.ct[i]+degOff+_lf2);
       /* 테마 C 는 넓게 뛴다 — 4도 위·3도 아래를 섞는다 */
       if(_th===2 && i%4===2) deg += (i%8===2)?3:-2;
       if(opts.cap!=null)deg=Math.min(deg,opts.cap);
@@ -11200,17 +11206,28 @@ function exportAll(){arrange();
       const _endQ=(MODEL&&MODEL.totalQ)?MODEL.totalQ:0;
       let _out=_IM.slice();
       if(_mx>0 && _endQ>_mx*1.2){
-        const _loop=Math.ceil(_mx/4)*4, _sh=[0,0,2,-2,0,3,-3,0];
-        let _rep=1;
-        while(_rep*_loop < _endQ && _rep<64){
-          const _off=_rep*_loop, _tr=_sh[_rep%_sh.length];
-          _IM.forEach(function(n){
-            if((n.t||0)+_off >= _endQ) return;
-            _out.push({t:+((n.t||0)+_off).toFixed(3), dur:n.dur,
-                       midi:Math.max(24,Math.min(96,(n.midi||60)+_tr)), vel:n.vel||90});
-          });
-          _rep++;
-        }
+        /* ── 되풀이마다 변형 (Beat·Play 와 같은 방식) ── */
+        const _loop=Math.ceil(_mx/4)*4;
+          const _sh=[0,0,2,-2,0,3,-3,0,1,-1,4,-4], _oc=[0,0,12,0,-12,0,0,12], _dm=[1,1,1.5,0.7,1,1.3,0.8,1];
+          let _rep=1;
+          while(_rep*_loop < _endQ && _rep<64){
+            const _off=_rep*_loop, _tr=_sh[_rep%_sh.length];
+            const _o2=_oc[_rep%_oc.length], _d2=_dm[_rep%_dm.length], _mode=_rep%4;
+            _IM.forEach(function(n,ix){
+              if(_mode===1 && ix%3===2) return;
+              let _t=(n.t||0)+_off;
+              if(_mode===2 && ix%2===1) _t+=0.5;
+              if(_mode===3 && ix%4===2) _t+=0.25;
+              _t=Math.round(_t*4)/4;                 /* 밀고 나서 격자에 다시 맞춘다 */
+              if(_t >= _endQ) return;
+              let _m=(n.midi||60)+_tr;
+              if(_o2){ const _m2=_m+_o2; if(_m2>=36&&_m2<=96) _m=_m2; }
+              if(_mode===3 && ix%5===3) _m+=4;
+              _out.push({t:+_t.toFixed(3), dur:(n.dur||0.5)*_d2,
+                         midi:Math.max(24,Math.min(96,_m)), vel:n.vel||90});
+            });
+            _rep++;
+          }
       }
       _out.sort(function(a,b){ return a.t-b.t; });
       for(let z=0; z<_out.length-1; z++){
@@ -18474,6 +18491,12 @@ function buildTopMelody(M){
       const _bn=Math.floor((sc.startQ+b2*bar)/bar);
       const _hk=(((_bn/2)|0)+_mvT*3);
       const _lift=_hv[_hk%_hv.length];
+      /* ── 한 음 훅 ──
+         같은 음을 리듬만 바꿔 두 마디 두드리는 형태. 팝 훅에서 흔하다.
+         "따-다다-따- / 따-다다-따-" 처럼 음높이가 안 바뀌니 각인이 세다.
+         드물게 넣는다 — 여덟 자리에 한 번. 자주 나오면 그것대로 단조롭다.
+         이 루프가 2마디 단위(b2+=2)라 그대로 두 마디가 된다. */
+      const _one=((_hk%8)===3);
       const _oct=_ov[_hk%_ov.length];
       const _thin=(_hk%3===2);          /* 셋에 하나는 성글게 */
       T.forEach(function(tn,ti){
@@ -18482,7 +18505,8 @@ function buildTopMelody(M){
         if(t>=sc.endQ-0.1) return;
         /* 끝음은 그대로 둔다 — 착지가 흔들리면 훅으로 안 들린다 */
         /* 끝음도 절반은 옮긴다 — 늘 같은 음에 착지하면 그 음이 귀에 박힌다 */
-        const _dg=_isHook ? (tn.deg + ((ti<T.length-1)?_lift:(_lift>0?1:0))) : tn.deg;
+        const _dg=_one ? 0
+                 : (_isHook ? (tn.deg + ((ti<T.length-1)?_lift:(_lift>0?1:0))) : tn.deg);
         let m=pick(t, _dg);
         if(!(m>=0&&m<=127)) return;
         if(_isHook && _oct){ const m2=m+_oct; if(m2>=36&&m2<=100) m=m2; }
@@ -20738,14 +20762,35 @@ function exportAll(){arrange();
       if(_mx>0 && _tq>_mx*1.2){
         const _bq=barQ(), _loop=Math.ceil(_mx/_bq)*_bq;   /* 마디 단위로 맞춘다 */
         const _out=_IM.slice();
-        const _sh=[0,0,2,-2,0,3,-3,0];                    /* 되풀이마다 반음 이동 */
+        /* ── 되풀이마다 변형을 준다 ──
+           ★ 반음만 옮겼더니 **리듬형 22가지(최다 32%) · 같은 마디 70회**였다.
+             음높이만 바뀌고 자리와 개수가 늘 같으면 같은 곡으로 들린다.
+           반음 이동 · 옥타브 · 자리 밀기 · 솎기 · 길이를 함께 건다.
+           뼈대(원본 순서)는 남아 형이 만든 선율로 들린다. */
+        const _sh=[0,0,2,-2,0,3,-3,0,1,-1,4,-4];           /* 반음 이동 */
+        const _oc=[0,0,12,0,-12,0,0,12];                   /* 옥타브 */
+        const _dm=[1,1,1.5,0.7,1,1.3,0.8,1];               /* 길이 배수 */
         let _rep=1;
         while(_rep*_loop < _tq && _rep<64){
           const _off=_rep*_loop, _tr=_sh[_rep%_sh.length];
-          _IM.forEach(function(n){
-            if((n.t||0)+_off >= _tq) return;
-            _out.push({t:+( (n.t||0)+_off ).toFixed(3), dur:n.dur,
-                       midi:Math.max(24,Math.min(96,(n.midi||60)+_tr)), vel:n.vel||90});
+          const _o2=_oc[_rep%_oc.length], _d2=_dm[_rep%_dm.length];
+          const _mode=_rep%4;
+          _IM.forEach(function(n,ix){
+            if(_mode===1 && ix%3===2) return;              /* 솎기 — 성글게 */
+            let _t=(n.t||0)+_off;
+            if(_mode===2 && ix%2===1) _t+=0.5;             /* 자리 밀기 — 엇박 */
+            if(_mode===3 && ix%4===2) _t+=0.25;
+            /* ★ 밀고 나서 16분 격자에 다시 맞춘다 —
+               원본이 이미 격자에서 조금 벗어나 있어(휴머나이즈)
+               거기에 0.5·0.25를 더하면 격자 밖으로 나간다(실측 354곳). */
+            _t=Math.round(_t*4)/4;
+            if(_t >= _tq) return;
+            let _m=(n.midi||60)+_tr;
+            if(_o2){ const _m2=_m+_o2; if(_m2>=36&&_m2<=96) _m=_m2; }
+            /* 넷에 하나는 음정을 넓게 — 도약이 있어야 선율이 산다 */
+            if(_mode===3 && ix%5===3) _m+=4;
+            _out.push({t:+_t.toFixed(3), dur:(n.dur||0.5)*_d2,
+                       midi:Math.max(24,Math.min(96,_m)), vel:n.vel||90});
           });
           _rep++;
         }
@@ -34950,10 +34995,16 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                  오케스트라 선율은 한 음이 한 박 이상 간다.
                  **최소 길이를 두고** 배수를 건다 — 0.2박짜리도 1박 넘게 만든다. */
               const _cMul=_cine ? [5,3.5,7,4][(((r*7+si)*40503+13)>>>0)%4] : 1;
+              /* ── 한 음 훅 ──
+                 같은 음을 리듬만 바꿔 두 마디 두드린다. 팝 훅에서 흔한 형태다.
+                 드물게 — 열여섯 자리에 한 번(두 마디 단위). 라운지·한 곡 모두. */
+              const _oneN=((Math.floor((r*nsteps.length+si)/2)%16)===5);
+              let _oneRef=null;   /* 한 음 훅의 기준 음 — 이 마디 안에서 유지 */
               _ml.forEach(mn=>{ const mt=T+Math.round(mn.pos*measure),
                     md=_cine ? Math.max(Math.round(TPQ*0.9), Math.round(mn.dur*TPQ*_cMul))
                              : Math.max(60,Math.round(mn.dur*TPQ));
               let _mn=mn.midi;
+              if(_oneN && _ml.length){ _mn=_ml[0].midi; }   /* 한 음 훅: 첫 음으로 통일 */
               /* 라운지 오블리가토: 반주 위에서 반짝이도록 더 높게.
                  고역은 배음이 넓게 벌어져 겹쳐도 뭉치지 않고 공간감이 난다.
                  피아노 상단은 C8(108)까지인데 93에서 멈춰 한 옥타브가 남아 있었다. */
@@ -34987,6 +35038,13 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                 const _off=[0,-5,3,-3,7,-7,5,-2][(_mv-1)%8];   /* 악장마다 앉는 자리 */
                 const _lo2=Math.max(60, 74+_off), _hi2=Math.min(105, _lo2+26);
                 while(_mn<_lo2) _mn+=12; while(_mn>_hi2) _mn-=12;
+                /* ★ 한 음 훅은 여기서 다시 고정한다 —
+                   위에서 첫 음으로 통일해도 화음 당김(iv 보정)과 음역 조정이
+                   음을 흩어 놓는다(실측: 한 음 마디 0개).
+                   이 마디의 모든 음을 같은 높이로 맞춘다. */
+                if(_oneN){
+                  if(_oneRef==null) _oneRef=_mn; else _mn=_oneRef;
+                }
               }
               /* ── 음마다 셈여림 ──
                  모든 선율 음이 같은 값(108*inA)이었다. 편차는 구간 단위 inA 에서만 나온다 —
@@ -37638,14 +37696,27 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                        return a+_nb*_r*meterQuarters(); },0);
         if(_mx>0 && _endQ>_mx*1.2){
           const _loop=Math.ceil(_mx/meterQuarters())*meterQuarters();
-          const _out=mel.slice(), _sh=[0,0,2,-2,0,3,-3,0];
+          /* ── 되풀이마다 변형 ──
+             ★ 반음만 옮기면 리듬형 19가지·같은 마디 60회로 같은 곡처럼 들린다.
+             옥타브·자리 밀기·솎기·길이를 함께 건다. 밀고 나서 격자에 다시 맞춘다. */
+          const _out=mel.slice();
+          const _sh=[0,0,2,-2,0,3,-3,0,1,-1,4,-4], _oc=[0,0,12,0,-12,0,0,12], _dm=[1,1,1.5,0.7,1,1.3,0.8,1];
           let _rep=1;
           while(_rep*_loop < _endQ && _rep<64){
             const _off=_rep*_loop, _tr=_sh[_rep%_sh.length];
-            mel.forEach(function(n){
-              if((n.t||0)+_off >= _endQ) return;
-              _out.push({t:+((n.t||0)+_off).toFixed(3), dur:n.dur,
-                         midi:Math.max(24,Math.min(96,(n.midi||60)+_tr)), vel:n.vel||90});
+            const _o2=_oc[_rep%_oc.length], _d2=_dm[_rep%_dm.length], _mode=_rep%4;
+            mel.forEach(function(n,ix){
+              if(_mode===1 && ix%3===2) return;
+              let _t=(n.t||0)+_off;
+              if(_mode===2 && ix%2===1) _t+=0.5;
+              if(_mode===3 && ix%4===2) _t+=0.25;
+              _t=Math.round(_t*4)/4;                 /* 밀고 나서 격자에 다시 맞춘다 */
+              if(_t >= _endQ) return;
+              let _m=(n.midi||60)+_tr;
+              if(_o2){ const _m2=_m+_o2; if(_m2>=36&&_m2<=96) _m=_m2; }
+              if(_mode===3 && ix%5===3) _m+=4;
+              _out.push({t:+_t.toFixed(3), dur:(n.dur||0.5)*_d2,
+                         midi:Math.max(24,Math.min(96,_m)), vel:n.vel||90});
             });
             _rep++;
           }
