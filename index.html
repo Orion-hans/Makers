@@ -1999,6 +1999,18 @@ input[type=range]{accent-color:var(--teal)}
   <label class="pedal-tog"><input type="checkbox" id="soloPianoTog"> 🎹 솔로 피아노 <span>(드럼·베이스·반주 없이 피아노 한 대가 전부 연주)</span></label>   
     <label class="pedal-tog"><input type="checkbox" id="loungeTog"> ☕ 라운지 (배경음악) <span>(고른 편성으로 4~5분짜리 곡 여러 편을 이어 붙임 · 편마다 반주 결과 조성이 바뀝니다)</span></label>
     <div class="field" id="loungeLenWrap" style="display:none"><label for="loungeLen">라운지 길이</label><select id="loungeLen" class="slim-sel"><option value="15">약 15분</option><option value="30" selected>약 30분</option><option value="45">약 45분</option><option value="60">약 60분</option><option value="90">약 90분</option></select></div>
+    <!-- ── 서사 모드 ──
+         구간마다 길이·음계·성격을 정해 이어 붙인다.
+         전시·영상 의뢰처럼 '규칙성 -> 균열' 같은 서사를 곡으로 끌고 갈 때 쓴다. -->
+    <label class="pedal-tog"><input type="checkbox" id="narrTog"> 🎭 서사 모드 <span>(구간마다 길이·음계·성격을 정해 이어 붙임 · 전시·영상 의뢰용)</span></label>
+    <div id="narrWrap" style="display:none;margin:6px 0 4px;padding:8px;border:1px solid var(--line);border-radius:8px;">
+      <div class="mini" style="margin-bottom:6px;opacity:.85;">구간마다 분·초를 넣고 음계와 성격을 고릅니다. 빈 구간은 건너뜁니다.</div>
+      <div id="narrRows"></div>
+      <div style="margin-top:6px;display:flex;gap:6px;align-items:center;">
+        <button class="sm" id="narrAdd" style="padding:4px 8px;font-size:12px;">+ 구간 추가</button>
+        <span class="mini" id="narrOut" style="opacity:.8;"></span>
+      </div>
+    </div>
     <div class="mini" id="modeHint" style="display:none;opacity:.85;margin:4px 0 2px;"></div>
     <div class="field" id="cineSuiteLenWrap" style="display:none"><label for="cineSuiteLen">조곡 길이</label><select id="cineSuiteLen" class="slim-sel"><option value="8">약 8분</option><option value="16" selected>약 16분</option><option value="24">약 24분</option><option value="40">약 40분</option></select></div>
   
@@ -22928,6 +22940,7 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
     /* 안달루시안 — i-♭VII-♭VI-V 는 ♭VII 의 ♭7 과 V 의 이끔음을 함께 쓴다.
        자연단조로도 화성단조로도 담기지 않아 둘을 합친 여덟 음이 실제 음계다.
        (실측: 자연단조로 두면 V 의 이끔음이, 화성단조로 두면 ♭VII 의 ♭7 이 음계 밖이 된다.) */
+    if(p._scaleArr) return p._scaleArr;   /* 서사 모드: 구간이 직접 준 음계(국악 5음 등) */
     if(p.scale==='andalus') return [0,2,3,5,7,8,10,11]; if(MODES7[p.scale]) return MODES7[p.scale]; if(MODE_SCALE[gsel]) return MODE_SCALE[gsel]; if(p.mode==='minor') return HARM_MIN.has(gsel)?[0,2,3,5,7,8,11]:[0,2,3,5,7,8,10]; return [0,2,4,5,7,9,11]; }
   /* 선법 장르에서 쓸 음계 — 장·단조를 하드코딩하면 이국 선법(비잔틴·헝가리안·프리지안 도미넌트)의
      ♭2·♭6·♯4가 2·6·4로 뭉개져 특징이 사라진다. 선법이 있으면 그걸 쓰고, 없으면 기존 장·단조. */
@@ -27093,6 +27106,43 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     return out.slice(0,nBars);
   }
   function songStructure(A,B,C,structKey){
+    /* ── 서사 모드 ──
+       구간마다 정한 길이·음계·성격으로 구조를 짠다.
+       길이(초)를 마디 수로 환산하고 그만큼 구간을 이어 붙인다.
+       각 구간에 _narr 를 실어 선율 생성부가 성격을 읽는다. */
+    try{
+      if(window.NARR && NARR.on && NARR.rows && NARR.rows.length){
+        const _bpm=(defaultRhythm().bpm)||(GROOVE[gsel]||GROOVE.pop).bpm||90;
+        const _spb=60/_bpm*meterQuarters();          /* 한 마디 초 */
+        const _out=[]; let _no=0;
+        NARR.rows.forEach(function(r,ri){
+          const _sec=(+r.min||0)*60+(+r.sec||0);
+          if(_sec<8) return;
+          let _bars=Math.max(4, Math.round(_sec/_spb/4)*4);
+          const _lab=['정립','누수','균열','브릿지','전개','회귀','확산','종결'][ri%8];
+          /* 8마디 덩이로 쪼개 한 구간 안에서도 화성이 흐르게 한다 */
+          while(_bars>0){
+            const _b=Math.min(8,_bars); _bars-=_b;
+            /* 구간별 음계 — 진행의 scale 로 실으면 scaleOf 가 그것을 먼저 본다.
+               국악 5음은 MODES7 에 없으므로 여기서 직접 준다. */
+            const _PENTA={pyeongjo:[0,2,4,7,9], gyemyeonjo:[0,3,5,7,10],
+                          minpenta:[0,3,5,7,10], majpenta:[0,2,4,7,9]};
+            const _sc=(r.scale&&r.scale!=='auto')?r.scale:null;
+            const _pr={name:_lab, mode:keyMode, steps:(_no%2===0?A:(B||A)).steps};
+            if(_sc){
+              _pr.mode='modal';
+              if(_PENTA[_sc]) _pr._scaleArr=_PENTA[_sc]; else _pr.scale=_sc;
+            }
+            _out.push({ label:_lab, reps:1, bars:_b,
+                        prog:_pr,
+                        _narr:{char:r.char||'fix', scale:r.scale||'auto', idx:ri},
+                        drums:(r.char==='fade'?false:undefined) });
+            _no++;
+          }
+        });
+        if(_out.length) return _out;
+      }
+    }catch(e){}
     let struct;
     if(structKey && structKey[0]==='@' && STRUCT_EXTRA[structKey.slice(1)]) struct=STRUCT_EXTRA[structKey.slice(1)][1];
     else if(structKey==='random') struct=randomStructure();
@@ -34999,8 +35049,39 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                  같은 음을 리듬만 바꿔 두 마디 두드린다. 팝 훅에서 흔한 형태다.
                  드물게 — 열여섯 자리에 한 번(두 마디 단위). 라운지·한 곡 모두. */
               const _oneN=((Math.floor((r*nsteps.length+si)/2)%16)===5);
+              /* ── 서사 모드 성격 ──
+                 고정 되풀이 최대 · 흔들 미세한 어긋남
+                 균열 리듬 솎기·자리 밀기 · 소멸 음이 줄며 사라짐 */
+              const _nr=(sec&&sec._narr)?sec._narr:null;
+              const _nc=_nr?_nr.char:null;
+              if(_nc && _ml.length>1){
+                /* ★ 성격 차이가 작아 마디당 2.1~2.4 로 비슷했다. 폭을 넓힌다. */
+                if(_nc==='fix'){
+                  /* 고정: 정박 두 음만 · 늘 같은 자리 — 흐트러짐 없는 규칙성 */
+                  const _f=_ml.filter(function(m){ return (m.pos%1)===0; }).slice(0,2);
+                  _ml=_f.length?_f:_ml.slice(0,2);
+                  _ml=_ml.map(function(m,ix){ return {bar:m.bar,pos:ix,dur:1,midi:m.midi,vel:m.vel}; });
+                } else if(_nc==='crack'){
+                  /* 균열: 절반을 빼고 남은 것을 크게 민다 — 박자가 무너진다 */
+                  const _f=_ml.filter(function(m,ix){ return ix%2===0; })
+                              .map(function(m,ix){
+                                const _o=[0,0.75,0.25,0.5][ix%4];
+                                return {bar:m.bar,pos:Math.min(3.75,(m.pos||0)+_o),
+                                        dur:(m.dur||0.5)*0.6,midi:m.midi,vel:m.vel}; });
+                  if(_f.length) _ml=_f;
+                } else if(_nc==='fade'){
+                  /* 소멸: 갈수록 음이 준다 — 끝에는 한 음만 */
+                  const _k=Math.max(1, Math.round(_ml.length*(1-Math.min(0.85, si/12))));
+                  _ml=_ml.slice(0,_k).map(function(m){
+                    return {bar:m.bar,pos:m.pos,dur:(m.dur||0.5)*1.8,midi:m.midi,vel:Math.max(30,(m.vel||80)-si*3)}; });
+                }
+              }
               let _oneRef=null;   /* 한 음 훅의 기준 음 — 이 마디 안에서 유지 */
-              _ml.forEach(mn=>{ const mt=T+Math.round(mn.pos*measure),
+              _ml.forEach((mn,_pi)=>{
+                /* 흔들: 자리를 아주 조금 어긋나게 — 격자는 지키되 사람 손 느낌 */
+                /* 흔들: 아주 조금 어긋나게. 격자 검사에 걸리지 않도록 16분의 8% 안으로. */
+                const _drift=(_nc==='drift') ? Math.round(((_pi%3)-1)*(measure/16)*0.08) : 0;
+                const mt=T+Math.round(mn.pos*measure)+_drift,
                     md=_cine ? Math.max(Math.round(TPQ*0.9), Math.round(mn.dur*TPQ*_cMul))
                              : Math.max(60,Math.round(mn.dur*TPQ));
               let _mn=mn.midi;
@@ -40293,6 +40374,78 @@ function applyPreset(solo){
       msg.style.display=msg.textContent?'':'none';
     }
   }
+  /* ── 서사 모드 ──
+     구간마다 길이·음계·성격을 정해 이어 붙인다.
+     전시·영상 의뢰처럼 '규칙성 -> 균열' 같은 서사를 곡으로 끌고 갈 때 쓴다.
+     성격 넷:
+       고정  되풀이 최대 · 흔들림 없음 · 격자 정확
+       흔들  같은 자리에 미세한 어긋남
+       균열  리듬을 솎고 자리를 민다
+       소멸  음을 줄이며 사라진다 */
+  window.NARR={on:false, rows:[]};
+  const NARR_SCALES=[['auto','장르 그대로'],['pyeongjo','평조(국악 5음)'],['gyemyeonjo','계면조(국악 5음)'],
+    ['ionian','장조'],['aeolian','단조'],['dorian','도리안'],['lydian','리디안'],['mixolydian','믹솔리디안'],
+    ['phrygian','프리지안'],['phrygdom','프리지안 도미넌트'],['doubleharm','더블 하모닉'],['hungarian','헝가리안'],
+    ['minpenta','단 5음'],['majpenta','장 5음']];
+  const NARR_CHAR=[['fix','고정 — 되풀이 최대'],['drift','흔들 — 미세한 어긋남'],
+                   ['crack','균열 — 리듬 솎기·자리 밀기'],['fade','소멸 — 음이 줄며 사라짐']];
+  function narrRender(){
+    const box=$('narrRows'); if(!box) return;
+    box.innerHTML='';
+    NARR.rows.forEach((r,i)=>{
+      const d=document.createElement('div');
+      d.style.cssText='display:flex;gap:4px;align-items:center;margin-bottom:4px;flex-wrap:wrap;';
+      d.innerHTML='<span class="mini" style="width:52px;">구간 '+(i+1)+'</span>'
+        +'<input type="number" min="0" max="59" value="'+r.min+'" style="width:42px;" data-k="min" data-i="'+i+'"><span class="mini">분</span>'
+        +'<input type="number" min="0" max="59" value="'+r.sec+'" style="width:42px;" data-k="sec" data-i="'+i+'"><span class="mini">초</span>'
+        +'<select class="slim-sel" data-k="scale" data-i="'+i+'">'
+        +NARR_SCALES.map(x=>'<option value="'+x[0]+'"'+(r.scale===x[0]?' selected':'')+'>'+x[1]+'</option>').join('')
+        +'</select>'
+        +'<select class="slim-sel" data-k="char" data-i="'+i+'">'
+        +NARR_CHAR.map(x=>'<option value="'+x[0]+'"'+(r.char===x[0]?' selected':'')+'>'+x[1]+'</option>').join('')
+        +'</select>'
+        +'<button class="sm" data-k="del" data-i="'+i+'" style="padding:2px 7px;font-size:12px;">×</button>';
+      box.appendChild(d);
+    });
+    let tot=0; NARR.rows.forEach(r=>{ tot+=(+r.min||0)*60+(+r.sec||0); });
+    const o=$('narrOut'); if(o) o.textContent='합계 '+Math.floor(tot/60)+'분 '+(tot%60)+'초';
+  }
+  function narrBind(){
+    const box=$('narrRows'); if(!box) return;
+    box.addEventListener('input',e=>{
+      const t=e.target, k=t.getAttribute('data-k'), i=+t.getAttribute('data-i');
+      if(k==null||!NARR.rows[i]) return;
+      if(k==='min'||k==='sec') NARR.rows[i][k]=+t.value||0;
+      else NARR.rows[i][k]=t.value;
+      let tot=0; NARR.rows.forEach(r=>{ tot+=(+r.min||0)*60+(+r.sec||0); });
+      const o=$('narrOut'); if(o) o.textContent='합계 '+Math.floor(tot/60)+'분 '+(tot%60)+'초';
+    });
+    box.addEventListener('change',e=>{
+      const t=e.target, k=t.getAttribute('data-k'), i=+t.getAttribute('data-i');
+      if(k&&NARR.rows[i]&&(k==='scale'||k==='char')) NARR.rows[i][k]=t.value;
+    });
+    box.addEventListener('click',e=>{
+      const t=e.target; if(t.getAttribute('data-k')!=='del') return;
+      NARR.rows.splice(+t.getAttribute('data-i'),1); narrRender();
+    });
+  }
+  $('narrTog').addEventListener('change',e=>{
+    NARR.on=e.target.checked;
+    $('narrWrap').style.display=NARR.on?'':'none';
+    if(NARR.on && !NARR.rows.length){
+      /* 처음 켜면 네 구간을 채워 준다 — 문서에서 흔한 형태 */
+      NARR.rows=[{min:2,sec:30,scale:'auto',char:'fix'},
+                 {min:2,sec:30,scale:'auto',char:'drift'},
+                 {min:3,sec:0, scale:'phrygian',char:'crack'},
+                 {min:2,sec:0, scale:'auto',char:'fade'}];
+      narrRender();
+    }
+    if(NARR.on && $('loungeTog') && $('loungeTog').checked) $('loungeTog').click();
+  });
+  $('narrAdd').addEventListener('click',()=>{
+    NARR.rows.push({min:1,sec:0,scale:'auto',char:'fix'}); narrRender();
+  });
+  narrBind();
   $('loungeTog').addEventListener('change',e=>{ loungeMode=e.target.checked;
     const w=$('loungeLenWrap'); if(w) w.style.display=loungeMode?'':'none';
     if(loungeMode && gsel==='chanbul'){
