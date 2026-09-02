@@ -2008,6 +2008,7 @@ input[type=range]{accent-color:var(--teal)}
       <div id="narrRows"></div>
       <div style="margin-top:6px;display:flex;gap:6px;align-items:center;">
         <button class="sm" id="narrAdd" style="padding:4px 8px;font-size:12px;">+ 구간 추가</button>
+        <button class="sm" id="narrShuffle" style="padding:4px 8px;font-size:12px;">🔀 흐름 다시 뽑기</button>
         <span class="mini" id="narrOut" style="opacity:.8;"></span>
       </div>
     </div>
@@ -22845,7 +22846,10 @@ const document = __scopedDoc('app-play');
     ['재즈·소울', ['jazz','ambjazz','neosoul','bossa','blues']],
     ['모던·일렉트로닉', ['rock','edm','lofi','trap']],
     ['포크·켈틱·월드', ['folk','celtic','shanty','gypsy','tango','rumba']],
-    ['선법·모달', ['dorian','phrygian','lydian','mixolydian','quartal','doubleharm','hungarian','phrygdom']]
+    ['선법·모달', ['dorian','phrygian','lydian','mixolydian','quartal','doubleharm','hungarian','phrygdom']],
+    /* ★ GROUPS 에 넣지 않으면 장르 칩 줄(gchipRow)에 나오지 않는다 —
+       G 표에만 더하면 내부에서는 잡히는데 화면에서 고를 수가 없다. */
+    ['웰니스·앰비언트', ['wellorch','ambdrone']]
   ];
 
   // 장르별 랜덤 생성 설정
@@ -27207,7 +27211,10 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
               _pr.mode='modal';
               if(_PENTA[_sc]) _pr._scaleArr=_PENTA[_sc]; else _pr.scale=_sc;
             }
-            _out.push({ label:_lab, reps:1, bars:_b,
+            /* ★ 70분이 한 조성이면 지친다. 구간마다 조를 옮긴다.
+               5도권 이웃으로 — 급하게 안 바뀌고 자연스럽게 흐른다. */
+            const _ks=[0,5,-5,2,-3,7,-2,3,-7,4][ri%10];
+            _out.push({ label:_lab, reps:1, bars:_b, keyShift:_ks,
                         prog:_pr,
                         _narr:{char:r.char||'fix', scale:r.scale||'auto', idx:ri},
                         drums:(r.char==='fade'?false:undefined) });
@@ -29165,13 +29172,16 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
        침잠·귀환은 느리게, 연주만 올린다 — 그 대비가 이 곡의 형식이다. */
     if(sec && sec._narr){
       const _c=sec._narr.char;
-      if(_c==='still')  return 0.88;   /* 가장 느리다 */
-      if(_c==='breath') return 0.96;
-      if(_c==='play')   return 1.28;   /* 살아 움직인다 */
+      /* ★ 곡마다 다른 느낌이 나야 한다 — 배수를 조금씩 흔든다.
+         씨앗은 곡을 만들 때마다 바뀌므로 같은 설정에서도 결과가 갈린다. */
+      const _nv=1 + (((Math.random()*1000)|0)%9 - 4)*0.02;   /* 0.92~1.08 */
+      if(_c==='still')  return 0.88*_nv;   /* 가장 느리다 */
+      if(_c==='breath') return 0.96*_nv;
+      if(_c==='play')   return 1.28*_nv;   /* 살아 움직인다 */
       /* 질주 — 연주 구간 안에 4~5분쯤 두는 자리다.
          15분 내내 140 이면 웰니스에서 너무 멀어진다. 짧게 한 번이 맞다. */
-      if(_c==='rush')   return 1.95;
-      if(_c==='return') return 0.92;
+      if(_c==='rush')   return 1.95*_nv;
+      if(_c==='return') return 0.92*_nv;
     }
     if(loungeMode && gsel==='chanbul' && sec && sec.movement) return cbMovFor(sec.movement).tempo;
     /* 현악 편성(4중주·5중주·실내악)은 편마다 빠르기가 크게 갈린다.
@@ -40375,7 +40385,18 @@ return L.join('\n');
   { const gp=$('guidePanel'); if(gp) gp.addEventListener('input',e=>{ if(e.target.id==='gDurMin'||e.target.id==='gDurSec'){ syncGuideDurToDetail(); updateGuideEst(); } }); }
   ['durMin','durSec'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input',()=>{ syncDetailDurToGuide(); updateGuideEst(); }); });
   $('genreFold').addEventListener('change',e=>{ const s=e.target.closest('#gselDrop'); if(!s)return; stopGroove(); gsel=GROUPS[+s.value][1][0]; rhythmIdx=0; randData=null; bassVars={}; rhyVars={}; voiceVars={}; renderGenres(); applyGenreInst(); renderInst(); setUserBpm(rhythmBpm(),false); updateKeyToggle(); renderOut(); { guideOffset=0; const gp=$('guidePanel'); if(gp&&gp.style.display!=='none') renderGuide(); } });
-  $('genreFold').addEventListener('click',e=>{ const b=e.target.closest('.gchip'); if(!b)return; stopGroove(); gsel=b.dataset.g; rhythmIdx=0; _rhyUser=false; randData=null; bassVars={}; rhyVars={}; voiceVars={}; renderGenres(); applyGenreInst(); renderInst(); setUserBpm(rhythmBpm(),false); updateKeyToggle(); renderOut(); { guideOffset=0; const gp=$('guidePanel'); if(gp&&gp.style.display!=='none') renderGuide(); } });
+  $('genreFold').addEventListener('click',e=>{ const b=e.target.closest('.gchip'); if(!b)return; stopGroove(); gsel=b.dataset.g;
+    /* ── 웰니스 계열은 편성을 함께 잡는다 ──
+       장르만 고르면 피아노 중심 기본 편성이 나온다 — 이 장르에 그건 뜻이 없다.
+       고를 때마다 편성을 자동으로 물려 준다. 다른 편성을 원하면 그 뒤에 바꾸면 된다. */
+    try{
+      const _es=$('ensSel');
+      if(_es && (gsel==='wellorch'||gsel==='ambdrone')){
+        if(_es.value!=='@wellorch'){ _es.value='@wellorch'; _es.dispatchEvent(new Event('change',{bubbles:true})); }
+      } else if(_es && _es.value==='@wellorch'){
+        _es.value=''; _es.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+    }catch(err){} rhythmIdx=0; _rhyUser=false; randData=null; bassVars={}; rhyVars={}; voiceVars={}; renderGenres(); applyGenreInst(); renderInst(); setUserBpm(rhythmBpm(),false); updateKeyToggle(); renderOut(); { guideOffset=0; const gp=$('guidePanel'); if(gp&&gp.style.display!=='none') renderGuide(); } });
   /* 사람이 셀렉트를 직접 만졌을 때만 사용자 선택으로 본다.
      코드가 값을 바꿀 때도 change 가 나므로 isTrusted 로 가른다 —
      userBpm 에서 같은 함정을 겪었다(장르 고를 때 setUserBpm 이 불려 자동값이 굳었다). */
@@ -40636,11 +40657,35 @@ function applyPreset(solo){
     NARR.on=e.target.checked;
     $('narrWrap').style.display=NARR.on?'':'none';
     if(NARR.on && !NARR.rows.length){
-      /* 처음 켜면 네 구간을 채워 준다 — 문서에서 흔한 형태 */
-      NARR.rows=[{min:2,sec:30,scale:'auto',char:'fix'},
-                 {min:2,sec:30,scale:'auto',char:'drift'},
-                 {min:3,sec:0, scale:'phrygian',char:'crack'},
-                 {min:2,sec:0, scale:'auto',char:'fade'}];
+      /* 처음 켜면 구간을 채워 준다.
+         웰니스 계열이면 70분 다섯 구간, 그 밖은 10분 네 구간. */
+      if(gsel==='wellorch'||gsel==='ambdrone'){
+        /* ── 곡마다 다른 흐름 ──
+           ★ 늘 같은 다섯 구간이면 몇 번 만들어도 같은 곡처럼 들린다.
+           70분을 채우는 방식을 여섯 가지 두고 하나를 뽑는다.
+           음계도 갈라 색을 바꾼다. 원하면 형이 손으로 고치면 된다. */
+        const _SH=[
+          /* 정석 — 가라앉았다 살아났다 다시 가라앉는다 */
+          [[20,'still','auto'],[20,'breath','auto'],[10,'play','auto'],[5,'rush','auto'],[15,'return','auto']],
+          /* 늦은 각성 — 오래 잠겨 있다가 뒤늦게 터진다 */
+          [[25,'still','auto'],[15,'breath','auto'],[8,'play','majpenta'],[7,'rush','auto'],[15,'return','minpenta']],
+          /* 두 번의 물결 — 살아났다 가라앉고 다시 살아난다 */
+          [[12,'still','auto'],[13,'breath','auto'],[10,'play','auto'],[10,'breath','dorian'],[10,'play','auto'],[15,'return','auto']],
+          /* 정적 우세 — 거의 움직이지 않는다. 설치·전시에 맞다 */
+          [[25,'still','pyeongjo'],[20,'breath','auto'],[8,'play','auto'],[17,'return','gyemyeonjo']],
+          /* 이른 질주 — 앞에서 한 번 터뜨리고 길게 내려온다 */
+          [[10,'still','auto'],[10,'breath','auto'],[6,'rush','auto'],[12,'play','lydian'],[14,'breath','auto'],[18,'return','auto']],
+          /* 호흡 중심 — 들숨 날숨이 곡의 뼈대다 */
+          [[15,'breath','auto'],[15,'still','auto'],[15,'breath','mixolydian'],[10,'play','auto'],[15,'return','auto']]
+        ];
+        const _p=_SH[Math.floor(Math.random()*_SH.length)];
+        NARR.rows=_p.map(function(x){ return {min:x[0],sec:0,scale:x[2],char:x[1]}; });
+      } else {
+        NARR.rows=[{min:2,sec:30,scale:'auto',char:'fix'},
+                   {min:2,sec:30,scale:'auto',char:'drift'},
+                   {min:3,sec:0, scale:'phrygian',char:'crack'},
+                   {min:2,sec:0, scale:'auto',char:'fade'}];
+      }
       narrRender();
     }
     if(NARR.on && $('loungeTog') && $('loungeTog').checked) $('loungeTog').click();
@@ -40663,6 +40708,13 @@ function applyPreset(solo){
   });
   $('narrAdd').addEventListener('click',()=>{
     NARR.rows.push({min:1,sec:0,scale:'auto',char:'fix'}); narrRender();
+  });
+  /* 흐름을 다시 뽑는다 — 구성 자체가 바뀐다(길이·성격·음계) */
+  $('narrShuffle').addEventListener('click',()=>{
+    NARR.rows=[]; 
+    const _t=$('narrTog');
+    if(_t){ _t.checked=false; _t.dispatchEvent(new Event('change')); 
+            _t.checked=true;  _t.dispatchEvent(new Event('change')); }
   });
   narrBind();
   $('loungeTog').addEventListener('change',e=>{ loungeMode=e.target.checked;
