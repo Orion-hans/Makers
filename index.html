@@ -37689,6 +37689,125 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             ev.forEach(function(e){ if(e.__d2) delete e.__d2; });
           }catch(e){}
         }
+        /* ── ① 층이 어긋나게 들어온다 ──
+           ★ 생성 자리는 층마다 경로가 달라(chord·pad·sub 각각) 세 번 시도해 다 실패했다.
+             else if 사슬 중간에 코드를 끼우면 문법이 깨지고, 밖에 두면 변수가 안 보인다.
+           **트랙 바이트를 만드는 이 자리**에서 앞부분을 잘라 낸다 —
+           생성 경로를 안 건드리니 안전하다. 페달점도 이 방식으로 성공했다.
+           관현악은 전원이 동시에 들어오지 않는다. 하나씩 쌓여야 자란다. */
+        try{
+          if(wellOrchMode||gsel==='wellorch'||gsel==='ambdrone'){
+            /* ★ 곡이 48마디인데 counter 34 · brass 40 은 너무 늦다 —
+               Violin II 가 3음만 남았다. 곡 길이의 절반 안으로 모은다. */
+            const _ENT={strings:0,pad:3,bass:6,piano:9,melody:5,sub:12,
+                        winds:15,harp:18,piano2:21,counter:24,brass:27};
+            const _e=_ENT[grp.key];
+            if(_e!=null && _e>0){
+              const _cut=PAD + _e*(SEC_TK[0]?SEC_TK[0].meas:(TPQ*4));
+              const _dead={};
+              ev=ev.filter(function(x){
+                if(x.tick>=_cut) return true;
+                if(x.on===1){ _dead[x.note]=1; return false; }   /* 시작 음은 버린다 */
+                if(x.on===0 && _dead[x.note]){ delete _dead[x.note]; return false; }
+                return true;   /* CC·프로그램 체인지는 남긴다 */
+              });
+            }
+          }
+        }catch(e){}
+        /* ── ③ 화성 리듬 ──
+           지금은 두 마디에 한 번 바뀌는 것이 70분 내내다.
+           구간 성격마다 화음이 바뀌는 주기가 달라야 한다 —
+           침잠은 여덟 마디에 한 번, 질주는 한 마디에 한 번.
+           화음층(피아노·하프·첼레스타)만 걸어 선율은 건드리지 않는다.
+           ★ 주기 아닌 마디의 시작 음을 지우고 앞 음을 그 자리까지 늘린다. */
+        try{
+          if((wellOrchMode||gsel==='wellorch'||gsel==='ambdrone') &&
+             ['piano','harp','piano2'].indexOf(grp.key)>=0){
+            const _bq=(SEC_TK[0]?SEC_TK[0].meas:(TPQ*4));
+            /* 구간 성격은 첫 구간 것을 쓴다 — 트랙 단위라 마디별로 못 가른다 */
+            const _c0=(currentSong&&currentSong[0]&&currentSong[0]._narr)?currentSong[0]._narr.char:null;
+            const _per=(_c0==='still')?8:(_c0==='breath')?4:(_c0==='rush')?1:2;
+            if(_per>1){
+              const _keep=[]; const _live={};
+              ev.forEach(function(x){
+                if(x.on!==1 && x.on!==0){ _keep.push(x); return; }
+                const _b=Math.floor((x.tick-PAD)/_bq);
+                if(x.on===1){
+                  if((_b%_per)===0){ _live[x.note]=1; _keep.push(x); }
+                  return;
+                }
+                if(_live[x.note]){ delete _live[x.note]; _keep.push(x); }
+              });
+              if(_keep.filter(function(x){return x.on===1;}).length>0) ev=_keep;
+            }
+          }
+        }catch(e){}
+        /* ── ② 대선율은 주선율과 반대로 움직인다 ──
+           하나가 오르면 하나는 내린다 — 두 선이 엮여야 음악이 된다.
+           지금은 대선율이 주선율을 따라만 가서 두께만 늘 뿐이다.
+           ★ 트랙 바이트 자리에서 음높이만 뒤집는다 — 생성 경로는 안 건드린다.
+             축은 그 트랙의 첫 음. 음역을 벗어나면 옥타브로 되돌린다. */
+        try{
+          /* ★ 웰니스 편성에 counter 트랙이 안 나온다 —
+             5중주 분할이라 Violin II 가 그 역할이다. 그 트랙을 뒤집는다. */
+          if((wellOrchMode||gsel==='wellorch'||gsel==='ambdrone') &&
+             (grp.key==='counter'||grp.key==='strings2'||grp.key==='qviolin2')){
+            const _ons=ev.filter(function(x){ return x.on===1; });
+            if(_ons.length>1){
+              const _ax=_ons[0].note;
+              const _map={};
+              _ons.forEach(function(x){
+                let m=_ax-(x.note-_ax);
+                while(m<48) m+=12; while(m>88) m-=12;
+                _map[x.note]=m;
+              });
+              ev.forEach(function(x){
+                if((x.on===1||x.on===0) && _map[x.note]!=null) x.note=_map[x.note];
+              });
+            }
+          }
+        }catch(e){}
+        /* ── ⑤ 병행 5·8도 회피 ──
+           두 성부가 같은 방향으로 완전음정을 만들면 성부가 하나로 뭉친다.
+           화성학의 기본 금칙이고 지휘 자리에서 바로 들린다.
+           ★ 앞 트랙(Violin I)을 기준 삼아 이 트랙(Violin II)을 검사한다.
+             주선율은 안 건드린다 — 그쪽이 흔들리면 곡이 무너진다. */
+        try{
+          if((wellOrchMode||gsel==='wellorch'||gsel==='ambdrone') &&
+             (grp.key==='counter'||grp.key==='strings2'||grp.key==='qviolin2')){
+            const _ref=window.__WELL_REF||null;
+            if(_ref && _ref.length){
+              const _ons=ev.filter(function(x){ return x.on===1; })
+                           .sort(function(a,b){ return a.tick-b.tick; });
+              let _pi=null, _pr=null, _fix=0;
+              _ons.forEach(function(x){
+                /* 같은 자리의 기준 음을 찾는다 */
+                let r=null;
+                for(let i=0;i<_ref.length;i++){
+                  if(Math.abs(_ref[i].tick-x.tick)<=30){ r=_ref[i].note; break; }
+                }
+                if(r==null){ _pi=x.note; _pr=null; return; }
+                if(_pi!=null && _pr!=null){
+                  const iv=Math.abs(x.note-r)%12;
+                  const ivp=Math.abs(_pi-_pr)%12;
+                  const same=((x.note-_pi)*(r-_pr)>0);
+                  if(same && (iv===0||iv===7) && (ivp===0||ivp===7)){
+                    const nn=x.note+((x.note>r)?1:-1);
+                    ev.forEach(function(y){ if(y.tick===x.tick && y.note===x.note) y.note=nn; });
+                    ev.forEach(function(y){ if(y.on===0 && y.note===x.note && y.tick>x.tick){ y.note=nn; } });
+                    x.note=nn; _fix++;
+                  }
+                }
+                _pi=x.note; _pr=r;
+              });
+            }
+          }
+          /* 기준 트랙 기록 — 다음 트랙이 이것과 견준다 */
+          if((wellOrchMode||gsel==='wellorch'||gsel==='ambdrone') && grp.key==='strings'){
+            window.__WELL_REF=ev.filter(function(x){ return x.on===1; })
+                                .map(function(x){ return {tick:x.tick,note:x.note}; });
+          }
+        }catch(e){}
         /* ── 겹치는 음을 자른다 ──
            ★ Play 전 편성을 재 보니 단선율 트랙이 서로 물고 있었다
              (기타 듀오 라운지 68% · 가야금 라운지 60% · 4중주 라운지 28%).
@@ -38718,14 +38837,38 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
     /* ── 웰니스 오케스트라 ──
        60~70분 실연을 앱으로 먼저 만들고 그 음원을 사람이 연주한다.
        지속음은 신스와 현이 맡는다 — 사람이 한 시간을 계속 불 수는 없다. */
+    /* ★ 시트가 찾는 키는 keyOf(제목) 이다 — 'Strings'·'Winds'·'Brass' 처럼
+       트랙 종류 이름이지 악기 이름이 아니다.
+       'Violin I' 로 써 두면 영영 안 실린다(실측: 3벌·위상 안내가 안 나왔다). */
     '@wellorch':{
-      'Violin I':'제1바이올린 — 지속층의 윗자리. 활을 천천히 긋고 CC11 로 부풀렸다 줄인다.'
+      Strings:'현 지속층 — 활을 천천히 긋고 CC11 로 부풀렸다 줄인다.'
+        +' ★★ **로직에서 이 트랙을 3벌로 복제한다.**'
+        +' 복제본마다 CC11 곡선의 시작 자리를 어긋내라 — 0마디 · 0.75마디 · 1.5마디.'
+        +' 한 사람이 커질 때 옆 사람은 작아진다. 개별 스웰이 겹쳐 소리가 일렁인다.'
+        +' 리게티·페르트가 쓰는 방식이고, 실연에서 연주자가 쉴 자리도 생긴다.'
+        +' 편성이 4중주로 나뉘어 있으면 Violin I·II·Viola·Cello 를 각각 3벌씩 — 모두 12벌.'
+        +' 음원: Spitfire BBC Symphony Discover — Violins 1 Long / Legato.',
+      Pad:'신스 패드 — 끊기지 않는 바닥. **이 층이 60분을 버틴다.**'
+        +' 실연에서는 건반 주자가 쥐고 있거나 백킹으로 재생한다.'
+        +' 음원: Vital 이나 Alchemy 의 Warm/Granular 패드. 어택 2~4초 · 릴리즈 6~8초.',
+      Brass:'호른 롱톤 — 금관 중 소리가 가장 둥글다. 프레이즈로 나왔다 쉰다.'
+        +' 트럼펫·트롬본은 넣지 않는다. 날카로워 이완을 깬다.',
+      Winds:'알토 플루트 — 선율층. 8~12초 프레이즈 뒤 반드시 쉰다.'
+        +' 사람이 부는 자리다. 음원은 Flute 로 나오지만 로직에서 Alto Flute 로 바꿔라.',
+      Harp:'하프 — 화성층. 굴려 뜯는다. 마디마다 한 번이면 충분하다.',
+      Piano:'첼레스타 — 화성층 윗자리. 반짝이는 점을 찍는다.'
+        +' 음원: Logic 의 Celesta 또는 Glockenspiel.',
+      Bass:'저현 롱톤 — 콘트라베이스. 근음만 짚는다. 활을 아주 느리게.',
+      Melody:'주선율 — 알토 플루트나 첼로가 맡는다.'
+        +' ★ 국악기(대금·아쟁·해금)를 얹을 자리다. 앱은 만들지 않는다.',
+      Counter:'대선율 — 주선율과 어긋나게 움직인다. 주선율보다 3~5dB 낮게.',
+      '_Violin I':'제1바이올린 — 지속층의 윗자리. 활을 천천히 긋고 CC11 로 부풀렸다 줄인다.'
         +' ★★ **로직에서 이 트랙을 3벌로 복제한다.**'
         +' 복제본마다 CC11 곡선의 시작 자리를 어긋내라 — 0마디 · 0.75마디 · 1.5마디.'
         +' 한 사람이 커질 때 옆 사람은 작아진다. 개별 스웰이 겹쳐 소리가 일렁인다.'
         +' 리게티·페르트가 쓰는 방식이고, 실연에서 연주자가 쉴 자리도 생긴다.'
         +' 음원: Spitfire BBC Symphony Discover — Violins 1 Long / Legato.',
-      'Violin II':'제2바이올린 — 같은 화음의 아랫자리. 제1과 어긋나게 스웰한다.'
+      '_Violin II':'제2바이올린 — 같은 화음의 아랫자리. 제1과 어긋나게 스웰한다.'
         +' 3벌 복제 · CC11 시작 자리 0.25 · 1.0 · 1.75마디.'
         +' 제1이 활을 바꿀 때 제2는 한창 긋는 중이어야 소리가 안 끊긴다.',
       'Viola':'비올라 — 화성의 속. 가장 길게 끈다(평균 4~5박).'
@@ -38746,7 +38889,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       Bass:'저현 롱톤 — 콘트라베이스. 근음만 짚는다.',
       Melody:'주선율 — 알토 플루트나 첼로가 맡는다.'
         +' ★ 국악기(대금·아쟁·해금)를 얹을 자리다. 앱은 만들지 않는다.',
-      '__note':'★ 이 편성으로 만든 뒤 로직에서 할 일'
+      '___note':'★ 이 편성으로 만든 뒤 로직에서 할 일'
         +' ① 현 네 트랙을 각 3벌씩 복제해 12벌로 (CC11 위상만 밀기)'
         +' ② Riser FX 트랙은 지운다 (앰비언트에 라이저는 안 맞는다)'
         +' ③ 국악기 포인트를 원하는 자리에 얹는다'
@@ -40029,6 +40172,77 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
     L.push('              골격을 뽑고 로직에서 완성하는 구조에서는 오히려 지워야 할 것이 늘어납니다.');
     L.push('              포르타멘토도 음원 설정으로 하는 편이 낫습니다 — CC로 흉내내면 음원마다 다르게 납니다.');
     L.push('');
+    /* ── 이 곡에 없는 악기 설명은 뺀다 ──
+       ★ 공통 안내가 통째로 실려 웰니스 오케스트라 시트에 킥 18회·스네어·
+         워킹 베이스가 들어 있었다(18396자). 쓰는 사람이 찾기 어렵다.
+       실제로 켜진 층을 보고 관계 없는 줄을 걸러 낸다.
+       소제목(■ ── ==)과 빈 줄은 남긴다 — 뼈대가 무너지면 읽기 어렵다. */
+    try{
+      const _has={
+        drum:(INST.drums&&INST.drums.on),
+        bass:(INST.bass&&INST.bass.on),
+        brass:(INST.brass&&INST.brass.on),
+        winds:(INST.winds&&INST.winds.on),
+        harp:(INST.harp&&INST.harp.on),
+        strings:(INST.strings&&INST.strings.on),
+        piano:(INST.piano&&INST.piano.on)
+      };
+      const _drop=[];
+      if(!_has.drum){ _drop.push('킥','스네어','하이햇','햇 ','드럼','킷','퍼커션','고스트 노트','필인'); }
+      if(!_has.bass){ _drop.push('워킹 베이스','슬랩','808'); }
+      if(!_has.brass){ _drop.push('트럼펫','트롬본','튜바'); }
+      if(!_has.piano){ _drop.push('컴핑','로즈'); }
+      if(wellOrchMode||gsel==='wellorch'||gsel==='ambdrone'){
+        /* 웰니스는 프로덕션 신스 안내가 필요 없다 */
+        _drop.push('사이드체인','펌핑','드롭','빌드업','라이저','트랩','EDM');
+      }
+      if(_drop.length){
+        /* ★ 줄 단위로 거르면 표가 쪼개진다 — 소제목만 남고 알맹이가 빠진다.
+           **구역 단위**로 본다. 소제목부터 다음 소제목 전까지를 한 덩이로 보고,
+           그 덩이에 관계 없는 말이 여럿 있으면 덩이째 뺀다. */
+        /* ★ 트랙 항목(━━━━━ 이름 ━━━━━)은 **그 곡에 실제로 있는 트랙**이다.
+           거기에 '킥'·'사이드체인' 같은 낱말이 곁가지로 들어 있다고 통째로 빼면
+           트랙 설명이 전부 사라진다(실측: 10502 -> 8499자, 항목 0개).
+           트랙 항목은 거르기 대상에서 제외한다. */
+        const _isTrack=function(t){ return /━━━━━/.test(String(t||'')); };
+        const _isHead=function(t){ return /^\s*(■|──|==)/.test(String(t||'')) || _isTrack(t); };
+        const _blocks=[]; let _cur=[];
+        L.forEach(function(ln){
+          if(_isHead(ln) && _cur.length){ _blocks.push(_cur); _cur=[ln]; }
+          else _cur.push(ln);
+        });
+        if(_cur.length) _blocks.push(_cur);
+        const _keep=[];
+        _blocks.forEach(function(blk){
+          /* 트랙 항목은 그대로 둔다 */
+          if(_isTrack(blk[0])){ blk.forEach(function(ln){ _keep.push(ln); }); return; }
+          const txt=blk.join('\n');
+          let hit=0;
+          _drop.forEach(function(w){ if(txt.indexOf(w)>=0) hit++; });
+          /* 덩이의 주제가 그것이면(두 낱말 이상 걸리면) 통째로 뺀다.
+             하나만 스치는 것은 남긴다 — 곁가지 언급일 수 있다. */
+          if(hit>=2) return;
+          if(hit===1){
+            blk.forEach(function(ln){
+              const t=String(ln||'');
+              if(!t.trim() || _isHead(t)){ _keep.push(ln); return; }
+              for(let i=0;i<_drop.length;i++) if(t.indexOf(_drop[i])>=0) return;
+              _keep.push(ln);
+            });
+            return;
+          }
+          blk.forEach(function(ln){ _keep.push(ln); });
+        });
+        /* 걸러 낸 뒤 빈 소제목이 이어지면 하나로 줄인다 */
+        const _out=[]; let _prevBlank=false;
+        _keep.forEach(function(ln){
+          const b=!String(ln||'').trim();
+          if(b && _prevBlank) return;
+          _prevBlank=b; _out.push(ln);
+        });
+        return _out.join('\n');
+      }
+    }catch(e){}
 return L.join('\n');
   }
   function downloadSetupSheet(){ const txt=buildSetupSheet();
