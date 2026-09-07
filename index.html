@@ -11159,6 +11159,43 @@ function exportAll(){arrange();
       A.forEach(function(n){ if(n&&n.midi!=null){ while(n.midi<21) n.midi+=12; while(n.midi>108) n.midi-=12; } });
     });
   }catch(e){}
+  /* ── 2nd Piano 오스티나토 · 기타 다양성 (모든 스타일 · exportAll · noteTrack **앞**) ──
+     ★ 처음에 noteTrack 뒤에 넣어 안 걸렸다(11→8). 트랙 쓰기 앞이어야 한다.
+     Play·Beat 와 같은 결: 실측 Band 2nd Piano 11스타일 리듬형 2~3 · 최다 50~68% · 기타 ballad·country 리듬형 1(100%).
+     4마디 묶음마다 ① 그대로 ② 뒤집기(첫 음 축) ③ 옥타브 위 ④ 절반 솎기 ⑤ 8분 밀기.
+     기타는 파워코드(두께 3)면 스트로크가 어법이라 뒤집기·옥타브만 · 단음 아르페지오(두께 1)면 다섯 다.
+     스윙 스타일(jazz·neosoul·gypsy·rumba·tango·motown)은 밀기 제외. */
+  try{
+    const _st=state.style||'';
+    const _swS=new Set(['jazz','neosoul','gypsy','rumba','tango','motown','gospel']);
+    const _seedV=((_st.length*2654435761+17)>>>0);
+    [['piano2',48,88,true],['guitar',40,76,false]].forEach(function(cfg){
+      const key=cfg[0], lo=cfg[1], hi=cfg[2], isP2=cfg[3];
+      const A=MODEL.tracks[key]; if(!A || A.length<16) return;
+      const N=A.filter(function(n){ return n&&n.midi!=null; }).sort(function(a,b){ return a.t-b.t; });
+      /* 두께: 30틱(0.06박) 안 시작을 한 타건으로 */
+      let grp=0,cnt=0,last=-999; N.forEach(function(n){ if(n.t-last>0.06){ grp++; } cnt++; last=n.t; });
+      const thick=cnt/Math.max(1,grp); const power=(!isP2 && thick>=2.2);
+      const _axis={}; N.forEach(function(n){ const b=Math.floor(n.t/16); if(_axis[b]==null) _axis[b]=n.midi; });
+      const out=[];
+      for(let i=0;i<N.length;i++){
+        const n=N[i]; const b=Math.floor(n.t/16); let md=((b*40503+_seedV+(isP2?0:5))>>>0)%5;
+        if(power && (md===3||md===4)) md=0;
+        if(_swS.has(_st) && md===4) md=0;
+        const m=Object.assign({},n);
+        if(md===1){ m.midi=_axis[b]-(n.midi-_axis[b]); }
+        else if(md===2){ m.midi=n.midi+12; }
+        else if(md===3){ if(i%2===1) continue; m.dur=(n.dur||0.5)*1.8; }
+        else if(md===4){ m.t=+(n.t+0.5).toFixed(3); }
+        while(m.midi<lo) m.midi+=12; while(m.midi>hi) m.midi-=12;
+        out.push(m);
+      }
+      out.sort(function(a,b){ return a.t-b.t; });
+      for(let z=0;z<out.length-1;z++){ if(out[z].midi===out[z+1].midi && out[z].t+(out[z].dur||0)>out[z+1].t-0.01) out[z].dur=Math.max(0.05,out[z+1].t-out[z].t-0.01); }
+      const others=A.filter(function(n){ return !(n&&n.midi!=null); });
+      A.length=0; others.forEach(function(x){ A.push(x); }); out.forEach(function(x){ A.push(x); });
+    });
+  }catch(e){}
   /* ── 피아노 서스테인 페달 (exportAll · noteTrack 앞) ──
      ★ state.pedal=true 인데 MODEL.tracks.pedal 을 채우는 코드가 어디에도 없었다 —
        Band 피아노에 CC64 가 0개 (kpop·ballad·jazz·funk 전부). 로직에서 소리가 뚝뚝 끊긴다.
@@ -13131,6 +13168,8 @@ function syncSuiteUI(){
 $('suiteTog').onchange=e=>{
   state.suite=!!e.target.checked;
   if(state.suite){
+    /* ★ 긴믹스 쪽만 조곡을 껐고 반대는 없었다 — 긴믹스 켠 뒤 조곡을 켜면 둘 다 켜졌다(UI 논리 검사). 대칭으로 */
+    if($('bandMixTog')&&$('bandMixTog').checked){ $('bandMixTog').checked=false; state.targetSec=null; const sel=$('bandMixLen'); if(sel) sel.style.display='none'; }
     /* 실제 오케스트라에는 드럼세트가 없다 — 팀파니·대북·심벌만 남긴다.
        목표 길이가 짧으면 악장이 안 나오므로 최소 10분으로 올린다. */
     const m=+$('fitMin').value||0;
@@ -20982,6 +21021,33 @@ function exportAll(){arrange();
         }
         window.SO_HUB.importedMelody=_out;
       }
+    }
+  }catch(e){}
+  /* ── 아르프 다양성 (모든 장르 · arrange 뒤) ──
+     형 지적(Play·Band 와 같은 결): 아르프가 곡 내내 한 음형. 실측 Beat 19장르 중 14장르 리듬형 1~2.
+     4마디 묶음마다 ① 그대로 ② 뒤집기(첫 음 축) ③ 옥타브 위 ④ 절반 솎기 ⑤ 8분 밀기(스윙 장르 제외). */
+  try{
+    const _A=MODEL.tracks.arpseq;
+    if(_A && _A.length>16){
+      const _bq=barQ(); const _g=state.genre||'';
+      const _sw=new Set(['lofi','lofigirl','boombap','chillwave']).has(_g);
+      const _seed=((_g.length*2654435761+11)>>>0);
+      const N=_A.slice().sort(function(a,b){ return a.t-b.t; });
+      const _axis={}; N.forEach(function(n){ const b=Math.floor(n.t/(_bq*4)); if(_axis[b]==null) _axis[b]=n.midi; });
+      const out=[];
+      for(let i=0;i<N.length;i++){
+        const n=N[i]; const b=Math.floor(n.t/(_bq*4)); const _mode=((b*40503+_seed)>>>0)%5;
+        let m=Object.assign({},n);
+        if(_mode===1){ m.midi=_axis[b]-(n.midi-_axis[b]); }
+        else if(_mode===2){ m.midi=n.midi+12; }
+        else if(_mode===3){ if(i%2===1) continue; m.dur=(n.dur||0.25)*1.8; }
+        else if(_mode===4 && !_sw){ m.t=+(n.t+0.5).toFixed(3); }
+        while(m.midi<48) m.midi+=12; while(m.midi>96) m.midi-=12;
+        out.push(m);
+      }
+      out.sort(function(a,b){ return a.t-b.t; });
+      for(let z=0;z<out.length-1;z++){ if(out[z].midi===out[z+1].midi && out[z].t+(out[z].dur||0)>out[z+1].t-0.01) out[z].dur=Math.max(0.05,out[z+1].t-out[z].t-0.01); }
+      _A.length=0; out.forEach(function(x){ _A.push(x); });
     }
   }catch(e){}
   /* ── 베이스 다양성 (모든 장르 · arrange 뒤) ──
@@ -28875,6 +28941,8 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
     /* 편성은 구조와 다른 개념이다 — 구조는 구간 배열을, 편성은 어느 악기가 소리 내는가를 정한다.
        그래서 선택도 따로 둔다(#ensSel). 구조 선택에 있던 것을 옮겼다. */
     const ensKey=($('ensSel')&&$('ensSel').value)||'';
+    /* ★ UI 논리: 편성을 고르면 솔로피아노는 꺼져야 한다 — 코드는 편성을 우선해 결과는 맞았지만 체크와 변수가 켜진 채 남았다 */
+    if(ensKey){ soloPiano=false; const _sp=$('soloPianoTog'); if(_sp&&_sp.checked) _sp.checked=false; }
     if(ensKey==='@quartet' || ensKey==='@quintet'){
       quartetMode=true; quintetMode=(ensKey==='@quintet'); chamberMode=false;
       INST.melody.on=true;  INST.melody.gm=40;      // Violin
@@ -38342,7 +38410,35 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             }
           }
         }catch(e){}
-                /* ── 오스티나토 · 대선율 다양성 (트랙 바이트 자리) ──
+                /* ── 보컬 가이드 음역 최종 고정 (트랙 바이트 자리) ──
+           vocalFit 은 생성 직후 걸리지만 뒤 파이프라인이 다시 올린다(실측 kpopc male 위 초과 7~10음).
+           남 C3~A4(48~69) · 여 A3~G5(57~79) · 듀엣은 남 기준.
+           ★ off 를 따로 옮기면 짝이 틀려 같은 음이 물린다(GUARD 8건). (음,시작,끝)으로 **접었다가** 고친 뒤 **펴서** 쓴다. */
+        try{
+          if(grp.key==='melody' && INST.melody && INST.melody.gm===54){
+            const V=(vocType==='duet')?VOC.male:(VOC[vocType]||VOC.female);
+            const LO=V.lo, HI=V.hi, CAP=V.cap||(V.hi+3);
+            const _cc=ev.filter(function(x){ return x.on!==1 && x.on!==0; });
+            const _ons=ev.filter(function(x){ return x.on===1; }).sort(function(a,b){ return a.tick-b.tick; });
+            const _offs=ev.filter(function(x){ return x.on===0; }).sort(function(a,b){ return a.tick-b.tick; });
+            const used=new Array(_offs.length).fill(false); const N=[];
+            _ons.forEach(function(n){ for(let k=0;k<_offs.length;k++){ if(used[k]) continue; const o=_offs[k]; if(o.note===n.note&&o.tick>n.tick){ used[k]=true; N.push({note:n.note,on:n.tick,off:o.tick,vel:n.vel||80}); return; } } });
+            N.sort(function(a,b){ return a.on-b.on; });
+            let overCap=0; N.forEach(function(n){ if(n.note>CAP) overCap++; });
+            N.forEach(function(n){ let m=n.note; if(m>CAP){ while(m>HI) m-=12; } else if(m>HI && overCap>2){ m-=12; } while(m<LO) m+=12; n.note=m; });
+            /* 옥타브 접기가 만든 인위적 도약 — 이웃과 7반음 넘게 벌어지면 이웃 쪽 옥타브로 (음역 안에서) · 두 번 */
+            for(let pass=0; pass<2; pass++){ for(let k=1;k<N.length;k++){ const pv=N[k-1], n=N[k]; const d=n.note-pv.note; if(Math.abs(d)<=7) continue; const cand=n.note-(d>0?12:-12); if(cand>=LO&&cand<=HI) n.note=cand; } }
+            /* 같은 음이 이어지면 앞 음을 뒤 음 앞에서 끝내고, 같은 틱·같은 음은 뒤 것을 버린다 */
+            const M=[]; const lastOn={}; const openN={};
+            for(let k=0;k<N.length;k++){ const n=N[k];
+              if(lastOn[n.note]!=null && n.on-lastOn[n.note]<=8) continue;
+              const o=openN[n.note]; if(o && o.off>n.on-8) o.off=Math.max(o.on+8, n.on-8);
+              lastOn[n.note]=n.on; openN[n.note]=n; M.push(n); }
+            const out=_cc.slice(); M.forEach(function(m){ out.push({tick:m.on,on:1,note:m.note,vel:m.vel}); out.push({tick:m.off,on:0,note:m.note}); });
+            ev=out;
+          }
+        }catch(e){}
+        /* ── 오스티나토 · 대선율 다양성 (트랙 바이트 자리) ──
            형 지적: 오스티나토와 대선율이 다채롭게 나오는가.
            실측 Play 50장르: 오스티나토 20장르 리듬형 1~3 · 최다 73~100% (곡 내내 한 음형)
                             대선율 14장르 리듬형 2~3 · 도약 5~23% (거의 안 움직인다)
@@ -38774,6 +38870,31 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                 });
                 N.length=0; M.sort(function(a,b){ return a.on-b.on; }).forEach(function(x){ N.push(x); });
               }
+              /* ── Vn II = 알토 · 유니즌 밖에서는 3도·6도 ──
+                 실측 Vn II vs Vn I 간격: 8도 28~38% · 병행 5·8도 pop 35% · jazz 30% · 비올라 아래로 교차 9~24.
+                 유니즌 묶음이 아닌데 Vn I 과 8도·5도면 화음 안 3도·6도 아래로 옮긴다(알토의 자리).
+                 비올라(C3~C4)보다 아래면 옥타브 위로 접는다. */
+              (function(){
+                const V1=window.__QT.vn1||[]; if(!V1.length) return;
+                for(let i=0;i<N.length;i++){
+                  const n=N[i]; const blk=_blk4(n.on); const md=_modeOf(blk,_stgAt(n.on));
+                  if(md===2||md===3) continue;
+                  const v1=V1.filter(function(v){ return v.on<n.off&&n.on<v.off; });
+                  if(!v1.length) continue;
+                  const top=v1[0].note; const iv=((top-n.note)%12+12)%12;
+                  if(iv!==0 && iv!==7 && iv!==5) continue;          /* 8도·5도·4도만 손본다 */
+                  const bi=Math.floor((n.on-PAD)/_bqQ); const pcs=(typeof __barPcs!=='undefined'&&__barPcs&&__barPcs[bi])?__barPcs[bi]:null;
+                  if(!pcs||!pcs.length) continue;
+                  /* Vn I 아래 3도(3·4)·6도(8·9) 중 화음 안에 있는 것 — 가까운 쪽부터 */
+                  let m=null;
+                  [3,4,8,9].some(function(d){ const c=top-d; if(pcs.indexOf(((c%12)+12)%12)>=0){ m=c; return true; } return false; });
+                  if(m==null) continue;
+                  while(m<60) m+=12; while(m>84) m-=12;
+                  n.note=m;
+                }
+                /* 비올라보다 아래면 옥타브 위 (비올라는 뒤에 만들어지니 기대 음역 상단 72 기준) */
+                N.forEach(function(n){ while(n.note<60) n.note+=12; });
+              })();
               window.__QT.vn2=N.map(function(n){ return {note:n.note,on:n.on,off:n.off}; });
             }
             if(grp.key==='strings'){
@@ -38802,6 +38923,36 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                   V1.filter(function(v){ return _blk4(v.on)===blk; }).forEach(function(v){ M.push({note:_fold(v.note-24,48,72),on:v.on,off:v.off,vel:Math.max(28,60)}); });
                 } else { arr.forEach(function(n){ M.push(n); }); }
               });
+              /* ── 비올라 = 테너 = 화음의 3음 ──
+                 형 질문: 비올라 계통이 중간 음인가, 역할이 뭔가. 실측 첼로 대비 도수: 근음 26~39% · 5도 19~31% · 3음 10~26%.
+                 첼로가 근음을 걸으니 비올라까지 근음이면 장·단이 비고 5도만 울린다.
+                 3음(장3·단3)이 있으면 3음으로, 3음이 Vn II 에 이미 있으면 7음(있으면)·아니면 5도. 근음은 잡지 않는다.
+                 유니즌 묶음(md 2·3)은 그대로 둔다 — 거기선 옥타브 겹이 목적. */
+              (function(){
+                const _blkMode={}; Object.keys(byBlk).forEach(function(bk){ const arr=byBlk[bk]; if(arr.length) _blkMode[bk]=_modeOf(+bk,_stgAt(arr[0].on)); });
+                M.forEach(function(n){
+                  const bk=_blk4(n.on); if(_blkMode[bk]===2||_blkMode[bk]===3) return;
+                  const bi=Math.floor((n.on-PAD)/_bqQ); const pcs=(typeof __barPcs!=='undefined'&&__barPcs&&__barPcs[bi])?__barPcs[bi]:null;
+                  const root=(typeof __barRoot!=='undefined'&&__barRoot&&__barRoot[bi]!=null)?__barRoot[bi]:null;
+                  if(!pcs||!pcs.length||root==null) return;
+                  const has=function(d){ return pcs.indexOf(((root+d)%12+12)%12)>=0; };
+                  const third=has(4)?4:(has(3)?3:null);
+                  const seventh=has(11)?11:(has(10)?10:null);
+                  const cur=((n.note-root)%12+12)%12;
+                  /* 이미 3음·7음이면 그대로 */
+                  if(cur===third||cur===seventh) return;
+                  /* Vn II 가 이 시각에 3음을 이미 잡고 있나 */
+                  const v2has3=(third!=null)&&V2.some(function(v){ return v.on<n.off&&n.on<v.off&&(((v.note-root)%12+12)%12)===third; });
+                  let want=null;
+                  if(third!=null && !v2has3) want=third;
+                  else if(seventh!=null) want=seventh;
+                  else if(has(7)) want=7;
+                  else if(third!=null) want=third;
+                  if(want==null) return;
+                  let m=n.note-cur+want; while(m<48) m+=12; while(m>72) m-=12;
+                  n.note=m;
+                });
+              })();
               /* ① 화성 점검: 동시에 울리는 Vn I·II 와 반음(1·11)이면 화음 안 다른 음으로 · 마디 근음과 반음이어도 */
               M.forEach(function(n){
                 const bi=Math.floor((n.on-PAD)/_bqQ); const pcs=(typeof __barPcs!=='undefined'&&__barPcs&&__barPcs[bi])?__barPcs[bi]:null;
@@ -38907,7 +39058,17 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             }
           }
         }catch(e){}
-                /* ── 겹치는 음을 자른다 ──
+                /* ── 같은 틱·같은 음 중복 제거 (모든 트랙 · 겹침 자르기 앞) ──
+           라운지·듀엣에서 두 편의 보컬이 한 트랙으로 합쳐지며 완전히 같은 on 이 둘 생겼다(GUARD epicaeol 라운지 2). */
+        try{
+          const seenK=new Set(); const rmK=new Set();
+          ev.filter(function(x){return x.on===1;}).sort(function(a,b){return a.tick-b.tick;}).forEach(function(x){ const k=x.tick+'_'+x.note; if(seenK.has(k)) rmK.add(x); else seenK.add(k); });
+          if(rmK.size){
+            rmK.forEach(function(x){ let best=null; ev.forEach(function(y){ if(y.on===0&&y.note===x.note&&y.tick>x.tick&&!y.__rm2&&(best==null||y.tick<best.tick)) best=y; }); if(best) best.__rm2=1; x.__rm2=1; });
+            ev=ev.filter(function(y){ return !y.__rm2; });
+          }
+        }catch(e){}
+        /* ── 겹치는 음을 자른다 ──
            ★ Play 전 편성을 재 보니 단선율 트랙이 서로 물고 있었다
              (기타 듀오 라운지 68% · 가야금 라운지 60% · 4중주 라운지 28%).
            한 음씩 흐르는 층은 겹치면 화음처럼 뭉친다.
@@ -39075,6 +39236,28 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       /* 보간 뒤에 솎는다 — 앞에 두면 이 함수가 다시 채워 효과가 없다
          (실측: 앞에 두었을 때 107,391개로 3%만 줄었다) */
       ev=thinCC(ev, 2, 10);
+      /* ── 최종 안전망: 같은 틱·같은 음 중복 on 제거 · 같은 음이 아직 울리면 앞 음을 끊음 ──
+         앞 블록들 뒤에도 6/8 정렬·라운지 처리가 다시 만든다(GUARD gukvocal·epicaeol 라운지 보컬 2건). 바이트 직전 한 번 더. */
+      try{
+        if(!['drums','kickonly','orchcym','timpani','warperc'].includes(grp.key)){
+          const _last={}; const _open={}; const _drop=new Set();
+          ev.filter(function(x){return x.on===1;}).sort(function(a,b){return a.tick-b.tick;}).forEach(function(x){
+            if(_last[x.note]!=null && x.tick-_last[x.note]<=4){ _drop.add(x); return; }
+            _last[x.note]=x.tick; _open[x.note]=x; });
+          if(_drop.size){
+            _drop.forEach(function(x){ let best=null; ev.forEach(function(y){ if(y.on===0&&y.note===x.note&&y.tick>x.tick&&!y.__fz&&(best==null||y.tick<best.tick)) best=y; }); if(best) best.__fz=1; x.__fz=1; });
+            ev=ev.filter(function(y){ return !y.__fz; });
+          }
+          /* 같은 음이 울리는 중 다시 시작 → 앞 off 를 새 on 앞으로 */
+          const onsB=ev.filter(function(x){return x.on===1;}).sort(function(a,b){return a.tick-b.tick;});
+          const offsB=ev.filter(function(x){return x.on===0;}).sort(function(a,b){return a.tick-b.tick;});
+          const ptr={}; const byN={}; offsB.forEach(function(o){ (byN[o.note]=byN[o.note]||[]).push(o); });
+          for(let i=0;i<onsB.length;i++){ const n=onsB[i]; const lst=byN[n.note]; if(!lst) continue;
+            let w=ptr[n.note]||0; while(w<lst.length && lst[w].tick<=n.tick) w++;
+            if(w<lst.length){ const nx=onsB.slice(i+1).find(function(m){ return m.note===n.note; });
+              if(nx && lst[w].tick>nx.tick-4) lst[w].tick=Math.max(n.tick+8, nx.tick-8); ptr[n.note]=w+1; } }
+        }
+      }catch(e){}
       ev.sort((a,b)=>(a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on)));
             /* ── 리드 기타 표현: 벤딩과 비브라토 ──
          이벤트 배열에 미리 넣으면 병합·솎기 함수들이 피치벤드를 노트로 오해해 흘린다
@@ -41640,6 +41823,16 @@ return L.join('\n');
        (실측: 발라드에서 화성은 악보와 정확히 일치했지만 선율 트랙이 아예 없었고,
         오스티나토(Piano 2)가 선율처럼 들려 화성과 따로 노는 인상을 주었다.)
        보컬 가이드를 켜서 노래 자리를 만든다 — 로직에서 실제 보컬로 바꾸면 된다. */
+    /* ★ 서정가요 넷·K팝은 노래곡인데 보컬 가이드가 안 켜지고 플루트(73)로 갔다 — LYRIC_G 가 피아노 독주와 한 묶음이라.
+       (실측 lyric male 이 C5~G6 · kpopc male A#4~D7 — vocalFit 이 gm===54 일 때만 걸리니 음역이 통째로 위였다.)
+       서정가요·민요·K팝은 보컬 가이드 + 대선율. */
+    else if(gsel==='lyric'||gsel==='lyricPenta'||gsel==='lyricMid'||gsel==='lyricMinyo'||gsel==='kpopc'){
+      INST.piano.on=true;
+      INST.bass.on=true; INST.drums.on=(gsel==='kpopc'||gsel==='lyricMid');
+      INST.melody.on=true; INST.melody.gm=54;   // 보컬 가이드
+      if(gsel==='kpopc'){ INST.pad&&(INST.pad.on=true); }
+      counterOn=true; { const co=$('counterOn'); if(co) co.checked=true; }
+    }
     else if(gsel==='pop'||gsel==='ballad'||gsel==='rock'||gsel==='edm'){
       INST.piano.on=true;
       INST.bass.on=true; INST.drums.on=true;
@@ -42189,6 +42382,10 @@ function applyPreset(solo){
             _t.checked=true;  _t.dispatchEvent(new Event('change')); }
   });
   narrBind();
+  /* ★ 편성 셀렉트에 change 핸들러가 없어 값이 곡 만들 때만 읽혔다 — 고르는 즉시 솔로피아노를 끄고 상태를 맞춘다 */
+  { const _es=$('ensSel'); if(_es) _es.addEventListener('change',e=>{
+      if(e.target.value){ soloPiano=false; const _sp=$('soloPianoTog'); if(_sp&&_sp.checked) _sp.checked=false; }
+    }); }
   $('loungeTog').addEventListener('change',e=>{ loungeMode=e.target.checked;
     const w=$('loungeLenWrap'); if(w) w.style.display=loungeMode?'':'none';
     if(loungeMode && gsel==='chanbul'){
@@ -44159,14 +44356,29 @@ function generatePiece(prog, capMin){
       _D=Math.max(1,Math.min(5,_D));
       const _rp=((((chordToSemis(cname)||[0])[0])%12)+12)%12;           // 코드 근음 pitch-class
       notes=thinToDensity(notes, _rp, _D);
+      /* ── 명상 보이싱: 베이스 근음과 반음(장7·♭9)인 화음 음은 위로 ──
+         실측: flow 11% · spa 10.5% · focus 8.8% 가 베이스↔화음 반음 부딪힘 — Cmaj7 의 B 가 베이스 C 와 60박 넘게 울렸다.
+         명상에서는 근음·5도가 아래, 7음·9음이 위여야 한다. 근음과 mod12 로 1·11 인 음을 근음보다 최소 한 옥타브+장7 위로 올린다. */
+      try{
+        /* 반음은 옥타브가 달라도 부딪힌다(실측 focus: B71 vs 베이스 C36·48 이 38박). 7음(장7·♭9)은 화음 최저음보다 두 옥타브 위(+23 이상)로.
+           그래도 남는 건 아래 베이스 쪽에서 옥타브 겹을 없애 잡는다. */
+        const _rpc=_rp; const _lowest=Math.min.apply(null,notes);
+        notes=notes.map(function(m){ const d=((m-_rpc)%12+12)%12; if(d!==1 && d!==11) return m;
+          let x=m; while(x<_lowest+23) x+=12; return x; }).sort(function(a,b){ return a-b; });
+      }catch(e){}
       const vBase=[58,62,66,56][i%4];
       const vel=Math.max(34, Math.round(vBase*(0.6+0.4*inten)));  // 강도 낮으면 여리게
       ev.chords.push({t, dur, name:cname, notes, vel, inten, stage:st.id});
       if(st.bass!==false){                                        // 침잠(1단계): 베이스 없이 드론만
         const lowN=Math.min.apply(null,notes);
-        const bassPc=chordBassSemi(cname);
+        let bassPc=chordBassSemi(cname);
+        /* ★ 베이스가 화음 음과 반음(mod12 1·11)이면 60박 넘게 부딪힌다 (실측 flow 11% · spa 10%) —
+           슬래시 베이스(G/B·D/C)나 maj7 의 7음이 그 경우. 그러면 근음으로 바꾼다. 명상은 부딪힘이 없어야 한다. */
+        try{ const _clash=notes.some(function(m){ const d=((m-bassPc)%12+12)%12; return d===1||d===11; });
+             if(_clash){ const _root=(((chordToSemis(cname)||[0])[0])%12+12)%12; const _c2=notes.some(function(m){ const d=((m-_root)%12+12)%12; return d===1||d===11; }); if(!_c2) bassPc=_root; } }catch(e){}
         let bassNote=bassPc+12*Math.floor((lowN-12)/12);
-        if(bassNote>lowN-3) bassNote-=12;
+        while(bassNote>lowN-7) bassNote-=12;                       /* 화음 최저음보다 완전5도 이상 아래 — 옥타브 하나로는 47 이 남았다 */
+        while(bassNote<28) bassNote+=12;
         ev.bass.push({t, dur, midi:bassNote, vel:Math.max(32,Math.round(54*(0.62+0.38*inten)))});
       }
     });
@@ -45446,6 +45658,21 @@ function ambientTexture(tracks, breathSec, PPQ, PAD){
         const want=nx+tail;
         if(n.start+n.dur < want) n.dur = want - n.start;
       });
+      /* ★ 홀드 단계(침잠·정착·방하)는 화음이 두 슬롯 길이인데, 홀드가 끝나는 경계에서 다음 단계의 베이스가
+         새 화음으로 먼저 바뀌어 앞 화음 위에 다른 근음이 60박 넘게 울렸다
+         (실측 flow·spa·walking·focus 반음 부딪힘 9~11% — 전부 Bass↔Chord).
+         화음 음은 **다음 베이스 시작 + 꼬리** 를 넘지 않게 자른다. 명상은 부딪힘이 없어야 한다. */
+      try{
+        const bassOns=[...new Set((tracks.bass||[]).filter(function(b){ return b.note!=null; }).map(function(b){ return Math.round(b.start); }))].sort(function(a,b){ return a-b; });
+        if(bassOns.length){
+          notes.forEach(function(n){
+            const nb=bassOns.find(function(t){ return t>n.start+8; });
+            if(nb==null) return;
+            const lim=nb+tail;
+            if(n.start+n.dur > lim) n.dur=Math.max(bt*0.5, lim-n.start);
+          });
+        }
+      }catch(e){}
     } }
 
   /* ③ 팬 흐름 — 네 호흡을 한 바퀴. 화음은 왼쪽에서, 선율은 오른쪽에서 시작해 서로 엇갈린다. */
