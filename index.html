@@ -7134,11 +7134,10 @@ const PERF={
   country:  {bass:'root5',   comp:'arp',    gtr:'arp'},        // Americana
   countrypop:{bass:'root5',  comp:'block',  gtr:'strum'},
   kpop:     {bass:'synco',   comp:'stab',   gtr:'chuck16'},
-  /* 네 스타일이 빠져 기본 조합으로 나가고 있었다. */
+  /* ★ 아래 넷은 위(1463~1466)와 **중복**이었고 뒤가 이겨 탱고가 comp:'block'(첫 박 한 번)·bass:'root5' 로 나갔다.
+     탱고 반도네온 스탭이 0박에만 206/246. 재즈·집시는 comp:'jazz'(루트리스 컴핑)가 맞으니 그것만 남기고 탱고·발칸은 위 정의를 쓴다. */
   jazz:     {bass:'walk', comp:'jazz',   gtr:'chuck16'},  // 워킹 위 컴핑
   gypsy:    {bass:'walk', comp:'jazz',   gtr:'strum'},    // 라 폼프 — 기타가 리듬을 맡는다
-  tango:    {bass:'root5',    comp:'block',  gtr:'strum'},    // 마르카토 — 근음을 찍고 화음을 함께 친다
-  balkan:   {bass:'octave',  comp:'block',  gtr:'chuck16'},  // 튜바 옥타브 위 오프비트 화음
   motown:   {bass:'octave',  comp:'block',  gtr:'chuck16'},
   epic:     {bass:'eighths', comp:'pad',    gtr:'power'},   // 오케 트레일러: 저현 8분 오스티나토 + 현 패드 + 브라스 히트
   animeost: {bass:'eighths', comp:'block',  gtr:'strum'},   // 애니 오케: 마르카토 블록 + 브라스
@@ -11527,7 +11526,9 @@ function exportAll(){arrange();
           if(sub.length) tr.push(noteTrack(sub,9,null,false,null,L.nm+' — '+GP.n+' / '+AC.n+' — 후렴·빌드업 보강',null));
         }); }   // isDrum=false: 노트 번호를 그대로 씀(채널 9가 드럼)
     } }
-  const fx=fxCueNotes();
+  /* ★ 라이저·임팩트·서브드롭은 팝·EDM 프로덕션 층 — 어쿠스틱 스타일(탱고·집시·재즈·발칸·켈틱·워십·재즈발라드)엔 어법 밖 */
+  const _noFxS=new Set(['tango','gypsy','jazz','balkan','celtic','worship','jballad','rumba','saguk']);
+  const fx=_noFxS.has(state.style)?[]:fxCueNotes();
   if(fx.length)tr.push(noteTrack(fx,__ch(3),102,false,null,'[가이드] FX Cues - Riser/Impact/Sub — 샘플로 교체할 위치·길이 (표현 없음)'));
   extraGuideTracks().forEach(nm=>tr.push(noteTrack([],__ch(8),null,false,null,nm)));   // 빈 가이드 트랙: 이름=악기+용도
   if(__imp) tr.push(noteTrack(__imp,__ch(15),73,false,(__impSel?null:[{t:0,ctrl:7,val:0}]),(__impSel?'':'[뮤트] ')+'[가져온] 멜로디 — 보존됨 (Flute)',null));   // 멜로디 앵커: 넘어온 멜로디 그대로 실음(선택 안 되면 뮤트)
@@ -23055,9 +23056,15 @@ const document = __scopedDoc('app-play');
         {name:'i–iv–V7–i (화성단조)', mode:'minor', steps:[['i',0,'min'],['iv',5,'min'],['V7',7,'dom7'],['i',0,'min']],
           feel:'단조에 이끔음을 세운 V7 — 탱고 특유의 격정적 종지예요.',
           theory:'화성단조의 V7(이끔음 7음 포함). G♯이 i로 반음 해결하며 단조에 또렷한 종지감을 줍니다.'},
-        {name:'탱고 · i–iv–V7–i', mode:'minor', steps:[['i',0,'min'],['iv',5,'min'],['V7',7,'dom7'],['i',0,'min']],
-          feel:'밟아 내려가는 <b>비장한 단조</b> — "라 쿰파르시타" 같은 정통 탱고의 골격.',
-          theory:'화성단조 i–iv–V7–i. 마르카토(또박또박 밟는) 리듬과 만나 탱고의 극적 긴장을 만듭니다.'},
+        {name:'i–♭VII–♭VI–V7 (반음 하행 베이스)', mode:'minor', steps:[['i',0,'min'],['♭VII',10,'maj'],['♭VI',8,'maj'],['V7',7,'dom7']],
+          feel:'베이스가 <b>반음씩 내려간다</b> — 탱고의 서명. 한 걸음씩 무너지는 비장함.',
+          theory:'A–G–F–E: 안달루시아 종지의 단조판. 베이스 라인이 라멘토(탄식) 4음을 그립니다.'},
+        {name:'i–V7♭9–i–♭II7 (나폴리)', mode:'minor', steps:[['i',0,'min'],['V7♭9',7,'dom7b9'],['i',0,'min'],['♭II7',1,'dom7']],
+          feel:'V7♭9의 어둠과 <b>♭II(나폴리)</b>의 반음 위 긴장 — 피아졸라 어법.',
+          theory:'♭9는 화성단조 6음. ♭II7은 V7의 트라이톤 대리 — 베이스가 반음 위에서 i로 떨어집니다.'},
+        {name:'iv–i–V7–i (밀롱가 순환)', mode:'minor', steps:[['iv',5,'min'],['i',0,'min'],['V7',7,'dom7'],['i',0,'min']],
+          feel:'iv에서 시작해 <b>싱코파 3-3-2</b>로 미는 밀롱가 결.',
+          theory:'하바네라·밀롱가에서 온 순환. 3-3-2 베이스 위에 마르카토 화음이 얹힙니다.'},
         {name:'i–♭VI–V7–i (탱고 비장)', mode:'minor', steps:[['i',0,'min'],['♭VI',8,'maj'],['V7',7,'dom7'],['i',0,'min']],
           feel:'♭VI로 한 번 부풀었다 V7으로 조이는 — <b>드라마틱한</b> 탱고 순환.',
           theory:'♭VI가 단조의 비애를 키우고 V7이 강하게 해결. 반음 진행이 탱고 특유의 긴장을 더합니다.'},
@@ -24356,7 +24363,7 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
         events: pat.map(b=>{ let m=(b.r==='pedal'?pedal:bassMidi(b.r,c,third,nLow))+(b.o||0); while(m>62)m-=12; while(m<26)m+=12; return { slot:b.s, midi:m }; }) }; // 베이스 실주법 음역(26~62)으로 접기 — 고음 패턴이 반주 음역 침범 방지
     });
   }
-  const BSTRAT={roots:'근음 중심',rootfifth:'루트–5도',inversion:'자리바꿈 베이스선(전위)',walking:'워킹',pedal:'페달 포인트',arp:'아르페지오'};
+  const BSTRAT={roots:'근음 중심',rootfifth:'루트–5도',inversion:'자리바꿈 베이스선(전위)',walking:'워킹',pedal:'페달 포인트',arp:'아르페지오', marcato:'마르카토 4박', sincopa:'싱코파 3-3-2'};
   function genBassVariant(steps,avoid){
     const all=['roots','rootfifth','inversion','walking','pedal','arp'];
     let strat; if(genBassVariant.force){ strat=genBassVariant.force; } // 곡 전체 고정 전략(자리바꿈 등)
@@ -24375,6 +24382,13 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
       steps.forEach(()=> measures.push([{s:0,r:'pedal'},{s:8,r:'pedal'}]));
     } else if(strat==='arp'){
       steps.forEach(()=> measures.push([{s:0,r:'root'},{s:4,r:'fifth'},{s:8,r:'octave'},{s:12,r:'third'}]));
+    } else if(strat==='marcato'){
+      /* 탱고 마르카토 — 4박 전부 4분으로 밟는다. 근음·5도·근음·반음 접근(다음 근음 반음 아래/위).
+         실측: 탱고가 _POOL 에 없어 마디 2음(기본)으로 떨어져 있었다 — bassPat '마르카토 4박' 정의는 있는데 안 쓰였다. */
+      steps.forEach(()=> measures.push([{s:0,r:'root'},{s:4,r:'fifth'},{s:8,r:'root'},{s:12,r:'approach'}]));
+    } else if(strat==='sincopa'){
+      /* 탱고 싱코파 3-3-2 — 0 · 1.5 · 3 박 */
+      steps.forEach(()=> measures.push([{s:0,r:'root'},{s:6,r:'fifth'},{s:12,r:'root'}]));
     } else if(strat==='rootfifth'){
       steps.forEach(()=> measures.push([{s:0,r:'root'},{s:8,r:'fifth'}]));
     } else {
@@ -29069,7 +29083,7 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
 
     { const _all=['roots','rootfifth','inversion','walking','pedal','arp'];
 
-      const _POOL={ ballad:['roots','rootfifth','inversion','pedal'], pop:['roots','rootfifth','inversion'], citypop:['rootfifth','inversion','walking'], jazz:['walking','walking','walking','inversion'], ambjazz:['pedal','walking','inversion'], neosoul:['walking','inversion','pedal'], bossa:['walking','rootfifth','inversion'], blues:['walking','walking','rootfifth'], rock:['roots','rootfifth','pedal'], edm:['roots','pedal','rootfifth'], lofi:['roots','inversion','pedal','rootfifth'], classic:['inversion','rootfifth','pedal','walking'], gugak:['pedal','roots'], quartal:['pedal','rootfifth','inversion'], gukvocal:['roots','rootfifth','inversion','pedal'], epicaeol:['pedal','roots','rootfifth'] };
+      const _POOL={ ballad:['roots','rootfifth','inversion','pedal'], pop:['roots','rootfifth','inversion'], citypop:['rootfifth','inversion','walking'], jazz:['walking','walking','walking','inversion'], ambjazz:['pedal','walking','inversion'], neosoul:['walking','inversion','pedal'], bossa:['walking','rootfifth','inversion'], blues:['walking','walking','rootfifth'], rock:['roots','rootfifth','pedal'], edm:['roots','pedal','rootfifth'], lofi:['roots','inversion','pedal','rootfifth'], classic:['inversion','rootfifth','pedal','walking'], gugak:['pedal','roots'], quartal:['pedal','rootfifth','inversion'], gukvocal:['roots','rootfifth','inversion','pedal'], epicaeol:['pedal','roots','rootfifth'], tango:['marcato','marcato','sincopa'], rumba:['marcato','sincopa','rootfifth'], gypsy:['walking','marcato','rootfifth'] };
 
       const _pl=_POOL[gsel]||_all; genBassVariant.force=_pl[Math.floor(Math.random()*_pl.length)]; } // 곡마다 베이스 전략 하나 고정(자리바꿈 등) — 곡 내 일관, 곡 간 다양
     if(themeProg && ps.indexOf(themeProg)>=0){ A=themeProg; const others=shuffleArr(ps.filter(p=>p!==A)); B=others[0]||A; C=others[1]||others[0]||A; }
@@ -38819,7 +38833,55 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             }
           }
         }catch(e){}
-                /* ── 4중주·5중주 성부 기록 · 비올라 화성 · 롱톤 · 유니즌 (트랙 바이트 자리) ──
+                /* ── 탱고 어법 (트랙 바이트 자리) ──
+           형 지적: 탱고 아르헨티나 계열. 실측: 현이 온마디 롱톤(4.2박) · 반도네온 선율 길이 1.0박 균일 · 드럼세트 434음.
+           탱고 현은 **아르코 마르카토**(4분 짧게 찍기)와 **아라스트레**(반박 앞에서 끌어 붙이기)를 오간다 —
+           stage 1~2 롱톤 유지(서정) · 3 이상 마르카토 4분 찍기 · 4마디 묶음 셋에 하나 아라스트레.
+           반도네온은 **레가토 프레이즈 ↔ 스타카토 대비** — 4마디 묶음마다 번갈아. */
+        try{
+          if(gsel==='tango' && (grp.key==='strings'||grp.key==='melody')){
+            const _bq=(SEC_TK[0]?SEC_TK[0].meas:(TPQ*4));
+            const _stgAt=function(t){ for(let si=0;si<currentSong.length;si++){ const T0=SEC_TK[si]; if(!T0) continue; if(t>=T0.start&&t<T0.start+T0.bars*T0.meas) return currentSong[si].stage||3; } return 3; };
+            const _cc=ev.filter(function(x){ return x.on!==1&&x.on!==0; });
+            const _ons=ev.filter(function(x){ return x.on===1; }).sort(function(a,b){ return a.tick-b.tick; });
+            const _offs=ev.filter(function(x){ return x.on===0; }).sort(function(a,b){ return a.tick-b.tick; });
+            const used=new Array(_offs.length).fill(false); const N=[];
+            _ons.forEach(function(n){ for(let k=0;k<_offs.length;k++){ if(used[k]) continue; const o=_offs[k]; if(o.note===n.note&&o.tick>n.tick){ used[k]=true; N.push({note:n.note,on:n.tick,off:o.tick,vel:n.vel||80}); return; } } });
+            N.sort(function(a,b){ return a.on-b.on; });
+            const M=[];
+            if(grp.key==='strings'){
+              N.forEach(function(n){
+                const stg=_stgAt(n.on); const blk=Math.floor((n.on-PAD)/(_bq*4));
+                if(stg<=2 || (n.off-n.on)<TPQ*1.5){ M.push(n); return; }
+                const L=n.off-n.on; const q=TPQ;
+                const arrastre=(blk%3===2);
+                for(let t=n.on; t<n.off-q*0.4; t+=q){
+                  const isLast=(t+q>=n.off-q*0.4);
+                  if(arrastre && isLast){ /* 마지막 박: 반박 앞에서 끌어 다음 마디 첫 박에 붙인다 */
+                    M.push({note:n.note,on:t-Math.round(q*0.5),off:t+q-8,vel:Math.min(120,n.vel+10)});
+                  } else {
+                    M.push({note:n.note,on:t,off:t+Math.round(q*0.55),vel:(t===n.on)?Math.min(120,n.vel+8):n.vel});   /* 마르카토 4분 짧게 */
+                  }
+                }
+              });
+            } else {
+              N.forEach(function(n){
+                const blk=Math.floor((n.on-PAD)/(_bq*4)); const stac=(blk%2===1);
+                const m={note:n.note,on:n.on,off:n.off,vel:n.vel};
+                if(stac){ m.off=n.on+Math.max(60,Math.round((n.off-n.on)*0.45)); m.vel=Math.min(120,n.vel+6); }   /* 스타카토 묶음 */
+                else { /* 레가토 묶음: 다음 음까지 잇는다 */ }
+                M.push(m);
+              });
+              for(let i=0;i<M.length-1;i++){ const blk=Math.floor((M[i].on-PAD)/(_bq*4)); if(blk%2===0 && M[i].off<M[i+1].on-8 && M[i+1].on-M[i].on<=TPQ*2) M[i].off=M[i+1].on-8; }
+            }
+            M.sort(function(a,b){ return a.on-b.on; });
+            const lastOn={}; const openN={}; const M2=[];
+            M.forEach(function(n){ if(lastOn[n.note]!=null && n.on-lastOn[n.note]<=8) return; const o=openN[n.note]; if(o&&o.off>n.on-8) o.off=Math.max(o.on+8,n.on-8); lastOn[n.note]=n.on; openN[n.note]=n; M2.push(n); });
+            const out=_cc.slice(); M2.forEach(function(m){ out.push({tick:m.on,on:1,note:m.note,vel:m.vel}); out.push({tick:m.off,on:0,note:m.note}); });
+            ev=out;
+          }
+        }catch(e){}
+        /* ── 4중주·5중주 성부 기록 · 비올라 화성 · 롱톤 · 유니즌 (트랙 바이트 자리) ──
            형 지시 셋:
            ① 비올라는 화성적으로 중요하다 — 다른 성부와 부딪히지 않게 (실측 첼로와 반음 2.8~5.3%)
            ② 구간에서 한 마디 이상 길게 뻗는 롱톤 활질 (실측 1마디 이상 0%)
@@ -41816,7 +41878,10 @@ return L.join('\n');
       counterOn=true; { const co=$('counterOn'); if(co) co.checked=true; }   // 피들이 휘슬을 받는 대선율
       currentSig='6/8'; genreSetSig=true; if(typeof fillSigs==='function') fillSigs(); }
     else if(gsel==='classic'){ INST.drums.on=false; INST.bass.on=true; INST.bass.gm=43; INST.piano.on=true; INST.strings.on=true; INST.strings.gm=48; INST.winds.on=true; INST.winds.gm=68; INST.melody.on=true; INST.melody.gm=40; counterOn=true; { const co=$('counterOn'); if(co) co.checked=true; } } // 클래식=오케 실내악(콘트라베이스)
-    else if(gsel==='tango'){ INST.drums.on=true; INST.bass.on=true; INST.bass.gm=43; INST.piano.on=true; INST.strings.on=true; INST.strings.gm=40; INST.melody.on=true; INST.melody.gm=23; } // 탱고 오르케스타 티피카: 반도네온 리드 + 바이올린 섹션 + 첼로 대선율 + 피아노 + 콘트라베이스
+    /* ★ 탱고 오르케스타 티피카에 드럼세트는 없다(실측 킥·스네어 434음). 마르카토는 피아노 왼손·콘트라베이스·현이 친다.
+         반도네온 리드 + 바이올린 섹션 + 첼로 대선율 + 피아노 + 콘트라베이스. */
+    else if(gsel==='tango'){ INST.drums.on=false; INST.bass.on=true; INST.bass.gm=43; INST.piano.on=true; INST.strings.on=true; INST.strings.gm=40; INST.melody.on=true; INST.melody.gm=23;
+      counterOn=true; { const co=$('counterOn'); if(co) co.checked=true; } }
     else if(gsel==='gypsy'){ INST.drums.on=false; INST.bass.on=true; INST.bass.gm=32; INST.piano.on=true; INST.melody.on=true; INST.melody.gm=40; INST.harp.on=true; INST.harp.gm=24; } // 집시=기타(발현)+바이올린
     /* ── 팝 · 발라드 · 록 · EDM ──
        노래가 있는 장르인데 선율 트랙이 없어 반주만 나오고 있었다.
