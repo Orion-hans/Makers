@@ -2760,6 +2760,10 @@ const document = __scopedDoc('app-melody');
   // 장르 리듬 문법 — 2020년대 트렌드 반영: 멜로디는 미니멀·반복·여백 중심
   // density=음 밀도(↓적을수록 성김), restBias=쉼 선호, motific=모티프 반복, simple=도약 억제, longTail=긴 음
   var GENRES = {
+    /* ★ 새 장르는 여기와 APPG 목록 둘 다에 넣어야 멜로디 메이커에서 고를 수 있다 (2026-09-15) */
+    bigband:  { density:0.72,syncopate:0.34, longTail:0.42,swing:0.62, restBias:0.34, pickup:0.55,motific:0.7, simple:0.5, chroma:0.14, label:'스윙 빅밴드' },
+    handpan:  { density:0.28,syncopate:0.08, longTail:0.88,swing:0.0,  restBias:0.72, pickup:0.12,motific:0.9, simple:0.88,chroma:0.0,  label:'핸드팬' },
+    wellorch: { density:0.32,syncopate:0.06, longTail:0.9, swing:0.0,  restBias:0.68, pickup:0.15,motific:0.86,simple:0.8, chroma:0.02, label:'웰니스 오케스트라' },
     /* ── 다른 앱에 있는데 여기 없던 장르 ──
        ★ 멜로디 앱 58개 · Beat 19 · Play 48 · Band 28 을 대조해 보니 54개가 빠져 있었다.
          APPG 목록에 이름만 넣어도 안 나온다 — 여기 정의가 있어야 옵션이 만들어진다.
@@ -4396,7 +4400,9 @@ function fillGenres(){
   const APPG=[
     ['band','🎸 밴드', ['ballad','jballad','komuro','royalroad','ukpop','animerock','billie','worship','celtic','funk','neosoul','gospel','poppunk','country','kpop','jazz','gypsy','tango','rumba','balkan','kband','countrypop','marusa','saguk','motown','disney','animeost','epic','citypop','folk','latin']],
     ['beat','🥁 비트', ['edm','bigroom','melodichouse','deephouse','trap','lofi','lofigirl','running','hooksong','hookpop','house','dnb','afrobeat','hiphop','kpop','country','citypop','retro','synthwave','boombap','discofunk','ambtechno','global','chillwave']],
-    ['play','🎹 플레이', ['pop','ballad','jazz','neosoul','bossa','rock','edm','lofi','folk','celtic','cinematic','waltz','latin','epic','disco','reggae','kballad','newage','joypiano','kpiano','minimal','classic','blues','ambjazz','gypsy','tango','rumba','citypop','trap','kpopc','kids','shanty','epicaeol','cineWar','cineSoar','cineSorrow','cineJoy','cineTension','cineDrive','cineSuite','gugak','gukvocal','chanbul','lyric','lyricPenta','lyricMid','lyricMinyo','dorian','lydian','mixolydian','phrygian','phrygdom','doubleharm','hungarian','quartal']],
+    ['play','🎹 플레이', ['pop','ballad','jazz','neosoul','bossa','rock','edm','lofi','folk','celtic','cinematic','waltz','latin','epic','disco','reggae','kballad','newage','joypiano','kpiano','minimal','classic','blues','ambjazz','gypsy','tango','rumba','citypop','trap','kpopc','kids','shanty','epicaeol','cineWar','cineSoar','cineSorrow','cineJoy','cineTension','cineDrive','cineSuite','gugak','gukvocal','chanbul','lyric','lyricPenta','lyricMid','lyricMinyo','dorian','lydian','mixolydian','phrygian','phrygdom','doubleharm','hungarian','quartal',
+      /* ★ 새 장르는 여기에도 넣어야 멜로디 메이커에서 고를 수 있다 (2026-09-15) */
+      'bigband','handpan','wellorch']],
     ['solo','✍ 멜로디 단독', ['freesolo','ambient','metal','rnb']]
   ];
   const seen=new Set();
@@ -5325,7 +5331,7 @@ function soloPianoArrange(notes){
   const orn = thin(ornAll.sort((a,b)=>a.t-b.t), Math.round(melN*0.15));  // 장식 ≤ 멜로디의 15% — 선을 흐리지 않게
   return notes.concat(lh, orn).sort((a,b)=>a.t-b.t);
 }
-function scheduleAccomp(ac, master, t0, spb){
+function scheduleAccomp(ac, master, t0, spb){   /* master 자리에 accBus 가 들어온다 */
   const tl=buildChordTimeline(); if(!tl.bars.length)return;
   // 반주 전용 서브믹스(멜로디보다 작게)
   const bus=ac.createGain(); bus.gain.value=0.5; bus.connect(master);
@@ -5380,7 +5386,35 @@ function play(){
   if(!state.notes.length)return; stop();
   const ac=audio();stopFlag=false;playing=true;
   const spb=60/state.bpm,t0=ac.currentTime+0.06;
-  const master=ac.createGain();master.gain.value=0.85;master.connect(ac.destination);
+  /* ── 재생 믹스 (2026-09-15) ──
+     Melody 는 리버브·스테레오·컴프가 하나도 없어 가장 말랐다(오실레이터가 그냥 출력으로 갔다).
+     Play 에 넣은 체인과 같은 원리: 합성 IR 리버브 + 스테레오 + 컴프. 선율과 반주 둘뿐이라 자리를 벌리면 또렷해진다. */
+  const master=ac.createGain(); master.gain.value=0.85;
+  const _comp=ac.createDynamicsCompressor();
+  _comp.threshold.value=-15; _comp.knee.value=22; _comp.ratio.value=2.6; _comp.attack.value=0.005; _comp.release.value=0.2;
+  master.connect(_comp); _comp.connect(ac.destination);
+  const _rvIR=(function(){ const sr=ac.sampleRate, len=Math.floor(sr*1.8), b=ac.createBuffer(2,len,sr);
+    for(let ch=0;ch<2;ch++){ const d=b.getChannelData(ch);
+      for(let i2=0;i2<len;i2++){ const t=i2/len; d[i2]=(Math.random()*2-1)*Math.pow(1-t,2.8)*(ch?0.9:1.0); }
+      [0.013,0.021,0.034].forEach(function(tt,k){ const j=Math.floor(tt*sr)+(ch?6:0); if(j<len) d[j]+=(k%2?-1:1)*0.3; });
+    } return b; })();
+  const _rv=ac.createConvolver(); _rv.buffer=_rvIR;
+  const _rvHp=ac.createBiquadFilter(); _rvHp.type='highpass'; _rvHp.frequency.value=240;
+  const _rvLp=ac.createBiquadFilter(); _rvLp.type='lowpass';  _rvLp.frequency.value=6800;
+  const _rvWet=ac.createGain(); _rvWet.gain.value=0.30;
+  const _rvSend=ac.createGain(); _rvSend.gain.value=1.0;
+  _rvSend.connect(_rvHp); _rvHp.connect(_rv); _rv.connect(_rvLp); _rvLp.connect(_rvWet); _rvWet.connect(master);
+  function _mkBus(pan, vol, send, hp){
+    const g=ac.createGain(); g.gain.value=vol; let head=g;
+    if(hp>0){ const f=ac.createBiquadFilter(); f.type='highpass'; f.frequency.value=hp; f.Q.value=0.7; g.connect(f); head=f; }
+    let out=head;
+    if(ac.createStereoPanner){ const pn=ac.createStereoPanner(); pn.pan.value=pan; head.connect(pn); out=pn; }
+    out.connect(master);
+    const sd=ac.createGain(); sd.gain.value=send; out.connect(sd); sd.connect(_rvSend);
+    return g;
+  }
+  const melBus=_mkBus(-0.14, 1.00, 0.16,  90);   /* 선율: 살짝 왼쪽·가깝게 */
+  const accBus=_mkBus( 0.24, 0.78, 0.30, 130);   /* 반주: 오른쪽·멀게 */
   /* 룩어헤드 예약 — 한꺼번에 다 예약하면 음이 많을 때(독주 편곡·긴 시간은 1000음 이상)
      오디오 노드가 수천 개 동시에 생겨 모바일에서 소리가 끊기거나 아예 안 난다. 앞으로 3초치만 계속 채운다. */
   { const ped=!!(ME.GENRES[state.genre]&&ME.GENRES[state.genre].pedal);
@@ -5393,7 +5427,7 @@ function play(){
         const n=arr[idx], st=t0+n.t*spb;
         if(st>until) break;
         let du=n.dur*spb; if(ped)du+=Math.min(3.5,2.5*spb);   // 페달 여운
-        playNote(ac, master, state.instrument, n.midi, st, du, n.vel);
+        playNote(ac, melBus, state.instrument, n.midi, st, du, n.vel);
         idx++;
       }
       if(idx>=arr.length && schedTimer){ clearInterval(schedTimer); schedTimer=null; }
@@ -5401,7 +5435,7 @@ function play(){
     if(schedTimer){clearInterval(schedTimer);schedTimer=null;}
     pump(); schedTimer=setInterval(pump, 300);
   }
-  if(state.accomp) scheduleAccomp(ac, master, t0, spb);   // 코드 반주(토글)
+  if(state.accomp) scheduleAccomp(ac, accBus, t0, spb);   // 코드 반주(토글) — 반주 버스로
   if(state.bandAccomp) scheduleBandAccomp(ac, master, t0, spb);   // 넘어온 반주(밴드/비트/플레이) 미리듣기(토글)
   playT0=t0;const total=totalSec();
   const tick=()=>{ if(stopFlag)return;
@@ -17605,7 +17639,11 @@ function audioInit(){if(ctx)return;
   ['drums','bass','chords','pad','lead','fx'].forEach(k=>{const gain=ctx.createGain();gain.gain.value=state.enabled[k]?1:0;BUS[k]=gain;
     let node=gain;
     if(k==='bass'||k==='chords'||k==='pad'||k==='lead'){const dk=ctx.createGain();dk.gain.value=1;gain.connect(dk);node=dk;DUCK[k]=dk;}
-    node.connect(master);});
+  /* ★ 스테레오 배치 (2026-09-15) — Beat 는 버스 여섯이 전부 정중앙이라 한 점에 겹쳤다.
+       저역(드럼·베이스)은 가운데, 화성·리드·FX 는 좌우로 벌린다. */
+  { const PAN={drums:0, bass:0, chords:0.22, pad:-0.26, lead:-0.16, fx:0.30};
+    if(ctx.createStereoPanner && PAN[k]!==0){ const pn=ctx.createStereoPanner(); pn.pan.value=PAN[k]; node.connect(pn); node=pn; } }
+  node.connect(master);});
   REV={};
   const ps=ctx.createGain();ps.gain.value=0.2;BUS.chords.connect(ps);ps.connect(reverb);REV.chords=ps;
   const pp=ctx.createGain();pp.gain.value=0.25;BUS.pad.connect(pp);pp.connect(reverb);REV.pad=pp;
@@ -17631,7 +17669,17 @@ function synth(bus,{wave,midi,t,dur,vel,lpf=4000,atk=0.005,rel,detune=0,lvl=1,q=
   gn.gain.exponentialRampToValueAtTime(sus,t+dEnd);gn.gain.setValueAtTime(sus,t+hold);
   gn.gain.exponentialRampToValueAtTime(0.0001,t+dur+r);
   o.connect(lp);lp.connect(gn);gn.connect(BUS[bus]);o.start(t);o.stop(t+dur+r+0.05);nodes.push(o);return gn;}
-function drum(type,t,vel){const v=vel/127,B=BUS.drums,K=curKit,kit=curSub?DRUMKITS[curSub]:null;
+/* ★ 하이햇·퍼커션은 드럼 버스 안에서 한 번 더 좌우로 — 킥·스네어는 가운데 유지
+     (실측: 전부 정중앙이라 킥·스네어·햇이 한 점에 겹쳤다) */
+let _drumPan={};
+function drumBus(type){
+  const P={hat:0.22, ohat:0.26, ride:0.30, crash:-0.28, tom1:-0.20, tom2:0.20, perc:-0.24, shaker:0.28, clap:0.12};
+  const pv=P[type]; if(!pv || !ctx.createStereoPanner) return BUS.drums;
+  if(_drumPan[type]) return _drumPan[type];
+  const g=ctx.createGain(); const pn=ctx.createStereoPanner(); pn.pan.value=pv;
+  g.connect(pn); pn.connect(BUS.drums); _drumPan[type]=g; return g;
+}
+function drum(type,t,vel){const v=vel/127,B=drumBus(type),K=curKit,kit=curSub?DRUMKITS[curSub]:null;
   if(type==='kick'){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';
     const kk=kit&&kit.kick;
     const P=kk?[kk.f0,kk.f1,kk.dec]:({lofi:[110,38,0.5],boombap:[155,46,0.4],trap:[185,38,0.7],edm:[200,52,0.32]}[K]||[160,45,0.4]);
@@ -24102,14 +24150,14 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
     o.type='triangle';o2.type='sine';o.frequency.value=freqOf(m);o2.frequency.value=freqOf(m);o2.detune.value=4;
     const v=vol||0.2;
     g.gain.setValueAtTime(0.0001,t0);g.gain.linearRampToValueAtTime(v,t0+0.02);g.gain.exponentialRampToValueAtTime(0.0006,t0+dur);
-    o.connect(g);o2.connect(g);g.connect(bus());o.start(t0);o2.start(t0);o.stop(t0+dur);o2.stop(t0+dur); reg(o);reg(o2); }
+    o.connect(g);o2.connect(g);g.connect(grpBus(grp));o.start(t0);o2.start(t0);o.stop(t0+dur);o2.stop(t0+dur); reg(o);reg(o2); }
 
   // 악기군별 음색 (피아노/현/관)
   let _noiseBuf=null;
   function noiseBuf(){ if(_noiseBuf) return _noiseBuf; const len=Math.floor(actx.sampleRate*0.05); _noiseBuf=actx.createBuffer(1,len,actx.sampleRate); const d=_noiseBuf.getChannelData(0); for(let i=0;i<len;i++) d[i]=Math.random()*2-1; return _noiseBuf; }
   // 피아노: 가법 합성(배음+inharmonicity) + 망치 어택 + 음역별 밝기/감쇠
-  function pianoVoice(m,t0,dur,vol){
-    const f=freqOf(m), out=actx.createGain(); out.connect(bus());
+  function pianoVoice(m,t0,dur,vol,_gk){
+    const f=freqOf(m), out=actx.createGain(); out.connect(grpBus(_gk||'piano'));
     const bright = m>74?0.5 : m>62?0.78 : 1.0;
     const partials=[[1,1.0,1.0],[2,0.5,0.85],[3,0.3,0.65],[4,0.16,0.5],[5,0.08,0.38],[6,0.05,0.3]];
     partials.forEach(p=>{ const h=p[0], amp=p[1], dm=p[2];
@@ -24127,7 +24175,7 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
     }catch(e){}
   }
   function instVoice(m,t0,dur,vol,grp){
-    if(grp==='piano'){ pianoVoice(m,t0,dur,vol); return; }
+    if(grp==='piano'||grp==='piano2'){ pianoVoice(m,t0,dur,vol,grp); return; }
     const o=actx.createOscillator(), g=actx.createGain(); o.frequency.value=freqOf(m);
     if(grp==='strings'){
       o.type='sawtooth'; const f=actx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=2300; f.Q.value=0.6;
@@ -24168,7 +24216,7 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
       o.connect(g); o2.connect(g); o2.start(t0); o2.stop(t0+dur+0.02); reg(o2);
       g.gain.setValueAtTime(0.0001,t0); g.gain.linearRampToValueAtTime(vol,t0+0.07); g.gain.setValueAtTime(vol,t0+dur*0.62); g.gain.exponentialRampToValueAtTime(0.0006,t0+dur);
     }
-    g.connect(bus()); o.start(t0); o.stop(t0+dur+0.02); reg(o);
+    g.connect(grpBus(grp)); o.start(t0); o.stop(t0+dur+0.02); reg(o);
   }
 
   function playProg(steps,mode){ // 'block' 화음 / 'arp' 분산
@@ -24279,6 +24327,87 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
   // ---- 마스터 버스(클리핑 방지) ----
   let _bus=null;
   function bus(){ if(!_bus){ _bus=actx.createGain(); _bus.gain.value=0.82; const comp=actx.createDynamicsCompressor(); comp.threshold.value=-14; comp.knee.value=24; comp.ratio.value=3; comp.attack.value=0.004; comp.release.value=0.18; _bus.connect(comp); comp.connect(actx.destination); } return _bus; }
+
+  /* ── 재생 믹스 (2026-09-15) ────────────────────────────────────────────
+     합성 음색은 로직 샘플을 못 따라가지만 **믹스는 원리가 같다**.
+     리버브·스테레오·트랙 볼륨·저역 정리 넷만 넣어도 같은 음이 전혀 다르게 들린다.
+       리버브   ConvolverNode + 합성 IR(노이즈 감쇠) — 파일 없이 만든다
+       스테레오  악기마다 자리를 준다. 베이스·킥은 정중앙(저역은 가운데가 원칙)
+       볼륨     설명서에 적힌 값과 같은 계열
+       하이패스  베이스 외 악기의 저역을 걷어 가운데를 비운다
+       딜레이    리드·대선율만 8분 · 센드로 살짝
+  */
+  let _rev=null, _revSend=null, _dly=null, _dlySend=null;
+  function revIR(sec, decay){
+    const sr=actx.sampleRate, len=Math.max(1,Math.floor(sr*sec));
+    const b=actx.createBuffer(2,len,sr);
+    for(let ch=0; ch<2; ch++){ const d=b.getChannelData(ch);
+      for(let i=0;i<len;i++){ const t=i/len;
+        /* 앞쪽 이른 반사 + 지수 감쇠 · 좌우를 다르게 해서 넓이를 만든다 */
+        const env=Math.pow(1-t, decay);
+        d[i]=(Math.random()*2-1)*env*(ch? 0.92:1.0);
+      }
+      /* 이른 반사 몇 점 */
+      [0.011,0.019,0.031,0.043].forEach(function(tt,k){ const i2=Math.floor(tt*sr)+(ch?7:0); if(i2<len) d[i2]+= (k%2?-1:1)*0.35; });
+    }
+    return b;
+  }
+  function revBus(){
+    if(_revSend) return _revSend;
+    _rev=actx.createConvolver(); _rev.buffer=revIR(2.1, 2.6);
+    _revSend=actx.createGain(); _revSend.gain.value=1.0;
+    const hp=actx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=220;   /* 저역은 리버브에 보내지 않는다 */
+    const lp=actx.createBiquadFilter(); lp.type='lowpass';  lp.frequency.value=7200;  /* 너무 밝은 꼬리를 깎는다 */
+    const wet=actx.createGain(); wet.gain.value=0.34;
+    _revSend.connect(hp); hp.connect(_rev); _rev.connect(lp); lp.connect(wet); wet.connect(bus());
+    return _revSend;
+  }
+  function dlyBus(){
+    if(_dlySend) return _dlySend;
+    _dly=actx.createDelay(1.2);
+    const fb=actx.createGain(), wet=actx.createGain(), lp=actx.createBiquadFilter();
+    _dly.delayTime.value=0.32; fb.gain.value=0.28; wet.gain.value=0.22;
+    lp.type='lowpass'; lp.frequency.value=3200;
+    _dlySend=actx.createGain(); _dlySend.gain.value=1.0;
+    _dlySend.connect(_dly); _dly.connect(lp); lp.connect(fb); fb.connect(_dly); lp.connect(wet); wet.connect(bus());
+    return _dlySend;
+  }
+  /* 악기별 [볼륨, 팬(-1~1), 리버브 센드, 하이패스Hz, 딜레이 센드] */
+  const MIXMAP={
+    piano:   [1.00, -0.18, 0.16,  60, 0.00],
+    piano2:  [0.80,  0.22, 0.20, 120, 0.00],
+    strings: [0.85,  0.26, 0.34,  90, 0.00],
+    counter: [0.92, -0.32, 0.26,  90, 0.10],
+    melody:  [1.05,  0.00, 0.18, 110, 0.12],
+    winds:   [0.88,  0.30, 0.24, 150, 0.06],
+    brass:   [0.85, -0.26, 0.20, 120, 0.00],
+    horns:   [0.82,  0.18, 0.24, 110, 0.00],
+    harp:    [0.78,  0.36, 0.28, 150, 0.06],
+    choirV:  [0.72,  0.00, 0.40, 140, 0.00],
+    pad:     [0.62,  0.00, 0.36, 130, 0.00],
+    bass:    [1.00,  0.00, 0.03,   0, 0.00],
+    sub:     [1.00,  0.00, 0.00,   0, 0.00],
+    timpani: [0.90,  0.00, 0.22,   0, 0.00],
+    haegeum: [0.92, -0.30, 0.26, 140, 0.08],
+    drums:   [1.00,  0.00, 0.08,   0, 0.00],
+    hat:     [0.80,  0.24, 0.10, 400, 0.00],
+    perc:    [0.80, -0.22, 0.14, 250, 0.00]
+  };
+  const _grpBus={};
+  function grpBus(grp){
+    const k=grp||'piano';
+    if(_grpBus[k]) return _grpBus[k];
+    const M=MIXMAP[k]||[0.9,0,0.18,100,0];
+    const g=actx.createGain(); g.gain.value=M[0];
+    let head=g;
+    if(M[3]>0){ const hp=actx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=M[3]; hp.Q.value=0.7; g.connect(hp); head=hp; }
+    let out=head;
+    if(actx.createStereoPanner){ const pn=actx.createStereoPanner(); pn.pan.value=M[1]; head.connect(pn); out=pn; }
+    out.connect(bus());
+    if(M[2]>0){ const sd=actx.createGain(); sd.gain.value=M[2]; out.connect(sd); sd.connect(revBus()); }
+    if(M[4]>0){ const dd=actx.createGain(); dd.gain.value=M[4]; out.connect(dd); dd.connect(dlyBus()); }
+    _grpBus[k]=g; return g;
+  }
   // ---- 재생 정지용 보이스 추적 ----
   let voices=[];
   function reg(node){ voices.push(node); node.onended=()=>{ const i=voices.indexOf(node); if(i>=0) voices.splice(i,1); }; return node; }
@@ -24289,28 +24418,28 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
     o.type='sawtooth'; o.frequency.value=freqOf(m); sub.type='sine'; sub.frequency.value=freqOf(m-12);
     f.type='lowpass'; f.frequency.setValueAtTime(1100,t0); f.frequency.exponentialRampToValueAtTime(240,t0+0.16); f.Q.value=7;
     g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(vel,t0+0.012); g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
-    o.connect(f); sub.connect(f); f.connect(g).connect(bus()); o.start(t0); sub.start(t0); o.stop(t0+dur+0.02); sub.stop(t0+dur+0.02); reg(o);reg(sub); }
+    o.connect(f); sub.connect(f); f.connect(g).connect(grpBus('bass')); o.start(t0); sub.start(t0); o.stop(t0+dur+0.02); sub.stop(t0+dur+0.02); reg(o);reg(sub); }
   // ---- 드럼 키트 합성 ----
   let _dnoise=null;
   function dnoise(){ if(!_dnoise){ _dnoise=actx.createBuffer(1,Math.floor(actx.sampleRate*0.3),actx.sampleRate); const d=_dnoise.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; } return _dnoise; }
   function kick(t,vel){ vel=vel||1; const o=actx.createOscillator(),g=actx.createGain();
     o.type='sine'; o.frequency.setValueAtTime(132,t); o.frequency.exponentialRampToValueAtTime(45,t+0.10);
     g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.95*vel,t+0.006); g.gain.exponentialRampToValueAtTime(0.0001,t+0.22);
-    o.connect(g).connect(bus()); o.start(t); o.stop(t+0.24); reg(o); }
+    o.connect(g).connect(grpBus('drums')); o.start(t); o.stop(t+0.24); reg(o); }
   function snare(t,vel){ vel=vel||1;
     const n=actx.createBufferSource(),nf=actx.createBiquadFilter(),ng=actx.createGain();
     n.buffer=dnoise(); nf.type='highpass'; nf.frequency.value=1500;
     ng.gain.setValueAtTime(0.5*vel,t); ng.gain.exponentialRampToValueAtTime(0.0001,t+0.13);
-    n.connect(nf).connect(ng).connect(bus()); n.start(t); n.stop(t+0.15); reg(n);
+    n.connect(nf).connect(ng).connect(grpBus('hat')); n.start(t); n.stop(t+0.15); reg(n);
     const o=actx.createOscillator(),g=actx.createGain(); o.type='triangle'; o.frequency.setValueAtTime(195,t); o.frequency.exponentialRampToValueAtTime(150,t+0.08);
     g.gain.setValueAtTime(0.3*vel,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.10);
-    o.connect(g).connect(bus()); o.start(t); o.stop(t+0.11); reg(o); }
+    o.connect(g).connect(grpBus('drums')); o.start(t); o.stop(t+0.11); reg(o); }
   function hat(t,vel,open){ vel=vel||0.8;
     const n=actx.createBufferSource(),nf=actx.createBiquadFilter(),ng=actx.createGain();
     n.buffer=dnoise(); nf.type='highpass'; nf.frequency.value=7200;
     const dur=open?0.16:0.04;
     ng.gain.setValueAtTime(0.26*vel,t); ng.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-    n.connect(nf).connect(ng).connect(bus()); n.start(t); n.stop(t+dur+0.02); reg(n); }
+    n.connect(nf).connect(ng).connect(grpBus('drums')); n.start(t); n.stop(t+dur+0.02); reg(n); }
   /* ── 전투 타악 미리듣기 음원 ──
      로직에서 진짜 샘플로 갈아끼우기 전에 "어떻게 뽑혔는지" 귀로 확인하는 용도.
      대고=저역 사인+노이즈 · 중북=중역 · 징=금속 배음 다발(길게) · 꽹과리=날카로운 배음 */
@@ -24318,22 +24447,22 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
     const o=actx.createOscillator(),g=actx.createGain();
     o.type='sine'; o.frequency.setValueAtTime(hi?110:78,t); o.frequency.exponentialRampToValueAtTime(hi?46:32,t+0.22);
     g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(1.05*vel,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.55);
-    o.connect(g).connect(bus()); o.start(t); o.stop(t+0.58); reg(o);
+    o.connect(g).connect(grpBus('timpani')); o.start(t); o.stop(t+0.58); reg(o);
     const n=actx.createBufferSource(),nf=actx.createBiquadFilter(),ng=actx.createGain();
     n.buffer=dnoise(); nf.type='lowpass'; nf.frequency.value=900;
     ng.gain.setValueAtTime(0.34*vel,t); ng.gain.exponentialRampToValueAtTime(0.0001,t+0.10);
-    n.connect(nf).connect(ng).connect(bus()); n.start(t); n.stop(t+0.12); reg(n); }
+    n.connect(nf).connect(ng).connect(grpBus('timpani')); n.start(t); n.stop(t+0.12); reg(n); }
   function jungbuk(t,vel,pitch){ vel=vel||1; const f=pitch||150;
     const o=actx.createOscillator(),g=actx.createGain();
     o.type='sine'; o.frequency.setValueAtTime(f,t); o.frequency.exponentialRampToValueAtTime(f*0.55,t+0.12);
     g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.72*vel,t+0.004); g.gain.exponentialRampToValueAtTime(0.0001,t+0.24);
-    o.connect(g).connect(bus()); o.start(t); o.stop(t+0.26); reg(o);
+    o.connect(g).connect(grpBus('timpani')); o.start(t); o.stop(t+0.26); reg(o);
     const n=actx.createBufferSource(),nf=actx.createBiquadFilter(),ng=actx.createGain();
     n.buffer=dnoise(); nf.type='bandpass'; nf.frequency.value=1800; nf.Q.value=0.8;
     ng.gain.setValueAtTime(0.26*vel,t); ng.gain.exponentialRampToValueAtTime(0.0001,t+0.06);
-    n.connect(nf).connect(ng).connect(bus()); n.start(t); n.stop(t+0.08); reg(n); }
+    n.connect(nf).connect(ng).connect(grpBus('timpani')); n.start(t); n.stop(t+0.08); reg(n); }
   function jing(t,vel){ vel=vel||1;
-    const ng=actx.createGain(); ng.connect(bus());
+    const ng=actx.createGain(); ng.connect(grpBus(grp));
     ng.gain.setValueAtTime(0.0001,t); ng.gain.exponentialRampToValueAtTime(0.34*vel,t+0.05); ng.gain.exponentialRampToValueAtTime(0.0001,t+3.2);
     [1,1.62,2.31,3.07,4.13,5.42].forEach(function(r,i){
       const o=actx.createOscillator(),og=actx.createGain();
@@ -24342,9 +24471,9 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
     const n=actx.createBufferSource(),nf=actx.createBiquadFilter(),nn=actx.createGain();
     n.buffer=dnoise(); nf.type='bandpass'; nf.frequency.value=3400; nf.Q.value=0.6;
     nn.gain.setValueAtTime(0.20*vel,t); nn.gain.exponentialRampToValueAtTime(0.0001,t+0.9);
-    n.connect(nf).connect(nn).connect(bus()); n.start(t); n.stop(t+1.0); reg(n); }
+    n.connect(nf).connect(nn).connect(grpBus('timpani')); n.start(t); n.stop(t+1.0); reg(n); }
   function kkwaeng(t,vel){ vel=vel||1;
-    const ng=actx.createGain(); ng.connect(bus());
+    const ng=actx.createGain(); ng.connect(grpBus(grp));
     ng.gain.setValueAtTime(0.0001,t); ng.gain.exponentialRampToValueAtTime(0.24*vel,t+0.004); ng.gain.exponentialRampToValueAtTime(0.0001,t+0.32);
     [1,1.74,2.61,3.88].forEach(function(r,i){ const o=actx.createOscillator(),og=actx.createGain();
       o.type='square'; o.frequency.value=880*r; og.gain.value=0.5/(i+1.6);
@@ -24352,12 +24481,12 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
   function woodblock(t,vel){ vel=vel||0.8; const o=actx.createOscillator(),g=actx.createGain();
     o.type='triangle'; o.frequency.setValueAtTime(920,t); o.frequency.exponentialRampToValueAtTime(540,t+0.02);
     g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.16*vel,t+0.003); g.gain.exponentialRampToValueAtTime(0.0001,t+0.07);
-    o.connect(g).connect(bus()); o.start(t); o.stop(t+0.09); reg(o); }
+    o.connect(g).connect(grpBus('drums')); o.start(t); o.stop(t+0.09); reg(o); }
   function shaker(t,vel){ vel=vel||0.6;
     const n=actx.createBufferSource(),nf=actx.createBiquadFilter(),ng=actx.createGain();
     n.buffer=dnoise(); nf.type='highpass'; nf.frequency.value=8200;
     ng.gain.setValueAtTime(0.13*vel,t); ng.gain.exponentialRampToValueAtTime(0.0001,t+0.05);
-    n.connect(nf).connect(ng).connect(bus()); n.start(t); n.stop(t+0.07); reg(n); }
+    n.connect(nf).connect(ng).connect(grpBus('drums')); n.start(t); n.stop(t+0.07); reg(n); }
   // ---- 장르별 드럼 패턴(16분 격자) · 스윙 ----
   const DRUMS={
     /* 트랩 드럼 — 킥이 성기고 스네어는 3박 하나. 하이햇이 16분으로 달린다 */
