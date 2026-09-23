@@ -2760,6 +2760,7 @@ const document = __scopedDoc('app-melody');
   // 장르 리듬 문법 — 2020년대 트렌드 반영: 멜로디는 미니멀·반복·여백 중심
   // density=음 밀도(↓적을수록 성김), restBias=쉼 선호, motific=모티프 반복, simple=도약 억제, longTail=긴 음
   var GENRES = {
+    cosmos:   { density:0.18,syncopate:0.02, longTail:0.95,swing:0.0,  restBias:0.82, pickup:0.05,motific:0.92,simple:0.9, chroma:0.0,  label:'우주 앰비언트' },
     /* ★ 새 장르는 여기와 APPG 목록 둘 다에 넣어야 멜로디 메이커에서 고를 수 있다 (2026-09-15) */
     bigband:  { density:0.72,syncopate:0.34, longTail:0.42,swing:0.62, restBias:0.34, pickup:0.55,motific:0.7, simple:0.5, chroma:0.14, label:'스윙 빅밴드' },
     handpan:  { density:0.28,syncopate:0.08, longTail:0.88,swing:0.0,  restBias:0.72, pickup:0.12,motific:0.9, simple:0.88,chroma:0.0,  label:'핸드팬' },
@@ -4402,7 +4403,7 @@ function fillGenres(){
     ['beat','🥁 비트', ['edm','bigroom','melodichouse','deephouse','trap','lofi','lofigirl','running','hooksong','hookpop','house','dnb','afrobeat','hiphop','kpop','country','citypop','retro','synthwave','boombap','discofunk','ambtechno','global','chillwave']],
     ['play','🎹 플레이', ['pop','ballad','jazz','neosoul','bossa','rock','edm','lofi','folk','celtic','cinematic','waltz','latin','epic','disco','reggae','kballad','newage','joypiano','kpiano','minimal','classic','blues','ambjazz','gypsy','tango','rumba','citypop','trap','kpopc','kids','shanty','epicaeol','cineWar','cineSoar','cineSorrow','cineJoy','cineTension','cineDrive','cineSuite','gugak','gukvocal','chanbul','lyric','lyricPenta','lyricMid','lyricMinyo','dorian','lydian','mixolydian','phrygian','phrygdom','doubleharm','hungarian','quartal',
       /* ★ 새 장르는 여기에도 넣어야 멜로디 메이커에서 고를 수 있다 (2026-09-15) */
-      'bigband','handpan','wellorch']],
+      'bigband','handpan','wellorch','cosmos']],
     ['solo','✍ 멜로디 단독', ['freesolo','ambient','metal','rnb']]
   ];
   const seen=new Set();
@@ -22435,6 +22436,27 @@ const document = __scopedDoc('app-play');
           feel:'ii를 거쳐 IV–V로 차오르는 — 정갈하게 상승하는 민요 트임이에요.',
           theory:'I–ii–IV–V. 순차 상행으로 다음 악절을 힘 있게 밀어 올립니다.'}
       ]},
+    /* ★ 우주 앰비언트 — 진행이 거의 없다. 한 화음이 오래 머물고 색만 스민다.
+         장3도를 피해 4도·5도로 쌓으면 중력이 사라진다. 리디안 ♯4 와 온음음계가 그 색을 만든다.
+         선율은 드문드문 · 음 사이 침묵이 공간이 된다. 맥박이 느껴지면 지상이 된다. */
+    cosmos:{name:'우주 앰비언트 (입체)', note:'4도 쌓기 · 진행 없음 · 드론 위 드문 선율 · 침묵이 공간',
+      progs:[
+        {name:'q4 제자리 (무중력)', mode:'major', steps:[['Iq4',0,'q4'],['Iq4',0,'q4'],['IIq4',2,'q4'],['Iq4',0,'q4']],
+          feel:'화성이 <b>거의 움직이지 않는다</b> — 같은 자리에서 색만 바뀐다.',
+          theory:'4도 쌓기(q4)는 3음이 없어 장·단이 정해지지 않습니다. 중력이 사라지는 소리입니다.'},
+        {name:'Imaj7♯11 지속 (리디안)', mode:'major', steps:[['Imaj7♯11',0,'maj7'],['Imaj7♯11',0,'maj7'],['IImaj7',2,'maj7'],['Imaj7♯11',0,'maj7']],
+          feel:'♯4 가 <b>위로 열린다</b> — 리디안의 빛.',
+          theory:'리디안 ♯11 은 딸림 기능이 없어 해결을 요구하지 않습니다. 계속 머물 수 있습니다.'},
+        {name:'♭VI–I 스밈 (먼 빛)', mode:'major', steps:[['♭VImaj7',8,'maj7'],['♭VImaj7',8,'maj7'],['Imaj9',0,'maj9'],['Imaj9',0,'maj9']],
+          feel:'멀리서 <b>빛이 스미듯</b> 바뀐다 — 두 마디에 한 번.',
+          theory:'♭VI 는 모달 교환입니다. 두 화음이 공통음을 많이 나눠 경계가 흐려집니다.'},
+        {name:'온음 표류 (whole tone)', mode:'major', steps:[['Iaug',0,'aug'],['IIaug',2,'aug'],['Iaug',0,'aug'],['♭VIIaug',10,'aug']],
+          feel:'바닥이 <b>없는 느낌</b> — 어디로도 갈 수 있고 어디에도 닿지 않는다.',
+          theory:'증3화음은 온음음계 위에 있습니다. 반음이 없어 으뜸음이 정해지지 않습니다.'},
+        {name:'i q4 (어두운 성운)', mode:'minor', steps:[['iq4',0,'q4'],['iq4',0,'q4'],['♭VIIq4',10,'q4'],['iq4',0,'q4']],
+          feel:'같은 무중력인데 <b>어둡다</b> — 성운 속.',
+          theory:'단조 자리에 4도 쌓기를 올리면 어둡되 닫히지 않습니다.'}
+      ]},
     /* ★ 핸드팬 — ProjectSAM Pan Drums II (Hang Mk.1). 전 음역 매핑 · 주법 CENTRE·EDGE·SLAP·CORNER.
          핸드팬은 음계가 악기에 박혀 있다(Hang Mk.1 은 D 단조 계열). 진행을 많이 움직이지 않고
          한 음계 안에서 순환하며 여운으로 채우는 것이 어법이다. */
@@ -23377,7 +23399,7 @@ const document = __scopedDoc('app-play');
      현악 4중주·실내악은 장르가 아니라 구조 선택의 '기악 편성' 에 있다 —
      장르를 아무거나 고른 뒤 그 편성을 씌우는 방식이다. */
   const GROUPS=[
-    ['피아노 독주', ['lyric','lyricMid','lyricPenta','lyricMinyo','newage','minimal','joypiano','kpiano','handpan']],
+    ['피아노 독주', ['lyric','lyricMid','lyricPenta','lyricMinyo','newage','minimal','joypiano','kpiano','handpan','cosmos']],
     ['오케스트라·실내악', ['classic','epicaeol','cineSuite']],
     ['시네마틱 (무드)', ['cineSoar','cineDrive','cineTension','cineWar','cineSorrow','cineJoy']],
     ['국악', ['gukvocal','gugak','chanbul']],
@@ -24233,6 +24255,9 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
 
   // ===== 베이스·리듬 그루브 =====
   const GROOVE={
+    cosmos:{bpm:52, rhythmName:'맥박 없음', comp:[0], compDur:8.0, sig:'4/4',
+      bassName:'심층 드론', bassDesc:'A0~C1 의 아주 낮은 지속음 — 배경 복사처럼 계속 깔린다',
+      bassPat:[{s:0,r:'root'}]},
     bigband:{bpm:168, rhythmName:'스윙 4비트', comp:[4,11], compDur:0.9, sig:'4/4',
       bassName:'워킹 베이스', bassDesc:'4분음표로 걸어가며 코드 톤과 경과음이 번갈아 온다',
       bassPat:[{s:0,r:'root'},{s:4,r:'3rd'},{s:8,r:'5th'},{s:12,r:'app'}]},
@@ -24394,9 +24419,50 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
     perc:    [0.80, -0.22, 0.14, 250, 0.00]
   };
   const _grpBus={};
+  /* ── 입체 엔진 (cosmos 전용 미리 듣기) ──
+       PannerNode HRTF 로 소리를 머리 둘레에 놓고 천천히 궤도를 돈다. 헤드폰에서 뒤와 위까지 들린다.
+       먼 소리는 작고 어둡게(거리 감쇠 + 로우패스), 가까운 소리는 밝게.
+       리버브는 둘: 가까운 방 1.4초 + 먼 공간 9초. 로직의 Binaural Panner + Space Designer 를 흉내 낸다. */
+  let _farRev=null;
+  function farRevBus(){
+    if(_farRev) return _farRev;
+    const cv=actx.createConvolver(); cv.buffer=revIR(9.0, 1.6);
+    const lp=actx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=4200;
+    const wet=actx.createGain(); wet.gain.value=0.42;
+    _farRev=actx.createGain(); _farRev.connect(cv); cv.connect(lp); lp.connect(wet); wet.connect(bus());
+    return _farRev;
+  }
+  /* 악기별 [거리(1 가까움 ~ 10 멀리), 고도(-1~1), 궤도 주기 초(0 이면 고정), 시작 방위(도)] */
+  const SPACEMAP={
+    bass:[2.0,-0.2,  0,   0], pad:[6.0, 0.3, 58,  40], strings:[5.0, 0.1, 46, -70],
+    melody:[3.5, 0.5, 34, 120], counter:[4.5, 0.2, 52, -140], winds:[7.0, 0.6, 71, 200],
+    piano:[4.0, 0.7, 29, 60], harp:[8.0, 0.8, 83, -30], piano2:[6.5, 0.4, 41, 170]
+  };
+  function spaceBus(k){
+    const S=SPACEMAP[k]; if(!S||!actx.createPanner) return null;
+    const g=actx.createGain(); g.gain.value=(MIXMAP[k]||[0.9])[0];
+    const pn=actx.createPanner(); pn.panningModel='HRTF'; pn.distanceModel='inverse';
+    pn.refDistance=1.2; pn.maxDistance=40; pn.rolloffFactor=0.9;
+    const lp=actx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=Math.max(1800, 12000-S[0]*950);
+    g.connect(lp); lp.connect(pn); pn.connect(bus());
+    /* 먼 소리일수록 먼 공간 리버브에 더 보낸다 */
+    const sd=actx.createGain(); sd.gain.value=Math.min(0.7,0.08+S[0]*0.06); pn.connect(sd); sd.connect(farRevBus());
+    const nr=actx.createGain(); nr.gain.value=0.14; pn.connect(nr); nr.connect(revBus());
+    /* 궤도 — 방위를 천천히 돌린다 (setPositionAtTime 대신 매 틱 갱신) */
+    const r=S[0], el=S[1]; let az=S[3]*Math.PI/180; const per=S[2];
+    const put=function(){ const x=r*Math.sin(az), z=-r*Math.cos(az), y=el*r*0.6;
+      if(pn.positionX){ pn.positionX.value=x; pn.positionY.value=y; pn.positionZ.value=z; } else pn.setPosition(x,y,z); };
+    put();
+    if(per>0){ const step=(2*Math.PI)/(per*20); setInterval(function(){ az+=step; put(); }, 50); }
+    return g;
+  }
   function grpBus(grp){
     const k=grp||'piano';
     if(_grpBus[k]) return _grpBus[k];
+    /* 장르가 바뀌면 버스를 다시 만든다 — cosmos 는 입체 버스, 나머지는 평면 버스 */
+    try{ if(_grpBus.__g!==gsel){ Object.keys(_grpBus).forEach(function(x){ if(x!=='__g') delete _grpBus[x]; }); _grpBus.__g=gsel; } }catch(e){}
+    if(_grpBus[k]) return _grpBus[k];
+    try{ if(gsel==='cosmos'){ const sb=spaceBus(k); if(sb){ _grpBus[k]=sb; return sb; } } }catch(e){}
     const M=MIXMAP[k]||[0.9,0,0.18,100,0];
     const g=actx.createGain(); g.gain.value=M[0];
     let head=g;
@@ -25364,6 +25430,7 @@ RHYTHMS.joypiano=[
   const GBUILD={
     /* 웰니스 호흡 아크: 침잠 1 → 호흡 2 → 연주 3~4 → 열림 5 → 귀환 2~1. 절정을 6까지 안 올린다(웰니스는 터지지 않는다). */
     bigband:{'인트로':2,'벌스':3,'코러스':4,'솔로':3,'하이라이트':5,'아웃트로':2},
+    cosmos:{'인트로':1,'벌스':2,'간주':2,'코러스':3,'아웃트로':1},
     handpan:{'인트로':1,'벌스':2,'간주':2,'코러스':3,'아웃트로':1},
     wellorch:{'인트로':1,'벌스':2,'간주':2,'프리코러스':3,'코러스':4,'브릿지':2,'하이라이트':5,'아웃트로':1},
     /* 밀어붙임: 한 번 올라가는 데 곡 전체를 쓴다.
@@ -25463,6 +25530,7 @@ const STRUCT_CHAMBER=[['인트로','A',1],['A파트','A',2],['B파트','B',2],['
     /* ★ 웰니스 오케스트라 — 호흡 아크 5악장(형 메모): 침잠 → 호흡 → 연주 → 질주(열림) → 귀환.
        팝 구조(벌스·코러스)가 붙어 있었다. 라벨은 기존 stage 표가 아는 이름을 쓰되 순서로 아크를 만든다. */
     bigband:[['인트로','A',4],['벌스','A',8],['코러스','B',8],['솔로','A',8],['벌스','A',8],['하이라이트','C',8],['아웃트로','A',4]],
+    cosmos:[['인트로','A',4],['벌스','A',8],['간주','B',8],['벌스','A',8],['코러스','C',8],['간주','B',8],['아웃트로','A',4]],
     handpan:[['인트로','A',2],['벌스','A',2],['간주','B',2],['벌스','B',2],['코러스','C',2],['간주','A',2],['벌스','B',2],['아웃트로','A',2]],
     wellorch:[['인트로','A',2],['벌스','A',2],['간주','B',2],['벌스','B',2],['프리코러스','C',2],['코러스','C',2],['브릿지','A',2],['하이라이트','C',2],['간주','B',1],['아웃트로','A',2]],
     /* 밀어붙임 — 층이 한 방향으로 쌓이는 형식.
@@ -28652,6 +28720,17 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           /* 6/8·복합박이 기본인 장르(국악 성악 등)는 박자를 바꾸지 않는다 — 장단 격자가 어긋난다(METERCHK gukvocal 79%) */
           const _MET2={ ballad:0.18, lyric:0.18, folk:0.15, country:0.12, newage:0.15, celtic:0.35, kpiano:0.15, minimal:0.15 };
           const _mp2=_MET2[gsel]; window.__songMeter=(_mp2!=null&&Math.random()<_mp2)?(Math.random()<0.6?'6/8':'3/4'):null;
+          /* ★ 우주 구조를 곡마다 셋 중 하나로 (실측: 늘 같은 7구간이었음)
+               피어남   드론에서 시작해 층이 하나씩 더해지고 끝까지 넓어진다
+               솟음     한 번 크게 솟았다가 천천히 가라앉는다
+               세 덩어리 벌스 없이 A-B-C 세 흐름이 이어진다 */
+          if(gsel==='cosmos' && typeof STRUCT!=='undefined'){
+            const CV=[
+              [['인트로','A',8],['벌스','A',8],['간주','B',8],['코러스','C',8],['하이라이트','C',8],['아웃트로','A',8]],
+              [['인트로','A',4],['벌스','A',8],['코러스','C',8],['하이라이트','C',8],['간주','B',8],['벌스','A',8],['아웃트로','A',8]],
+              [['인트로','A',4],['간주','A',12],['코러스','B',12],['간주','C',12],['아웃트로','A',8]]];
+            STRUCT.cosmos=CV[Math.floor(Math.random()*CV.length)];
+          }
         }catch(e){}
     currentSong=songStructure(sh[0], sh[1]||sh[0], sh[2]||sh[1]||sh[0], structKey); squareSong(currentSong); standardizeLengths(currentSong); fitDuration(currentSong); squareSong(currentSong); bakeSongMelodies(); try{ repeatHookMels(currentSong); }catch(e){ console.error('후크 반복 오류',e); }
     renderSong();
@@ -29003,6 +29082,17 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
           if(_o2) _o2.forEach(function(k){ if(Math.random()<0.6) window.__songOpt[k]=(Math.random()<0.5); });
           const _MET2={ ballad:0.18, lyric:0.18, folk:0.15, country:0.12, newage:0.15, celtic:0.35, kpiano:0.15, minimal:0.15 };
           const _mp2=_MET2[gsel]; window.__songMeter=(_mp2!=null&&Math.random()<_mp2)?(Math.random()<0.6?'6/8':'3/4'):null;
+          /* ★ 우주 구조를 곡마다 셋 중 하나로 (실측: 늘 같은 7구간이었음)
+               피어남   드론에서 시작해 층이 하나씩 더해지고 끝까지 넓어진다
+               솟음     한 번 크게 솟았다가 천천히 가라앉는다
+               세 덩어리 벌스 없이 A-B-C 세 흐름이 이어진다 */
+          if(gsel==='cosmos' && typeof STRUCT!=='undefined'){
+            const CV=[
+              [['인트로','A',8],['벌스','A',8],['간주','B',8],['코러스','C',8],['하이라이트','C',8],['아웃트로','A',8]],
+              [['인트로','A',4],['벌스','A',8],['코러스','C',8],['하이라이트','C',8],['간주','B',8],['벌스','A',8],['아웃트로','A',8]],
+              [['인트로','A',4],['간주','A',12],['코러스','B',12],['간주','C',12],['아웃트로','A',8]]];
+            STRUCT.cosmos=CV[Math.floor(Math.random()*CV.length)];
+          }
         }catch(e){}
     /* 라운지가 늘 어둡게 나오던 이유 — 조성이 단조로 고정돼 단조 진행만 뽑혔다
        (실측: 여덟 장르 모두 keyMode=minor, 네오소울은 단화음 91%).
@@ -29673,6 +29763,17 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
           if(_o2) _o2.forEach(function(k){ if(Math.random()<0.6) window.__songOpt[k]=(Math.random()<0.5); });
           const _MET2={ ballad:0.18, lyric:0.18, folk:0.15, country:0.12, newage:0.15, celtic:0.35, kpiano:0.15, minimal:0.15 };
           const _mp2=_MET2[gsel]; window.__songMeter=(_mp2!=null&&Math.random()<_mp2)?(Math.random()<0.6?'6/8':'3/4'):null;
+          /* ★ 우주 구조를 곡마다 셋 중 하나로 (실측: 늘 같은 7구간이었음)
+               피어남   드론에서 시작해 층이 하나씩 더해지고 끝까지 넓어진다
+               솟음     한 번 크게 솟았다가 천천히 가라앉는다
+               세 덩어리 벌스 없이 A-B-C 세 흐름이 이어진다 */
+          if(gsel==='cosmos' && typeof STRUCT!=='undefined'){
+            const CV=[
+              [['인트로','A',8],['벌스','A',8],['간주','B',8],['코러스','C',8],['하이라이트','C',8],['아웃트로','A',8]],
+              [['인트로','A',4],['벌스','A',8],['코러스','C',8],['하이라이트','C',8],['간주','B',8],['벌스','A',8],['아웃트로','A',8]],
+              [['인트로','A',4],['간주','A',12],['코러스','B',12],['간주','C',12],['아웃트로','A',8]]];
+            STRUCT.cosmos=CV[Math.floor(Math.random()*CV.length)];
+          }
         }catch(e){}
     currentSong=songStructure(A,B,C,structKey); squareSong(currentSong); standardizeLengths(currentSong); fitDuration(currentSong); squareSong(currentSong); bakeSongMelodies(); try{ repeatHookMels(currentSong); }catch(e){ console.error('후크 반복 오류',e); }
     renderSong();
@@ -29791,6 +29892,9 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
     bigband:{set:'장조 · 168 BPM · 스윙 빅밴드(색소폰·브라스·리듬 섹션)', combos:[
       {n:'리듬 체인지', d:'I6–VI7–ii7–V7 이 끝없이 돌며 솔로를 받친다 · 색소폰과 브라스가 주고받는다', c:1,s:0,h:1,mod:'0'},
       {n:'샤우트 코러스', d:'마지막 하이라이트에서 섹션이 한꺼번에 터진다 · VI7♯9 로 긴장을 던진다', c:1,s:0,h:1,mod:'0'}]},
+    cosmos:{set:'리디안 · 52 BPM · 심층 드론 + 패드 + 드문 종 (입체)', combos:[
+      {n:'무중력', d:'4도 쌓기가 제자리를 맴돈다 · 3음이 없어 장단이 정해지지 않는다 · 헤드폰으로 들으면 소리가 머리 둘레를 돈다', c:1,s:0,h:1,mod:'0'},
+      {n:'먼 빛', d:'♭VI 에서 I 로 두 마디에 한 번 스민다 · 라운지로 30분 이상 틀어 두기 좋다', c:1,s:0,h:1,mod:'0'}]},
     handpan:{set:'모달 · 62 BPM · 핸드팬 하나(Centre·Edge·Corner·Slap)', combos:[
       {n:'제자리 순환', d:'화성을 거의 움직이지 않는다 · 손이 같은 자리를 돌고 배음이 겹치며 색이 바뀐다', c:0,s:0,h:0,mod:'0'},
       {n:'파도', d:'i–♭VII–♭VI–♭VII · 밀려왔다 물러난다 · 명상·라운지에 잘 맞는다', c:0,s:0,h:0,mod:'0'}]},
@@ -38573,6 +38677,9 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
          (실측: cineSuite 의 호른이 ch10 인데 시트는 다른 번호였고,
           epicaeol·gukvocal 의 팀파니가 ch15 인데 시트는 ch14 였다 — 여섯 장르). */
       try{ const _cm={}; __pending.forEach(function(pp){ if(pp.grp&&pp.grp.key!=null) _cm[pp.grp.key]=pp.grp.ch; }); window.__CHMAP=_cm; }catch(e){}
+      /* ★ 설명서용: 실제로 음이 들어간 트랙 키와 그 트랙의 로직 패치 이름 (2026-09-16)
+           채널만 있고 음이 없는 트랙(편성 밖이라 지운 것)이 설명서에 나오지 않게 한다 */
+      try{ window.__NOTEKEYS={}; window.__PATCHMAP={}; }catch(e){}
       window.__MIDI_PLAY={ tpq:TPQ, pad:PAD, bpm:(typeof rh!=='undefined'&&rh&&rh.bpm)?rh.bpm:(userBpm||100),
         tempo:(function(){ try{ return (tempoEvs||[]).map(function(e){ return [e.tick, e.bpm]; }); }catch(e){ return []; } })(),
         trks:__pending.map(function(pp){
@@ -38712,6 +38819,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             _unpack(P.cc,M);
           }
           else if(grp.key==='bass'){
+            try{ window.__CB=(window.__CB||[]); window.__CB.push(grp.key); }catch(_){}
             grp.gm=43; const P=_pack(); const M=[]; let lastBar=-1;
             P.N.forEach(function(n){ const bar=Math.floor((n.on-PAD)/_bqW); const st=_stgW(n.on); const q=Math.round((n.on-PAD)/TPQ)%4; const second=(st>=5 && q===2 && bar===lastBar); if(bar===lastBar && !second) return; lastBar=bar; M.push({note:_fold(n.note,28,48),on:n.on,off:n.on+(second?TPQ*2-12:_bqW-12),vel:Math.max(36,n.vel-6)}); });
             _unpack(P.cc,M);
@@ -38805,6 +38913,28 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
               M.harp='09 Guitars/02 Electric Guitars/Jazz Guitar';
               M.drums='Kontakt > Studio Drummer/Jazz Brush Kit';
               M.kickonly=M.drums;
+            }
+            if(gsel==='cosmos'){
+              /* ★ 음색 팔레트를 곡마다 뽑는다 (2026-09-16 · 다양성 실측에서 악기 구성이 늘 같았음)
+                   로직에 실제로 있는 우주 계열 패치만 (logic_all.txt 확인). 곡 씨앗으로 골라 미리 듣기와 내보내기가 같다. */
+              { const sd=((window.__songRhySeed||0)*7919+13)>>>0;
+                const r=function(i){ let x=(sd+i*2654435761)>>>0; x^=x<<13; x>>>=0; x^=x>>>17; x^=x<<5; return ((x>>>0)%100000)/100000; };
+                const pick=function(arr,i){ return arr[Math.floor(r(i)*arr.length)%arr.length]; };
+                const SP='06 Synthesizers/03 Synth Pads/', SB='06 Synthesizers/11 Synth Bells/';
+                const LOWP=['Deep Phase','Organ Space','Spaceship'];
+                const BODY=['Space Oddity','Aurora Pad','Another World','Atmosphere Pad','Blur Pad','Beauty Pad'];
+                const UPPER=['Ambient Current','Glassy Ascent','Bliss','Curved Air','Voice Space'];
+                const SWELL=['Analog Swell','Calm Winds','Atmosphere Pad','Blur Pad'];
+                const BREATH=['Spacey Flutter','Voice Space','Curved Air','Calm Winds'];
+                const GLASS=['Heavenly Glass','Glassy Ascent','Voice Space'];
+                const BELL=['Bell Crystal','Dreamy Bells','Chime Synth','Bell Glass'];
+                const FAR=['Ambient Spheres','Bell Swarm','Dreamy Bells'];
+                /* 층끼리 같은 패치가 겹치지 않게 */
+                const used={}; const uniq=function(arr,i){ for(let k=0;k<arr.length;k++){ const c=arr[(Math.floor(r(i)*arr.length)+k)%arr.length]; if(!used[c]){ used[c]=1; return c; } } return arr[0]; };
+                M.bass=SP+uniq(LOWP,1); M.pad=SP+uniq(BODY,2); M.counter=SP+uniq(UPPER,3);
+                M.strings=SP+uniq(SWELL,4); M.winds=SP+uniq(BREATH,5); M.melody=SP+uniq(GLASS,6);
+                M.piano=SB+uniq(BELL,7); M.harp=SB+uniq(FAR,8); }
+              if(!M.piano2 || M.piano2===M.piano) M.piano2=(M.piano.indexOf('Bell Glass')>=0)?'06 Synthesizers/11 Synth Bells/Chime Synth':'06 Synthesizers/11 Synth Bells/Bell Glass';
             }
             if(gsel==='handpan'){
               M.melody='Kontakt > Pan Drums II/Hang Mk.1 (Centre)';
@@ -40269,7 +40399,8 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                앞서 '베이스는 주법 구분이 없다'고 본 것은 확인 부족이었다. 실측 29~44%가 짧은 음. */
           /* 신스 베이스(38·39)는 주법 개념이 없다 — 나누지 않는다. 어프라이트는 원래 손가락 피치카토라 짧은 음도 같은 패치 */
           const _bsS=(_gmS>=32&&_gmS<=37);
-          if((_strS||_wwS||_brS||_gtS||_bsS) && grp.ch!==9){
+          /* 우주·핸드팬은 주법을 나누지 않는다 — 드론과 여운이라 짧은 음 트랙이 따로 생기면 결이 깨진다 */
+          if((_strS||_wwS||_brS||_gtS||_bsS) && grp.ch!==9 && gsel!=='cosmos' && gsel!=='handpan'){
             const ons=ev.filter(function(x){ return x.on===1; }).sort(function(a,b){ return a.tick-b.tick; });
             const offs=ev.filter(function(x){ return x.on===0; }).sort(function(a,b){ return a.tick-b.tick; });
             const used=new Array(offs.length).fill(false); const N=[];
@@ -40290,6 +40421,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         if(window.__artShort && window.__artShort.length>4 && LOGIC_PATCH && /Pizzicato$/.test(LOGIC_PATCH[grp.key]||'')) LOGIC_PATCH[grp.key]=LOGIC_PATCH[grp.key].replace(/Pizzicato$/,'Legato');
         const soundFront=window.__soundFront=(LOGIC_PATCH&&LOGIC_PATCH[grp.key])?LOGIC_PATCH[grp.key]
                         :(grp.__snm?grp.__snm:((grp.ch===9 && grp.role!=='orchcym')?'Drum Kit':(REC_SOUND[grp.key]||GMN[grp.gm]||('GM '+grp.gm))));
+      try{ if(window.__PATCHMAP && window.__soundFront) window.__PATCHMAP[grp.key]=String(window.__soundFront); }catch(e){}
         const roleTag=(grp.key==='qbass')?'Double Bass'
                      :(grp.role==='kickonly')?'Kick (분리) - 사이드체인 소스'
                      :((grp.ch===9 && grp.role!=='orchcym')?'Drums / Perc':(roleEn[grp.key]||grp.key));
@@ -40508,6 +40640,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       try{ if(gsel==='bigband' && ['sub','pad','piano2','drone','riser','fx'].includes(grp.key)) ev=ev.filter(function(x){ return x.cc!=null; }); }catch(e){}
       /* 핸드팬은 저역을 따로 두지 않는다 — 딩과 배음이 저역을 대신한다(라운지에서 일렉 베이스가 붙었다) */
       try{ if(gsel==='handpan' && ['bass','sub','cbass','qbass','drums','kickonly'].includes(grp.key)) ev=ev.filter(function(x){ return x.cc!=null; }); }catch(e){}
+
       /* ★ 얇은 편성 구간 대비 — 악기가 둘셋뿐이면 구간별 세기·밀도 차가 사라진다
            (실측 @gayatrio 50/52 · 8.4/7.2 · @gtrduo 58/57 · 28.0/26.5 · @wellorch 54/45 · 13.0/11.4
             웰니스는 간주 11.2·12.3 아웃트로 11.5 vs 벌스 4.5 로 낮은 구간이 더 촘촘했다).
@@ -40849,6 +40982,264 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           }
         }catch(e){}
 
+      /* ★ 우주 앰비언트 — 맥박이 느껴지면 지상이 된다. 타악·기타·서브를 걷어내고
+           지속층 음을 길게 늘여 경계를 지운다. 베이스는 4마디에 한 음만 남겨 심층 드론으로.
+           ★ 반드시 바이트 조립 직전에 둘 것 — 앞에 두면 뒤 블록이 덮는다(실측 0.6박으로 되돌아갔다). */
+      try{
+        if(gsel==='cosmos'){
+          /* harp 키가 장르에 따라 기타로 쓰인다 — 우주에는 맞지 않아 함께 걷어낸다(주법 분리 트랙도 사라진다) */
+          if(['drums','kickonly','orchcym','timpani','warperc','sub','gtrlead','riser','fx'].includes(grp.key)
+             || (grp.gm>=24&&grp.gm<=31)){
+            ev=ev.filter(function(x){ return x.cc!=null; });
+          } else if(grp.key==='bass'){
+            const _bqD=(SEC_TK[0]?SEC_TK[0].meas:(TPQ*4));
+            const _o=ev.filter(function(x){ return x.on===1; }).sort(function(a,b){ return a.tick-b.tick; });
+            const seen={}; const keep=[];
+            _o.forEach(function(n){ const bi=Math.floor((n.tick-PAD)/(_bqD*4));
+              if(seen[bi]) return; seen[bi]=1;
+              let m=n.note; while(m>48) m-=12; while(m<26) m+=12;
+              keep.push({note:m,on:n.tick,vel:Math.max(28,Math.round(n.vel*0.7))}); });
+            const cc=ev.filter(function(x){ return x.on!==1&&x.on!==0; });
+            const out=cc.slice();
+            /* ★ 드론도 화음이 바뀌면 따라간다 (2026-09-16 · 다양성 실측에서 드론과 저역 층이 반음으로 부딪힘 31%)
+                 드론 음이 새 마디 화음에 없으면 그 마디 앞에서 끊고, 그 마디 화음의 근음으로 새로 시작한다.
+                 화음에 남아 있으면 그대로 끈다 — 무중력의 바닥은 흔들리지 않아야 하므로 바뀔 때만 옮긴다. */
+            const _btD=(function(){ try{ return window.__BARTK_SNAP||null; }catch(e){ return null; } })();
+            const _barD=function(tk){ if(_btD&&_btD.length){ let lo=0,hi=_btD.length-1,r=-1; while(lo<=hi){ const m=(lo+hi)>>1; if(_btD[m]<=tk){ r=m; lo=m+1; } else hi=m-1; } return r; } return Math.floor((tk-PAD)/_bqD); };
+            const _barT=function(b){ return (_btD&&_btD[b]!=null)?_btD[b]:(PAD+b*_bqD); };
+            const _fold=function(m){ while(m>48) m-=12; while(m<26) m+=12; return m; };
+            keep.forEach(function(n,i2){ const nx=keep[i2+1];
+              let off=nx? (nx.on-Math.round(TPQ*0.5)) : (n.on+_bqD*4);
+              if(off<=n.on) return;
+              let st=n.on, pitch=n.note;
+              if(typeof __barPcs!=='undefined' && __barPcs){
+                const b0=_barD(st), b1=_barD(off-1);
+                for(let b=b0+1;b<=b1;b++){
+                  const P2=__barPcs[b]; if(!P2||!P2.length) continue;
+                  if(P2.indexOf(((pitch%12)+12)%12)<0){
+                    const bt=_barT(b);
+                    if(bt-Math.round(TPQ*0.25)>st){ out.push({tick:st,on:1,note:pitch,vel:n.vel}); out.push({tick:bt-Math.round(TPQ*0.25),on:0,note:pitch}); }
+                    st=bt; pitch=_fold(P2[0]);
+                  }
+                }
+              }
+              if(off>st){ out.push({tick:st,on:1,note:pitch,vel:n.vel}); out.push({tick:off,on:0,note:pitch}); } });
+            out.sort(function(a,b){ return (a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on)); });
+            ev=out;
+          } else if(['pad','strings','counter','winds'].includes(grp.key) && typeof __barPcs!=='undefined' && __barPcs){
+            /* ★ 레이어 + 길이가 다른 반복 (2026-09-16 형 제안)
+                 우주 앰비언트의 음색은 악기 하나가 아니라 겹침에서 나온다.
+                 패드 계열 넷을 층으로 쓰고, 층마다 반복 주기를 서로 나눠지지 않는 초로 둔다(이노 'Music for Airports').
+                 같은 조합이 거의 다시 오지 않아 30분을 틀어도 계속 달라진다.
+                 [주기 초, 음역 아래, 음역 위, 첫 입장 지연 초, 화음 안 몇 번째 음]
+                 pad(본체) 23.3초 · strings(저역 스웰) 29.1초 · counter(윗층) 19.7초 · winds(숨결) 31.7초 */
+            /* ★ 층 주기와 입장 순서를 곡마다 뽑는다 (실측: 입장이 늘 18, 42, 65, 88초로 같았음)
+                 17~38초 안에서 서로 나눠지지 않는 값 넷을 고른다 — 두 주기의 비가 단순한 분수(1/2, 2/3, 3/4…)에
+                 가까우면 같은 조합이 금방 되돌아오므로 버리고 다시 고른다. 입장 순서도 섞는다. */
+            const LY=(function(){
+              const sd=((window.__songRhySeed||0)*104729+7)>>>0;
+              const r=function(i){ let x=(sd+i*2246822519)>>>0; x^=x<<13; x>>>=0; x^=x>>>17; x^=x<<5; return ((x>>>0)%100000)/100000; };
+              const near=function(a,b){ const q=a>b?a/b:b/a; for(const f of [1,1.25,4/3,1.5,5/3,2,2.5,3]){ if(Math.abs(q-f)<0.035) return true; } return false; };
+              const P=[]; let i=0;
+              while(P.length<4 && i<200){ const v=Math.round((17+r(i)*21)*10)/10; i++; if(P.every(function(w){ return !near(v,w); })) P.push(v); }
+              while(P.length<4) P.push([23.3,19.7,29.1,31.7][P.length]);
+              const ord=[0,1,2,3].sort(function(a,b){ return r(50+a)-r(50+b); });   /* 누가 먼저 들어오나 */
+              /* 입장 간격도 곡마다 — 3~12초씩 벌어져 들어온다 */
+              const ent=[0]; for(let q=1;q<4;q++) ent.push(Math.round((ent[q-1]+3+r(80+q)*9)*10)/10);
+              return {pad:[P[0],55,67,ent[ord.indexOf(0)],0], strings:[P[1],43,55,ent[ord.indexOf(1)],2],
+                      counter:[P[2],64,76,ent[ord.indexOf(2)],1], winds:[P[3],70,82,ent[ord.indexOf(3)],3]};
+            })();
+            const Ly=LY[grp.key];
+            const bpmC=(function(){ try{ return defaultRhythm().bpm||52; }catch(e){ return 52; } })();
+            const tps=TPQ*bpmC/60;
+            const _btL=(function(){ try{ return window.__BARTK_SNAP||null; }catch(e){ return null; } })();
+            const _bqL=(SEC_TK[0]?SEC_TK[0].meas:(TPQ*4));
+            const _barL=function(tk){ if(_btL&&_btL.length){ let lo=0,hi=_btL.length-1,r=-1; while(lo<=hi){ const m=(lo+hi)>>1; if(_btL[m]<=tk){ r=m; lo=m+1; } else hi=m-1; } return r; } return Math.floor((tk-PAD)/_bqL); };
+            const lastT=Math.max.apply(null, ev.filter(function(x){ return x.tick!=null; }).map(function(x){ return x.tick; }).concat([PAD+_bqL*8]));
+            const endT=Math.max(lastT, (typeof SEC_TK!=='undefined'&&SEC_TK.length)?(SEC_TK[SEC_TK.length-1].start+SEC_TK[SEC_TK.length-1].bars*SEC_TK[SEC_TK.length-1].meas):lastT);
+            const cc=ev.filter(function(x){ return x.on!==1&&x.on!==0; });
+            const out=cc.slice();
+            const per=Math.round(Ly[0]*tps), len=Math.round(Ly[0]*0.86*tps);
+            let n=0;
+            for(let t=PAD+Math.round(Ly[3]*tps); t<endT-TPQ*2; t+=per, n++){
+              /* ★ 음악 검증에서 나온 문제 (2026-09-16): 층 한 음이 17~27초 가는데 화음은 10~20초마다 바뀐다.
+                   앞 화음의 음이 다음 화음 위에 남아 반음으로 부딪혔다(실측 한 곡에서 34% 시간).
+                   → 그 음이 울리는 동안 이어지는 화음들의 공통음에서 고른다.
+                     공통음이 없으면 시작 화음에서 고르고, 그 음이 화음 밖이 되는 마디에서 끊는다. */
+              const bi=Math.max(0,_barL(t)); const pcs=__barPcs[bi]||__barPcs[0]||[0,7];
+              let off=Math.min(t+len, endT);
+              const b1=Math.max(bi,_barL(off-1));
+              let common=pcs.slice();
+              for(let b=bi+1;b<=b1;b++){ const P2=__barPcs[b]; if(P2&&P2.length) common=common.filter(function(q){ return P2.indexOf(q)>=0; }); }
+              /* maj7 처럼 화음 안에 반음 이웃이 있는 음(7음)은 층이 피한다 — 근음 옆에 놓이면 부딪힌다
+                   (실측 리디안 Imaj7#11 에서 반음 부딪힘 23%). 근음은 남긴다. */
+              const _soft=function(arr){ const r=arr[0]; const f=arr.filter(function(q){ return q===r || !(arr.indexOf((q+1)%12)>=0 || arr.indexOf((q+11)%12)>=0); }); return f.length?f:arr; };
+              const pool=_soft(common.length?common:pcs);
+              const pc=pool[(Ly[4]+n)%pool.length];
+              if(!common.length){   /* 화음 밖이 되는 첫 마디 시작에서 끊는다 */
+                for(let b=bi+1;b<=b1;b++){ const P2=__barPcs[b]; if(P2&&P2.length&&P2.indexOf(pc)<0){
+                  const bt=(_btL&&_btL[b]!=null)?_btL[b]:(PAD+b*_bqL); off=Math.max(t+_bqL, bt-Math.round(TPQ*0.25)); break; } } }
+              let m=Ly[1]+(((pc-Ly[1])%12)+12)%12; if(m>Ly[2]) m-=12; if(m<Ly[1]) m+=12;
+              const v=Math.max(26, Math.round(46+14*Math.sin(n*1.3)));
+              out.push({tick:t,on:1,note:m,vel:v}); out.push({tick:off,on:0,note:m});
+              /* 층마다 천천히 부풀었다 가라앉는 CC11 — 앞 40% 올라가고 나머지 내려감 */
+              for(let q=0;q<=8;q++){ const tt=t+Math.round((off-t)*q/8);
+                const f=q/8, ex=f<0.4? (f/0.4) : (1-(f-0.4)/0.6);
+                out.push({tick:tt, cc:11, val:Math.max(20,Math.min(110,Math.round(28+ex*78)))}); }
+            }
+            out.sort(function(a,b){ return (a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on)); });
+            ev=out;
+          } else if(grp.ch!==9){
+            const MINB={pad:16, strings:12, counter:12, winds:10, melody:8, piano:6, harp:6, piano2:8};
+            const mb=(MINB[grp.key]||8)*TPQ;
+            const _o=ev.filter(function(x){ return x.on===1; }).sort(function(a,b){ return a.tick-b.tick; });
+            const _f=ev.filter(function(x){ return x.on===0; }).sort(function(a,b){ return a.tick-b.tick; });
+            const _u=new Array(_f.length).fill(false); const N=[];
+            _o.forEach(function(n){ for(let k=0;k<_f.length;k++){ if(_u[k]) continue; const q=_f[k]; if(q.note===n.note&&q.tick>n.tick){ _u[k]=true; N.push({note:n.note,on:n.tick,off:q.tick,vel:n.vel}); return; } } });
+            N.sort(function(a,b){ return a.on-b.on; });
+            const KEEP={melody:3, piano:3, harp:4, piano2:4, winds:2, counter:2, strings:2, pad:1};
+            const kp=KEEP[grp.key]||2;
+            const keep=N.filter(function(n,i2){ return (i2%kp)===0; });
+            const _btG=(function(){ try{ return window.__BARTK_SNAP||null; }catch(e){ return null; } })();
+            const _bqG=(SEC_TK[0]?SEC_TK[0].meas:(TPQ*4));
+            const _barG=function(tk){ if(_btG&&_btG.length){ let lo=0,hi=_btG.length-1,r=-1; while(lo<=hi){ const m=(lo+hi)>>1; if(_btG[m]<=tk){ r=m; lo=m+1; } else hi=m-1; } return r; } return Math.floor((tk-PAD)/_bqG); };
+            keep.forEach(function(n,i2){ const nx=keep[i2+1];
+              let len=Math.max(mb, n.off-n.on);
+              if(nx) len=Math.min(len, Math.max(TPQ*4, nx.on-n.on-TPQ));
+              n.off=n.on+len; n.vel=Math.max(22,Math.round(n.vel*0.82));
+              /* 늘린 음이 다음 화음에서 화음 밖이 되면 그 마디 앞에서 끊는다 (반음 부딪힘 방지) */
+              try{ if(typeof __barPcs!=='undefined'&&__barPcs){ const pc=((n.note%12)+12)%12;
+                const b0=_barG(n.on), b1=_barG(n.off-1);
+                for(let b=b0+1;b<=b1;b++){ const P2=__barPcs[b]; if(P2&&P2.length&&P2.indexOf(pc)<0){
+                  const bt=(_btG&&_btG[b]!=null)?_btG[b]:(PAD+b*_bqG); n.off=Math.max(n.on+TPQ, bt-Math.round(TPQ*0.25)); break; } } } }catch(e){} });
+            const cc=ev.filter(function(x){ return x.on!==1&&x.on!==0; });
+            const out=cc.slice();
+            /* ★ 늘인 뒤 같은 음이 겹친다(GUARD cosmos 73건) — 앞 음을 다음 같은 음 앞에서 끊는다 */
+            { const byN={}; keep.forEach(function(n){ (byN[n.note]=byN[n.note]||[]).push(n); });
+              Object.keys(byN).forEach(function(k){ const L2=byN[k].sort(function(a,b){ return a.on-b.on; });
+                for(let z=0;z<L2.length-1;z++){ if(L2[z].off>L2[z+1].on) L2[z].off=Math.max(L2[z].on+TPQ, L2[z+1].on-Math.round(TPQ*0.5)); } }); }
+            keep.forEach(function(n){ if(n.off<=n.on) return; out.push({tick:n.on,on:1,note:n.note,vel:n.vel}); out.push({tick:n.off,on:0,note:n.note}); });
+            out.sort(function(a,b){ return (a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on)); });
+            ev=out;
+          }
+        }
+      }catch(e){}
+      /* ★ cosmos 가 음을 늘인 뒤 다시 겹칠 수 있다 — 최종 절단(19161)은 cosmos 앞이라 소용없다.
+           여기서 한 번 더 자른다(GUARD cosmos 라운지 73건). */
+      try{
+        if(gsel==='cosmos' && grp.ch!==9){
+          const _cc=ev.filter(function(x){ return x.on!==1&&x.on!==0; });
+          const _o=ev.filter(function(x){ return x.on===1; }).sort(function(a,b){ return a.tick-b.tick; });
+          const _f=ev.filter(function(x){ return x.on===0; }).sort(function(a,b){ return a.tick-b.tick; });
+          const _u=new Array(_f.length).fill(false); const N=[];
+          _o.forEach(function(n){ for(let k=0;k<_f.length;k++){ if(_u[k]) continue; const q=_f[k]; if(q.note===n.note&&q.tick>n.tick){ _u[k]=true; N.push({note:n.note,on:n.tick,off:q.tick,vel:n.vel}); return; } } });
+          const byN={}; N.forEach(function(n){ (byN[n.note]=byN[n.note]||[]).push(n); });
+          const drop=new Set();
+          Object.keys(byN).forEach(function(k){ const L2=byN[k].sort(function(a,b){ return a.on-b.on; });
+            for(let z=0;z<L2.length-1;z++){ if(L2[z+1].on-L2[z].on<=8){ drop.add(L2[z+1]); continue; }
+              if(L2[z].off>L2[z+1].on) L2[z].off=L2[z+1].on-8;
+              if(L2[z].off<=L2[z].on) drop.add(L2[z]); } });
+          const out=_cc.slice();
+          N.forEach(function(n){ if(drop.has(n)||n.off<=n.on) return; out.push({tick:n.on,on:1,note:n.note,vel:n.vel}); out.push({tick:n.off,on:0,note:n.note}); });
+          out.sort(function(a,b){ return (a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on)); });
+          ev=out;
+        }
+      }catch(e){}
+      /* ★ 베이스 비화성음 스냅 — 라운지 워킹 베이스가 9도·6도를 길게 짚는다(GUARD celtic 라운지 15.5%).
+           베이스는 화성의 바닥이라 화음 밖 음이 길게 남으면 진행이 흐려진다.
+           1박 넘는 음만 그 마디 화음 안 가까운 음으로. 경과음(짧은 음)은 그대로 둔다. */
+      try{
+        if(['bass','cbass','qbass'].includes(grp.key) && grp.ch!==9){
+          const _btB=(function(){ try{ return window.__BARTK_SNAP||null; }catch(e){ return null; } })();
+          const _bqB=(SEC_TK[0]?SEC_TK[0].meas:(TPQ*4));
+          const _barB=function(tk){ if(_btB&&_btB.length){ let lo=0,hi=_btB.length-1,r=-1; while(lo<=hi){ const m=(lo+hi)>>1; if(_btB[m]<=tk){ r=m; lo=m+1; } else hi=m-1; } return r; } return Math.floor((tk-PAD)/_bqB); };
+          const _pair={}; ev.forEach(function(o){ if(o.on===0&&o.note!=null) (_pair[o.note]=_pair[o.note]||[]).push(o); });
+          Object.keys(_pair).forEach(function(k){ _pair[k].sort(function(a,b){ return a.tick-b.tick; }); });
+          ev.filter(function(x){ return x.on===1&&x.note!=null; }).sort(function(a,b){ return a.tick-b.tick; }).forEach(function(x){
+            const lst=_pair[x.note]||[]; let off=null;
+            for(let z=0;z<lst.length;z++){ if(lst[z].tick>x.tick&&!lst[z].__bs){ off=lst[z]; break; } }
+            if(!off) return;
+            /* 1박 넘는 음 · 또는 마디 첫 박·3박에 오는 음은 화음 음이어야 한다
+               (워킹 베이스는 음이 모두 1박 이하라 길이 조건만으로는 하나도 안 걸렸다 — celtic 라운지 2159음 중 0) */
+            { const pos=((x.tick-PAD)%_bqB+_bqB)%_bqB;
+              const strong=(pos<=20)||(Math.abs(pos-_bqB/2)<=20);
+              /* 반 박 이상이면 들린다 — GUARD 도 반 박 미만만 경과음으로 본다 */
+              if(!(off.tick-x.tick>=TPQ*0.5 || strong)) return; }
+            const bi=_barB(x.tick); const pcs=(typeof __barPcs!=='undefined'&&__barPcs&&__barPcs[bi])?__barPcs[bi]:null;
+            if(!pcs||!pcs.length) return;
+            const pc=((x.note%12)+12)%12; if(pcs.indexOf(pc)>=0) return;
+            let best=null,bd=99; pcs.forEach(function(q){ let d=Math.abs(q-pc); d=Math.min(d,12-d); if(d<bd){ bd=d; best=q; } });
+            if(best==null) return; let m=x.note-pc+best; if(m-x.note>6) m-=12; if(x.note-m>6) m+=12;
+            off.note=m; off.__bs=1; x.note=m; });
+          ev.forEach(function(o){ delete o.__bs; });
+          /* 스냅으로 같은 틱·같은 음이 둘이 될 수 있다(고스트가 본음 높이로 옮겨짐 · GUARD celtic 25건) — 짧은 쪽을 버린다 */
+          { const _o=ev.filter(function(x){ return x.on===1; }).sort(function(a,b){ return a.tick-b.tick; });
+            const _f=ev.filter(function(x){ return x.on===0; }).sort(function(a,b){ return a.tick-b.tick; });
+            const _u=new Array(_f.length).fill(false); const N=[];
+            _o.forEach(function(n){ for(let k=0;k<_f.length;k++){ if(_u[k]) continue; const q=_f[k]; if(q.note===n.note&&q.tick>n.tick){ _u[k]=true; N.push({note:n.note,on:n.tick,off:q.tick,vel:n.vel}); return; } } });
+            const byN={}; N.forEach(function(n){ (byN[n.note]=byN[n.note]||[]).push(n); });
+            const drop=new Set();
+            Object.keys(byN).forEach(function(k){ const L2=byN[k].sort(function(a,b){ return a.on-b.on||(b.off-b.on)-(a.off-a.on); });
+              for(let z=0;z<L2.length-1;z++){ if(drop.has(L2[z])) continue;
+                if(L2[z+1].on-L2[z].on<=8){ drop.add(L2[z+1]); continue; }
+                if(L2[z].off>L2[z+1].on) L2[z].off=L2[z+1].on-8; } });
+            const cc=ev.filter(function(x){ return x.on!==1&&x.on!==0; });
+            const out=cc.slice();
+            N.forEach(function(n){ if(drop.has(n)||n.off<=n.on) return; out.push({tick:n.on,on:1,note:n.note,vel:n.vel}); out.push({tick:n.off,on:0,note:n.note}); });
+            out.sort(function(a,b){ return (a.tick-b.tick)||((a.cc!=null?2:a.on)-(b.cc!=null?2:b.on)); });
+            ev=out; }
+        }
+      }catch(e){}
+      /* ★ cosmos 공간 궤도를 MIDI 로 — 로직에서 그대로 쓰이는 것
+           CC10  좌우 팬 (0~127, 64 가 가운데) 사인 궤도. 표준이라 로직이 바로 받는다
+           CC16  방위(0~127 = 0~360도) · CC17 고도 — 로직 Binaural Panner 에 매핑해 쓴다
+           앱 재생의 SPACEMAP 과 같은 주기로 돈다. 드론(bass)은 가운데 고정. */
+      try{
+        if(gsel==='cosmos' && grp.ch!==9){
+          const SP={pad:[58,40,0.3], strings:[46,-70,0.1], melody:[34,120,0.5], counter:[52,-140,0.2],
+                    winds:[71,200,0.6], piano:[29,60,0.7], harp:[83,-30,0.8], piano2:[41,170,0.4]};
+          const S=SP[grp.key];
+          const last=Math.max.apply(null, ev.filter(function(x){ return x.tick!=null; }).map(function(x){ return x.tick; }).concat([PAD]));
+          if(S && last>PAD){
+            const bpmC=(function(){ try{ return defaultRhythm().bpm||52; }catch(e){ return 52; } })();
+            const tps=TPQ*bpmC/60;                    /* 초당 틱 */
+            const stepT=Math.round(TPQ*2);            /* 2박마다 한 점 */
+            for(let t=PAD; t<=last; t+=stepT){
+              const sec=(t-PAD)/tps; const az=(S[1]+360*sec/S[0])%360;
+              const rad=az*Math.PI/180;
+              ev.push({tick:t, cc:10, val:Math.max(0,Math.min(127,Math.round(64+Math.sin(rad)*54)))});
+              ev.push({tick:t, cc:16, val:Math.round(((az+360)%360)/360*127)});
+              if(t===PAD) ev.push({tick:t, cc:17, val:Math.round(64+S[2]*50)});
+            }
+          } else if(grp.key==='bass'){ ev.push({tick:PAD, cc:10, val:64}); }
+        }
+      }catch(e){}
+      try{ if(window.__NOTEKEYS && ev.some(function(x){ return x.on===1; })) window.__NOTEKEYS[grp.key]=true; }catch(e){}
+      /* ── 바이트 직전 최종 중복·겹침 제거 (모든 트랙 · 모든 블록 뒤) ──
+           앞 절단들은 그 뒤 블록(베이스 스냅·cosmos)이 다시 만든 겹침을 못 본다(GUARD celtic 같은 틱 25건).
+           같은 틱·같은 음은 긴 쪽만 · 같은 음이 아직 울리면 앞 음을 끊는다. 드럼 제외. */
+      try{
+        if(grp.ch!==9){
+          const _cc=ev.filter(function(x){ return x.on!==1&&x.on!==0; });
+          const _o=ev.filter(function(x){ return x.on===1; }).sort(function(a,b){ return a.tick-b.tick; });
+          const _f=ev.filter(function(x){ return x.on===0; }).sort(function(a,b){ return a.tick-b.tick; });
+          const _u=new Array(_f.length).fill(false); const N=[];
+          _o.forEach(function(n){ for(let k=0;k<_f.length;k++){ if(_u[k]) continue; const q=_f[k]; if(q.note===n.note&&q.tick>n.tick){ _u[k]=true; N.push({note:n.note,on:n.tick,off:q.tick,vel:n.vel}); return; } } });
+          const byN={}; N.forEach(function(n){ (byN[n.note]=byN[n.note]||[]).push(n); });
+          const drop=new Set();
+          Object.keys(byN).forEach(function(k){
+            const L2=byN[k].sort(function(a,b){ return (a.on-b.on)||((b.off-b.on)-(a.off-a.on)); });
+            let prev=null;
+            L2.forEach(function(n){
+              if(prev && n.on-prev.on<=8){ drop.add(n); return; }       /* 같은 틱 — 뒤(짧은 쪽) 버림 */
+              if(prev && prev.off>n.on){ prev.off=n.on-4; if(prev.off<=prev.on) drop.add(prev); }
+              prev=n; }); });
+          const out=_cc.slice();
+          N.forEach(function(n){ if(drop.has(n)||n.off<=n.on) return; out.push({tick:n.on,on:1,note:n.note,vel:n.vel}); out.push({tick:n.off,on:0,note:n.note}); });
+          out.sort(function(a,b){ return (a.tick-b.tick)||(((a.cc!=null||a.pb!=null||a.pc!=null)?2:a.on)-((b.cc!=null||b.pb!=null||b.pc!=null)?2:b.on)); });
+          ev=out;
+        }
+      }catch(e){}
       const _pushAll=function(arr){ for(let q=0;q<arr.length;q++) bytes.push(arr[q]); };
       let last=0; ev.forEach(e=>{ _pushAll(vlq(e.tick-last)); last=e.tick;
         if(e.pb!=null) _pushAll([0xE0|grp.ch, e.pb&0x7f, (e.pb>>7)&0x7f]);
@@ -41808,9 +42199,49 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
        INST 상태로 보면 편성이 뒤에서 켜고 끄는 것을 놓친다
        (실측 기타 듀오: MIDI 2트랙인데 시트에는 Melody 하나뿐이었다). */
 
-    const blk=(head,lines)=>{ L.push(''); L.push('  ━━━━━ '+head+' ━━━━━'); const k=keyOf(head);
+    /* ★ 설명서는 그 장르 그 파일에 실제로 든 트랙만 (2026-09-16 형 지시)
+         카드 머리(Strings, Pad …)를 트랙 키로 옮겨 __NOTEKEYS 에 없으면 카드를 내지 않는다.
+         음원 칸은 일반 추천이 아니라 그 트랙에 실제로 적힌 로직 패치 이름을 먼저 쓴다. */
+    const HEAD2KEY={Bass:'bass',Counter:'counter',Drums:'drums',Harp:'harp',Guitar:'harp',Plucked:'harp',
+      'Lead Guitar':'gtrlead',Melody:'melody',Vocal:'melody','Orch Cymbals':'orchcym',Pad:'pad','Piano 2':'piano2',
+      Piano:'piano',Riser:'riser',Strings:'strings',Sub:'sub',Timpani:'timpani',Winds:'winds','Double Bass':'bass'};
+    const _nk=function(k){ try{ const N=window.__NOTEKEYS; if(!N||!Object.keys(N).length) return true; const g=HEAD2KEY[k]; return !g || !!N[g]; }catch(e){ return true; } };
+    const _pm=function(k){ try{ const g=HEAD2KEY[k]; const P=window.__PATCHMAP; return (g&&P&&P[g])?P[g]:null; }catch(e){ return null; } };
+    /* 장르 고유 값 — 일반값이 그 장르에 맞지 않을 때만 덮는다 [역할, 볼륨·팬, EQ, 컴프, 센드] */
+    const GSHEET={
+      cosmos:{
+        bass:['심층 드론. 4마디에 한 음, 18초 안팎 지속. 곡의 바닥','가운데 고정 · -6dB','HPF 25Hz · 200Hz -3dB(탁함 제거) · LPF 2kHz','걸지 않음 (숨을 죽이면 공간이 사라짐)','A 가까운 방 5% 이하 · B 먼 공간 0%'],
+        pad:['본체 패드. 한 화음이 2~4분 머묾','CC10 궤도 · -8dB','HPF 120Hz (드론과 겹치지 않게) · 3kHz -2dB','걸지 않음','A 15% · B 먼 공간 40%'],
+        strings:['저역 스웰 층. 천천히 부풀었다 가라앉음','CC10 궤도 · -9dB','HPF 90Hz · LPF 7kHz','걸지 않음','A 10% · B 35%'],
+        melody:['유리 선율. 음 사이 5~10초 침묵','CC10 궤도 · -5dB','HPF 250Hz · 5kHz +1.5dB(유리 빛)','걸지 않음','A 12% · B 30% · Delay 1/4 점음표 fb 35%'],
+        piano:['종소리 점. 3~4음에 하나','CC10 궤도 · -7dB','HPF 300Hz · 8kHz +2dB','걸지 않음','A 10% · B 55% (가장 멀리)'],
+        piano2:['두 번째 종. 한 옥타브 위','CC10 궤도 · -10dB','HPF 400Hz · LPF 10kHz','걸지 않음','B 60%'],
+        harp:['먼 구체 소리','CC10 궤도 · -11dB','HPF 300Hz · 먼 소리라 LPF 5kHz','걸지 않음','B 60%'],
+        winds:['숨결 층(Spacey Flutter)','CC10 궤도 · -10dB','HPF 200Hz · LPF 6kHz','걸지 않음','A 10% · B 45%'],
+        counter:['대선율 패드','CC10 궤도 · -10dB','HPF 150Hz','걸지 않음','B 40%']},
+      handpan:{
+        melody:['Hang Centre. 딩과 중심 음','가운데 · -3dB','HPF 70Hz · 250Hz -2dB · 4kHz +1dB','1.5:1 · Attack 30ms · GR 1dB','Plate 2.4s 20%'],
+        piano:['Hang Edge. 밝은 배음','L 20 · -6dB','HPF 120Hz · 6kHz +1.5dB','걸지 않음','Plate 2.4s 25%'],
+        harp:['Hang Corner. 여운','R 25 · -8dB','HPF 150Hz','걸지 않음','Hall 4s 30%'],
+        piano2:['Hang Slap. 타격','L 10 · -9dB','HPF 100Hz · 2kHz +1dB','2:1 · Attack 5ms · GR 2dB','Room 1.2s 10%']},
+      bigband:{
+        melody:['색소폰 섹션(테너 리드). 선율을 섹션이 함께','가운데 · -2dB','HPF 100Hz · 2.5kHz +1dB','2:1 · Attack 15ms · GR 2dB','Room 1.4s 18%'],
+        winds:['알토. 섹션 윗줄','L 30 · -5dB','HPF 150Hz','2:1 · GR 2dB','Room 1.4s 18%'],
+        counter:['바리톤. 섹션 바닥','L 15 · -5dB','HPF 60Hz · 200Hz -2dB','2:1 · GR 2dB','Room 1.4s 12%'],
+        brass:['트럼펫 섹션. 샤우트에서 터짐','R 30 · -4dB','HPF 180Hz · 3kHz -1dB(찌름 완화)','2.5:1 · Attack 10ms · GR 3dB','Room 1.4s 20%'],
+        bass:['워킹 업라이트','가운데 · -3dB','HPF 35Hz · 800Hz +1dB(손가락)','3:1 · GR 3dB','없음'],
+        piano:['컴핑 피아노','L 20 · -6dB','HPF 80Hz','2:1 · GR 1dB','Room 1.4s 15%'],
+        harp:['재즈 기타 4비트 스트럼','R 20 · -9dB','HPF 120Hz','걸지 않음','Room 10%'],
+        drums:['브러시 킷 · 라이드 스윙','가운데 · 오버헤드 넓게','HPF 40Hz','Bus 2:1 · GR 2dB','Room 1.2s 15%']}
+    };
+    const _gs=function(k){ try{ const G=GSHEET[gsel]; const g=HEAD2KEY[k]; return (G&&g&&G[g])?G[g]:null; }catch(e){ return null; } };
+    const blk=(head,lines)=>{ const k=keyOf(head);
+      if(!_nk(k)) return;                                   /* 이 파일에 없는 트랙 */
+      { const _G=_gs(k); if(_G){ lines=['역할: '+_G[0],'볼륨: '+_G[1],'EQ: '+_G[2],'컴프: '+_G[3],'센드: '+_G[4]].concat(lines.filter(x=>/^악기/.test(x))); } }
+      L.push(''); L.push('  ━━━━━ '+head+' ━━━━━');
       const instL=lines.find(x=>/^음원/.test(x)); let inst=instL?instL.replace(/^음원\(Instrument 슬롯\):\s*/,''):'';
   { const _si=subInst(k); if(_si) inst=_si; }  // 장르 대용 악기·연주법 우선
+  { const _p=_pm(k); if(_p) inst=_p.split('|')[0].trim()+'  (트랙 이름 그대로 · 로직 라이브러리에서 검색)'; }
       const baked=lines.filter(x=>/^(CC\d|벨로시티|아티큘|익스프)/.test(x) || /(이미 기록|이미 실려|MIDI에 기록)/.test(x));
       const role=lines.filter(x=>/^(역할|파트|노트 맵|그루브)/.test(x) && baked.indexOf(x)<0);
       const pan=lines.filter(x=>/^(자리|팬)/.test(x));
@@ -42634,6 +43065,26 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('');
     }
     /* ★ 주법 분리 트랙 안내 — 한 악기가 두 트랙으로 나오는 것을 형이 알아야 한다 */
+    /* ★ 우주 앰비언트 — 입체 공간은 MIDI 밖이라 로직에서 완성한다. 무엇을 어떤 값으로 걸지 적는다 */
+    if(gsel==='cosmos'){
+      L.push('■ 우주 공간 만들기');
+      L.push('   MIDI 에는 음과 궤도(CC10 좌우 · CC16 방위 · CC17 고도)가 들어 있습니다.');
+      L.push('   소리를 머리 둘레에 놓는 것은 로직에서 합니다.');
+      L.push('');
+      L.push('   ① 드론(Deep Phase) 트랙은 가운데 고정. Space Designer 는 걸지 않거나 아주 조금');
+      L.push('   ② 나머지 트랙마다 Binaural Panner 삽입 (Mixer > Audio FX > Imaging)');
+      L.push('      트랙 인스펙터 > Automation > MIDI 컨트롤러를 오토메이션으로 변환');
+      L.push('      CC16 → Binaural Panner Azimuth   CC17 → Elevation');
+      L.push('      헤드폰으로 들을 때 소리가 머리 뒤와 위로 지나갑니다');
+      L.push('      스피커로 틀 곳이면 Binaural Panner 대신 CC10(좌우)만 쓰세요');
+      L.push('   ③ 버스 둘');
+      L.push('      A 가까운 방   Space Designer · Small Room · 1.4초 · Pre-delay 12ms');
+      L.push('      B 먼 공간     Space Designer · Large Hall 또는 Cathedral · 8~10초 · Pre-delay 60ms · 고역 4.2kHz 에서 깎기');
+      L.push('   ④ 먼 소리일수록 B 센드를 크게 (종·하프 50~60% · 선율 30% · 패드 40%)');
+      L.push('      먼 소리는 EQ 로 고역을 깎아 어둡게 하면 거리가 생깁니다');
+      L.push('   ⑤ 드론과 패드의 저역이 겹치면 탁해집니다. 패드는 120Hz 아래를 걷어내세요');
+      L.push('');
+    }
     L.push('■ 주법이 나뉜 트랙 — 서밍으로 묶으세요');
     L.push('   한 악기가 긴 음과 짧은 음을 오가면 트랙을 둘로 나눠 드립니다.');
     L.push('   주법별로 하나씩이지 바뀔 때마다 늘어나지 않습니다 — 곡 전체에 최대 두 트랙입니다.');
@@ -43432,6 +43883,17 @@ return L.join('\n');
       INST.winds.on=true; INST.winds.gm=65; INST.harp.on=true; INST.harp.gm=26;
       INST.strings.on=false; counterOn=true; { const co=$('counterOn'); if(co) co.checked=true; } }
     /* 빅밴드에는 서브베이스·신스 패드·테마 오스티나토가 없다 — 리듬 섹션 넷과 관 섹션뿐 */
+    /* ★ 우주 앰비언트 — 드럼 없음. 심층 드론 + 패드 + 현 스웰 + 드문 선율 + 종소리 점.
+         맥박이 느껴지면 지상이 되므로 리듬 트랙을 전부 끈다. */
+    else if(gsel==='cosmos'){ INST.drums.on=false; INST.brass.on=false;
+      INST.bass.on=true;  INST.bass.gm=89;      /* Warm Pad 저역 드론 */
+      INST.pad&&(INST.pad.on=true);
+      INST.strings.on=true; INST.strings.gm=51; /* Synth Strings */
+      INST.melody.on=true; INST.melody.gm=92;   /* Bowed Pad */
+      INST.winds.on=true;  INST.winds.gm=94;    /* Halo Pad */
+      INST.piano.on=true;  INST.piano.gm=98;    /* Crystal */
+      INST.harp.on=true;   INST.harp.gm=14;     /* Tubular Bells */
+      counterOn=true; { const co=$('counterOn'); if(co) co.checked=true; } }
     else if(gsel==='handpan'){ INST.drums.on=false; INST.bass.on=false; INST.brass.on=false; INST.winds.on=false;
       INST.melody.on=true; INST.melody.gm=114; INST.piano.on=true; INST.piano.gm=114;
       INST.strings.on=true; INST.strings.gm=89; INST.harp.on=true; INST.harp.gm=46;
@@ -43808,7 +44270,7 @@ const ORCH_LOUNGE=new Set(['cineSoar','cineTension','cineSorrow','cineJoy','cine
   'cineSuite']);
 const LOUNGE_OK=new Set([
   'lyric','lyricPenta','lyricMid','lyricMinyo','newage','joypiano','kpiano','classic','quartal',
-  'jazz','bigband','ambjazz','bossa','neosoul','blues','lofi','ballad','citypop','pop','kids','handpan',
+  'jazz','bigband','ambjazz','bossa','neosoul','blues','lofi','ballad','citypop','pop','kids','handpan','cosmos',
   'folk','shanty','tango','gypsy','rumba',
   'dorian','phrygian','lydian','mixolydian','doubleharm','hungarian','phrygdom',
   /* ── 오케스트라형 라운지 ──
@@ -44383,6 +44845,12 @@ function keySigMetaBytes(tonicPc, mode){
 }
 
 const PURPOSES = {
+  /* ★ 우주 — 4도 쌓기, 진행 없음, 심층 드론 위 드문 종소리. 무중력의 명상 */
+  cosmos:{icon:"🌌",name:"우주",en:"Cosmos",tempo:"48-56 BPM",
+    scaleW:"Lydian / Whole tone / Quartal",
+    chords:["Cq4 제자리","Cmaj7#11 지속"],chordNote:"화성이 거의 움직이지 않는다. 한 화음이 2~4분 머물고 색만 스민다",
+    inst:["Deep Phase Drone","Space Oddity Pad","Heavenly Glass","Bell Crystal"],
+    feel:"무중력, 먼 빛, 침묵이 공간",melody:"음 사이 5~10초 침묵, 3~5음, 종소리처럼 드물게"},
   /* ★ 핸드팬 — 형 콘탁에 ProjectSAM Pan Drums II (Hang Mk.1) 가 있다.
        손으로 치는 악기 하나가 선율·화음·저역을 다 한다. 음계가 악기에 박혀 있어 진행을 적게 움직인다. */
   handpan:{icon:"🪘",name:"핸드팬",en:"Handpan",tempo:"55-65 BPM",
@@ -44461,6 +44929,7 @@ const WEST_MODES = {
 // 목적별 자동 추천 서양 모드
 // 멜로디 모드 — 풀과 반음 충돌 없는 조합만 (냉정 검증: dorian×bright 등 7개 충돌 교정)
 const PURPOSE_MODE = {
+  cosmos:{w:"lydian"},
   /* ★ 핸드팬 — 명상 계열과 같은 성격(펜타토닉·롱톤·세타파) */
   handpan:{w:"pentatonic"},
   sleep:{w:"pentatonic"}, meditation:{w:"pentatonic"},
@@ -44507,6 +44976,7 @@ const BREATHS = {
 };
 // 목적별 코드길이 배수 (코드길이 = 호흡주기 × 배수, 8~20초 목표)
 const PURPOSE_MULT = {
+  cosmos:2,
   /* ★ 핸드팬 — 명상 계열과 같은 성격(펜타토닉·롱톤·세타파) */
   handpan:2,
   sleep:2, meditation:2, focus:4, relax:2, morning:3, calm:2, flow:2,
@@ -44514,6 +44984,7 @@ const PURPOSE_MULT = {
 };
 // 목적별 보이싱 개화 패턴 (자동) — bloom:비움↔풀 / frontload:초반포화 / buildup:하나씩 쌓기 / wave:거의안변함
 const PURPOSE_BLOOM = {
+  cosmos:'bloom',
   /* ★ 핸드팬 — 명상 계열과 같은 성격(펜타토닉·롱톤·세타파) */
   handpan:'bloom',
   sleep:'wave', meditation:'bloom', calm:'wave', relax:'frontload',
@@ -44522,6 +44993,7 @@ const PURPOSE_BLOOM = {
 };
 // 목적별 코드길이 상한(초) — 수면/명상은 느긋하게, 집중은 단조로움 방지
 const PURPOSE_CAP = {
+  cosmos:40,
   /* ★ 핸드팬 — 명상 계열과 같은 성격(펜타토닉·롱톤·세타파) */
   handpan:34,
   sleep:30, meditation:30, focus:15, relax:20, morning:15, calm:20, flow:20,
@@ -44543,6 +45015,7 @@ function chordLength(){
 
 // 목적 → 기본 호흡 매핑
 const PURPOSE_BREATH = {
+  cosmos:"deep",
   /* ★ 핸드팬 — 명상 계열과 같은 성격(펜타토닉·롱톤·세타파) */
   handpan:"deep",
   sleep:"deep", meditation:"deep", calm:"relax", relax:"relax",
@@ -45135,6 +45608,13 @@ function genreGuideText(aes){
 
 // 목적별 곡 구조 (타임라인)
 const STRUCTURE = {
+  cosmos:{length:"15~20분", steps:[
+    ["0:00-1:30","심층 드론 하나만. 다른 소리 없이 공간을 연다"],
+    ["1:30-4:00","먼 패드가 스민다. 화음은 4도 쌓기, 3음이 없다"],
+    ["4:00~","종소리가 드문드문. 음 사이 5~10초 침묵"],
+    ["중반","리디안 #4 로 색이 한 번 열린다. 화성은 거의 그대로"],
+    ["마지막 3분","종이 사라지고 패드가 걷히고 드론만 남는다"]
+  ]},
   /* ★ 핸드팬 — 한 음계 안에서 순환하며 여운으로 채운다 */
   handpan:{length:"10~20분", steps:[
     ["0:00-1:00","딩(중심음) 하나로 시작, 여운이 사라질 때까지 기다림"],
@@ -45237,6 +45717,7 @@ const BRAINWAVES = {
 };
 // 목적별 추천 뇌파
 const PURPOSE_WAVE = {
+  cosmos:"theta",
   /* ★ 핸드팬 — 명상 계열과 같은 성격(펜타토닉·롱톤·세타파) */
   handpan:"theta",
   sleep:"delta", meditation:"theta", focus:"beta", relax:"alpha", morning:"beta",
@@ -45547,6 +46028,7 @@ const VOICINGS = {
 };
 // 목적별 자동 추천 음역·보이싱
 const PURPOSE_VOICE = {
+  cosmos:{r:"midlow",v:"power5"},
   /* ★ 핸드팬 — 명상 계열과 같은 성격(펜타토닉·롱톤·세타파) */
   handpan:{r:"midlow",v:"power5"},
   sleep:{r:"midlow",v:"open"}, meditation:{r:"midlow",v:"power5"},
@@ -46267,6 +46749,70 @@ function generatePiece(prog, capMin){
      buildMidi 안에서만 만들면 MIDI에는 있는데 재생에는 없다 —
      이 앱의 원칙(재생·WAV·MIDI 삼자 일치)이 깨진다. */
   ev.arp = buildAmbientArp(ev, cl.breath, lengthSec);
+  /* ★ 우주 명상 레이어 (2026-09-16) — Play cosmos 와 같은 방식
+       패드 계열 넷이 서로 나눠지지 않는 주기로 돈다(이노 Music for Airports). 같은 조합이 거의 다시 오지 않는다.
+       층 음은 그 음이 울리는 동안의 화음들 공통음에서 고르고, 없으면 화음 밖이 되는 곳에서 끊는다.
+       화음 안에 반음 이웃이 있는 음(maj7 의 7음)은 피한다. 마지막 2분은 층이 걷히고 드론만 남는다.
+       [이름, 주기 초, 음역 아래, 음역 위, 첫 입장 초, 화음 안 몇 번째, 팬, GM] */
+  ev.layers=[];
+  /* ★ 우주 목적은 화음을 열어서 쌓는다 — maj7·#11 을 촘촘히 쌓으면 반음이 붙는다(실측 화음 트랙 자체 13.3%).
+       붙으면 위 음을 한 옥타브 올리고, 너무 높으면 뺀다. 넓은 간격이 무중력 소리다. */
+  if(state.purpose==='cosmos'){
+    ev.chords.forEach(function(cd){
+      let ns=Array.from(new Set(cd.notes||[])).sort(function(a,b){ return a-b; });
+      for(let guard=0; guard<12; guard++){
+        let moved=false;
+        for(let i=0;i<ns.length-1;i++){ if(ns[i+1]-ns[i]<=1){ const up=ns[i+1]+12;
+          if(up<=86 && ns.indexOf(up)<0) ns[i+1]=up; else ns.splice(i+1,1);
+          ns.sort(function(a,b){ return a-b; }); moved=true; break; } }
+        if(!moved) break;
+      }
+      cd.notes=ns;
+    });
+  }
+  if(state.purpose==='cosmos' && ev.chords.length){
+    /* ★ 곡마다 음색·주기·입장을 뽑는다 (2026-09-16 · Play 와 같은 다양성)
+         주기 17~38초에서 서로 비가 단순한 분수에 가깝지 않은 넷, 입장은 6~16초씩 벌어져, 층 음색은 우주 계열 로직 패치에서 */
+    const _near=function(a,b){ const q=a>b?a/b:b/a; for(const f of [1,1.25,4/3,1.5,5/3,2,2.5,3]){ if(Math.abs(q-f)<0.035) return true; } return false; };
+    const _P=[]; for(let i=0;i<200 && _P.length<4;i++){ const v=Math.round((17+Math.random()*21)*10)/10; if(_P.every(function(w){ return !_near(v,w); })) _P.push(v); }
+    while(_P.length<4) _P.push([23.3,19.7,29.1,31.7][_P.length]);
+    const _E=[6+Math.random()*6]; for(let q=1;q<4;q++) _E.push(_E[q-1]+6+Math.random()*10);
+    const _ord=[0,1,2,3].sort(function(){ return Math.random()-0.5; });
+    const _pk=function(arr,used){ const c=arr.filter(function(x){ return !used[x]; }); const v=(c.length?c:arr)[Math.floor(Math.random()*(c.length?c.length:arr.length))]; used[v]=1; return v; };
+    const _u={};
+    const LYS=[[_pk(['Space Oddity','Aurora Pad','Another World','Atmosphere Pad','Blur Pad','Beauty Pad'],_u),_P[0],55,67,_E[_ord[0]],0,-0.45,89],
+               [_pk(['Ambient Current','Glassy Ascent','Bliss','Curved Air','Voice Space'],_u),_P[1],64,76,_E[_ord[1]],1,0.40,92],
+               [_pk(['Analog Swell','Calm Winds','Atmosphere Pad','Blur Pad'],_u),_P[2],43,55,_E[_ord[2]],2,-0.20,95],
+               [_pk(['Spacey Flutter','Voice Space','Curved Air','Calm Winds'],_u),_P[3],70,82,_E[_ord[3]],3,0.30,94]];
+    const CH=ev.chords.slice().sort(function(a,b){ return a.t-b.t; });
+    const pcsAt=function(t){ let c=CH[0]; for(let i=0;i<CH.length;i++){ if(CH[i].t<=t) c=CH[i]; else break; }
+      return Array.from(new Set((c.notes||[]).map(function(m){ return ((m%12)+12)%12; }))); };
+    const soft=function(arr){ if(!arr.length) return arr; const r=arr[0]; const f=arr.filter(function(q){ return q===r || !(arr.indexOf((q+1)%12)>=0 || arr.indexOf((q+11)%12)>=0); }); return f.length?f:arr; };
+    const LEND=Math.max(60, lengthSec-120);
+    LYS.forEach(function(Ly,li){
+      let n=0;
+      for(let t=Ly[4]; t<LEND; t+=Ly[1], n++){
+        let off=Math.min(t+Ly[1]*0.86, LEND+30);
+        const p0=pcsAt(t); let common=p0.slice();
+        for(let x=t+2; x<off; x+=2){ const P2=pcsAt(x); common=common.filter(function(q){ return P2.indexOf(q)>=0; }); }
+        const pool=soft(common.length?common:p0); if(!pool.length) continue;
+        const pc=pool[(Ly[5]+n)%pool.length];
+        if(!common.length){ for(let x=t+2; x<off; x+=2){ if(pcsAt(x).indexOf(pc)<0){ off=Math.max(t+6,x-0.5); break; } } }
+        let m=Ly[2]+(((pc-Ly[2])%12)+12)%12; if(m>Ly[3]) m-=12; if(m<Ly[2]) m+=12;
+        /* 그 순간 울리는 화음 음과 반음 거리면 부딪힌다 — 옥타브를 옮기고, 그래도 안 되면 다른 후보 음으로 */
+        { const sounding=function(x){ let c=CH[0]; for(let i=0;i<CH.length;i++){ if(CH[i].t<=x) c=CH[i]; else break; } return c.notes||[]; };
+          const bad=function(mm){ for(let x=t; x<off; x+=3){ const S2=sounding(x); for(let k=0;k<S2.length;k++){ if(Math.abs(S2[k]-mm)===1) return true; } } return false; };
+          if(bad(m)){
+            let fixed=null;
+            [m+12,m-12].forEach(function(c2){ if(fixed==null && c2>=Ly[2]-5 && c2<=Ly[3]+7 && !bad(c2)) fixed=c2; });
+            if(fixed==null){ for(let k=1;k<pool.length && fixed==null;k++){ const pc2=pool[(Ly[5]+n+k)%pool.length];
+              let c2=Ly[2]+(((pc2-Ly[2])%12)+12)%12; if(c2>Ly[3]) c2-=12; if(c2<Ly[2]) c2+=12; if(!bad(c2)) fixed=c2; } }
+            if(fixed==null) continue;          /* 어디 두어도 부딪히면 이 층은 이번 차례를 쉰다 */
+            m=fixed; } }
+        ev.layers.push({layer:li, name:Ly[0], t:t, dur:off-t, midi:m, vel:Math.max(28,Math.round(44+12*Math.sin(n*1.3))), pan:Ly[6], gm:Ly[7]});
+      }
+    });
+  }
   return {lengthSec, chordDur, loops, tailSec, loopMode:_loop, chordNames:chords, slotNames:ev.slotNames, breath:cl.breath, ev, aes:state.aes, stageSeq:_seq, hasAir:(state.aes==='ambient'||state.aes==='natural')};
 }
 /* ── 앰비언트 아르페지오 (초 단위) ──
@@ -46366,6 +46912,9 @@ function schedulePiece(ac, g, piece, t0){
       padVoiceP(ac,g.buses.pad,t0+c.t,c.dur,m,pan,piece.breath,c.vel,c.inten);
     });
   });
+  /* 우주 레이어 — 패드 버스로, 층마다 자리를 달리해서 */
+  if(L.pad!==false && piece.ev.layers && piece.ev.layers.length)
+    piece.ev.layers.forEach(x=>padVoiceP(ac,g.buses.pad,t0+x.t,x.dur,x.midi,x.pan,piece.breath,x.vel,0.6));
   if(L.bass!==false) piece.ev.bass.forEach(b=>bassVoiceP(ac,g.buses.bass,t0+b.t,b.dur,b.midi));
   if(L.melody!==false) piece.ev.melody.forEach(n=>melodyVoiceP(ac,g.buses.melody,t0+n.t,n.dur,n.midi,0.15,n.vel));
   if(L.point!==false){
@@ -46515,6 +47064,7 @@ const CHORD_POOLS = {
 };
 // 목적 → 기본 분위기 풀
 const PURPOSE_POOL = {
+  cosmos:"dark",
   /* ★ 핸드팬 — 명상 계열과 같은 성격(펜타토닉·롱톤·세타파) */
   handpan:"dark",
   sleep:"warm", meditation:"dark", focus:"bright", relax:"warm",
@@ -47981,6 +48531,31 @@ function buildMidi(){
     _emittedTracks.push({key:sp.key, name:midiNameFor(sp), notes:arr.filter(function(x){return x.cc==null;}).length, rev:rv});
     pushTrack(midiNameFor(sp), sp.memo(rev), chSetup(sp.ch, sp.prog, sp.vol, sp.pan, rv), arr, sp.ch);
   });
+  /* ★ 우주 레이어 트랙 넷 — 로직 패치 이름을 트랙 이름으로 (06 Synthesizers/03 Synth Pads/…) */
+  try{
+    const LAY=piece.ev.layers||[];
+    if(LAY.length){
+      const byL={}; LAY.forEach(function(x){ (byL[x.layer]=byL[x.layer]||[]).push(x); });
+      const LCH=[11,12,13,14];
+      Object.keys(byL).sort().forEach(function(li){
+        const xs=byL[li]; const nm=xs[0].name; const ch=LCH[li%4];
+        const arr=[];
+        xs.forEach(function(x){
+          arr.push({note:x.midi, start:S(x.t), dur:S(x.dur), vel:x.vel});
+          /* 층마다 천천히 부풀었다 가라앉는 CC11 — 앞 40% 올라가고 나머지 내려감 */
+          for(let q=0;q<=8;q++){ const f=q/8, ex=f<0.4?(f/0.4):(1-(f-0.4)/0.6);
+            arr.push({start:S(x.t+x.dur*f), cc:11, val:Math.max(20,Math.min(110,Math.round(28+ex*78)))}); }
+        });
+        const pan=Math.max(0,Math.min(127,Math.round(64+xs[0].pan*63)));
+        const rv=Math.min(127, Math.round(rev*1.4));
+        addFades(arr, 92);
+        _emittedTracks.push({key:'layer'+li, name:nm, notes:xs.length, rev:rv});
+        pushTrack('06 Synthesizers/03 Synth Pads/'+nm+' | Layer '+(+li+1)+' ('+Math.round(xs[1]?xs[1].t-xs[0].t:0)+'s cycle)',
+                  '우주 레이어 '+(+li+1)+' — 다른 층과 주기가 어긋나 같은 조합이 거의 다시 오지 않음',
+                  chSetup(ch, xs[0].gm, 92, pan, rv), arr, ch);
+      });
+    }
+  }catch(e){}
 
   /* 빈 가이드 트랙(텍스처·필드레코딩·서브드론·솔로단편)은 MIDI에서 뺐다 —
      노트가 하나도 없어 로직에서 빈 껍데기 트랙만 늘어난다. 무엇을 얹으면 좋은지는
