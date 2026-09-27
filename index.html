@@ -5112,11 +5112,11 @@ const SOLO_INST = {
              how:'활의 스웰(CC11)과 늦게 걸리는 비브라토(CC1). Stradivari Cello 는 CC11 이 세기, 비브라토는 악기 안에서 자동이면 CC1 대신 그 값을 씁니다.' },
   flute:   { nm:'플루트', fam:'winds',   range:[60,93], center:79, gm:73,  patch:'Orchestral/Woodwinds/Flute Solo', swell:true, vib:30, vibDelay:0.2,
              how:'숨의 스웰(CC11)과 얕은 숨 떨림(CC1). 로직 Studio Woodwinds 는 CC11 세기, CC1 비브라토.' },
-  daegeum: { nm:'대금',   fam:'winds',   range:[62,86], center:74, gm:77,  patch:'Sampler > Winds/DaeGeum (SanJo) - DEMO_simple', swell:true, vib:22, vibDelay:0.4, guk:'daegeum',
+  daegeum: { nm:'대금',   fam:'winds',   range:[62,86], center:74, gm:77,  patch:'Kontakt > East Asia/Daegeum', alt:'Sampler > Winds/DaeGeum (SanJo) - DEMO_simple', swell:true, vib:22, vibDelay:0.4, guk:'daegeum',
              how:'숨의 스웰(CC11), 뒤로 갈수록 깊고 빨라지는 농음과 밀어 올려 들어가기, 추성 퇴성은 피치 벤드(벤드 범위 2반음 기준). simple 판 기준, modal 판을 쓰면 샘플에 시김새가 있어 벤드와 겹칠 수 있습니다.' },
-  piri:    { nm:'피리',   fam:'winds',   range:[69,86], center:76, gm:68,  patch:'Sampler > Winds/PiRi (Hyang) - DEMO_simple', swell:true, vib:0, vibDelay:0.3, guk:'piri',
+  piri:    { nm:'피리',   fam:'winds',   range:[69,86], center:76, gm:68,  patch:'Sampler > Winds/PiRi (Hyang) - DEMO_simple', alt:'Kontakt > East Asia/Hichiriki (일본 피리, 같은 계열)', swell:true, vib:0, vibDelay:0.3, guk:'piri',
              how:'또렷한 첫소리(벨로시티), 숨의 스웰(CC11), 빠르고 좁은 농음과 추성 퇴성은 피치 벤드(벤드 범위 2반음 기준). simple 판 기준, modal 판을 쓰면 샘플에 시김새가 있어 벤드와 겹칠 수 있습니다.' },
-  gayageum:{ nm:'가야금', fam:'piano',   range:[43,74], center:60, gm:107, patch:'Sampler > Strings/GaYaGeum (SanJo) - DEMO_modal', pluck:true,
+  gayageum:{ nm:'가야금', fam:'strings',   range:[43,74], center:60, gm:107, patch:'Kontakt > East Asia/Gayageum', alt:'Sampler > Strings/GaYaGeum (SanJo) - DEMO_modal', pluck:true,
              how:'세기는 벨로시티, 마디마다 여음 페달(CC64), 긴 음의 농현과 퇴성은 피치 벤드(벤드 범위 2반음 기준).' },
   piano:   { nm:'피아노', fam:'piano',   range:[21,108], gm:0,  patch:'Kontakt > Cinematic Studio Piano/CSP Piano', piano:true,
              how:'세기는 벨로시티, 울림은 서스테인 페달(CC64).' } };
@@ -5140,9 +5140,15 @@ function clampToRange(notes){
   if(!(state.soloInst && SOLO_INST[state.soloInst]) && (state.genre==='ambient' || _g.free)) return notes;   /* 독주 악기를 고르면 늘 그 음역 */
   const R = famRange(), lo=R[0], hi=R[1];
   if(hi-lo < 12) return notes;
-  /* ★ 독주 악기의 노래하는 가운데: 선율 가운데값이 그보다 7 넘게 높거나 낮으면 음역 안에서 옥타브 옮김 (첼로가 65~75 에 몰리던 것) */
-  try{ const SI=(state.soloInst&&SOLO_INST[state.soloInst])||null; if(SI && SI.center && notes.length){ const ms=notes.map(n=>n.midi).sort((a,b)=>a-b); const med=ms[Math.floor(ms.length/2)];
-      let sh=0; for(let k=0;k<3;k++){ const m2=med+sh; if(m2-SI.center>7) sh-=12; else if(SI.center-m2>7) sh+=12; else break; } if(sh) notes.forEach(n=>{ n.midi+=sh; }); } }catch(e){}   /* 가까워질 때까지 옥타브를 여러 번 */                  // 음역이 한 옥타브도 안 되면 건드리지 않음
+  /* ★ 2026-09-27 독주 악기는 프레이즈 단위로 통째로 옥타브를 옮겨 음역과 노래하는 가운데에 맞춘다 (형: 피아노 말고는 멜로디가 이상하다.
+       음마다 접으니 오르내림이 꺾였다). 쉼 3/4박 넘거나 16음이면 프레이즈. 앞 프레이즈와 같은 옮김을 더 좋아한다. 넘치는 음만 아래에서 음마다 접는다 */
+  const _SI=(state.soloInst&&SOLO_INST[state.soloInst])||null;
+  try{ if(_SI && notes.length){ const cen=_SI.center||Math.round((lo+hi)/2); const srt=notes.slice().sort((a,b)=>a.t-b.t); const phs=[]; let cur=[];
+      srt.forEach(n=>{ const pv2=cur[cur.length-1]; if(cur.length && ((n.t-(pv2.t+pv2.dur))>=0.75 || cur.length>=16)){ phs.push(cur); cur=[]; } cur.push(n); }); if(cur.length) phs.push(cur);
+      let prevK=null;
+      phs.forEach(ph=>{ const ms=ph.map(n=>n.midi).sort((a,b)=>a-b); const med=ms[Math.floor(ms.length/2)]; let best=null;
+        for(let k=-48;k<=48;k+=12){ const out=ms.filter(m=>m+k<lo||m+k>hi).length; const cost=out*100+Math.abs(med+k-cen)+((prevK!=null&&k!==prevK)?4:0); if(!best||cost<best.c) best={k:k,c:cost}; }
+        prevK=best.k; if(best.k) ph.forEach(n=>{ n.midi+=best.k; }); }); } }catch(e){}
   notes.forEach(n=>{
     let m=n.midi;
     while(m < lo) m += 12;
@@ -5156,7 +5162,7 @@ function clampToRange(notes){
   for(let pass=0; pass<2; pass++){
     for(let i=1;i<mel.length;i++){
       const L = mel[i].midi - mel[i-1].midi;
-      if(Math.abs(L) <= 12) continue;
+      if(Math.abs(L) <= ((_SI && !_SI.piano && !_SI.pluck)?9:12)) continue;   /* 관악 현악 독주는 9반음 넘는 도약을 줄인다 */
       const alt = mel[i].midi + (L>0 ? -12 : 12);
       if(alt>=lo && alt<=hi && Math.abs(alt-mel[i-1].midi) < Math.abs(L)) mel[i].midi = alt;
     }
@@ -5745,7 +5751,7 @@ function buildMidi(){
   pv(tr,0);tr.push(0xFF,0x2F,0x00);
   /* ★ 2026-09-27 앰비언트 반주 (형: 완전 저역의 드론과 코드톤 신스가 같이 깔리면). 선율 + 저역 드론 + 코드톤 신스, 형식 1 세 트랙 */
   if(state.ambComp==='on'){ try{
-    const bl=(_mt.barLen||4), bps=exportBpm/60, TS=tickScale; const TK=(b)=>Math.max(0,Math.round(b*PPQ*TS));
+    const bl=(_mt.barLen||4), bps=(state.bpm||96)/60, TS=tickScale;   /* 박은 곡 빠르기 기준 (틱으로 바꿀 때 TS 가 로직 빠르기로 맞춤) */ const TK=(b)=>Math.max(0,Math.round(b*PPQ*TS));
     const melEnd=notes.reduce((m,n)=>Math.max(m,n.t+n.dur),0); const start=PADB, stop=Math.ceil((melEnd+bl*2)/bl)*bl;
     let sd=((notes.length*131)+(state.key||'C').charCodeAt(0)*17+(state.bpm|0))>>>0; const rnd=()=>{ sd=(Math.imul(sd^(sd>>>15),0x2c1b3c6d)+0x6d2b79f5)>>>0; return (sd%10000)/10000; };
     const kc=ME.parseChord(state.key); const tpc=kc?kc.root:0;
@@ -5755,24 +5761,28 @@ function buildMidi(){
       const l=T.length; return [0x4D,0x54,0x72,0x6B,(l>>24)&255,(l>>16)&255,(l>>8)&255,l&255].concat(T); };
     /* 드론 */
     const dN=28+((tpc-4+12)%12); const withFifth=rnd()<0.5; const dPatch=(rnd()<0.5)?'Synthesizer/Bass/Deep Sub Bass':'Synthesizer/Soundscape/Deep Ambient Stack';
-    const D=[]; D.push({tick:TK(start),k:0x90,a:dN,b:52}); if(withFifth) D.push({tick:TK(start),k:0x90,a:dN+7,b:40});
+    const D=[]; D.push({tick:TK(start),k:0x90,a:dN,b:30}); if(withFifth) D.push({tick:TK(start),k:0x90,a:dN+7,b:26});   /* 여린 벨로시티로 시작 */
     D.push({tick:TK(stop),k:0x80,a:dN,b:0}); if(withFifth) D.push({tick:TK(stop),k:0x80,a:dN+7,b:0});
     const fin=stop-5*bps;
     for(let b=start-0.01; b<=stop; b+=0.5){ const s=(b-start)/bps; let v=85+15*Math.sin(2*Math.PI*s/30-Math.PI/2);
-      if(s<8){ const f=Math.max(0,s/8); v=v*(0.03+0.97*f*f); } if(b>fin){ const f=Math.max(0,(stop-b)/(stop-fin)); v=v*f; }
+      if(s<10){ const f=Math.max(0,s/10); v=v*(0.02+0.98*f*f); } if(b>fin){ const f=Math.max(0,(stop-b)/(stop-fin)); v=v*f; }
       D.push({tick:TK(Math.max(start,b)),k:0xB0,a:11,b:Math.max(1,Math.min(127,Math.round(v)))}); }
+    /* ★ 볼륨(CC7)도 0 에서 천천히: CC11 에 반응하지 않는 음원도 서서히 들어오게 (형: 첫 시작에 어택) */
+    const vol=(arr,fadeIn)=>{ for(let s=0;s<=fadeIn;s+=0.25){ const f=s/fadeIn; arr.push({tick:TK(start+s*bps),k:0xB0,a:7,b:Math.max(0,Math.round(100*f*f))}); } for(let s=0;s<=5;s+=0.25){ const f=1-s/5; arr.push({tick:TK(fin+s*bps),k:0xB0,a:7,b:Math.max(0,Math.round(100*f))}); } };
+    vol(D,10);
     /* 코드톤 신스 */
     const totalBars=Math.ceil((melEnd-PADB)/bl); const bc=(scoreSectionsChords(totalBars).barChords)||[]; const pPatch=['Synthesizer/Pad/Calming Waves','Synthesizer/Pad/Aurora Waves','Synthesizer/Pad/Distant Memories'][Math.floor(rnd()*3)];
     const Pd=[]; const segs=[]; for(let i=0;i<totalBars;i++){ const sym=bc[i]||''; if(segs.length && segs[segs.length-1].sym===sym) segs[segs.length-1].n++; else segs.push({sym:sym,b0:i,n:1}); }
     segs.forEach((sg,si)=>{ const c=ME.parseChord(sg.sym); if(!c) return; const t0=PADB+sg.b0*bl, t1=t0+sg.n*bl;
-      const on=(si===0)?t0:t0-0.1, off=t1+0.1;   /* 겹침은 짧게 */
+      const on=(si===0)?t0:t0-0.5, off=t1+0.1;   /* 새 화음은 반 박 앞서 여리게 겹쳐 바뀌는 어택을 묻는다 */
       const held=new Set(), inBar=notes.filter(n=>n.t<off && n.t+n.dur>on); inBar.forEach(n=>{ const ov=Math.min(off,n.t+n.dur)-Math.max(on,n.t); if(ov>=0.5) held.add(((n.midi%12)+12)%12); });   /* 신스가 울리는 구간 전체, 반 박 넘게 겹치는 선율 음 */
       const melLo=inBar.length?Math.min(...inBar.map(n=>n.midi)):84; const top=Math.min(64, melLo-3);
       const clash=pc=>held.has((pc+1)%12)||held.has((pc+11)%12); let pcs=c.pcs.filter(pc=>!clash(pc)); if(!pcs.length) return; if(pcs.length===1 && !clash((pcs[0]+7)%12)) pcs.push((pcs[0]+7)%12);   /* 근음도 부딪히면 뺀다. 남는 음이 없으면 그 구간은 신스 쉼(드론이 바닥) */
       const vs=[]; pcs.forEach(pc=>{ let m=48+((pc-48%12+12)%12); while(m<48) m+=12; while(m>top && m-12>=43) m-=12; if(m<=Math.max(top,50)) vs.push(m); }); const V=[...new Set(vs)].sort((a,b)=>a-b).slice(0,4); if(!V.length) return;
-      V.forEach((m,k)=>{ Pd.push({tick:TK(on),k:0x90,a:m,b:46+k*2}); Pd.push({tick:TK(Math.min(off,stop)),k:0x80,a:m,b:0}); });
-      const len=t1-t0; const first=(si===0); const pts=first?[[0,3],[0.15,40],[0.35,78],[0.6,95],[0.9,82]]:[[0,62],[0.3,90],[0.6,96],[0.9,80]];
-      pts.forEach(pt=>{ Pd.push({tick:TK(t0+len*pt[0]+(first?0:0.01)),k:0xB0,a:11,b:pt[1]}); }); });
+      V.forEach((m,k)=>{ Pd.push({tick:TK(on),k:0x90,a:m,b:(si===0?22:30)+k*2}); Pd.push({tick:TK(Math.min(off,stop)),k:0x80,a:m,b:0}); });
+      const len=t1-t0; const inB=6*bps; if(t0-start<inB+len){ /* 처음 6초 안의 화음: 절대 시간으로 천천히 차오름 */ for(let x=Math.max(t0,start); x<Math.min(t1,start+inB); x+=0.25){ const f=(x-start)/inB; Pd.push({tick:TK(x),k:0xB0,a:11,b:Math.max(1,Math.round(95*(0.02+0.98*f*f)))}); } }
+      if(t1>start+inB){ const a0=Math.max(t0,start+inB); const L2=t1-a0; [[0,80],[0.3,92],[0.6,96],[0.9,82]].forEach(pt=>{ Pd.push({tick:TK(a0+L2*pt[0]+0.01),k:0xB0,a:11,b:pt[1]}); }); } });
+    vol(Pd,6);
     const trD=mkTrack(dPatch+' | 저역 드론 (으뜸음'+(withFifth?' + 5도':'')+')',1,38,D), trP=mkTrack(pPatch+' | 코드톤 신스 (화음 따라)',2,89,Pd);
     window.__AMBCOMP={drone:dPatch, pad:pPatch, fifth:withFifth};
     const head3=[0x4D,0x54,0x68,0x64,0,0,0,6,0,1,0,3,(PPQ>>8)&255,PPQ&255];
@@ -5874,10 +5884,10 @@ function melSetupSheet(){
   line('   박자표     : '+state.meter);
   line('   악기군     : '+FS.nm+(solo?'  · 독주 루바토':''));
   line('   음 수      : '+state.notes.length);
-  if(state.ambComp==='on'){ const A=window.__AMBCOMP||{}; line(''); line('■ 앰비언트 반주 (MIDI 에 트랙 둘 더)'); line('   트랙 2 저역 드론: '+(A.drone||'Synthesizer/Bass/Deep Sub Bass')+'. 으뜸음'+(A.fifth?'과 5도':'')+'를 E1~D#2 에 곡 내내. 8초에 걸쳐 차오르고 30초 주기로 숨 쉬고 끝에서 5초에 걸쳐 사라짐(CC11).');
+  if(state.ambComp==='on'){ const A=window.__AMBCOMP||{}; line(''); line('■ 앰비언트 반주 (MIDI 에 트랙 둘 더)'); line('   트랙 2 저역 드론: '+(A.drone||'Synthesizer/Bass/Deep Sub Bass')+'. 으뜸음'+(A.fifth?'과 5도':'')+'를 E1~D#2 에 곡 내내. 10초에 걸쳐 차오르고(CC7 볼륨과 CC11 세기 둘 다) 30초 주기로 숨 쉬고 끝에서 5초에 걸쳐 사라짐.'); line('   서서히 들어오기: 볼륨(CC7)은 로직 「컨트롤 체인지 메시지 7/10으로 채널 스트립 볼륨 페이더/패닝 노브를 설정」 이 켜져 있어야 페이더가 움직입니다. 음원의 Amp Attack 을 1~2초로 두면 더 부드럽습니다.');
     line('   트랙 3 코드톤 신스: '+(A.pad||'Synthesizer/Pad/Calming Waves')+'. 화음을 C3~E4 에, 선율보다 단3도 아래, 선율이 길게 끄는 음과 반음으로 부딪히는 음은 뺌. 화음마다 부풀었다 잦아듦. 신스 대안: Alchemy > Atmospheric > Pads.');
     line('   공간: 선율 앞 가운데 리버브 조금, 신스 좌우 넓게 조금 뒤 리버브 4~6초, 드론 가운데 가장 뒤 리버브 적게. 신스는 EQ 로 150~200Hz 아래를 깎아 드론 자리를 비웁니다.'); }
-  { const SI=(state.soloInst&&SOLO_INST[state.soloInst])||null; if(SI){ line(''); line('■ 독주 악기: '+SI.nm); line('   음원       : '+SI.patch); line('   음역       : MIDI '+SI.range[0]+'~'+SI.range[1]+' 안에 가둠'); line('   표현       : '+SI.how); if(SI.swell) line('   들어오는 첫 음은 3% 에서 1.2~3초에 걸쳐 차오릅니다. 음원의 Attack 은 짧게 두어도 됩니다.'); } }
+  { const SI=(state.soloInst&&SOLO_INST[state.soloInst])||null; if(SI){ line(''); line('■ 독주 악기: '+SI.nm); line('   음원       : '+SI.patch+(SI.alt?('  (대안: '+SI.alt+')'):'')); if(/East Asia/.test(SI.patch)) line('   East Asia 는 콘탁 안에서 피치 벤드 범위를 2반음으로 맞춰야 농음 농현 추성 퇴성이 의도한 폭으로 들립니다. 악기 자체의 비브라토나 시김새 기능이 켜져 있으면 겹치니 꺼 주세요.'); line('   음역       : MIDI '+SI.range[0]+'~'+SI.range[1]+' 안에 가둠'); line('   표현       : '+SI.how); if(SI.swell) line('   들어오는 첫 음은 3% 에서 1.2~3초에 걸쳐 차오릅니다. 음원의 Attack 은 짧게 두어도 됩니다.'); } }
   line('');
   if(typeof window!=='undefined' && window.SO_renderCommon){
     line('■ 공통 기본 (로직 프로 11)');
