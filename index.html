@@ -1477,6 +1477,8 @@ input[type=range]{accent-color:var(--teal)}
         <input type="number" id="logicBpm" value="120" min="40" max="240" style="width:64px"></div>
       <div class="field"><label>독주 악기</label>
         <select id="soloInst" style="width:110px"><option value="none" selected>선택 안 함</option><option value="cello">첼로</option><option value="flute">플루트</option><option value="daegeum">대금</option><option value="piri">피리</option><option value="gayageum">가야금</option><option value="piano">피아노</option></select></div>
+      <div class="field"><label>앰비언트 반주</label>
+        <select id="ambComp" style="width:120px"><option value="off" selected>끔</option><option value="on">저역 드론 + 코드 신스</option></select></div>
       <div class="field" id="famField" style="display:none"><label>악기군</label>
         <select id="instFam" style="width:110px">
           <option value="piano" selected>피아노</option>
@@ -4068,7 +4070,7 @@ const $ = id => document.getElementById(id);
 const state = { emptyEnds:false,
   accomp:false,   // 재생 시 코드 반주(드론+아르페지오) — 미리듣기 전용
   soloPiano:false, // 독주 루바토: 멜로디를 장르별 피아노 독주로 편곡(왼손 반주 + 오른손 장식)
-  soloInst:'none', mode:'single', genre:'freesolo', meter:'4/4', grouping:'균등', key:'C', keyMode:'minor', octave:0, bpm:96, durMin:4, durSec:0, logicBpm:120, instFam:'piano', vocSex:'female',
+  soloInst:'none', ambComp:'off', mode:'single', genre:'freesolo', meter:'4/4', grouping:'균등', key:'C', keyMode:'minor', octave:0, bpm:96, durMin:4, durSec:0, logicBpm:120, instFam:'piano', vocSex:'female',
   instrument:'piano',
   profile:'hook', seed:1,
   single:{ role:'hook', chords:['C','G','Am','F'], bars:16, reps:1 },
@@ -4441,6 +4443,7 @@ function applyGenreTempoRule(){
   $('sexField').style.display=(state.instFam==='vocal')?'':'none';
 }
 $('logicBpm').onchange=()=>{ state.logicBpm=Math.max(40,Math.min(240,Math.round(+$('logicBpm').value||120))); $('logicBpm').value=state.logicBpm; };
+$('ambComp').onchange=()=>{ state.ambComp=$('ambComp').value; };   /* 앰비언트 반주: 내보낼 때만 트랙이 붙는다 */
 $('soloInst').onchange=()=>{ state.soloInst=$('soloInst').value; const S=SOLO_INST[state.soloInst]; if(S){ state.instFam=S.fam; $('instFam').value=S.fam; $('sexField').style.display='none'; } autoRemake(); };   /* 독주 악기 */
 $('instFam').onchange=()=>{ state.instFam=$('instFam').value; $('sexField').style.display=(state.instFam==='vocal')?'':'none'; autoRemake(); };
 $('vocSex').onchange=()=>{ state.vocSex=$('vocSex').value; autoRemake(); };
@@ -5740,6 +5743,41 @@ function buildMidi(){
     const _SIg=(state.soloInst&&SOLO_INST[state.soloInst])?SOLO_INST[state.soloInst].gm:null; const gm=(_SIg!=null)?_SIg:FAMGM[state.instFam||'piano']; if(gm!=null){ pv(tr,0); tr.push(0xC0, gm); } }
   let last=0;evs.forEach(e=>{pv(tr,e.tick-last);tr.push(e.t,e.m,e.v);last=e.tick;});
   pv(tr,0);tr.push(0xFF,0x2F,0x00);
+  /* ★ 2026-09-27 앰비언트 반주 (형: 완전 저역의 드론과 코드톤 신스가 같이 깔리면). 선율 + 저역 드론 + 코드톤 신스, 형식 1 세 트랙 */
+  if(state.ambComp==='on'){ try{
+    const bl=(_mt.barLen||4), bps=exportBpm/60, TS=tickScale; const TK=(b)=>Math.max(0,Math.round(b*PPQ*TS));
+    const melEnd=notes.reduce((m,n)=>Math.max(m,n.t+n.dur),0); const start=PADB, stop=Math.ceil((melEnd+bl*2)/bl)*bl;
+    let sd=((notes.length*131)+(state.key||'C').charCodeAt(0)*17+(state.bpm|0))>>>0; const rnd=()=>{ sd=(Math.imul(sd^(sd>>>15),0x2c1b3c6d)+0x6d2b79f5)>>>0; return (sd%10000)/10000; };
+    const kc=ME.parseChord(state.key); const tpc=kc?kc.root:0;
+    const mkTrack=(name,ch,gm,ev)=>{ const T=[]; const nb=[]; for(const c of name){ const cp=c.codePointAt(0); if(cp<0x80) nb.push(cp); else if(cp<0x800) nb.push(0xC0|(cp>>6),0x80|(cp&63)); else nb.push(0xE0|(cp>>12),0x80|((cp>>6)&63),0x80|(cp&63)); }
+      pv(T,0); T.push(0xFF,0x03); pv(T,nb.length); nb.forEach(x=>T.push(x)); pv(T,0); T.push(0xC0|ch,gm); pv(T,0); T.push(0xB0|ch,10,64);
+      ev.sort((a,b)=>a.tick-b.tick||((a.k===0x80?0:a.k===0xB0?1:2)-(b.k===0x80?0:b.k===0xB0?1:2))); let last=0; ev.forEach(e=>{ pv(T,e.tick-last); T.push(e.k|ch,e.a,e.b); last=e.tick; }); pv(T,0); T.push(0xFF,0x2F,0x00);
+      const l=T.length; return [0x4D,0x54,0x72,0x6B,(l>>24)&255,(l>>16)&255,(l>>8)&255,l&255].concat(T); };
+    /* 드론 */
+    const dN=28+((tpc-4+12)%12); const withFifth=rnd()<0.5; const dPatch=(rnd()<0.5)?'Synthesizer/Bass/Deep Sub Bass':'Synthesizer/Soundscape/Deep Ambient Stack';
+    const D=[]; D.push({tick:TK(start),k:0x90,a:dN,b:52}); if(withFifth) D.push({tick:TK(start),k:0x90,a:dN+7,b:40});
+    D.push({tick:TK(stop),k:0x80,a:dN,b:0}); if(withFifth) D.push({tick:TK(stop),k:0x80,a:dN+7,b:0});
+    const fin=stop-5*bps;
+    for(let b=start-0.01; b<=stop; b+=0.5){ const s=(b-start)/bps; let v=85+15*Math.sin(2*Math.PI*s/30-Math.PI/2);
+      if(s<8){ const f=Math.max(0,s/8); v=v*(0.03+0.97*f*f); } if(b>fin){ const f=Math.max(0,(stop-b)/(stop-fin)); v=v*f; }
+      D.push({tick:TK(Math.max(start,b)),k:0xB0,a:11,b:Math.max(1,Math.min(127,Math.round(v)))}); }
+    /* 코드톤 신스 */
+    const totalBars=Math.ceil((melEnd-PADB)/bl); const bc=(scoreSectionsChords(totalBars).barChords)||[]; const pPatch=['Synthesizer/Pad/Calming Waves','Synthesizer/Pad/Aurora Waves','Synthesizer/Pad/Distant Memories'][Math.floor(rnd()*3)];
+    const Pd=[]; const segs=[]; for(let i=0;i<totalBars;i++){ const sym=bc[i]||''; if(segs.length && segs[segs.length-1].sym===sym) segs[segs.length-1].n++; else segs.push({sym:sym,b0:i,n:1}); }
+    segs.forEach((sg,si)=>{ const c=ME.parseChord(sg.sym); if(!c) return; const t0=PADB+sg.b0*bl, t1=t0+sg.n*bl;
+      const on=(si===0)?t0:t0-0.1, off=t1+0.1;   /* 겹침은 짧게 */
+      const held=new Set(), inBar=notes.filter(n=>n.t<off && n.t+n.dur>on); inBar.forEach(n=>{ const ov=Math.min(off,n.t+n.dur)-Math.max(on,n.t); if(ov>=0.5) held.add(((n.midi%12)+12)%12); });   /* 신스가 울리는 구간 전체, 반 박 넘게 겹치는 선율 음 */
+      const melLo=inBar.length?Math.min(...inBar.map(n=>n.midi)):84; const top=Math.min(64, melLo-3);
+      const clash=pc=>held.has((pc+1)%12)||held.has((pc+11)%12); let pcs=c.pcs.filter(pc=>!clash(pc)); if(!pcs.length) return; if(pcs.length===1 && !clash((pcs[0]+7)%12)) pcs.push((pcs[0]+7)%12);   /* 근음도 부딪히면 뺀다. 남는 음이 없으면 그 구간은 신스 쉼(드론이 바닥) */
+      const vs=[]; pcs.forEach(pc=>{ let m=48+((pc-48%12+12)%12); while(m<48) m+=12; while(m>top && m-12>=43) m-=12; if(m<=Math.max(top,50)) vs.push(m); }); const V=[...new Set(vs)].sort((a,b)=>a-b).slice(0,4); if(!V.length) return;
+      V.forEach((m,k)=>{ Pd.push({tick:TK(on),k:0x90,a:m,b:46+k*2}); Pd.push({tick:TK(Math.min(off,stop)),k:0x80,a:m,b:0}); });
+      const len=t1-t0; const first=(si===0); const pts=first?[[0,3],[0.15,40],[0.35,78],[0.6,95],[0.9,82]]:[[0,62],[0.3,90],[0.6,96],[0.9,80]];
+      pts.forEach(pt=>{ Pd.push({tick:TK(t0+len*pt[0]+(first?0:0.01)),k:0xB0,a:11,b:pt[1]}); }); });
+    const trD=mkTrack(dPatch+' | 저역 드론 (으뜸음'+(withFifth?' + 5도':'')+')',1,38,D), trP=mkTrack(pPatch+' | 코드톤 신스 (화음 따라)',2,89,Pd);
+    window.__AMBCOMP={drone:dPatch, pad:pPatch, fifth:withFifth};
+    const head3=[0x4D,0x54,0x68,0x64,0,0,0,6,0,1,0,3,(PPQ>>8)&255,PPQ&255];
+    const tl=tr.length;const th=[0x4D,0x54,0x72,0x6B,(tl>>24)&255,(tl>>16)&255,(tl>>8)&255,tl&255];
+    return new Uint8Array(head3.concat(th,tr,trD,trP)); }catch(e){ try{ window.__AMBERR=String(e); }catch(_){} } }
   const head=[0x4D,0x54,0x68,0x64,0,0,0,6,0,0,0,1,(PPQ>>8)&255,PPQ&255];
   const tl=tr.length;const th=[0x4D,0x54,0x72,0x6B,(tl>>24)&255,(tl>>16)&255,(tl>>8)&255,tl&255];
   return new Uint8Array(head.concat(th,tr));
@@ -5836,6 +5874,9 @@ function melSetupSheet(){
   line('   박자표     : '+state.meter);
   line('   악기군     : '+FS.nm+(solo?'  · 독주 루바토':''));
   line('   음 수      : '+state.notes.length);
+  if(state.ambComp==='on'){ const A=window.__AMBCOMP||{}; line(''); line('■ 앰비언트 반주 (MIDI 에 트랙 둘 더)'); line('   트랙 2 저역 드론: '+(A.drone||'Synthesizer/Bass/Deep Sub Bass')+'. 으뜸음'+(A.fifth?'과 5도':'')+'를 E1~D#2 에 곡 내내. 8초에 걸쳐 차오르고 30초 주기로 숨 쉬고 끝에서 5초에 걸쳐 사라짐(CC11).');
+    line('   트랙 3 코드톤 신스: '+(A.pad||'Synthesizer/Pad/Calming Waves')+'. 화음을 C3~E4 에, 선율보다 단3도 아래, 선율이 길게 끄는 음과 반음으로 부딪히는 음은 뺌. 화음마다 부풀었다 잦아듦. 신스 대안: Alchemy > Atmospheric > Pads.');
+    line('   공간: 선율 앞 가운데 리버브 조금, 신스 좌우 넓게 조금 뒤 리버브 4~6초, 드론 가운데 가장 뒤 리버브 적게. 신스는 EQ 로 150~200Hz 아래를 깎아 드론 자리를 비웁니다.'); }
   { const SI=(state.soloInst&&SOLO_INST[state.soloInst])||null; if(SI){ line(''); line('■ 독주 악기: '+SI.nm); line('   음원       : '+SI.patch); line('   음역       : MIDI '+SI.range[0]+'~'+SI.range[1]+' 안에 가둠'); line('   표현       : '+SI.how); if(SI.swell) line('   들어오는 첫 음은 3% 에서 1.2~3초에 걸쳐 차오릅니다. 음원의 Attack 은 짧게 두어도 됩니다.'); } }
   line('');
   if(typeof window!=='undefined' && window.SO_renderCommon){
