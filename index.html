@@ -1476,7 +1476,7 @@ input[type=range]{accent-color:var(--teal)}
       <div class="field" id="logicField" style="display:none"><label>로직 템포</label>
         <input type="number" id="logicBpm" value="120" min="40" max="240" style="width:64px"></div>
       <div class="field"><label>독주 악기</label>
-        <select id="soloInst" style="width:110px"><option value="none" selected>선택 안 함</option><option value="cello">첼로</option><option value="flute">플루트</option><option value="daegeum">대금</option><option value="gayageum">가야금</option><option value="piano">피아노</option></select></div>
+        <select id="soloInst" style="width:110px"><option value="none" selected>선택 안 함</option><option value="cello">첼로</option><option value="flute">플루트</option><option value="daegeum">대금</option><option value="piri">피리</option><option value="gayageum">가야금</option><option value="piano">피아노</option></select></div>
       <div class="field" id="famField" style="display:none"><label>악기군</label>
         <select id="instFam" style="width:110px">
           <option value="piano" selected>피아노</option>
@@ -5109,8 +5109,10 @@ const SOLO_INST = {
              how:'활의 스웰(CC11)과 늦게 걸리는 비브라토(CC1). Stradivari Cello 는 CC11 이 세기, 비브라토는 악기 안에서 자동이면 CC1 대신 그 값을 씁니다.' },
   flute:   { nm:'플루트', fam:'winds',   range:[60,93], center:79, gm:73,  patch:'Orchestral/Woodwinds/Flute Solo', swell:true, vib:30, vibDelay:0.2,
              how:'숨의 스웰(CC11)과 얕은 숨 떨림(CC1). 로직 Studio Woodwinds 는 CC11 세기, CC1 비브라토.' },
-  daegeum: { nm:'대금',   fam:'winds',   range:[62,86], center:74, gm:77,  patch:'Sampler > Winds/DaeGeum (SanJo) - DEMO_modal', swell:true, vib:22, vibDelay:0.4,
-             how:'숨의 스웰(CC11)과 얕게 늦게 걸리는 농음(CC1). Sampler 의 Mod Matrix 에서 Mod Wheel 을 Pitch LFO 깊이에 연결하면 농음이 됩니다.' },
+  daegeum: { nm:'대금',   fam:'winds',   range:[62,86], center:74, gm:77,  patch:'Sampler > Winds/DaeGeum (SanJo) - DEMO_simple', swell:true, vib:22, vibDelay:0.4, guk:'daegeum',
+             how:'숨의 스웰(CC11), 뒤로 갈수록 깊고 빨라지는 농음과 밀어 올려 들어가기, 추성 퇴성은 피치 벤드(벤드 범위 2반음 기준). simple 판 기준, modal 판을 쓰면 샘플에 시김새가 있어 벤드와 겹칠 수 있습니다.' },
+  piri:    { nm:'피리',   fam:'winds',   range:[69,86], center:76, gm:68,  patch:'Sampler > Winds/PiRi (Hyang) - DEMO_simple', swell:true, vib:0, vibDelay:0.3, guk:'piri',
+             how:'또렷한 첫소리(벨로시티), 숨의 스웰(CC11), 빠르고 좁은 농음과 추성 퇴성은 피치 벤드(벤드 범위 2반음 기준). simple 판 기준, modal 판을 쓰면 샘플에 시김새가 있어 벤드와 겹칠 수 있습니다.' },
   gayageum:{ nm:'가야금', fam:'piano',   range:[43,74], center:60, gm:107, patch:'Sampler > Strings/GaYaGeum (SanJo) - DEMO_modal', pluck:true,
              how:'세기는 벨로시티, 마디마다 여음 페달(CC64), 긴 음의 농현과 퇴성은 피치 벤드(벤드 범위 2반음 기준).' },
   piano:   { nm:'피아노', fam:'piano',   range:[21,108], gm:0,  patch:'Kontakt > Cinematic Studio Piano/CSP Piano', piano:true,
@@ -5657,17 +5659,38 @@ function buildMidi(){
       if(SI.swell){
         let lo=-1e9;
         top.forEach(n=>{ const ent=(n.t-lo>=1); lo=Math.max(lo,n.t+n.dur); if(!ent) return;
-          const Rb=Math.max(1.2*bps, Math.min(3.0*bps, n.dur*0.45)); const t0=Math.round(n.t*PPQ), t1=Math.round((n.t+Rb)*PPQ);
+          const Rb=(SI.guk==='piri')?Math.max(0.3*bps,Math.min(0.8*bps,n.dur*0.25)):Math.max(1.2*bps, Math.min(3.0*bps, n.dur*0.45)); const t0=Math.round(n.t*PPQ), t1=Math.round((n.t+Rb)*PPQ);   /* 피리는 짧게 */
           for(let q=evs.length-1;q>=0;q--){ const e=evs[q]; if(e.t===0xB0&&e.m===11&&e.tick>=t0-2&&e.tick<t1) evs.splice(q,1); }
-          for(let s=0;s<=8;s++){ const f=s/8; evs.push({tick:Math.max(0,t0-2+Math.round((t1-t0)*f)),t:0xB0,m:11,v:Math.max(1,Math.round(98*(0.03+0.97*f*f)))}); }
+          for(let s=0;s<=8;s++){ const f=s/8; const st=(SI.guk==='piri')?0.3:0.03; evs.push({tick:Math.max(0,t0-2+Math.round((t1-t0)*f)),t:0xB0,m:11,v:Math.max(1,Math.round(98*(st+(1-st)*f*f)))}); }
           evs.forEach(e=>{ if(e.t===0x90 && Math.abs(e.tick-t0)<=20) e.v=Math.max(1,Math.round(e.v*0.6)); }); });
         for(let q=evs.length-1;q>=0;q--){ if(evs[q].t===0xB0&&evs[q].m===1) evs.splice(q,1); }
         top.forEach((n,i)=>{ const t0=Math.round(n.t*PPQ); const nx=top[i+1]; const end=nx?Math.min(n.t+n.dur,nx.t):n.t+n.dur; const len=end-n.t;
           evs.push({tick:t0,t:0xB0,m:1,v:0});
+          if(SI.guk) return;   /* 국악 관악은 떨림을 피치 벤드 농음으로 */
           if(len/bps<0.45) return;
           const a=n.t+len*SI.vibDelay, b=n.t+len*0.75;
           for(let s=1;s<=6;s++){ const f=s/6; evs.push({tick:Math.round((a+(b-a)*f)*PPQ),t:0xB0,m:1,v:Math.round(SI.vib*f)}); }
           evs.push({tick:Math.max(t0+4,Math.round(end*PPQ)-4),t:0xB0,m:1,v:0}); });
+      }
+      if(SI.guk){   /* ★ 2026-09-27 국악 관악 관용구 (대금 피리): 숨 자리, 밀어 올려 들어가기, 농음, 추성 퇴성, 피리 첫소리 */
+        const P=SI.guk==='piri'? {breathBars:3, dep:800, r0:5.2, r1:7.0, scoop:0.07, attack:12} : {breathBars:4, dep:900, r0:3.6, r1:5.2, scoop:0.11, attack:0};   /* 얕게 (형: 농음은 얕게) */
+        const bl=(_mt.barLen||4); const pb=(tk,v)=>{ v=Math.max(0,Math.min(16383,Math.round(v))); evs.push({tick:Math.max(0,tk),t:0xE0,m:v&127,v:(v>>7)&127}); };
+        /* 숨 자리: 몇 마디마다 그 경계를 넘는 음의 끝을 줄여 틈을 만든다 */
+        top.forEach((n,i)=>{ const nx=top[i+1]; if(!nx) return; const endB=n.t+n.dur; const brk=Math.round(nx.t/(bl*P.breathBars))*bl*P.breathBars;
+          if(Math.abs(nx.t-brk)<0.26 && nx.t-endB<0.2 && n.dur>0.6){ const cut=Math.min(0.35,n.dur*0.3); const oldT=Math.round(endB*PPQ), newT=Math.round((endB-cut)*PPQ);
+            evs.forEach(e=>{ if(e.t===0x80 && e.tick===oldT) e.tick=newT; }); n.dur-=cut; } });
+        let lo=-1e9, prevM=null;
+        top.forEach((n,i)=>{ const t0=Math.round(n.t*PPQ); const nx=top[i+1]; const end=nx?Math.min(n.t+n.dur,nx.t):n.t+n.dur; const len=end-n.t; const sec=len/bps;
+          const ent=(n.t-lo>=1); lo=Math.max(lo,n.t+n.dur); const leap=(prevM!=null && Math.abs(n.midi-prevM)>=5); prevM=n.midi;
+          if(P.attack && !ent) evs.forEach(e=>{ if(e.t===0x90 && e.tick===t0) e.v=Math.min(127,e.v+P.attack); });
+          if(ent||leap){ const sc=Math.min(P.scoop*bps, len*0.3); pb(t0-1,8192-1600); for(let s=1;s<=4;s++){ const f=s/4; pb(Math.round((n.t+sc*f)*PPQ), 8192-1600*(1-f)*(1-f)); } }
+          else pb(t0-1,8192);
+          if(sec<0.6){ pb(Math.round(end*PPQ)-2,8192); return; }
+          const tail=(len>=1.5)?(((n.midi*5+i*11)%5===0)?'up':(((n.midi*3+i*7)%5===0)?'down':null)):null;
+          const a=n.t+len*0.5, b=tail?n.t+len*0.82:end-0.04; let ph=0, tb=a;
+          while(tb<b){ const g=(tb-a)/Math.max(1e-6,b-a); const rate=P.r0+(P.r1-P.r0)*g; const stepB=(1/rate)*bps/8; ph+=2*Math.PI/8; pb(Math.round(tb*PPQ), 8192+Math.sin(ph)*P.dep*Math.min(1,g*1.4)); tb+=stepB; }
+          if(tail){ const dir=(tail==='up')?1:-1; for(let s=0;s<=5;s++){ const f=s/5; pb(Math.round((b+(end-0.04-b)*f)*PPQ), 8192+dir*4096*f*f); } }
+          pb(Math.round(end*PPQ)-2,8192); });
       }
       if(SI.pluck){
         for(let q=evs.length-1;q>=0;q--){ const e=evs[q]; if(e.t===0xB0&&(e.m===11||e.m===1||e.m===64)) evs.splice(q,1); }
@@ -5703,7 +5726,7 @@ function buildMidi(){
       ? (F==='piano' ? ' · CC64 sustain' : ' · CC11 expression')
       : '';
     nm = 'SUM WAVE Melody — ' + (state.soloPiano?'독주 루바토 ':'') + '(' + (FN[F]||F) + cc + ') · 임시음색 — 로직에서 교체';
-    { const SI=(state.soloInst&&SOLO_INST[state.soloInst])||null; if(SI) nm=SI.patch+' | '+SI.nm+' 독주'+(SI.swell?' (CC11 스웰, CC1 떨림)':SI.pluck?' (CC64 여음, 벤드 농현)':' (CC64 페달)'); }
+    { const SI=(state.soloInst&&SOLO_INST[state.soloInst])||null; if(SI) nm=SI.patch+' | '+SI.nm+' 독주'+(SI.guk?' (CC11 스웰, 벤드 농음 시김새)':SI.swell?' (CC11 스웰, CC1 떨림)':SI.pluck?' (CC64 여음, 벤드 농현)':' (CC64 페달)'); }
   }
   const nmB=[]; for(const c of nm){ const cp=c.codePointAt(0);
     if(cp<0x80) nmB.push(cp);
@@ -39841,7 +39864,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             M.melody={sanjo:'Sampler > Strings/GaYaGeum (SanJo) - DEMO_modal', jeongak:'Sampler > Strings/GaYaGeum (JeongAk) - DEMO_simple', '25':'Sampler > Strings/GaYaGeum (25-string) - DEMO_simple'}[_gy];
             M.piano='Sampler > Strings/YangGeum - DEMO'; M.harp='Sampler > Strings/GeoMunGo (JeongAk) - DEMO_modal'; M.piano2='DecentSampler > Banghyang';
             M.strings='DecentSampler > Saenghwang'; M.pad='06 Synthesizers/03 Synth Pads/Long Ambient Pad';
-            M.counter=(_wd==='danso')?'Sampler > Winds/DanSo - DEMO_modal':'Sampler > Winds/DaeGeum (SanJo) - DEMO_modal';
+            M.counter=(_wd==='danso')?'Sampler > Winds/DanSo - DEMO_simple':'Sampler > Winds/DaeGeum (SanJo) - DEMO_simple';   /* simple 판: 벤드 시김새와 겹치지 않게 */
             window.__GUKCAST={gaya:{sanjo:'산조 가야금',jeongak:'정악 가야금','25':'25현 가야금'}[_gy], wind:(_wd==='danso')?'단소':'대금'}; }
             if(gsel==='gugak'||gsel==='gukvocal'||gsel==='chanbul'||gsel==='lyricMinyo'||gsel==='lyricPenta'){
               const _kw=(gsel==='chanbul')?'(JeongAk)':'(SanJo)';
@@ -42303,6 +42326,25 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             if(grp.key==='counter'){ for(let q=_cc.length-1;q>=0;q--){ if(_cc[q].cc===1) _cc.splice(q,1); }
               const q16=Math.round(TPQ/4); _cc.filter(function(c){ return c.cc===11; }).forEach(function(c){ _cc.push({tick:Math.max(0,c.tick-q16), cc:1, val:Math.min(40,Math.round(c.val*0.33))}); }); }
             else { _cc.forEach(function(c){ if(c.cc===1) c.val=Math.round(c.val*0.4); }); } } }catch(e){}
+          /* ★ 2026-09-27 국악 관악 관용구 (대금 피리 단소 소금 태평소): simple 판은 숨 자리, 밀어 올려 들어가기, 벤드 농음(뒤로 갈수록 깊고 빠르게), 추성 퇴성, 피리 첫소리.
+     modal 판은 샘플에 시김새가 있어 숨 자리만. 벤드 범위 2반음 기준 */
+          try{ const _pn=String((window.__PATCHMAP&&window.__PATCHMAP[grp.key])||''); const _gw=/DaeGeum|PiRi|DanSo|SoGeum|TaePyeongSo/.test(_pn)?(/PiRi|TaePyeongSo/.test(_pn)?'piri':'daegeum'):null;
+            if(_gw && grp.ch!==9 && N.length){ const P=(_gw==='piri')?{bb:3,dep:800,r0:5.2,r1:7.0,sc:0.07,atk:12}:{bb:4,dep:900,r0:3.6,r1:5.2,sc:0.11,atk:0}; const simple=!/modal/.test(_pn);
+              const _bpG=(function(){ try{ return defaultRhythm().bpm||80; }catch(e){ return 80; } })(); const tps=TPQ*_bpG/60; const bq=(SEC_TK[0]?SEC_TK[0].meas:TPQ*4);
+              const S=N.slice().sort(function(a,b){ return a.on-b.on; }); const top=S.filter(function(n,k){ return !(k>0 && n.on-S[k-1].on<24); });
+              top.forEach(function(n,k){ const nx=top[k+1]; if(!nx) return; const brk=Math.round((nx.on-PAD)/(bq*P.bb))*bq*P.bb+PAD; if(Math.abs(nx.on-brk)<TPQ*0.26 && nx.on-n.off<TPQ*0.2 && n.off-n.on>TPQ*0.6){ n.off-=Math.min(Math.round(TPQ*0.35),Math.round((n.off-n.on)*0.3)); } });
+              if(simple){ for(let q=_cc.length-1;q>=0;q--){ if(_cc[q].cc===1) _cc.splice(q,1); }
+                const pb=function(tk,v){ _cc.push({tick:Math.max(0,tk), pb:Math.max(0,Math.min(16383,Math.round(v)))}); };
+                let lo=-1e12, prev=null;
+                top.forEach(function(n,k){ const nx=top[k+1]; const end=nx?Math.min(n.off,nx.on):n.off; const len=end-n.on; const ent=(n.on-lo>=TPQ); lo=Math.max(lo,n.off); const leap=(prev!=null&&Math.abs(n.note-prev)>=5); prev=n.note;
+                  if(P.atk && !ent) n.vel=Math.min(127,(n.vel||64)+P.atk);
+                  if(ent||leap){ const sc=Math.min(Math.round(P.sc*tps), Math.round(len*0.3)); pb(n.on-1,8192-1600); for(let s=1;s<=4;s++){ const f=s/4; pb(n.on+Math.round(sc*f), 8192-1600*(1-f)*(1-f)); } } else pb(n.on-1,8192);
+                  if(len<0.6*tps){ pb(end-2,8192); return; }
+                  const tail=(len>=TPQ*1.5)?(((n.note*5+k*11)%5===0)?1:(((n.note*3+k*7)%5===0)?-1:0)):0;
+                  const a=n.on+len*0.5, b=tail?n.on+len*0.82:end-Math.round(TPQ*0.04); let ph=0, tb=a;
+                  while(tb<b){ const g=(tb-a)/Math.max(1,b-a); const rate=P.r0+(P.r1-P.r0)*g; ph+=2*Math.PI/8; pb(Math.round(tb), 8192+Math.sin(ph)*P.dep*Math.min(1,g*1.4)); tb+=Math.max(4,(tps/rate)/8); }
+                  if(tail){ const e2=end-Math.round(TPQ*0.04); for(let s=0;s<=5;s++){ const f=s/5; pb(Math.round(b+(e2-b)*f), 8192+tail*4096*f*f); } }
+                  pb(end-2,8192); }); } } }catch(e){}
           const byN={}; N.forEach(function(n){ (byN[n.note]=byN[n.note]||[]).push(n); });
           const drop=new Set();
           Object.keys(byN).forEach(function(k){
@@ -44514,7 +44556,7 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
       L.push('■ 국악 앰비언트 음원 (핸드팬 명상 계열의 짜임에 국악기 음색과 음역)');
       L.push('   이 곡: 선율 '+C.gaya+', 긴 선율 '+C.wind+'. 앱의 가야금, 긴 선율 칸에서 고르면 고정, 자동이면 곡마다 바뀝니다.');
       L.push('   선율(치는 선율) '+C.gaya+' / 반복 무늬 양금 / 드문 울림 거문고 / 강세 방향 / 숨 쉬는 화음 생황 / 긴 호흡 선율 '+C.wind+' / 바닥 옅은 신스 패드');
-      L.push('   음원: 국악기는 Sampler(EXS) 의 Strings, Winds 폴더에 있는 이름 그대로. 생황과 방향은 DecentSampler. 층으로 까는 소리는 simple, 선율은 modal 을 걸었습니다.');
+      L.push('   음원: 국악기는 Sampler(EXS) 의 Strings, Winds 폴더에 있는 이름 그대로. 생황과 방향은 DecentSampler. 대금 단소는 simple 판에 피치 벤드로 농음, 밀어 올려 들어가기, 추성 퇴성(벤드 범위 2반음). modal 판으로 바꾸면 샘플의 시김새와 겹치니 벤드를 지우세요.');
       L.push('   음역: 형의 음역 도표로 가둡니다. 대금 62~86, 단소 72~93, 가야금 산조 43~74, 정악 43~72, 25현 36~84, 거문고 36~64, 양금 55~84, 생황 방향 60~84.');
       L.push('   섞기: 양금과 가야금은 좌우로 조금 벌리고(MIDI 맨 앞 CC10), 생황은 가운데 뒤, 대금 단소는 앞 가운데. 거문고는 리버브 적게 가까이.');
       L.push('');
