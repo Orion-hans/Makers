@@ -2708,6 +2708,36 @@ function soUnifyStructOrder(){
 (() => {
 const document = __scopedDoc('app-melody');
 
+/* ★ 2026-09-28 MIDI 안전망 (형: 미디 반영되는 것들 오류나 안 맞는 것 봐줘). 완성된 SMF 를 트랙마다 다시 읽어
+   같은 음 겹침(앞 음을 그 순간 끝내고 원래 끝 신호는 버림), 끝나지 않은 음, 밟힌 채 끝난 페달, 원점 아닌 벤드를 트랙 끝에서 정리. 나머지는 그대로 */
+if(!window.__midiSafety){ window.__midiSafety=function(u8){ try{
+  const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54||b[2]!==0x68||b[3]!==0x64) return u8;
+  const vlq=function(v){ v=Math.max(0,v|0); const o=[v&0x7F]; v>>=7; while(v>0){ o.unshift((v&0x7F)|0x80); v>>=7; } return o; };
+  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0; let p=8+hl; const out=b.slice(0,p); let st={fixed:0};
+  while(p+8<=b.length){ const isTrk=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0;
+    const body=b.slice(p+8,p+8+len); const whole=b.slice(p,p+8+len); p+=8+len; if(!isTrk){ for(let q=0;q<whole.length;q++) out.push(whole[q]); continue; }
+    let i=0,t=0,rs=0,eot=0,ord=0; const ev=[];
+    const rdv=function(){ let v=0,c; do{ c=body[i++]; v=(v<<7)|(c&127); }while((c&128)&&i<body.length); return v; };
+    while(i<body.length){ t+=rdv(); let s=body[i]; if(s<0x80){ s=rs; } else { i++; if(s<0xF0) rs=s; }
+      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat)}); }
+      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
+      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
+    const act={}, drop={}, keep=[]; let lastT=0; const cc64={}, pbv={};
+    ev.forEach(function(e){ lastT=Math.max(lastT,e.t); if(e.s==null){ keep.push(e); return; } const hi=e.s&0xF0, ch=e.s&0x0F;
+      if(hi===0x90 && e.d[1]>0){ const k=ch*128+e.d[0]; if(act[k]){ keep.push({t:e.t,o:e.o-0.5,s:0x80|ch,d:[e.d[0],0]}); drop[k]=(drop[k]||0)+1; st.fixed++; } act[k]=1; keep.push(e); return; }
+      if(hi===0x80 || (hi===0x90 && e.d[1]===0)){ const k=ch*128+e.d[0]; if(drop[k]>0){ drop[k]--; return; } delete act[k]; keep.push(e); return; }
+      if(hi===0xB0 && e.d[0]===64) cc64[ch]=e.d[1]; if(hi===0xE0) pbv[ch]=(e.d[1]<<7)|e.d[0]; keep.push(e); });
+    let endT=Math.max(eot,lastT); const tail=[]; const hang=Object.keys(act);
+    hang.forEach(function(k){ const ch=Math.floor(k/128), nt=k%128; const onT=keep.filter(function(e){ return e.s===(0x90|ch)&&e.d[0]===nt; }).reduce(function(m,e){ return Math.max(m,e.t); },0); const offT=Math.max(endT,onT+60); tail.push({t:offT,o:1e9,s:0x80|ch,d:[nt,0]}); endT=Math.max(endT,offT); st.fixed++; });
+    Object.keys(cc64).forEach(function(ch){ if(cc64[ch]>=64){ tail.push({t:endT,o:1e9+1,s:0xB0|ch,d:[64,0]}); st.fixed++; } });
+    Object.keys(pbv).forEach(function(ch){ if(pbv[ch]!==8192){ tail.push({t:endT,o:1e9+2,s:0xE0|ch,d:[0,64]}); st.fixed++; } });
+    const all=keep.concat(tail).sort(function(a,c){ return (a.t-c.t)||(a.o-c.o); });
+    const T=[]; let last=0; all.forEach(function(e){ const dv=vlq(e.t-last); for(let q=0;q<dv.length;q++) T.push(dv[q]); last=e.t; if(e.raw){ for(let q=0;q<e.raw.length;q++) T.push(e.raw[q]); } else { T.push(e.s); for(let q=0;q<e.d.length;q++) T.push(e.d[q]); } });
+    const dv=vlq(Math.max(0,endT-last)); for(let q=0;q<dv.length;q++) T.push(dv[q]); T.push(0xFF,0x2F,0x00);
+    const l=T.length; out.push(0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255); for(let q=0;q<T.length;q++) out.push(T[q]); }
+  window.__midiSafetyLast=st.fixed; return new Uint8Array(out); }catch(e){ window.__midiSafetyErr=String(e); return u8; } }; }
+
+
 /* ============================================================================
    SUM WAVE 공용 멜로디 엔진 v2 (melody-engine.js)
    박자표 · additive 그루핑(3+3+2 등) · 기본박(feel) · 장르 리듬 지원.
@@ -5774,6 +5804,7 @@ function buildMidi(){
           pb(Math.round(end*PPQ)-2,8192); });
       }
     } }catch(e){}
+  if(!evs.some(e=>e.t===0xB0&&e.m===7)) evs.push({tick:0,t:0xB0,m:7,v:100});   /* ★ 2026-09-28 선율 트랙 볼륨 0dB */
   if(tickScale!==1) evs.forEach(e=>{ e.tick=Math.round(e.tick*tickScale); });
   __smoothMelCC(evs, PPQ);
   evs.sort((a,b)=>a.tick-b.tick||(a.t&0xf0)-(b.t&0xf0));
@@ -5826,8 +5857,8 @@ function buildMidi(){
       if(s<10){ const f=Math.max(0,s/10); v=v*(0.02+0.98*f*f); } if(b>fin){ const f=Math.max(0,(stop-b)/(stop-fin)); v=v*f; }
       D.push({tick:TK(Math.max(start,b)),k:0xB0,a:11,b:Math.max(1,Math.min(127,Math.round(v)))}); }
     /* ★ 볼륨(CC7)도 0 에서 천천히: CC11 에 반응하지 않는 음원도 서서히 들어오게 (형: 첫 시작에 어택) */
-    const vol=(arr,fadeIn)=>{ for(let s=0;s<=fadeIn;s+=0.25){ const f=s/fadeIn; arr.push({tick:TK(start+s*bps),k:0xB0,a:7,b:Math.max(0,Math.round(100*f*f))}); } for(let s=0;s<=5;s+=0.25){ const f=1-s/5; arr.push({tick:TK(fin+s*bps),k:0xB0,a:7,b:Math.max(0,Math.round(100*f))}); } };
-    vol(D,10);
+    const vol=(arr,fadeIn,LV)=>{ LV=LV||100; for(let s=0;s<=fadeIn;s+=0.25){ const f=s/fadeIn; arr.push({tick:TK(start+s*bps),k:0xB0,a:7,b:Math.max(0,Math.round(LV*f*f))}); } for(let s=0;s<=5;s+=0.25){ const f=1-s/5; arr.push({tick:TK(fin+s*bps),k:0xB0,a:7,b:Math.max(0,Math.round(LV*f))}); } };   /* LV: 트랙 음량(드론 -4dB 79, 신스 -6dB 71) */
+    vol(D,10,79);
     /* 코드톤 신스 */
     const totalBars=Math.ceil((melEnd-PADB)/bl); const bc=(scoreSectionsChords(totalBars).barChords)||[]; const pPatch=['Synthesizer/Pad/Calming Waves','Synthesizer/Pad/Aurora Waves','Synthesizer/Pad/Distant Memories'][Math.floor(rnd()*3)];
     const Pd=[]; const segs=[]; for(let i=0;i<totalBars;i++){ const sym=bc[i]||''; if(segs.length && segs[segs.length-1].sym===sym) segs[segs.length-1].n++; else segs.push({sym:sym,b0:i,n:1}); }
@@ -5840,15 +5871,21 @@ function buildMidi(){
       V.forEach((m,k)=>{ Pd.push({tick:TK(on),k:0x90,a:m,b:(si===0?22:30)+k*2}); Pd.push({tick:TK(Math.min(off,stop)),k:0x80,a:m,b:0}); });
       const len=t1-t0; const inB=6*bps; if(t0-start<inB+len){ /* 처음 6초 안의 화음: 절대 시간으로 천천히 차오름 */ for(let x=Math.max(t0,start); x<Math.min(t1,start+inB); x+=0.25){ const f=(x-start)/inB; Pd.push({tick:TK(x),k:0xB0,a:11,b:Math.max(1,Math.round(95*(0.02+0.98*f*f)))}); } }
       if(t1>start+inB){ const a0=Math.max(t0,start+inB); const L2=t1-a0; [[0,80],[0.3,92],[0.6,96],[0.9,82]].forEach(pt=>{ Pd.push({tick:TK(a0+L2*pt[0]+0.01),k:0xB0,a:11,b:pt[1]}); }); } });
-    vol(Pd,6);
+    vol(Pd,6,71);
+    /* ★ 2026-09-28 같은 음 겹침 정리: 화음이 반 박 앞서 겹칠 때 공통음이 같은 음으로 겹쳤다. 앞 음을 새 음 시작 1틱 전에 끝낸다 */
+    const fixOvl=(ev)=>{ const ons=ev.filter(e=>e.k===0x90).sort((a,b)=>a.tick-b.tick); const offs=ev.filter(e=>e.k===0x80); const used=new Set(); const pairs=[];
+      ons.forEach(o=>{ let best=null; offs.forEach(f=>{ if(!used.has(f) && f.a===o.a && f.tick>o.tick && (!best||f.tick<best.tick)) best=f; }); if(best){ used.add(best); pairs.push([o,best]); } });
+      const byP={}; pairs.forEach(p=>{ (byP[p[0].a]=byP[p[0].a]||[]).push(p); });
+      Object.keys(byP).forEach(k=>{ const L=byP[k].sort((a,b)=>a[0].tick-b[0].tick); for(let i=0;i<L.length-1;i++){ if(L[i][1].tick>L[i+1][0].tick-1) L[i][1].tick=Math.max(L[i][0].tick+1,L[i+1][0].tick-1); } }); };
+    fixOvl(Pd); fixOvl(D);
     const trD=mkTrack(dPatch+' | 저역 드론 (으뜸음'+(withFifth?' + 5도':'')+')',1,38,D), trP=mkTrack(pPatch+' | 코드톤 신스 (화음 따라)',2,89,Pd);
     window.__AMBCOMP={drone:dPatch, pad:pPatch, fifth:withFifth};
     const head3=[0x4D,0x54,0x68,0x64,0,0,0,6,0,1,0,3,(PPQ>>8)&255,PPQ&255];
     const tl=tr.length;const th=[0x4D,0x54,0x72,0x6B,(tl>>24)&255,(tl>>16)&255,(tl>>8)&255,tl&255];
-    return new Uint8Array(head3.concat(th,tr,trD,trP)); }catch(e){ try{ window.__AMBERR=String(e); }catch(_){} } }
+    return (window.__midiSafety?window.__midiSafety(new Uint8Array(head3.concat(th,tr,trD,trP))):new Uint8Array(head3.concat(th,tr,trD,trP))); }catch(e){ try{ window.__AMBERR=String(e); }catch(_){} } }
   const head=[0x4D,0x54,0x68,0x64,0,0,0,6,0,0,0,1,(PPQ>>8)&255,PPQ&255];
   const tl=tr.length;const th=[0x4D,0x54,0x72,0x6B,(tl>>24)&255,(tl>>16)&255,(tl>>8)&255,tl&255];
-  return new Uint8Array(head.concat(th,tr));
+  return (window.__midiSafety?window.__midiSafety(new Uint8Array(head.concat(th,tr))):new Uint8Array(head.concat(th,tr)));
 }
 function pv(a,v){v=Math.max(0,v|0);const b=[v&0x7F];v>>=7;while(v>0){b.unshift((v&0x7F)|0x80);v>>=7;}for(const x of b)a.push(x);}
 
@@ -6272,6 +6309,36 @@ function soBuildBlueprintMelody(){   // 멜로디 먼저 워크플로: 구조·�
 // ===== BAND COMPOSER 코드 시작 =====
 (() => {
 const document = __scopedDoc('app-band');
+
+/* ★ 2026-09-28 MIDI 안전망 (형: 미디 반영되는 것들 오류나 안 맞는 것 봐줘). 완성된 SMF 를 트랙마다 다시 읽어
+   같은 음 겹침(앞 음을 그 순간 끝내고 원래 끝 신호는 버림), 끝나지 않은 음, 밟힌 채 끝난 페달, 원점 아닌 벤드를 트랙 끝에서 정리. 나머지는 그대로 */
+if(!window.__midiSafety){ window.__midiSafety=function(u8){ try{
+  const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54||b[2]!==0x68||b[3]!==0x64) return u8;
+  const vlq=function(v){ v=Math.max(0,v|0); const o=[v&0x7F]; v>>=7; while(v>0){ o.unshift((v&0x7F)|0x80); v>>=7; } return o; };
+  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0; let p=8+hl; const out=b.slice(0,p); let st={fixed:0};
+  while(p+8<=b.length){ const isTrk=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0;
+    const body=b.slice(p+8,p+8+len); const whole=b.slice(p,p+8+len); p+=8+len; if(!isTrk){ for(let q=0;q<whole.length;q++) out.push(whole[q]); continue; }
+    let i=0,t=0,rs=0,eot=0,ord=0; const ev=[];
+    const rdv=function(){ let v=0,c; do{ c=body[i++]; v=(v<<7)|(c&127); }while((c&128)&&i<body.length); return v; };
+    while(i<body.length){ t+=rdv(); let s=body[i]; if(s<0x80){ s=rs; } else { i++; if(s<0xF0) rs=s; }
+      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat)}); }
+      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
+      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
+    const act={}, drop={}, keep=[]; let lastT=0; const cc64={}, pbv={};
+    ev.forEach(function(e){ lastT=Math.max(lastT,e.t); if(e.s==null){ keep.push(e); return; } const hi=e.s&0xF0, ch=e.s&0x0F;
+      if(hi===0x90 && e.d[1]>0){ const k=ch*128+e.d[0]; if(act[k]){ keep.push({t:e.t,o:e.o-0.5,s:0x80|ch,d:[e.d[0],0]}); drop[k]=(drop[k]||0)+1; st.fixed++; } act[k]=1; keep.push(e); return; }
+      if(hi===0x80 || (hi===0x90 && e.d[1]===0)){ const k=ch*128+e.d[0]; if(drop[k]>0){ drop[k]--; return; } delete act[k]; keep.push(e); return; }
+      if(hi===0xB0 && e.d[0]===64) cc64[ch]=e.d[1]; if(hi===0xE0) pbv[ch]=(e.d[1]<<7)|e.d[0]; keep.push(e); });
+    let endT=Math.max(eot,lastT); const tail=[]; const hang=Object.keys(act);
+    hang.forEach(function(k){ const ch=Math.floor(k/128), nt=k%128; const onT=keep.filter(function(e){ return e.s===(0x90|ch)&&e.d[0]===nt; }).reduce(function(m,e){ return Math.max(m,e.t); },0); const offT=Math.max(endT,onT+60); tail.push({t:offT,o:1e9,s:0x80|ch,d:[nt,0]}); endT=Math.max(endT,offT); st.fixed++; });
+    Object.keys(cc64).forEach(function(ch){ if(cc64[ch]>=64){ tail.push({t:endT,o:1e9+1,s:0xB0|ch,d:[64,0]}); st.fixed++; } });
+    Object.keys(pbv).forEach(function(ch){ if(pbv[ch]!==8192){ tail.push({t:endT,o:1e9+2,s:0xE0|ch,d:[0,64]}); st.fixed++; } });
+    const all=keep.concat(tail).sort(function(a,c){ return (a.t-c.t)||(a.o-c.o); });
+    const T=[]; let last=0; all.forEach(function(e){ const dv=vlq(e.t-last); for(let q=0;q<dv.length;q++) T.push(dv[q]); last=e.t; if(e.raw){ for(let q=0;q<e.raw.length;q++) T.push(e.raw[q]); } else { T.push(e.s); for(let q=0;q<e.d.length;q++) T.push(e.d[q]); } });
+    const dv=vlq(Math.max(0,endT-last)); for(let q=0;q<dv.length;q++) T.push(dv[q]); T.push(0xFF,0x2F,0x00);
+    const l=T.length; out.push(0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255); for(let q=0;q<T.length;q++) out.push(T[q]); }
+  window.__midiSafetyLast=st.fixed; return new Uint8Array(out); }catch(e){ window.__midiSafetyErr=String(e); return u8; } }; }
+
 
 /* ★ 2026-09-26 로직 12 라이브러리 이름 (형 로직 12.3.1 의 .patch 목록으로 확인). 앱 안에서는 옛 채널 스트립 이름으로 판단하고,
    밖으로 나가는 순간(MIDI 트랙 이름, 설명서 글)만 새 이름으로 바꾼다. 예: 06 Synthesizers/03 Synth Pads/Ambient Current → Synthesizer/Pad/Calming Waves */
@@ -10373,6 +10440,17 @@ function noteTrack(notes,ch,prog,isDrum,ctrl,name,fxNote){const PPQ=480,ev=[],pa
   /* ★ 2026-09-25 고정 좌우 자리: 미리 듣기 PANS 와 같은 값을 트랙 맨 앞(틱 0)에 CC10 한 번. 역할을 알 수 없는 트랙은 적지 않는다(로직 기본 가운데) */
   { const _nm=String(name||''); const _PN=/Kick/i.test(_nm)?0:/FX|Riser|Impact|Cue/i.test(_nm)?0:/Timpani|팀파니|Gran Cassa|Orch Perc|Cymbal|심벌/i.test(_nm)?-0.15:/Drum|드럼|Perc|타악/i.test(_nm)?0.05:/Bass|베이스/i.test(_nm)?0:/Counter|대선율/i.test(_nm)?-0.22:/Lead|리드/i.test(_nm)?0.1:/Choir|합창/i.test(_nm)?0.2:/Harp|하프/i.test(_nm)?-0.35:/Banjo|밴조|Mandolin|만돌린/i.test(_nm)?0.3:/Arp|아르프/i.test(_nm)?0.25:/Fiddle|피들|Violin|바이올린/i.test(_nm)?0.25:/Sax|색소폰/i.test(_nm)?0.2:/Brass|Horn|Trumpet|Trombone|금관|호른|트럼펫/i.test(_nm)?0.25:/String|현악|Cello|첼로/i.test(_nm)?-0.2:/Flute|Whistle|플루트|휘슬|Winds|목관/i.test(_nm)?0.2:/Accordion|아코디언|Bandoneon|반도네온/i.test(_nm)?0.2:/Bell|Glock|벨|글로켄/i.test(_nm)?0.3:/2nd Piano|세컨/i.test(_nm)?0.15:/Guitar|기타/i.test(_nm)?-0.3:/Melody|선율|Vocal|보컬/i.test(_nm)?0.14:/Drone|Pad|패드|드론/i.test(_nm)?0:/Piano|Keys|Rhodes|Organ|피아노|키보드|오르간/i.test(_nm)?-0.06:0;   /* 모르는 트랙도 가운데로 (점검표: 빈 트랙 없게) */
     if(!ev.some(e=>e.cc===10)) ev.push({t:0,k:0,cc:10,val:Math.round(64+_PN*63)}); }
+  /* ★ 2026-09-28 트랙 볼륨(CC7) 맨 앞 한 번: 역할별 음량 + 스타일 보정 (0dB = 100) */
+  try{ if(!ev.some(e=>e.cc===7)){ const _nm3=String(name||''); const st=state.style;
+      let db=/FX|Riser|Impact|Cue/i.test(_nm3)?-9:/Kick/i.test(_nm3)?0:/Timpani|팀파니|Gran Cassa|Orch Perc|Cymbal|심벌/i.test(_nm3)?-3:/Drum|드럼|Perc|타악/i.test(_nm3)?-1:/Bass|베이스/i.test(_nm3)?-1:
+        /Lead|Melody|선율|Vocal|보컬/i.test(_nm3)?0:/Counter|대선율/i.test(_nm3)?-3:/Choir|합창/i.test(_nm3)?-5:/Harp|하프|Bell|Glock|벨/i.test(_nm3)?-5:/Arp|아르프|2nd Piano|세컨/i.test(_nm3)?-6:
+        /Drone|Pad|패드|드론/i.test(_nm3)?-7:/String|현악|Cello|Violin/i.test(_nm3)?-4:/Brass|Horn|Trumpet|Sax|금관/i.test(_nm3)?-3:/Guitar|기타|Banjo|Mandolin/i.test(_nm3)?-3:/Piano|Keys|Rhodes|Organ|피아노/i.test(_nm3)?-2:-4;
+      const drum=/Drum|드럼|Kick|Perc|Snare|Hat/i.test(_nm3), bass=/Bass|베이스/i.test(_nm3), lead=/Lead|Melody|선율|Vocal/i.test(_nm3), bed=/Pad|Drone|String|현악/i.test(_nm3);
+      if(['ballad','jballad','worship','disney','animeost','celtic'].indexOf(st)>=0){ if(drum) db-=2; if(lead) db+=1; }
+      else if(['funk','kpop','marusa','komuro','motown','poppunk','kband','animerock'].indexOf(st)>=0){ if(drum) db+=1; if(bass) db+=1; if(bed) db-=1; }
+      else if(['jazz','gypsy','tango','rumba','neosoul','gospel'].indexOf(st)>=0){ if(drum) db-=3; if(/Piano|Keys|Organ|Rhodes/i.test(_nm3)) db+=1; }
+      else if(['epic','saguk'].indexOf(st)>=0){ if(bed) db+=1; if(/Brass|Horn/i.test(_nm3)) db+=1; }
+      ev.push({t:0,k:0,cc:7,val:Math.max(12,Math.min(120,Math.round(100*Math.pow(10,db/40))))}); } }catch(e){}
   if(!isDrum) __softenEntry(ev, prog, e=>e.t, e=>e.cc, e=>e.val, (e,v)=>{e.val=v;},
     e=>(e.k===1&&e.on===1), e=>(e.k===1&&e.on===0), e=>(e.vel||80),
     (cc,t,v)=>({t:t, k:0, cc:cc, val:v}), PPQ);
@@ -10835,7 +10913,7 @@ function tempoTrack(){const PPQ=480,M=METERS[secMeter(state.sections[0])];
   const ob=sbm(overview.replace(/[^\x20-\x7E]/g,'')).slice(0,120),head=[...vlq(0),0xFF,0x03,ob.length,...ob];
   return [...sbm('MTrk'),...u32(body.length+head.length),...head,...body];}
 function dl(tracks,name){const header=[...sbm('MThd'),...u32(6),...u16(1),...u16(tracks.length),...u16(480)];
-  const blob=new Blob([new Uint8Array([...header,...tracks.flat()])],{type:'audio/midi'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  const blob=new Blob([(window.__midiSafety?window.__midiSafety(new Uint8Array([...header,...tracks.flat()])):new Uint8Array([...header,...tracks.flat()]))],{type:'audio/midi'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 /* ===== 요즘 트렌드 익스포트 트랙 =====
    FX Cues(실제 노트): 큰 구간 진입 2마디 전 반음계 라이저 + 다운비트 임팩트(C2) + 서브드롭(C1) — 샘플로 교체할 위치·길이 가이드
    ADD- 트랙(빈 트랙): 구현 불가한 사운드디자인 요소를 이름+용도로 슬롯화 — 로직에서 해당 악기를 그 트랙에 로드 */
@@ -11851,7 +11929,7 @@ function exportAll(){ try{ window.__BAND_TRK=[]; }catch(e){} arrange();
   { const _toc=['═══════════════════════════════════════════','  이 문서 하나에 다 들어 있습니다 — 순서대로 따라오세요','═══════════════════════════════════════════',
       '  1부. 이 곡 정보 · 구간별 코드 진행 · 트랙별 셋업   (이 아래부터)',
       '  2부. 로직 공통 준비 — 미디 불러오기 · 플러그인 넣는 위치 · 주파수 지도   (문서 뒤쪽)',
-      '  ※ 처음이면 2부부터 읽고 1부로 오면 편합니다.','  ※ 좌우 자리는 각 트랙 맨 앞(편집 여백 첫 칸)에 CC10 한 번으로 이미 적혀 있습니다. 앱에서 듣던 자리 그대로입니다. 다른 자리로 바꾸려면 팬 노브를 돌린 뒤 그 트랙 맨 앞의 CC10 이벤트 하나를 지우세요(안 지우면 처음부터 재생할 때 원래 자리로 돌아갑니다).','',''].join('\n');
+      '  ※ 처음이면 2부부터 읽고 1부로 오면 편합니다.','  ※ 좌우 자리는 각 트랙 맨 앞(편집 여백 첫 칸)에 CC10 한 번으로 이미 적혀 있습니다. 앱에서 듣던 자리 그대로입니다. 다른 자리로 바꾸려면 팬 노브를 돌린 뒤 그 트랙 맨 앞의 CC10 이벤트 하나를 지우세요(안 지우면 처음부터 재생할 때 원래 자리로 돌아갑니다).','',''].join('\n 볼륨도 트랙 맨 앞 CC7 한 번으로 장르와 편성에 맞춰 적혀 있습니다(0dB = 100). 로직 「컨트롤 체인지 메시지 7/10으로 채널 스트립 볼륨 페이더/패닝 노브를 설정」 이 켜져 있으면 페이더가 그 자리로 갑니다.');
     const _mid=['','','═══════════════════════════════════════════','  여기부터 2부 — 로직 공통 준비','═══════════════════════════════════════════',''].join('\n');
     downloadTxt(_toc+songSheet()+_mid+'\n\n'+logicGuide(), `band_${state.style}_${MODEL.bpm}bpm_설명서.txt`); }}
 /* 로직 셋업 가이드 — 켜진 트랙에 맞춰 음원·이펙트·조합·명상 세팅을 체크리스트로 */
@@ -13755,6 +13833,36 @@ window.addEventListener('so:blueprint-band',()=>soApplyBlueprintBand(window.SO_H
 // ===== BEAT MAKER 코드 시작 =====
 (() => {
 const document = __scopedDoc('app-beat');
+
+/* ★ 2026-09-28 MIDI 안전망 (형: 미디 반영되는 것들 오류나 안 맞는 것 봐줘). 완성된 SMF 를 트랙마다 다시 읽어
+   같은 음 겹침(앞 음을 그 순간 끝내고 원래 끝 신호는 버림), 끝나지 않은 음, 밟힌 채 끝난 페달, 원점 아닌 벤드를 트랙 끝에서 정리. 나머지는 그대로 */
+if(!window.__midiSafety){ window.__midiSafety=function(u8){ try{
+  const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54||b[2]!==0x68||b[3]!==0x64) return u8;
+  const vlq=function(v){ v=Math.max(0,v|0); const o=[v&0x7F]; v>>=7; while(v>0){ o.unshift((v&0x7F)|0x80); v>>=7; } return o; };
+  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0; let p=8+hl; const out=b.slice(0,p); let st={fixed:0};
+  while(p+8<=b.length){ const isTrk=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0;
+    const body=b.slice(p+8,p+8+len); const whole=b.slice(p,p+8+len); p+=8+len; if(!isTrk){ for(let q=0;q<whole.length;q++) out.push(whole[q]); continue; }
+    let i=0,t=0,rs=0,eot=0,ord=0; const ev=[];
+    const rdv=function(){ let v=0,c; do{ c=body[i++]; v=(v<<7)|(c&127); }while((c&128)&&i<body.length); return v; };
+    while(i<body.length){ t+=rdv(); let s=body[i]; if(s<0x80){ s=rs; } else { i++; if(s<0xF0) rs=s; }
+      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat)}); }
+      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
+      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
+    const act={}, drop={}, keep=[]; let lastT=0; const cc64={}, pbv={};
+    ev.forEach(function(e){ lastT=Math.max(lastT,e.t); if(e.s==null){ keep.push(e); return; } const hi=e.s&0xF0, ch=e.s&0x0F;
+      if(hi===0x90 && e.d[1]>0){ const k=ch*128+e.d[0]; if(act[k]){ keep.push({t:e.t,o:e.o-0.5,s:0x80|ch,d:[e.d[0],0]}); drop[k]=(drop[k]||0)+1; st.fixed++; } act[k]=1; keep.push(e); return; }
+      if(hi===0x80 || (hi===0x90 && e.d[1]===0)){ const k=ch*128+e.d[0]; if(drop[k]>0){ drop[k]--; return; } delete act[k]; keep.push(e); return; }
+      if(hi===0xB0 && e.d[0]===64) cc64[ch]=e.d[1]; if(hi===0xE0) pbv[ch]=(e.d[1]<<7)|e.d[0]; keep.push(e); });
+    let endT=Math.max(eot,lastT); const tail=[]; const hang=Object.keys(act);
+    hang.forEach(function(k){ const ch=Math.floor(k/128), nt=k%128; const onT=keep.filter(function(e){ return e.s===(0x90|ch)&&e.d[0]===nt; }).reduce(function(m,e){ return Math.max(m,e.t); },0); const offT=Math.max(endT,onT+60); tail.push({t:offT,o:1e9,s:0x80|ch,d:[nt,0]}); endT=Math.max(endT,offT); st.fixed++; });
+    Object.keys(cc64).forEach(function(ch){ if(cc64[ch]>=64){ tail.push({t:endT,o:1e9+1,s:0xB0|ch,d:[64,0]}); st.fixed++; } });
+    Object.keys(pbv).forEach(function(ch){ if(pbv[ch]!==8192){ tail.push({t:endT,o:1e9+2,s:0xE0|ch,d:[0,64]}); st.fixed++; } });
+    const all=keep.concat(tail).sort(function(a,c){ return (a.t-c.t)||(a.o-c.o); });
+    const T=[]; let last=0; all.forEach(function(e){ const dv=vlq(e.t-last); for(let q=0;q<dv.length;q++) T.push(dv[q]); last=e.t; if(e.raw){ for(let q=0;q<e.raw.length;q++) T.push(e.raw[q]); } else { T.push(e.s); for(let q=0;q<e.d.length;q++) T.push(e.d[q]); } });
+    const dv=vlq(Math.max(0,endT-last)); for(let q=0;q<dv.length;q++) T.push(dv[q]); T.push(0xFF,0x2F,0x00);
+    const l=T.length; out.push(0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255); for(let q=0;q<T.length;q++) out.push(T[q]); }
+  window.__midiSafetyLast=st.fixed; return new Uint8Array(out); }catch(e){ window.__midiSafetyErr=String(e); return u8; } }; }
+
 
 function __altLine(h,amb){ try{ const _AL={"pad": ["Atmospheric/Pads", ["Calm Over Eyjafjallajokull", "Enveloped In Warm Air"]], "scape": ["Atmospheric/Soundscapes", ["Abandoned Space Station", "Breath and Roar"]], "strings": ["Vintage Synth/Strings", ["70s Synth Strings", "Classic Pop Analog Strings"]], "choir": ["Atmospheric/Vocals", ["Choir Freeze", "Choir Girls"]], "bell": ["Cinematic/Mallets", ["Bellophon", "Chiming Bells"]], "bass": ["Modern Synth/Bass", ["Dark And Deep Bass", "Deep Atmospheric"]], "sub": ["Ultimate 808s/Bass", ["Deep 808 Bass", "Super Sub 808 Bass"]], "lead": ["Vintage Synth/Leads", ["Analog Mellow Lead", "Soft 70s Lead"]], "arp": ["Cinematic/Arpeggiated", ["Acoustic Cascades", "Analog Glide Arpeggiation"]], "keys": ["Modern Songwriter/Keys", ["80s Digital Piano", "80s Glassy Electric Piano"]], "brass": ["Vintage Synth/Brass", ["80s Pop Synth Brass", "Brass Response"]], "guitar": ["Cinematic/Guitars", ["Ambient Guitar", "Dreamtime Pluck"]], "wind": ["Cinematic/Woodwinds", ["Dream Flutes", "Flute Hold"]]}; h=String(h||'');
  const role=/Drum|Kick|Perc|Timpani|Cymbal|FX|Riser|Impact|Cue|Vinyl|Rain|Crash|Sweep/i.test(h)?null:/Sub|808/i.test(h)?'sub':/Bass|베이스|드론 바닥/i.test(h)?'bass':/Choir|Vocal|합창|보컬|Sing/i.test(h)?'choir':/Bell|Glock|Celesta|Vibra|Chime|Mallet|종|싱잉|Bowl/i.test(h)?'bell':/Harp|Guitar|기타|하프/i.test(h)?'guitar':/Arp|Pluck|아르프|플럭/i.test(h)?'arp':/Brass|Horn|Trumpet|금관/i.test(h)?'brass':/Wind|Flute|목관|대금|플루트/i.test(h)?'wind':/Strings|String|Cello|Violin|현/i.test(h)?'strings':/Pad|Drone|Layer|Chord|패드|드론|층|화음/i.test(h)?(amb?'scape':'pad'):/Counter|Melody|Lead|Hook|선율|리드/i.test(h)?'lead':/Piano|Keys|Rhodes|Organ|피아노|건반/i.test(h)?'keys':null;
@@ -19605,6 +19713,15 @@ function noteTrack(notes,ch,prog,isDrumMap,name,ccEvents,instName){const PPQ=480
   /* ★ 2026-09-25 고정 좌우 자리: 미리 듣기 PAN 과 같은 값을 트랙 맨 앞(틱 0)에 CC10 한 번. 역할을 알 수 없는 트랙은 적지 않는다 */
   { const _nm=String(name||'')+' '+String(instName||''); const _PN=/Kick|Drum|Bass|베이스/i.test(_nm)?0:/Chord|코드/i.test(_nm)?0.22:/Pad|패드/i.test(_nm)?-0.26:/Lead|Melody|Hook|Topline|Vocal/i.test(_nm)?-0.16:/FX|Riser|Impact/i.test(_nm)?0.30:/세컨|2nd|대답/i.test(_nm)?0.2:/Piano|피아노|Keys|Rhodes/i.test(_nm)?-0.12:/Arp|아르프|Pluck|플럭|Bell|벨/i.test(_nm)?0.25:/String|현/i.test(_nm)?-0.2:/Guitar|기타/i.test(_nm)?0.22:/Brass|Horn|금관|Sax/i.test(_nm)?0.2:0;   /* 모르는 트랙도 가운데로 */
     if(!ev.some(e=>e.cc===10)) ev.push({t:0,on:2,cc:10,val:Math.round(64+_PN*63)}); }
+  /* ★ 2026-09-28 트랙 볼륨(CC7) 맨 앞 한 번: 역할별 음량 + 장르 보정. 음소거 트랙(CC7 0)은 그대로 */
+  try{ if(!isDrumMap || true){ if(!ev.some(e=>e.cc===7)){ const _nm3=String(name||'')+' '+String(instName||''); const g=state.genre;
+      let db=/Kick/i.test(_nm3)?0:/Drum|Perc|Hat|Clap|Snare/i.test(_nm3)?-2:/Sub/i.test(_nm3)?-2:/Bass|베이스/i.test(_nm3)?-1:/Lead|Melody|Hook|Topline|Vocal|모티브/i.test(_nm3)?-2:
+        /Chord|코드/i.test(_nm3)?-5:/Pad|패드|Drone|드론/i.test(_nm3)?-8:/Arp|아르프|Pluck|플럭|Bell/i.test(_nm3)?-6:/Piano|피아노|Keys|Rhodes/i.test(_nm3)?-4:/FX|Riser|Impact/i.test(_nm3)?-10:-5;
+      const drum=/Kick|Drum|Perc|Hat|Clap|Snare/i.test(_nm3), low=/Bass|Sub|베이스/i.test(_nm3), bed=/Pad|Drone|Chord|코드|패드/i.test(_nm3);
+      if(['edm','bigroom','melodichouse','deephouse','running','discofunk','retro','synthwave'].indexOf(g)>=0){ if(drum) db+=1.5; if(low) db+=1; if(bed) db-=1; }
+      else if(['trap','boombap','kpop','hooksong','hookpop'].indexOf(g)>=0){ if(low) db+=2; if(drum) db+=0.5; }
+      else if(['lofi','lofigirl','chillwave','ambtechno','global','country'].indexOf(g)>=0){ if(drum) db-=2; if(bed) db+=2; }
+      ev.push({t:0,on:2,cc:7,val:Math.max(12,Math.min(120,Math.round(100*Math.pow(10,db/40))))}); } } }catch(e){}
   if(!isDrumMap) __softenEntry(ev, prog, e=>e.t, e=>e.cc, e=>e.val, (e,v)=>{e.val=v;},
     e=>(e.on===1), e=>(e.on===0), e=>(e.vel||80),
     (cc,t,v)=>({t:t, on:2, cc:cc, val:v}), PPQ);
@@ -20092,7 +20209,7 @@ function compoundGridAll(tracks){
   });
 }
 function dl(tracks,name){const header=[...sbm('MThd'),...u32(6),...u16(1),...u16(tracks.length),...u16(480)];
-  const blob=new Blob([new Uint8Array([...header,...tracks.flat()])],{type:'audio/midi'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  const blob=new Blob([(window.__midiSafety?window.__midiSafety(new Uint8Array([...header,...tracks.flat()])):new Uint8Array([...header,...tracks.flat()]))],{type:'audio/midi'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 /* ── 킥 타이밍 제한 ──
    로파이·부밥·컨트리·글로벌은 스윙과 손맛으로 킥이 격자를 벗어난다.
    사람이 치면 자연스럽지만 MIDI 로 내면 '안 맞는' 것으로 들린다
@@ -20464,7 +20581,8 @@ function fxCueTracks(){const PPQ=480,CUE=60,tracks=[];   // 타입별 별도 MTr
     /* 프로그램 체인지 — 없으면 로직이 기본 피아노로 울려서 가이드 트랙이 엉뚱하게 들린다.
        샘플로 갈아끼울 자리이므로 앰비언스 계열(GM 122 Seashore)을 임시로 얹어 둔다. */
     body.push(...vlq(0),0xC0|14,122);
-    body.push(...vlq(0),0xB0|14,10,isBed?64:(/Reverse/i.test(label)?74:(/Impact|Boom/i.test(label)?64:56)));   /* 2026-09-25 FX 가이드도 좌우 자리 (베드 가운데, 원샷은 조금씩 벌림) */
+    body.push(...vlq(0),0xB0|14,10,isBed?64:(/Reverse/i.test(label)?74:(/Impact|Boom/i.test(label)?64:56)));
+    body.push(...vlq(0),0xB0|14,7,isBed?63:71);   /* FX 가이드 볼륨 (베드 -8dB, 원샷 -6dB) */   /* 2026-09-25 FX 가이드도 좌우 자리 (베드 가운데, 원샷은 조금씩 벌림) */
     ev.forEach(e=>{body.push(...vlq(e.t-last));last=e.t;
       if(e.on)body.push(0x90|14,CUE,e.vel);else body.push(0x80|14,CUE,0);});
     body.push(...vlq(0),0xFF,0x2F,0x00);
@@ -20895,7 +21013,7 @@ function buildSongSheet(){
   }
   L.push('■ 트랙별 셋업 — 이 파일에 든 트랙 전부');
   L.push('  트랙 하나를 [① 음원 → ② 볼륨·팬 → ③ EQ·컴프 → ④ 센드 → ⑤ 음원 설정] 로 끝내고 다음 트랙으로.');
-L.push('  ※ 좌우 자리는 각 트랙 맨 앞(편집 여백 첫 칸)에 CC10 한 번으로 이미 적혀 있습니다. 앱에서 듣던 자리 그대로입니다. 다른 자리로 바꾸려면 팬 노브를 돌린 뒤 그 트랙 맨 앞의 CC10 이벤트 하나를 지우세요(안 지우면 처음부터 재생할 때 원래 자리로 돌아갑니다).');
+L.push('  ※ 좌우 자리는 각 트랙 맨 앞(편집 여백 첫 칸)에 CC10 한 번으로 이미 적혀 있습니다. 앱에서 듣던 자리 그대로입니다. 다른 자리로 바꾸려면 팬 노브를 돌린 뒤 그 트랙 맨 앞의 CC10 이벤트 하나를 지우세요(안 지우면 처음부터 재생할 때 원래 자리로 돌아갑니다). 볼륨도 트랙 맨 앞 CC7 한 번으로 장르와 편성에 맞춰 적혀 있습니다(0dB = 100). 로직 「컨트롤 체인지 메시지 7/10으로 채널 스트립 볼륨 페이더/패닝 노브를 설정」 이 켜져 있으면 페이더가 그 자리로 갑니다.');
 if(BEAT_SPATIAL[state.genre]){
   L.push('  ■ 공간 움직임 (이 장르는 패드와 코드가 천천히 움직입니다. MIDI 에 이미 적혀 있습니다)');
   L.push('    패드는 한 바퀴 도는 궤도, 코드는 앞쪽에서 조금 흔들림. 드럼, 베이스, 리드, FX 는 제자리.');
@@ -22657,6 +22775,36 @@ window.__soBeatDebug=()=>({genre:state.genre,key:$('key').value,bpm:$('bpm').val
 // ===== PLAY COMPOSER 코드 시작 =====
 (() => {
 const document = __scopedDoc('app-play');
+
+/* ★ 2026-09-28 MIDI 안전망 (형: 미디 반영되는 것들 오류나 안 맞는 것 봐줘). 완성된 SMF 를 트랙마다 다시 읽어
+   같은 음 겹침(앞 음을 그 순간 끝내고 원래 끝 신호는 버림), 끝나지 않은 음, 밟힌 채 끝난 페달, 원점 아닌 벤드를 트랙 끝에서 정리. 나머지는 그대로 */
+if(!window.__midiSafety){ window.__midiSafety=function(u8){ try{
+  const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54||b[2]!==0x68||b[3]!==0x64) return u8;
+  const vlq=function(v){ v=Math.max(0,v|0); const o=[v&0x7F]; v>>=7; while(v>0){ o.unshift((v&0x7F)|0x80); v>>=7; } return o; };
+  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0; let p=8+hl; const out=b.slice(0,p); let st={fixed:0};
+  while(p+8<=b.length){ const isTrk=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0;
+    const body=b.slice(p+8,p+8+len); const whole=b.slice(p,p+8+len); p+=8+len; if(!isTrk){ for(let q=0;q<whole.length;q++) out.push(whole[q]); continue; }
+    let i=0,t=0,rs=0,eot=0,ord=0; const ev=[];
+    const rdv=function(){ let v=0,c; do{ c=body[i++]; v=(v<<7)|(c&127); }while((c&128)&&i<body.length); return v; };
+    while(i<body.length){ t+=rdv(); let s=body[i]; if(s<0x80){ s=rs; } else { i++; if(s<0xF0) rs=s; }
+      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat)}); }
+      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
+      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
+    const act={}, drop={}, keep=[]; let lastT=0; const cc64={}, pbv={};
+    ev.forEach(function(e){ lastT=Math.max(lastT,e.t); if(e.s==null){ keep.push(e); return; } const hi=e.s&0xF0, ch=e.s&0x0F;
+      if(hi===0x90 && e.d[1]>0){ const k=ch*128+e.d[0]; if(act[k]){ keep.push({t:e.t,o:e.o-0.5,s:0x80|ch,d:[e.d[0],0]}); drop[k]=(drop[k]||0)+1; st.fixed++; } act[k]=1; keep.push(e); return; }
+      if(hi===0x80 || (hi===0x90 && e.d[1]===0)){ const k=ch*128+e.d[0]; if(drop[k]>0){ drop[k]--; return; } delete act[k]; keep.push(e); return; }
+      if(hi===0xB0 && e.d[0]===64) cc64[ch]=e.d[1]; if(hi===0xE0) pbv[ch]=(e.d[1]<<7)|e.d[0]; keep.push(e); });
+    let endT=Math.max(eot,lastT); const tail=[]; const hang=Object.keys(act);
+    hang.forEach(function(k){ const ch=Math.floor(k/128), nt=k%128; const onT=keep.filter(function(e){ return e.s===(0x90|ch)&&e.d[0]===nt; }).reduce(function(m,e){ return Math.max(m,e.t); },0); const offT=Math.max(endT,onT+60); tail.push({t:offT,o:1e9,s:0x80|ch,d:[nt,0]}); endT=Math.max(endT,offT); st.fixed++; });
+    Object.keys(cc64).forEach(function(ch){ if(cc64[ch]>=64){ tail.push({t:endT,o:1e9+1,s:0xB0|ch,d:[64,0]}); st.fixed++; } });
+    Object.keys(pbv).forEach(function(ch){ if(pbv[ch]!==8192){ tail.push({t:endT,o:1e9+2,s:0xE0|ch,d:[0,64]}); st.fixed++; } });
+    const all=keep.concat(tail).sort(function(a,c){ return (a.t-c.t)||(a.o-c.o); });
+    const T=[]; let last=0; all.forEach(function(e){ const dv=vlq(e.t-last); for(let q=0;q<dv.length;q++) T.push(dv[q]); last=e.t; if(e.raw){ for(let q=0;q<e.raw.length;q++) T.push(e.raw[q]); } else { T.push(e.s); for(let q=0;q<e.d.length;q++) T.push(e.d[q]); } });
+    const dv=vlq(Math.max(0,endT-last)); for(let q=0;q<dv.length;q++) T.push(dv[q]); T.push(0xFF,0x2F,0x00);
+    const l=T.length; out.push(0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255); for(let q=0;q<T.length;q++) out.push(T[q]); }
+  window.__midiSafetyLast=st.fixed; return new Uint8Array(out); }catch(e){ window.__midiSafetyErr=String(e); return u8; } }; }
+
 
 /* ★ 2026-09-26 로직 12 라이브러리 이름 (형 로직 12.3.1 의 .patch 목록으로 확인). 앱 안에서는 옛 채널 스트립 이름으로 판단하고,
    밖으로 나가는 순간(MIDI 트랙 이름, 설명서 글)만 새 이름으로 바꾼다. 예: 06 Synthesizers/03 Synth Pads/Ambient Current → Synthesizer/Pad/Calming Waves */
@@ -25194,6 +25342,27 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
               sea:['waves','arch','bloom','descent'], wind:['arch','still','descent','bloom'], forest:['bloom','arch','waves','plateau'], stream:['waves','arch','plateau','bloom'], rain:['arch','descent','still','waves'],
               wellorch:['w_arc','w_twin','w_late','w_calm'], handpan:['h_round','h_pair','h_journey','h_drift'], gukamb:['h_round','h_pair','h_journey','h_drift'] }[g];
     if(!W) return null; const k=R(W); try{ window.__AMB_SHAPE=k; }catch(e){} return S[k](); };
+  /* ★ 2026-09-28 트랙 볼륨(CC7) 맨 앞 한 번 (형: 볼륨도 미디에, 장르 특징과 편성도). 믹스 표 배율 + 장르 묶음 보정 + 편성 보정, dB 를 CC7 로(0dB = 100). */
+  window.__playVolDb=function(key){ const g=(typeof gsel!=='undefined')?gsel:''; const M=(typeof MIXMAP!=='undefined')?MIXMAP:{};
+    const alias={kickonly:'drums', orchcym:'perc', warperc:'perc', choir:'choirV', cbass:'bass', qbass:'bass', gtrlead:'melody', vocal2:'counter', drone:'pad', lowbrass:'brass', brass2:'brass', brass3:'brass'};
+    const base={riser:-9, fx:-9, sub:-2, timpani:-2, cbass:-2, qbass:-3};
+    let db=(base[key]!=null)?base[key]:0; const mm=M[key]||M[alias[key]]; if(mm&&mm[0]) db+=20*Math.log10(mm[0]);
+    const fam=function(list){ return list.indexOf(g)>=0; };
+    const adj=function(o){ if(o[key]!=null) db+=o[key]; else if(alias[key]&&o[alias[key]]!=null) db+=o[alias[key]]; };
+    if(fam(['edm','house','disco','bigroom','melodichouse','deephouse','trance'])) adj({drums:1.5,kickonly:1.5,bass:1,sub:1,pad:-2,piano:-1,strings:-1});
+    else if(fam(['trap','boombap','rnb','lofi','neosoul','gospel'])) adj({drums:1,bass:1.5,sub:2,pad:-1,strings:-1});
+    else if(fam(['jazz','bigband','ambjazz','bossa','blues','gypsy','swing','tango'])) adj({drums:-3,hat:-2,piano:1,brass:1,horns:1});
+    else if(fam(['metal','rock','funk','reggae','country','citypop','kpop'])) adj({drums:1,bass:0.5,melody:0.5,pad:-1.5});
+    else if(fam(['ballad','newage','minimal','pop','joypiano','kids','lyricPenta','lyricMinyo'])) adj({melody:1,drums:-2,pad:-1,strings:-0.5});
+    else if(__isCos(g)||fam(['handpan','gukamb','wellorch'])) adj({pad:2,strings:2,winds:1,counter:0.5,piano:-2,harp:-1,piano2:-2,bass:-2,melody:-1});
+    else if(/^cine|^epic/.test(g)||fam(['classic'])) adj({strings:1,brass:1,horns:1,timpani:-1,drums:-2,choirV:0.5});
+    else if(fam(['gugak','gukvocal','chanbul'])) adj({melody:1,haegeum:0.5,pad:-2,strings:-1});
+    try{ if(typeof quartetMode!=='undefined'&&(quartetMode||quintetMode)) adj({melody:0,counter:-0.5,strings:-1,cbass:-1.5,qbass:-2,bass:-1.5});
+      if(typeof pianoDuoMode!=='undefined'&&pianoDuoMode) adj({piano2:1,piano:0});
+      if(typeof gtrDuoMode!=='undefined'&&gtrDuoMode) adj({harp:1,melody:0});
+      if(typeof wellOrchMode!=='undefined'&&wellOrchMode) adj({pad:-3,strings:0.5}); }catch(e){}
+    return Math.max(-24,Math.min(3,db)); };
+  window.__volCC=function(db){ return Math.max(12,Math.min(120,Math.round(100*Math.pow(10,db/40)))); };
   function __isHp(g){ return g==='handpan' || g==='gukamb'; }   /* ★ 2026-09-27 국악 앰비언트는 핸드팬 엔진 */
   window.__isHp=__isHp;
   function __isCos(g){ return g==='cosmos' || !!(window.__NATURE && window.__NATURE[g]); }
@@ -42394,7 +42563,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
       /* ★ 2026-09-25 고정 좌우 자리 (형: MIDI 만으로 입체감 최대한). 미리 듣기 팬(MIXMAP)과 같은 값을 트랙 맨 앞(틱 0, 편집 여백)에 CC10 한 번.
            우주는 궤도 CC10 이 따로 있어 제외. 이미 CC10 이 있는 트랙도 제외. */
       try{ if(!__isCos(gsel) && !ev.some(function(x){ return x.cc===10; })){ const _mp=((typeof MIXMAP!=='undefined'&&MIXMAP[grp.key])?MIXMAP[grp.key][1]:0)||0;
-        ev.unshift({tick:0, cc:10, val:Math.max(0,Math.min(127,Math.round(64+_mp*63)))}); window.__PANFIX=window.__PANFIX||{}; window.__PANFIX[grp.key]=Math.round(64+_mp*63); } }catch(e){}
+        ev.unshift({tick:0, cc:10, val:Math.max(0,Math.min(127,Math.round(64+_mp*63)))}); try{ if(!ev.some(function(x){ return x.cc===7; })) ev.unshift({tick:0, cc:7, val:window.__volCC(window.__playVolDb(grp.key))}); }catch(e){}   /* 트랙 볼륨 */ window.__PANFIX=window.__PANFIX||{}; window.__PANFIX[grp.key]=Math.round(64+_mp*63); } }catch(e){}
       try{ if(window.__NOTEKEYS && ev.some(function(x){ return x.on===1; })) window.__NOTEKEYS[grp.key]=true; }catch(e){}
       /* ── 바이트 직전 최종 중복·겹침 제거 (모든 트랙 · 모든 블록 뒤) ──
            앞 절단들은 그 뒤 블록(베이스 스냅·cosmos)이 다시 만든 겹침을 못 본다(GUARD celtic 같은 틱 25건).
@@ -42481,6 +42650,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                   while(tb<b){ const g=(tb-a)/Math.max(1,b-a); const rate=P.r0+(P.r1-P.r0)*g; ph+=2*Math.PI/8; pb(Math.round(tb), 8192+Math.sin(ph)*P.dep*Math.min(1,g*1.4)); tb+=Math.max(4,(tps/rate)/8); }
                   if(tail){ const e2=end-Math.round(TPQ*0.04); for(let s=0;s<=5;s++){ const f=s/5; pb(Math.round(b+(e2-b)*f), 8192+tail*4096*f*f); } }
                   pb(end-2,8192); }); } } }catch(e){}
+          try{ if(!_cc.some(function(c){ return c.cc===7; })) _cc.push({tick:0, cc:7, val:window.__volCC(window.__playVolDb(grp.key))}); }catch(e){}   /* 트랙 볼륨: 공간 움직임 트랙도 */
           const byN={}; N.forEach(function(n){ (byN[n.note]=byN[n.note]||[]).push(n); });
           const drop=new Set();
           Object.keys(byN).forEach(function(k){
@@ -42610,6 +42780,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           let b3=[]; const nb3=Array.from(new TextEncoder().encode(nmE));
           b3=b3.concat([0,0xFF,0x03]).concat(vlq(nb3.length)).concat(nb3);
           b3=b3.concat([0,0xC0|grp.ch,grp.gm&0x7f]);
+          try{ EV.unshift({tick:0,cc:7,val:window.__volCC(window.__playVolDb('pad')-4)}); }catch(e){}   /* 메아리 층 볼륨 */
           let l3=0; const _P3=function(a){ for(let i=0;i<a.length;i++) b3.push(a[i]); };   /* concat 대신 push (긴 곡에서 느림) */
           EV.forEach(function(e3){ _P3(vlq(Math.max(0,e3.tick-l3))); l3=e3.tick;
             if(e3.cc!=null) _P3([0xB0|grp.ch,e3.cc&0x7f,e3.val&0x7f]);
@@ -42664,6 +42835,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           try{ window.__COS_SPARK=pickS; }catch(e){}
           let b4=[]; const nb4=Array.from(new TextEncoder().encode(nmS));
           b4=b4.concat([0,0xFF,0x03]).concat(vlq(nb4.length)).concat(nb4); b4=b4.concat([0,0xC0|grp.ch,10]);
+          try{ EV.unshift({tick:0,cc:7,val:window.__volCC(-8)}); }catch(e){}   /* 반짝임 층 볼륨 */
           let l4=0; const _P4=function(a){ for(let i=0;i<a.length;i++) b4.push(a[i]); };
           EV.forEach(function(e4){ _P4(vlq(Math.max(0,e4.tick-l4))); l4=e4.tick;
             if(e4.cc!=null) _P4([0xB0|grp.ch,e4.cc&0x7f,e4.val&0x7f]);
@@ -42696,7 +42868,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         if(_nm2===(window.__soundFront||'')){ window.__artShort=null; throw 0; }   /* 같은 패치면 분리 안 함 */
         let b2=[]; const nb2=Array.from(new TextEncoder().encode('['+({Staccato:'스타카토',Pizzicato:'피치카토',Muted:'뮤트',Spiccato:'스피카토',Marcato:'마르카토'}[window.__artName]||window.__artName||'짧은 음')+'] '+_nm2+' | '+_role2));   /* 로직 화면에서 긴 음 트랙과 바로 구분 (2026-09-27) */
         b2=b2.concat([0,0xFF,0x03]).concat(vlq(nb2.length)).concat(nb2);
-        if(grp.ch!==9) b2=b2.concat([0,0xC0|grp.ch,grp.gm&0x7f]); try{ if(!__isCos(gsel)){ const _mp2=((typeof MIXMAP!=='undefined'&&MIXMAP[grp.key])?MIXMAP[grp.key][1]:0)||0; b2=b2.concat([0,0xB0|grp.ch,10,Math.max(0,Math.min(127,Math.round(64+_mp2*63)))]); } }catch(e){}   /* 주법 분리 트랙도 같은 자리 */
+        if(grp.ch!==9) b2=b2.concat([0,0xC0|grp.ch,grp.gm&0x7f]); try{ if(!__isCos(gsel)){ const _mp2=((typeof MIXMAP!=='undefined'&&MIXMAP[grp.key])?MIXMAP[grp.key][1]:0)||0; b2=b2.concat([0,0xB0|grp.ch,10,Math.max(0,Math.min(127,Math.round(64+_mp2*63)))]); try{ b2=b2.concat([0,0xB0|grp.ch,7,window.__volCC(window.__playVolDb(grp.key)-2)]); }catch(e){} } }catch(e){}   /* 주법 분리 트랙도 같은 자리 */
         const _fold2=(function(){ const _sg=/^Kontakt > (Picked Acoustic|Electric Mint) \(Melody\)/.test(_nm2); const _cp2=String((typeof _nm2!=='undefined'&&_nm2)||'');   /* 이 자리엔 LOGIC_PATCH 가 없다 (분리 트랙이 통째로 사라졌던 원인) */ const _lo=(grp.key==='counter'&&/Flute/.test(_cp2))?60:(grp.key==='counter'&&/Violin/.test(_cp2))?55:(({bass:24,lowbrass:28,brass:40,brass2:40,brass3:40,horns:40})[grp.key]||28); return function(n){ if(_sg){ while(n<48) n+=12; while(n>83) n-=12; } while(n<_lo) n+=12; while(n>108) n-=12; return n; }; })();   /* 분리 트랙도 음역 안전망 */   /* Session Guitarist 음역(뮤트 트랙도) */
                   /* ★ 2026-09-26 접은 뒤 같은 음 겹침 정리 (GUARD edm Electric Mint 뮤트 note72 겹침: 서로 다른 두 음이 접혀 같은 음이 됨) */
                   try{ const A=window.__artShort||[]; const ons=A.filter(function(e){ return e.on===1; }).sort(function(a,b){ return a.tick-b.tick; });
@@ -43282,7 +43454,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
     try{ const _o=[]; _tbS.forEach(function(x){ if(x&&x.__key&&_o.indexOf(x.__key)<0) _o.push(x.__key); }); window.__TRACK_ORDER=_o; }catch(e){}   /* 로직에서 보이는 최종 순서 */
     const nTrk=_tbS.length;
     let out=[0x4D,0x54,0x68,0x64,0,0,0,6,0,1,(nTrk>>8)&0xff,nTrk&0xff,(TPQ>>8)&0xff,TPQ&0xff];
-    _tbS.forEach(t=>{ out=out.concat(t); }); return out;
+    _tbS.forEach(t=>{ out=out.concat(t); }); return (window.__midiSafety?window.__midiSafety(out):out);
   }
   /* 트랙 바이트에서 이름(FF 03)을 꺼낸다 */
   function __trkName(b){
@@ -45128,7 +45300,7 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
     L.push('■ 트랙별 셋업 — 이 파일에 든 트랙 전부');
     L.push('   트랙 하나를 [① 음원 → ② 볼륨·팬 → ③ EQ → ④ 컴프 → ⑤ 센드] 로 끝내고 다음 트랙으로 넘어가세요.');
     L.push('   트랙은 이름과 채널(ch)로 찾으세요. 로직에서 파일을 열면 트랙 이름이 그대로 표시됩니다.');
-    L.push('   ※ 좌우 자리는 각 트랙 맨 앞(편집 여백 첫 칸)에 CC10 한 번으로 이미 적혀 있습니다. 앱에서 듣던 자리 그대로입니다. 다른 자리로 바꾸려면 팬 노브를 돌린 뒤 그 트랙 맨 앞의 CC10 이벤트 하나를 지우세요(안 지우면 처음부터 재생할 때 원래 자리로 돌아갑니다).');
+    L.push('   ※ 좌우 자리는 각 트랙 맨 앞(편집 여백 첫 칸)에 CC10 한 번으로 이미 적혀 있습니다. 앱에서 듣던 자리 그대로입니다. 다른 자리로 바꾸려면 팬 노브를 돌린 뒤 그 트랙 맨 앞의 CC10 이벤트 하나를 지우세요(안 지우면 처음부터 재생할 때 원래 자리로 돌아갑니다). 볼륨도 트랙 맨 앞 CC7 한 번으로 장르와 편성에 맞춰 적혀 있습니다(0dB = 100). 로직 「컨트롤 체인지 메시지 7/10으로 채널 스트립 볼륨 페이더/패닝 노브를 설정」 이 켜져 있으면 페이더가 그 자리로 갑니다.');
     L.push('   ⑤ 센드를 걸려면 아래 「공유 버스 만들기」를 먼저 해두는 게 편합니다.');
     L.push('──────────────────────────────────────────────────');
     L.push('   [넣는 법] 믹서 열기(X) → 트랙 선택 → 채널 스트립 Audio FX 슬롯 클릭 → 아래 플러그인 선택 → 더블클릭해 값 입력');
@@ -46641,6 +46813,36 @@ window.__soPlayDebug=()=>({has:!!currentSong,bp:soPlayBlueprint()});
 // ===== MEDITATION BUILDER 코드 시작 =====
 (() => {
 const document = __scopedDoc('app-med');
+
+/* ★ 2026-09-28 MIDI 안전망 (형: 미디 반영되는 것들 오류나 안 맞는 것 봐줘). 완성된 SMF 를 트랙마다 다시 읽어
+   같은 음 겹침(앞 음을 그 순간 끝내고 원래 끝 신호는 버림), 끝나지 않은 음, 밟힌 채 끝난 페달, 원점 아닌 벤드를 트랙 끝에서 정리. 나머지는 그대로 */
+if(!window.__midiSafety){ window.__midiSafety=function(u8){ try{
+  const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54||b[2]!==0x68||b[3]!==0x64) return u8;
+  const vlq=function(v){ v=Math.max(0,v|0); const o=[v&0x7F]; v>>=7; while(v>0){ o.unshift((v&0x7F)|0x80); v>>=7; } return o; };
+  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0; let p=8+hl; const out=b.slice(0,p); let st={fixed:0};
+  while(p+8<=b.length){ const isTrk=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0;
+    const body=b.slice(p+8,p+8+len); const whole=b.slice(p,p+8+len); p+=8+len; if(!isTrk){ for(let q=0;q<whole.length;q++) out.push(whole[q]); continue; }
+    let i=0,t=0,rs=0,eot=0,ord=0; const ev=[];
+    const rdv=function(){ let v=0,c; do{ c=body[i++]; v=(v<<7)|(c&127); }while((c&128)&&i<body.length); return v; };
+    while(i<body.length){ t+=rdv(); let s=body[i]; if(s<0x80){ s=rs; } else { i++; if(s<0xF0) rs=s; }
+      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat)}); }
+      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
+      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
+    const act={}, drop={}, keep=[]; let lastT=0; const cc64={}, pbv={};
+    ev.forEach(function(e){ lastT=Math.max(lastT,e.t); if(e.s==null){ keep.push(e); return; } const hi=e.s&0xF0, ch=e.s&0x0F;
+      if(hi===0x90 && e.d[1]>0){ const k=ch*128+e.d[0]; if(act[k]){ keep.push({t:e.t,o:e.o-0.5,s:0x80|ch,d:[e.d[0],0]}); drop[k]=(drop[k]||0)+1; st.fixed++; } act[k]=1; keep.push(e); return; }
+      if(hi===0x80 || (hi===0x90 && e.d[1]===0)){ const k=ch*128+e.d[0]; if(drop[k]>0){ drop[k]--; return; } delete act[k]; keep.push(e); return; }
+      if(hi===0xB0 && e.d[0]===64) cc64[ch]=e.d[1]; if(hi===0xE0) pbv[ch]=(e.d[1]<<7)|e.d[0]; keep.push(e); });
+    let endT=Math.max(eot,lastT); const tail=[]; const hang=Object.keys(act);
+    hang.forEach(function(k){ const ch=Math.floor(k/128), nt=k%128; const onT=keep.filter(function(e){ return e.s===(0x90|ch)&&e.d[0]===nt; }).reduce(function(m,e){ return Math.max(m,e.t); },0); const offT=Math.max(endT,onT+60); tail.push({t:offT,o:1e9,s:0x80|ch,d:[nt,0]}); endT=Math.max(endT,offT); st.fixed++; });
+    Object.keys(cc64).forEach(function(ch){ if(cc64[ch]>=64){ tail.push({t:endT,o:1e9+1,s:0xB0|ch,d:[64,0]}); st.fixed++; } });
+    Object.keys(pbv).forEach(function(ch){ if(pbv[ch]!==8192){ tail.push({t:endT,o:1e9+2,s:0xE0|ch,d:[0,64]}); st.fixed++; } });
+    const all=keep.concat(tail).sort(function(a,c){ return (a.t-c.t)||(a.o-c.o); });
+    const T=[]; let last=0; all.forEach(function(e){ const dv=vlq(e.t-last); for(let q=0;q<dv.length;q++) T.push(dv[q]); last=e.t; if(e.raw){ for(let q=0;q<e.raw.length;q++) T.push(e.raw[q]); } else { T.push(e.s); for(let q=0;q<e.d.length;q++) T.push(e.d[q]); } });
+    const dv=vlq(Math.max(0,endT-last)); for(let q=0;q<dv.length;q++) T.push(dv[q]); T.push(0xFF,0x2F,0x00);
+    const l=T.length; out.push(0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255); for(let q=0;q<T.length;q++) out.push(T[q]); }
+  window.__midiSafetyLast=st.fixed; return new Uint8Array(out); }catch(e){ window.__midiSafetyErr=String(e); return u8; } }; }
+
 
 function __altLine(h,amb){ try{ const _AL={"pad": ["Atmospheric/Pads", ["Calm Over Eyjafjallajokull", "Enveloped In Warm Air"]], "scape": ["Atmospheric/Soundscapes", ["Abandoned Space Station", "Breath and Roar"]], "strings": ["Vintage Synth/Strings", ["70s Synth Strings", "Classic Pop Analog Strings"]], "choir": ["Atmospheric/Vocals", ["Choir Freeze", "Choir Girls"]], "bell": ["Cinematic/Mallets", ["Bellophon", "Chiming Bells"]], "bass": ["Modern Synth/Bass", ["Dark And Deep Bass", "Deep Atmospheric"]], "sub": ["Ultimate 808s/Bass", ["Deep 808 Bass", "Super Sub 808 Bass"]], "lead": ["Vintage Synth/Leads", ["Analog Mellow Lead", "Soft 70s Lead"]], "arp": ["Cinematic/Arpeggiated", ["Acoustic Cascades", "Analog Glide Arpeggiation"]], "keys": ["Modern Songwriter/Keys", ["80s Digital Piano", "80s Glassy Electric Piano"]], "brass": ["Vintage Synth/Brass", ["80s Pop Synth Brass", "Brass Response"]], "guitar": ["Cinematic/Guitars", ["Ambient Guitar", "Dreamtime Pluck"]], "wind": ["Cinematic/Woodwinds", ["Dream Flutes", "Flute Hold"]]}; h=String(h||'');
  const role=/Drum|Kick|Perc|Timpani|Cymbal|FX|Riser|Impact|Cue|Vinyl|Rain|Crash|Sweep/i.test(h)?null:/Sub|808/i.test(h)?'sub':/Bass|베이스|드론 바닥/i.test(h)?'bass':/Choir|Vocal|합창|보컬|Sing/i.test(h)?'choir':/Bell|Glock|Celesta|Vibra|Chime|Mallet|종|싱잉|Bowl/i.test(h)?'bell':/Harp|Guitar|기타|하프/i.test(h)?'guitar':/Arp|Pluck|아르프|플럭/i.test(h)?'arp':/Brass|Horn|Trumpet|금관/i.test(h)?'brass':/Wind|Flute|목관|대금|플루트/i.test(h)?'wind':/Strings|String|Cello|Violin|현/i.test(h)?'strings':/Pad|Drone|Layer|Chord|패드|드론|층|화음/i.test(h)?(amb?'scape':'pad'):/Counter|Melody|Lead|Hook|선율|리드/i.test(h)?'lead':/Piano|Keys|Rhodes|Organ|피아노|건반/i.test(h)?'keys':null;
@@ -49866,6 +50068,7 @@ function buildMidi(){
       else if(e.type==='cc') bytes.push(0xB0|ch, e.cc&0x7F, e.val&0x7F);
       else bytes.push((e.type==='on'?0x90:0x80)|ch, e.note&0x7F, e.vel&0x7F);
     });
+    { const bs=events.filter(e=>e.type==='bend'); if(bs.length && bs[bs.length-1].val!==8192) bytes.push(0x00, 0xE0|ch, 0x00, 0x40); }   /* ★ 2026-09-28 끝에서 벤드 원점 (다음 재생이 틀어진 채 시작하지 않게) */
     bytes=bytes.concat(writeVarLen(0)); bytes.push(0xFF,0x2F,0x00);
     return bytes;
   }
@@ -50540,7 +50743,7 @@ function buildMidi(){
 
   let file = str('MThd').concat(u32(6), u16(1), u16(tracks.length), u16(PPQ));
   tracks.forEach(t=>{ file = file.concat(str('MTrk'), u32(t.length), t); });
-  return new Uint8Array(file);
+  return (window.__midiSafety?window.__midiSafety(new Uint8Array(file)):new Uint8Array(file));
 }
 let lastProgForMidi = null;
 let _emittedTracks = null;   // buildMidi가 실제로 기록한 트랙 목록(제작가이드와 파일을 일치시키는 단일 출처)
