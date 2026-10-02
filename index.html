@@ -2004,7 +2004,7 @@ input[type=range]{accent-color:var(--teal)}
     <div class="inst-grid" id="instGrid"></div>
     <div class="fold-div"></div>
   <label class="pedal-tog"><input type="checkbox" id="soloPianoTog"> 🎹 솔로 피아노 <span>(드럼·베이스·반주 없이 피아노 한 대가 전부 연주)</span></label>   
-    <label class="pedal-tog"><input type="checkbox" id="scoreTog"> 🎼 악보용 내보내기 <span>(박자 격자에 맞춤, 악기마다 트랙 하나, 보표 이름, 리허설 기호, 앞 빈 마디 없음)</span></label>
+    <label class="pedal-tog"><input type="checkbox" id="scoreTog"> 🎼 악보용 MIDI 도 함께 저장 <span>(같은 곡을 _악보 로 한 번 더: 박자 격자, 악기마다 트랙 하나, 보표 이름, 리허설 기호와 셈여림)</span></label>
     <label class="pedal-tog"><input type="checkbox" id="loungeTog"> ☕ 라운지 (배경음악) <span>(고른 편성으로 4~5분짜리 곡 여러 편을 이어 붙임 · 편마다 반주 결과 조성이 바뀝니다)</span></label>
     <div class="field" id="loungeLenWrap" style="display:none"><label for="loungeLen">라운지 길이</label><select id="loungeLen" class="slim-sel"><option value="15">약 15분</option><option value="30" selected>약 30분</option><option value="45">약 45분</option><option value="60">약 60분</option><option value="90">약 90분</option></select></div>
     <!-- ── 서사 모드 ──
@@ -24475,7 +24475,7 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
         const _want=(typeof GENCFG!=='undefined'&&GENCFG[gsel]&&GENCFG[gsel].mode)||null;
         if(_want && modes.includes(_want)) keyMode=_want;
       }
-    { try{ const w=$('gukSelWrap'); if(w) w.style.display=(gsel==='gukamb')?'':'none'; }catch(e){} } { try{ const w=$('wellPurWrap'); if(w) w.style.display=(gsel==='wellorch')?'':'none'; const w2=$('wellThemeWrap'); if(w2) w2.style.display=(gsel==='wellorch')?'':'none'; }catch(e){} }   /* 국악 앰비언트일 때만 보임 */
+    { try{ const w=$('gukSelWrap'); if(w) w.style.display=(gsel==='gukamb')?'':'none'; }catch(e){} } { try{ const w=$('wellPurWrap'); if(w) w.style.display=(gsel==='wellorch')?'':'none'; const w2=$('wellThemeWrap'); if(w2) w2.style.display=(gsel==='wellorch')?'':'none'; const st=$('scoreTog'); if(st && window.__scoreTogG!==gsel){ st.checked=(gsel==='wellorch'); window.__scoreTogG=gsel; } }catch(e){} }   /* 웰니스 오케는 악보용 함께 저장이 기본 */   /* 국악 앰비언트일 때만 보임 */
     { const sel=$('keymode'); if(sel){ [...sel.options].forEach(o=>{ o.disabled=(o.value!=='auto') && !modes.includes(o.value); }); if(window.__modeAuto!==false) sel.value='auto'; else if(modes.includes(keyMode)) sel.value=keyMode; } } } /* 조성 드롭다운: 장르별 가능한 모드만 활성 */
   function updateGenreSum(){ const el=$('genreSum'); if(!el) return; const grp=(GROUPS.find(g=>g[1].indexOf(gsel)>=0)||['?'])[0];
     const km=keyMode==='major'?'장조':(keyMode==='minor'?'단조':'선법');
@@ -26315,7 +26315,7 @@ RHYTHMS.joypiano=[
   let quintetMode=false;  // 현악 5중주: 위 넷 + 콘트라베이스 — 첼로가 선율을 맡을 때 바닥을 받친다
   let pivotOn=true;    // 전조 피벗: 조 바뀌기 직전 마디를 새 조 V7으로
   let midiPadBars=4; // MIDI 앞뒤 공백 마디
-  window.__scoreOn=function(){ try{ const e=document.getElementById('scoreTog'); return !!(e&&e.checked); }catch(_){ return false; } };   /* ★ 2026-10-01 악보용 내보내기 */
+  window.__scoreOn=function(){ return window.__scoreForce===true; };   /* ★ 2026-10-02 악보용은 저장할 때의 설정으로 (칸은 '악보용도 함께 저장') */
   let midiNoTail=false, midiNoGuide=false, midiNextStage=null; // 리전 분할 빌드용
   let prodTracks=true; // 프로덕션 트랙: 패드·서브·라이저 실음 + 가이드 트랙을 MIDI에 추가(로직용)
   /* 어쿠스틱·전통 계열에는 패드·서브베이스·라이저를 넣지 않는다.
@@ -36605,13 +36605,13 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
           try{ if(i===0){ window.__PERF_ROWS=[]; } const TE=(tempoEvs||[]).slice().sort(function(a,b){ return a.tick-b.tick; }); const secOf=function(tk){ let s=0,last=0,b=(TE[0]&&TE[0].bpm)||100; for(let q=0;q<TE.length;q++){ if(TE[q].tick>tk) break; s+=(TE[q].tick-last)/TPQ*60/b; last=TE[q].tick; b=TE[q].bpm; } return s+(tk-last)/TPQ*60/b; };
             const KS=['melody','counter','strings','bass','pad','harp','piano','piano2'], PK=['daegeum','saeng','geomungo','handpan']; const ins=KS.filter(function(k){ return window.__wellAllowed(k,sec); }).concat(PK.filter(function(k){ return window.__wellPointOn(k,sec); }));
             window.__PERF_ROWS.push({t:secOf(T.start)-secOf(PAD), label:sec.label, still:!!sec.still, bridge:sec.lounge==='bridge', mv:(sec.wellMov&&sec.wellMov.n)||'', dyn:window.__wellDyn(sec), pizz:!!sec.pizz, caes:!!sec.caes, malbal:!!sec.malbal, ins:ins}); }catch(e){}   /* 설명서 구성표 */
-          try{ const pv=currentSong[i-1]; if(sec.pizz && !(pv&&pv.pizz)) mkQueue.push({tk:T.start, txt:'pizz.'}); if(!sec.pizz && pv && pv.pizz) mkQueue.push({tk:T.start, txt:'arco'}); if(sec.caes) mkQueue.push({tk:T.start+T.bars*T.meas-TPQ, txt:'caesura //'}); if(sec.malbal) mkQueue.push({tk:T.start, txt:'gayageum malbal (gallop)'}); }catch(e){}
+          try{ const pv=currentSong[i-1]; if(sec.pizz && !(pv&&pv.pizz)) mkQueue.push({tk:T.start, txt:'pizz.'}); if(!sec.pizz && pv && pv.pizz) mkQueue.push({tk:T.start, txt:'arco'}); if(sec.caes) mkQueue.push({tk:T.start+T.bars*T.meas-TPQ, txt:'caesura //'}); }catch(e){}   /* 말발굽은 음표로 그대로 보여 마커는 뺌 (형) */
           if(sec.movName && sec.movName!==_pm && sec.lounge!=='bridge'){ mkQueue.push({tk:T.start, txt:'== '+((sec.wellMov&&sec.wellMov.en)||sec.movName)+((sec.wellMov&&sec.wellMov.ti)?' - '+sec.wellMov.ti:'')+(i>0?' (a tempo)':'')});   /* 마커는 영문(로직 마커가 한글을 지운다) */ _pm=sec.movName; }
           try{ const W=sec.wellMov; if(W && W.pm && sec.mvPos!=null){ const pv=currentSong[i-1]; const pp=(pv&&pv.wellMov===W&&pv.mvPos!=null)?pv.mvPos:-1; if(pp<0.3 && sec.mvPos>=0.3) mkQueue.push({tk:T.start, txt:'poco accel.'}); if(pp<0.45 && sec.mvPos>=0.45) mkQueue.push({tk:T.start, txt:'piu mosso'}); if(pp<0.8 && sec.mvPos>=0.8) mkQueue.push({tk:T.start, txt:'meno mosso'}); } }catch(e){}
           if(nx && nx.gp && T.bars>=3){ mkQueue.push({tk:T.start+(T.bars-2)*T.meas, txt:'rit.'}); mkQueue.push({tk:T.start+T.bars*T.meas-TPQ, txt:'fermata'}); } }); } }catch(e){}
     // 마커와 템포를 tick 순서로 병합
     const sigQueue=[]; { let prevSig=currentSig; SEC_TK.forEach(function(e){ if(e.sig!==prevSig){ sigQueue.push({tk:e.start, sig:e.sig}); prevSig=e.sig; } }); } // 섹션별 박자표 변경 지점
-    try{ if(window.__scoreOn && window.__scoreOn()){ const keep=/^(==|rit\.|fermata|G\.P\.|poco accel\.|piu mosso|meno mosso|Stillness|pizz\.|arco|caesura|gayageum malbal|<<< END)/; mkQueue=mkQueue.filter(function(m){ return keep.test(String(m.txt||'')); });   /* ★ 악보용: 편집용 마커 빼고 리허설 기호 */
+    try{ if(window.__scoreOn && window.__scoreOn()){ const keep=/^(==|rit\.|fermata|G\.P\.|poco accel\.|piu mosso|meno mosso|Stillness|pizz\.|arco|caesura|<<< END)/; mkQueue=mkQueue.filter(function(m){ return keep.test(String(m.txt||'')); });   /* ★ 악보용: 편집용 마커 빼고 리허설 기호 */
         const L=function(i){ const A='ABCDEFGHIJKLMNOPQRSTUVWXYZ'; return i<26?A[i]:A[Math.floor(i/26)-1]+A[i%26]; }; let li=0; currentSong.forEach(function(s,i){ if(s.gp||!SEC_TK[i]) return; let tx='['+L(li++)+']'; try{ if(loungeMode && gsel==='wellorch' && window.__wellDyn){ const d0=window.__wellDyn(s); let nx=null; for(let q=i+1;q<currentSong.length;q++){ if(!currentSong[q].gp){ nx=currentSong[q]; break; } } const d1=nx?window.__wellDyn(nx):d0; tx+=' '+d0.d+(d1.i>d0.i?' cresc.':(d1.i<d0.i?' dim.':'')); } }catch(e){} mkQueue.push({tk:SEC_TK[i].start, txt:tx}); }); } }catch(e){}   /* 리허설 기호에 셈여림 */
     let merged=[]; mkQueue.forEach(m=>merged.push({tk:m.tk,type:'mk',txt:m.txt})); tempoEvs.forEach(te=>merged.push({tk:te.tick,type:'tempo',bpm:te.bpm})); ksQueue.forEach(k=>merged.push({tk:k.tk,type:'keysig',ks:k.ks})); sigQueue.forEach(q=>merged.push({tk:q.tk,type:'timesig',sig:q.sig}));
     merged.sort((a,b)=>a.tk-b.tk || ((a.type==='timesig')?-3:(a.type==='tempo'?-2:(a.type==='keysig'?-1:1))) - ((b.type==='timesig')?-3:(b.type==='tempo'?-2:(b.type==='keysig'?-1:1))));
@@ -42827,8 +42827,6 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           try{ if(loungeMode && gsel==='wellorch' && N.length && window.__wellAllowed){ const R=[]; currentSong.forEach(function(s,i){ if(SEC_TK[i]) R.push([SEC_TK[i].start, SEC_TK[i].start+SEC_TK[i].bars*SEC_TK[i].meas, s]); });   /* ★ 공연판 편성 출입 */
             const secAt=function(tk){ for(let q=0;q<R.length;q++){ if(tk>=R[q][0] && tk<R[q][1]) return R[q]; } return null; };
             for(let q=N.length-1;q>=0;q--){ const n=N[q]; const r=secAt(n.on); if(r && !window.__wellAllowed(grp.key, r[2])){ N.splice(q,1); continue; } if(r){ const r2=secAt(Math.max(n.on,n.off-1)); if(r2 && r2!==r && !window.__wellAllowed(grp.key, r2[2])) n.off=r2[0]; } } } }catch(e){}
-          try{ if(window.__scoreOn && window.__scoreOn() && N.length){ const g16=Math.round(TPQ/4), g12=Math.round(TPQ/3); const q=function(x){ const a=Math.round(x/g16)*g16, b=Math.round(x/g12)*g12; return (Math.abs(b-x)+2<Math.abs(a-x))?b:a; };   /* ★ 악보용: 16분음표나 셋잇단 격자 중 가까운 쪽 */
-            N.forEach(function(n){ const a=Math.round(n.on/g16)*g16, b=Math.round(n.on/g12)*g12; const tri=(Math.abs(b-n.on)+2<Math.abs(a-n.on)); const g=tri?g12:g16; const on=tri?b:a; let off=Math.round(n.off/g)*g; if(off<=on) off=on+g; n.on=on; n.off=off; }); } }catch(e){}   /* 끝도 시작과 같은 격자, 최소 한 칸 (콘트라베이스 1/6박 음 1057개이던 것) */
           try{ if(gsel==='wellorch' && N.length){ const W=window.__WCAST||{};   /* ★ 2026-10-01 웰니스 오케 실제 연주 음역 (비올라 첼로 E7, 호른 B5 까지 올라가던 것) */
             const CAST={Flute:[60,93],Oboe:[58,91],'English Horn':[52,81],Clarinet:[50,91],Cello:[36,76],Horn:[34,77],Vibraphone:[53,89],Celesta:[60,108],Glockenspiel:[67,96]};
             const RG=({strings:[36,81],counter:[55,93],horns:[34,77],bass:[28,60],harp:[43,74],brass:[40,72],melody:[55,100],winds:CAST[W.winds],piano2:[55,84]})[grp.key];
@@ -42882,6 +42880,9 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                 cand.sort(function(x,y){ const rx=(((x%12)+12)%12===P[0])?0:1, ry=(((y%12)+12)%12===P[0])?0:1; return (rx-ry)||(Math.abs(x-60)-Math.abs(y-60)); }); lo=cand[0];
                 const ph=((tt-a)%per)/per; const v=Math.round(36+18*(0.5-0.5*Math.cos(2*Math.PI*ph)));
                 N.push({on:tt, off:tt+Math.round(g16*((window.__scoreOn&&window.__scoreOn())?1:0.9)), note:(k%2===0)?lo:lo+7, vel:v}); } }); } }catch(e){}
+          try{ if(window.__scoreOn && window.__scoreOn() && N.length){ const g16=Math.round(TPQ/4), g12=Math.round(TPQ/3); const q=function(x){ const a=Math.round(x/g16)*g16, b=Math.round(x/g12)*g12; return (Math.abs(b-x)+2<Math.abs(a-x))?b:a; };   /* ★ 악보용: 16분음표나 셋잇단 격자 중 가까운 쪽 */
+            N.forEach(function(n){ const a=Math.round(n.on/g16)*g16, b=Math.round(n.on/g12)*g12; const tri=(Math.abs(b-n.on)+2<Math.abs(a-n.on)); const g=tri?g12:g16; const on=tri?b:a; let off=Math.round(n.off/g)*g; if(off<=on) off=on+g; n.on=on; n.off=off; }); } }catch(e){}   /* 끝도 시작과 같은 격자, 최소 한 칸 (콘트라베이스 1/6박 음 1057개이던 것) */   /* ★ 2026-10-02 박자 맞춤은 맨 끝 (음원용 악보용이 같은 입력으로 음을 고르게) */
+          try{ if(window.__scoreOn && window.__scoreOn() && gsel==='wellorch' && grp.key==='harp' && N.length){ const byOn={}; N.forEach(function(n){ (byOn[n.on]=byOn[n.on]||[]).push(n); }); const drop=new Set(); Object.keys(byOn).forEach(function(k){ const g=byOn[k]; if(g.length>2) g.sort(function(a,b){ return b.note-a.note; }).slice(2).forEach(function(n){ drop.add(n); }); }); if(drop.size){ for(let q=N.length-1;q>=0;q--){ if(drop.has(N[q])) N.splice(q,1); } } } }catch(e){}   /* 악보용: 박자 맞춤으로 같은 박에 모인 가야금은 다시 위 두 음까지 */
           const byN={}; N.forEach(function(n){ (byN[n.note]=byN[n.note]||[]).push(n); });
           const drop=new Set();
           Object.keys(byN).forEach(function(k){
@@ -43703,8 +43704,10 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         const volCC=function(db){ return Math.max(12,Math.min(120,Math.round(100*Math.pow(10,db/40)))); };
         const enc=function(name,ch,ev,db,pan,lim){ let b=[]; if(window.__scoreOn&&window.__scoreOn()){ name=name.split(' | ').slice(1).join(' ').replace(/\([^)]*\)/g,'').replace(/\s+/g,' ').trim()||name; } const nb=Array.from(new TextEncoder().encode(name)); b=b.concat([0,0xFF,0x03]).concat(vlq(nb.length)).concat(nb);
           b=b.concat([0,0xB0|ch,7,volCC(db), 0,0xB0|ch,10,Math.max(0,Math.min(127,Math.round(64+pan*63)))]);
+          if(lim){ const byT={}; ev.forEach(function(e){ if(e.k===1) (byT[e.t]=byT[e.t]||[]).push(e); }); const drop=new Set(); Object.keys(byT).forEach(function(k){ const g=byT[k]; if(g.length<=lim) return; g.sort(function(a,c){ return c.n-a.n; }).slice(lim).forEach(function(e){ drop.add(e); const off=ev.filter(function(o){ return o.k===0 && o.n===e.n && o.t>e.t; }).sort(function(a,c){ return a.t-c.t; })[0]; if(off) drop.add(off); }); }); for(let z=ev.length-1;z>=0;z--){ if(drop.has(ev[z])) ev.splice(z,1); } }   /* 같은 순간 음 수 제한 (음원용 악보용 모두, 박자 맞춤 앞) */
           if(window.__scoreOn&&window.__scoreOn()){ const g16=Math.round(TPQ/4), g12=Math.round(TPQ/3); const q=function(x){ const a=Math.round(x/g16)*g16, b=Math.round(x/g12)*g12; return (Math.abs(b-x)+2<Math.abs(a-x))?b:a; }; ev.forEach(function(e){ e.t=q(e.t); }); ev.forEach(function(e){ if(e.k!==0) return; const on=ev.filter(function(o){ return o.k===1 && o.n===e.n && o.t<=e.t; }).pop(); if(!on) return; const g=(on.t%g16)?g12:g16; e.t=Math.round(e.t/g)*g; if(e.t<=on.t) e.t=on.t+g; });   /* 끝도 시작과 같은 격자 */
-            if(lim){ const byT={}; ev.forEach(function(e){ if(e.k===1) (byT[e.t]=byT[e.t]||[]).push(e); }); const drop=new Set(); Object.keys(byT).forEach(function(k){ const g=byT[k]; if(g.length<=lim) return; g.sort(function(a,c){ return c.n-a.n; }).slice(lim).forEach(function(e){ drop.add(e); const off=ev.filter(function(o){ return o.k===0 && o.n===e.n && o.t>e.t; }).sort(function(a,c){ return a.t-c.t; })[0]; if(off) drop.add(off); }); }); for(let z=ev.length-1;z>=0;z--){ if(drop.has(ev[z])) ev.splice(z,1); } }   /* 박자 맞춤 뒤 같은 순간 음 수 제한 */ for(let z=0;z<ev.length;z++){ if(ev[z].k===0){ const on=ev.filter(function(o){ return o.k===1 && o.n===ev[z].n && o.t<=ev[z].t; }).pop(); if(on && ev[z].t<=on.t) ev[z].t=on.t+g16; } } }   /* 악보용: 포인트 트랙도 격자에 */
+              /* 같은 순간 음 수 제한 (음원용 악보용 모두, 같은 곡이 되게) */ for(let z=0;z<ev.length;z++){ if(ev[z].k===0){ const on=ev.filter(function(o){ return o.k===1 && o.n===ev[z].n && o.t<=ev[z].t; }).pop(); if(on && ev[z].t<=on.t) ev[z].t=on.t+g16; } } }   /* 악보용: 포인트 트랙도 격자에 */
+          if(window.__scoreOn&&window.__scoreOn()) if(lim){ /* 악보용: 박자 맞춤 뒤 한 번 더 */  const byT={}; ev.forEach(function(e){ if(e.k===1) (byT[e.t]=byT[e.t]||[]).push(e); }); const drop=new Set(); Object.keys(byT).forEach(function(k){ const g=byT[k]; if(g.length<=lim) return; g.sort(function(a,c){ return c.n-a.n; }).slice(lim).forEach(function(e){ drop.add(e); const off=ev.filter(function(o){ return o.k===0 && o.n===e.n && o.t>e.t; }).sort(function(a,c){ return a.t-c.t; })[0]; if(off) drop.add(off); }); }); for(let z=ev.length-1;z>=0;z--){ if(drop.has(ev[z])) ev.splice(z,1); } }
           ev.sort(function(a,c){ return (a.t-c.t)||((a.k===2?0.5:a.k)-(c.k===2?0.5:c.k)); }); let last=0; ev.forEach(function(e){ b=b.concat(vlq(Math.max(0,e.t-last))); last=e.t; if(e.k===2){ b.push(0xE0|ch, e.v&0x7f, (e.v>>7)&0x7f); return; } b.push(e.k===0?(0x80|ch):(0x90|ch), e.n&0x7f, e.v&0x7f); });   /* 피치 벤드(시김새) */
           b=b.concat([0,0xFF,0x2F,0x00]); return trk(b); };
         const made=[];
@@ -43790,11 +43793,15 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
     idx.sort(function(a,b){ return (a.r-b.r)||(a.i-b.i); });
     return idx.map(function(x){ return x.t; });
   }
-  function downloadSongMIDI(){ const bytes=buildSongMIDI(); if(!bytes) return;
-    const blob=new Blob([new Uint8Array(bytes)],{type:'audio/midi'}), url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download=(G[gsel].name+'_곡').replace(/[^\w가-힣]+/g,'_')+'.mid';
-    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1200);
-    setTimeout(()=>{ downloadSetupSheet(); },350); // 레시피 TXT 동시 제공(브라우저 연속 다운로드)
+  function downloadSongMIDI(){
+    /* ★ 2026-10-02 한 번에 음원용과 악보용 (형: 악보용 따로 하는 게 번거롭다). 같은 곡을 두 번 쓴다: 악보용 먼저, 음원용 나중(미리 듣기와 설명서가 음원용 상태로 남게) */
+    const both=!!($('scoreTog')&&$('scoreTog').checked); const base=(G[gsel].name+'_곡').replace(/[^\w가-힣]+/g,'_');
+    const save=function(bytes,name){ const blob=new Blob([new Uint8Array(bytes)],{type:'audio/midi'}), url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); };
+    let sb=null; if(both){ window.__scoreForce=true; try{ sb=buildSongMIDI(); }catch(e){ sb=null; } }
+    window.__scoreForce=false; let bytes=null; try{ bytes=buildSongMIDI(); }catch(e){ bytes=null; } window.__scoreForce=null; if(!bytes) return;
+    save(bytes, base+(both?'_음원':'')+'.mid');
+    if(both && sb) setTimeout(()=>{ save(sb, base+'_악보.mid'); },300);
+    setTimeout(()=>{ downloadSetupSheet(); }, both?700:350); // 레시피 TXT 동시 제공(브라우저 연속 다운로드)
   }
   function genreFXLines(){ // 장르별 FX 가이드(무엇을·어느 트랙에) — TXT/MIDI 공용
     const G_FX={
@@ -44693,7 +44700,7 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
         let li=0, pm=null; RW.forEach(function(r,ri){ if(r.mv && r.mv!==pm && !r.bridge){ const W=(window.__WELL_MOV_T||[]).find(function(x){ return x.n===r.mv; }); L.push('   '+r.mv+(W?'  「'+(W.ko||'')+', '+(W.ti||'')+'」  '+(W.mean||'')+'  현 주법: '+((window.__WELL_ART||{})[W.arch||W.en]||'레가토'):'')); pm=r.mv; }
           const nx=RW[ri+1]; const d1=nx?nx.dyn:r.dyn; const dy=r.dyn.d+(d1.i>r.dyn.i?' cresc.':(d1.i<r.dyn.i?' dim.':''));
           const lab=r.still?'고요, 숨 고르기 (현만 긴 음 엇갈림)':(r.bridge?'다리, 건너감':(KL[r.label]||r.label));
-          L.push('      '+mm(r.t)+'  ['+LT(li++)+']  '+lab+'  '+dy+(r.pizz?'  pizz.':'')+(r.malbal?'  가야금 말발굽':'')+(r.caes?'  끝에 여백 //':'')+'  |  '+r.ins.map(function(k){ return KO[k]||k; }).join(', ')); });
+          L.push('      '+mm(r.t)+'  ['+LT(li++)+']  '+lab+'  '+dy+(r.pizz?'  pizz.':'')+(r.malbal?'  가야금 말발굽, 두 마디마다 < >':'')+(r.caes?'  끝에 여백 //':'')+'  |  '+r.ins.map(function(k){ return KO[k]||k; }).join(', ')); });
         L.push('   콘트라베이스의 짧은 음(한 박 이하)은 pizz. 를 권합니다. 셈여림은 MIDI 기호로 실리지 않아 이 구성표와 리허설 마커를 보고 피날레에 적어 넣으면 됩니다.'); }catch(e){}
       L.push('   띵샤 트랙은 형 목록에 띵샤 음원이 없어 True Strike 트라이앵글을 걸었습니다. 띵샤 음원이 있으면 그 트랙 음원만 바꾸면 됩니다(음 하나, A5).'); } }catch(e){}
  try{ if(window.__wellStagePan&&window.__wellStagePan('pad')!=null){ const W=window.__WELL_STAGE; L.push('   무대 배치 (좌우 자리 CC10, 리버브 보냄 권장): '+Object.keys(W).map(function(k){ const v=W[k]; const ps=v[0]===0?'가운데':(v[0]<0?'왼 '+Math.round(-v[0]*100):'오 '+Math.round(v[0]*100)); return v[2]+' '+ps+', 리버브 '+v[1]+'%'; }).join(' / ')+'. 앞줄 현과 독주는 리버브를 적게, 뒤쪽 목관 하프 점묘는 많게. 공간을 도는 트랙도 자기 자리를 중심으로 조금씩만 흔들립니다.'); } }catch(e){}
@@ -50736,6 +50743,10 @@ function buildMidi(){
   chordEntrySoften(chordTrack, {velMul:0.72, depth:0.58, winSec:3.2, preSec:1.0});   // 패드: 화음마다 한 번 숨 쉬는 정도
   chordEntrySoften(bassTrack,  {velMul:0.78, depth:0.76, winSec:2.4, preSec:0.8});   // 저역: 더 얕게 — 출렁이면 멀미가 난다
   smoothCC11(chordTrack); smoothCC11(bassTrack);
+  /* ★ 2026-10-02 저역 드론과 다른 층이 장7도 단9도 반음(11 13 1반음)으로 2초 넘게 함께 울리면 그 음을 한 옥타브 위로 (medclash 우주 8곡 중 2곡 9%, 짝 Bass 드론과 패드) */
+  (function(){ try{ const BN=bassTrack.filter(function(e){ return e.note!=null && e.dur>0; }); const minOv=S(2);
+    [chordTrack,arpTrack,bellTrack,hpTrack,melTrack,pulseTrack,singTrack,soloTrack].forEach(function(tt){ if(!tt||!tt.forEach) return;
+      tt.forEach(function(e){ if(e.note==null || !(e.dur>0)) return; for(let q=0;q<BN.length;q++){ const b=BN[q]; const ov=Math.min(e.start+e.dur,b.start+b.dur)-Math.max(e.start,b.start); if(ov<minOv) continue; const d=e.note-b.note; if(d===11||d===13||d===1){ if(e.note+12<=96) e.note+=12; break; } } }); }); }catch(_){ } })();
 
   const tracks = [];
   const fxNow = currentFx();
