@@ -25329,7 +25329,7 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
     dusk:{name:'노을', desc:'첼레스타, 낮게 노래하는 현, 조금 느리게', bpm:0.94, mode:'modal', cast:{piano2:'Celesta', winds:'Horn', melody:['English Horn','Cello']}, v:{mel:[6,2]}, vol:{winds:1, strings:0.5}},
     night:{name:'밤', desc:'아주 느리고 성기게, 첼레스타와 부드러운 그랜드', bpm:0.85, mode:'modal', cast:{piano2:'Celesta', piano:'Soft Grand', winds:'Clarinet', melody:['Clarinet','Cello']}, v:{wEvery:3, mel:[8,4], gSteps:6}, vol:{pad:1, piano:-1, piano2:-1}} };
   /* ★ 2026-09-30 웰니스 오케 무대 배치 (형: 4 무대 배치). 좌우 자리(-1 왼 ~ +1 오)와 리버브 보냄 권장(%) */
-  window.__WELL_STAGE={ harp:[-0.65,30,'하프'], melody:[-0.5,14,'바이올린 I'], counter:[-0.25,18,'바이올린 II'], piano:[-0.15,22,'오스티나토 피아노'], pad:[0,25,'현 패드'],
+  window.__WELL_STAGE={ harp:[-0.65,30,'가야금'], melody:[-0.5,14,'바이올린 I'], counter:[-0.25,18,'바이올린 II'], piano:[-0.15,22,'오스티나토 피아노'], pad:[0,25,'현 패드'],
     piano2:[0.25,32,'점묘'], strings:[0.30,18,'비올라 첼로'], cbass:[0.40,16,'첼로'], bass:[0.50,14,'콘트라베이스'], qbass:[0.55,14,'베이스 섹션'] };
   window.__wellStagePan=function(key){ try{ if(typeof gsel!=='undefined' && (gsel==='wellorch'||(typeof wellOrchMode!=='undefined'&&wellOrchMode)) && window.__WELL_STAGE[key]) return window.__WELL_STAGE[key][0]; }catch(e){} return null; };
   /* ★ 2026-09-30 웰니스 목적 (형: 5 웰니스 목적). 장면 위에 한 번 더: 장면 후보, 빠르기, 밀도, 음량 */
@@ -30197,13 +30197,13 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
   /* ★ 2026-10-01 웰니스 오케 공연판 악장 표 (형: 60분 공연용, 악장마다 장면과 템포, 리타르단도와 여백).
      라운지 길이로 악장 수를 정하고(60분 7악장) 표에서 고르게 고른다. 첫 악장과 마지막 악장(귀환)은 늘 지킨다. */
   const WELL_MOV=[
-    {n:'I. 여명 (Dawn)', bpm:64, en:'I. Dawn',     scene:'dawn',  tempo:0.82, mode:'major', sig:'4/4', dens:'sparse'},
-    {n:'II. 숲 (Forest)', bpm:96, en:'II. Forest',    scene:'dawn',  tempo:0.98, mode:'major', sig:'3/4', dens:'medium'},
-    {n:'III. 물가 (Water)', bpm:72, en:'III. Water',  scene:'water', tempo:0.92, mode:'major', sig:'6/8', dens:'medium'},
-    {n:'IV. 바람 (Wind) Allegro', bpm:126, en:'IV. Wind - Allegro',    scene:'water', tempo:1.04, mode:'modal', sig:'4/4', dens:'medium'},
-    {n:'V. 노을 (Dusk)', bpm:76, pm:1.12, en:'V. Dusk',     scene:'dusk',  tempo:0.94, mode:'modal', sig:'4/4', dens:'full'},
-    {n:'VI. 밤 (Night)', bpm:58, en:'VI. Night',     scene:'night', tempo:0.78, mode:'modal', sig:'3/4', dens:'sparse'},
-    {n:'VII. 귀환 (Return)', bpm:66, en:'VII. Return', scene:'dawn',  tempo:0.86, mode:'major', sig:'4/4', dens:'sparse'} ];
+    {n:'I. 여명 (Dawn)', vmul:0.85, dshift:0, melHi:0, ti:'Awakening Breath', ko:'깨어나는 숨', mean:'고요에서 몸과 숨을 천천히 깨운다', still:true, bpm:64, en:'I. Dawn',     scene:'dawn',  tempo:0.82, mode:'major', sig:'4/4', dens:'sparse'},
+    {n:'II. 숲 (Forest)', vmul:1.0, dshift:0, melHi:0, ti:'Walking Mind', ko:'걷는 마음', mean:'3/4 걸음으로 주의를 바깥으로 연다', still:false, bpm:96, en:'II. Forest',    scene:'dawn',  tempo:0.98, mode:'major', sig:'3/4', dens:'medium'},
+    {n:'III. 물가 (Water)', vmul:0.95, dshift:0, melHi:0, ti:'Letting Flow', ko:'흐름에 맡김', mean:'6/8 물결의 되풀이로 생각을 흘려보낸다', still:true, bpm:72, en:'III. Water',  scene:'water', tempo:0.92, mode:'major', sig:'6/8', dens:'medium'},
+    {n:'IV. 바람 (Wind) Allegro', vmul:1.12, dshift:1, melHi:0, ti:'Energy in Motion', ko:'움직이는 기운', mean:'빠른 맥박으로 몸의 기운을 돌게 한다', still:false, bpm:126, en:'IV. Wind - Allegro',    scene:'water', tempo:1.04, mode:'modal', sig:'4/4', dens:'medium'},
+    {n:'V. 노을 (Dusk)', vmul:1.15, dshift:1, melHi:0, ti:'Fullness and Release', ko:'차오름과 놓아줌', mean:'모두 모여 정점에 닿고 천천히 놓아준다', still:false, bpm:76, pm:1.12, en:'V. Dusk',     scene:'dusk',  tempo:0.94, mode:'modal', sig:'4/4', dens:'full'},
+    {n:'VI. 밤 (Night)', vmul:0.75, dshift:0, melHi:74, ti:'Deep Rest', ko:'깊은 쉼', mean:'가장 느리고 성기게, 약음기로 긴 숨을 쉰다', still:true, bpm:58, en:'VI. Night',     scene:'night', tempo:0.78, mode:'modal', sig:'3/4', dens:'sparse'},
+    {n:'VII. 귀환 (Return)', vmul:0.85, dshift:0, melHi:0, ti:'Returning Home', ko:'돌아옴', mean:'첫 악장의 결로 돌아와 일상으로 부드럽게 내려앉는다', still:true, bpm:66, en:'VII. Return', scene:'dawn',  tempo:0.86, mode:'major', sig:'4/4', dens:'sparse'} ];
   window.__WELL_MOV=WELL_MOV;
   /* ★ 2026-10-01 악장 빠르기는 절대값(형: bpm 60 정도의 느린 것도). 공연마다 ±4% 하나. 기준 빠르기에 대한 배율로 돌려준다 */
   function wellMovMul(W){ try{ const base=(defaultRhythm().bpm)||100; return (W.bpm*(window.__wellPerfJ||1))/base; }catch(e){ return W.tempo||1; } }
@@ -30223,21 +30223,22 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
      악기: core 처음부터, add 25% 부터, peak 40~82%. 대금은 독주를, 가야금은 하프를, 양금은 점묘를 넘겨받는다(그 구간 서양 쪽은 쉼). 띵샤: start 악장 시작, peak 절정 들어갈 때 */
   const WELL_POINT={
     'I. Dawn':    {saeng:'core', ting:['start']},
-    'II. Forest': {daegeum:'add', yanggeum:'peak', ting:['start']},
-    'III. Water': {gayageum:'core', handpan:'add', ting:['start']},
+    'II. Forest': {daegeum:'add', ting:['start']},
+    'III. Water': {handpan:'add', ting:['start']},
     'IV. Wind - Allegro':   {daegeum:'core', handpan:'peak', geomungo:'add', ting:['start','peak']},
     'V. Dusk':    {saeng:'add', geomungo:'core', ting:['start','peak']},
     'VI. Night':  {handpan:'add', saeng:'core', ting:['start']},
-    'VII. Return':{daegeum:'add', gayageum:'peak', saeng:'core', ting:['start','peak']} };
+    'VII. Return':{daegeum:'add', saeng:'core', ting:['start','peak']} };
   window.__WELL_POINT=WELL_POINT;
-  window.__wellPointOn=function(inst, sec){ try{ if(!sec||!sec.wellMov) return false; const P=WELL_POINT[sec.wellMov.en]; const m=P&&P[inst]; if(!m) return false; const pp=(sec.mvPos!=null)?sec.mvPos:0.5;
+  window.__wellPointOn=function(inst, sec){ try{ if(!sec||!sec.wellMov||sec.still) return false; const P=WELL_POINT[sec.wellMov.en]; const m=P&&P[inst]; if(!m) return false; const pp=(sec.mvPos!=null)?sec.mvPos:0.5;
       if(m==='core') return true; if(m==='add') return pp>=0.25; if(m==='peak') return pp>=0.4 && pp<=0.82; return false; }catch(e){ return false; } };
   /* ★ 2026-10-01 공연판 셈여림과 현 주법 권장 (형: 셈여림 이음줄 주법이 악보에 필요. MIDI 로는 기호가 안 실려 리허설 마커와 설명서 큐로) */
-  window.__wellDyn=function(sec){ const D=['pp','p','mp','mf','f']; let i=Math.max(0,Math.min(4,(sec.stage||3)-1)); if(sec.wellMov && sec.wellMov.dens==='sparse') i=Math.max(0,i-1); return {i:i, d:D[i]}; };
+  window.__wellDyn=function(sec){ const D=['pp','p','mp','mf','f']; if(sec&&sec.still) return {i:0,d:'pp'}; let i=Math.max(0,Math.min(4,(sec.stage||3)-1)); if(sec.wellMov && sec.wellMov.dens==='sparse') i=Math.max(0,i-1); if(sec.wellMov && sec.wellMov.dshift) i=Math.max(0,Math.min(4,i+sec.wellMov.dshift)); return {i:i, d:D[i]}; };   /* 바람 노을 한 단계 위 */
   window.__WELL_ART={'I. Dawn':'sul tasto, 부드럽게 레가토','II. Forest':'레가토, 가볍게','III. Water':'레가토, 하프와 피아노 물결 위로','IV. Wind - Allegro':'짧은 음 spiccato, 긴 음 큰 활','V. Dusk':'절정은 큰 활, 비브라토 넉넉히','VI. Night':'con sord.(약음기), 아주 여리게','VII. Return':'sul tasto 로 열어 제자리 소리로'};
   window.__wellAllowed=function(key, sec){ try{ if(!sec||!sec.wellMov) return true; const O=WELL_ORCH[sec.wellMov.en]; if(!O) return true;
       const k=({cbass:'bass',qbass:'bass',kickonly:'bass',lowbrass:'brass'})[key]||key; const all=O.core.concat(O.add,O.peak); if(all.indexOf(k)<0 && ['melody','counter','bass','piano','strings','winds','pad','horns','brass','harp','piano2'].indexOf(k)<0) return true;
-      const pp=(sec.mvPos!=null)?sec.mvPos:0.5; if((k==='melody'&&window.__wellPointOn('daegeum',sec))||(k==='harp'&&window.__wellPointOn('gayageum',sec))||(k==='piano2'&&window.__wellPointOn('yanggeum',sec))) return false;   /* 포인트 악기가 넘겨받는 자리 */
+      if(sec.still) return ['melody','counter','strings','pad','bass'].indexOf(k)>=0;   /* 고요: 현만 */
+      const pp=(sec.mvPos!=null)?sec.mvPos:0.5; if(k==='melody'&&window.__wellPointOn('daegeum',sec)) return false;   /* 점묘가 양금이라 양금 넘겨받기 없음 */   /* 하프 자리가 가야금이라 넘겨받기 없음 */   /* 포인트 악기가 넘겨받는 자리 */
       if(O.core.indexOf(k)>=0) return true; if(O.add.indexOf(k)>=0) return pp>=0.25; if(O.peak.indexOf(k)>=0) return pp>=0.4 && pp<=0.82; return false; }catch(e){ return true; } };
   /* ★ 2026-10-01 악장 수별 고르는 순서: 짧은 판에도 빠른 악장(바람 Allegro)과 맺음(귀환)이 들어가게 (30분판이 고르게 고르다 바람을 빼 최고 91 BPM 이던 것) */
   const WELL_ORDER={1:[0],2:[0,6],3:[0,3,6],4:[0,2,3,6],5:[0,1,3,4,6],6:[0,1,2,3,5,6],7:[0,1,2,3,4,5,6]};
@@ -30497,6 +30498,8 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
           bridge.wellMov=wellMovFor(k,_nW); bridge.mvPos=0; bridge.movName=bridge.wellMov.n; }
         out.push(bridge);
       }
+      if(gsel==='wellorch'){ const W=wellMovFor(k,_nW); if(W.still && secs.length>2){ const oi=secs.map(function(x){ return x.label; }).lastIndexOf('아웃트로'); const at=(oi>0)?oi:secs.length-1; const src=secs.filter(function(x){ return x.label!=='인트로' && x.prog && x.prog.steps && x.prog.steps.length; })[0]||secs[0];   /* ★ 고요 구간: 현만 길게 엇갈려 (형) */
+          const st=[]; (src.prog.steps||[]).slice(0,4).forEach(function(s){ st.push(s); st.push(s); }); const sv={label:'간주', prog:{name:'고요 (Stillness)', mode:src.prog.mode||keyMode, steps:st}, reps:1, drums:false, density:'sparse', intensity:0.2, stage:1, still:true, lounge:'still'}; applyStageFields(sv); sv.drums=false; sv.stage=1; secs.splice(at,0,sv); } }
       if(gsel==='wellorch'){ const _tb=barsOf(secs)||1; let _cb=0; secs.forEach(function(x){ const b=((x.prog&&x.prog.steps)?x.prog.steps.length:0)*(x.reps||1); x.mvPos=(_cb+b/2)/_tb; _cb+=b; }); }   /* 악장 안 위치 0~1 (템포 아치) */
       secs.forEach(x=>out.push(x));
     }
@@ -36578,12 +36581,13 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
     try{ if(loungeMode && gsel==='wellorch'){ let _pm=null;   /* ★ 공연판 마커: 악장 이름, rit., 늘임표, G.P., a tempo */
         currentSong.forEach(function(sec,i){ const T=SEC_TK[i]; if(!T) return; const nx=currentSong[i+1];
           if(sec.gp){ mkQueue.push({tk:T.start, txt:'G.P.'}); return; }
-          if(sec.movName && sec.movName!==_pm && sec.lounge!=='bridge'){ mkQueue.push({tk:T.start, txt:'== '+((sec.wellMov&&sec.wellMov.en)||sec.movName)+(i>0?' - a tempo':'')});   /* 마커는 영문(로직 마커가 한글을 지운다) */ _pm=sec.movName; }
+          if(sec.still) mkQueue.push({tk:T.start, txt:'Stillness - strings only'});
+          if(sec.movName && sec.movName!==_pm && sec.lounge!=='bridge'){ mkQueue.push({tk:T.start, txt:'== '+((sec.wellMov&&sec.wellMov.en)||sec.movName)+((sec.wellMov&&sec.wellMov.ti)?' - '+sec.wellMov.ti:'')+(i>0?' (a tempo)':'')});   /* 마커는 영문(로직 마커가 한글을 지운다) */ _pm=sec.movName; }
           try{ const W=sec.wellMov; if(W && W.pm && sec.mvPos!=null){ const pv=currentSong[i-1]; const pp=(pv&&pv.wellMov===W&&pv.mvPos!=null)?pv.mvPos:-1; if(pp<0.3 && sec.mvPos>=0.3) mkQueue.push({tk:T.start, txt:'poco accel.'}); if(pp<0.45 && sec.mvPos>=0.45) mkQueue.push({tk:T.start, txt:'piu mosso'}); if(pp<0.8 && sec.mvPos>=0.8) mkQueue.push({tk:T.start, txt:'meno mosso'}); } }catch(e){}
           if(nx && nx.gp && T.bars>=3){ mkQueue.push({tk:T.start+(T.bars-2)*T.meas, txt:'rit.'}); mkQueue.push({tk:T.start+T.bars*T.meas-TPQ, txt:'fermata'}); } }); } }catch(e){}
     // 마커와 템포를 tick 순서로 병합
     const sigQueue=[]; { let prevSig=currentSig; SEC_TK.forEach(function(e){ if(e.sig!==prevSig){ sigQueue.push({tk:e.start, sig:e.sig}); prevSig=e.sig; } }); } // 섹션별 박자표 변경 지점
-    try{ if(window.__scoreOn && window.__scoreOn()){ const keep=/^(==|rit\.|fermata|G\.P\.|poco accel\.|piu mosso|meno mosso|<<< END)/; mkQueue=mkQueue.filter(function(m){ return keep.test(String(m.txt||'')); });   /* ★ 악보용: 편집용 마커 빼고 리허설 기호 */
+    try{ if(window.__scoreOn && window.__scoreOn()){ const keep=/^(==|rit\.|fermata|G\.P\.|poco accel\.|piu mosso|meno mosso|Stillness|<<< END)/; mkQueue=mkQueue.filter(function(m){ return keep.test(String(m.txt||'')); });   /* ★ 악보용: 편집용 마커 빼고 리허설 기호 */
         const L=function(i){ const A='ABCDEFGHIJKLMNOPQRSTUVWXYZ'; return i<26?A[i]:A[Math.floor(i/26)-1]+A[i%26]; }; let li=0; currentSong.forEach(function(s,i){ if(s.gp||!SEC_TK[i]) return; let tx='['+L(li++)+']'; try{ if(loungeMode && gsel==='wellorch' && window.__wellDyn){ const d0=window.__wellDyn(s); let nx=null; for(let q=i+1;q<currentSong.length;q++){ if(!currentSong[q].gp){ nx=currentSong[q]; break; } } const d1=nx?window.__wellDyn(nx):d0; tx+=' '+d0.d+(d1.i>d0.i?' cresc.':(d1.i<d0.i?' dim.':'')); } }catch(e){} mkQueue.push({tk:SEC_TK[i].start, txt:tx}); }); } }catch(e){}   /* 리허설 기호에 셈여림 */
     let merged=[]; mkQueue.forEach(m=>merged.push({tk:m.tk,type:'mk',txt:m.txt})); tempoEvs.forEach(te=>merged.push({tk:te.tick,type:'tempo',bpm:te.bpm})); ksQueue.forEach(k=>merged.push({tk:k.tk,type:'keysig',ks:k.ks})); sigQueue.forEach(q=>merged.push({tk:q.tk,type:'timesig',sig:q.sig}));
     merged.sort((a,b)=>a.tk-b.tk || ((a.type==='timesig')?-3:(a.type==='tempo'?-2:(a.type==='keysig'?-1:1))) - ((b.type==='timesig')?-3:(b.type==='tempo'?-2:(b.type==='keysig'?-1:1))));
@@ -40350,7 +40354,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           M.kickonly=M.drums; M.orchcym='10 Orchestral/03 Percussion/Percussion Kit'; M.warperc='10 Orchestral/03 Percussion/Percussion Kit';
           /* ★ 2026-09-27 웰니스 오케 빈 자리 (현악 편성 조건에 먼저 걸려 자기 항목이 안 돌았다 → 피아노 하프 비브라폰 클라리넷 베이스 패드가 일반 번호 이름, 클라리넷은 한 칸 밀려 Piccolo) */
           try{ if(gsel==='wellorch' || (typeof wellOrchMode!=='undefined' && wellOrchMode)){
-            M.piano=M.piano||'Piano/z01 Processed/Daylight Piano'; M.harp=M.harp||'Orchestral/Harp/Harp'; M.piano2=M.piano2||'Mallet/Vibraphone';
+            M.piano=M.piano||'Piano/z01 Processed/Daylight Piano'; M.harp='Kontakt > East Asia/Gayageum';   /* ★ 2026-10-02 하프 자리는 가야금 (형) */ M.piano2=M.piano2||'Mallet/Vibraphone';
             M.winds=M.winds||'Orchestral/Woodwinds/Clarinet Solo'; M.bass=M.bass||'10 Orchestral/10 Strings/Bass Section Legato'; M.pad=M.pad||'10 Orchestral/10 Strings/String Ensemble Legato';
             M.melody=M.melody||'Orchestral/Woodwinds/Flute Solo'; M.horns=M.horns||'Orchestral/Brass/French Horns'; if(!M.brass||!/\//.test(M.brass)) M.brass='Orchestral/Brass/Trombones'; } }catch(e){}   /* 공연판 금관은 따뜻한 트롬본 */
           try{ if(gsel==='wellorch' || (typeof wellOrchMode!=='undefined' && wellOrchMode)){ let s=((window.__songRhySeed||0)+0x2545f491)>>>0; const nx=function(){ s=Math.imul(s^(s>>>16),0x7feb352d)>>>0; s=Math.imul(s^(s>>>15),0x846ca68b)>>>0; s=(s^(s>>>16))>>>0; return s/4294967296; };
@@ -40366,7 +40370,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
               const SOs={Cello:['Kontakt > Stradivari Cello','Cello'], Flute:['Orchestral/Woodwinds/Flute Solo','Flute'],Oboe:['Orchestral/Woodwinds/Oboe','Oboe'],'English Horn':['Orchestral/Woodwinds/English Horn','English Horn'],Clarinet:['Orchestral/Woodwinds/Clarinet Solo','Clarinet']};
               if(S.cast.piano&&PNs[S.cast.piano]) _pn=PNs[S.cast.piano]; if(S.cast.piano2&&DTs[S.cast.piano2]) _dt=DTs[S.cast.piano2]; if(S.cast.winds&&CLs[S.cast.winds]) _cl=CLs[S.cast.winds];
               if(S.cast.melody){ const nm=S.cast.melody[Math.floor(nx()*S.cast.melody.length)]; if(SOs[nm]) _so=SOs[nm]; } }   /* 장면이 배역을 고른다 */
-            M.piano=_pn[0]; M.piano2=_dt[0]; M.winds=_cl[0]; window.__WCAST={piano:_pn[1], piano2:_dt[1], winds:_cl[1], melody:'Violin I', melodyPatch:'10 Orchestral/10 Strings/Violin Section 1 Legato', scene:S?S.name:null};   /* 선율은 늘 바이올린 I */ } else window.__WCAST=null; }catch(e){}
+            M.piano=_pn[0]; M.piano2='Sampler > Strings/YangGeum - DEMO'; _dt=['Sampler > Strings/YangGeum - DEMO','Yanggeum']; M.winds=_cl[0];   /* ★ 2026-10-02 점묘는 모두 양금 (형) */ window.__WCAST={piano:_pn[1], piano2:_dt[1], winds:_cl[1], melody:'Violin I', melodyPatch:'10 Orchestral/10 Strings/Violin Section 1 Legato', scene:S?S.name:null};   /* 선율은 늘 바이올린 I */ } else window.__WCAST=null; }catch(e){}
           /* ★ 2026-09-27 곡마다 같은 계열 안에서 음원 바꿔 뽑기 (형: 트랙 역할이 너무 똑같이 나온다). 장르 성격은 지키고 소리만 달라지게. 곡 씨앗으로 */
           try{ if(!__isCos(gsel) && !__isHp(gsel)){ let s=((window.__songRhySeed||0)+0x3c6ef35f)>>>0; const nx=function(){ s=Math.imul(s^(s>>>16),0x7feb352d)>>>0; s=Math.imul(s^(s>>>15),0x846ca68b)>>>0; s=(s^(s>>>16))>>>0; return s/4294967296; };
             const P=function(a){ return a[Math.floor(nx()*a.length)]; };
@@ -41853,10 +41857,11 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         try{ const W=window.__WCAST; const sf=String(soundFront||'');
           if(W && (gsel==='wellorch'||(typeof wellOrchMode!=='undefined'&&wellOrchMode))){
             if(grp.key==='piano') nm=nm.replace('Felt Piano (minimal ostinato)',W.piano+' (minimal ostinato)');
-            if(grp.key==='piano2') nm=nm.replace('Vibraphone (dots)',W.piano2+' (dots)');
+            if(grp.key==='piano2') nm=nm.replace('Vibraphone (dots)','Yanggeum (dots)');
             if(grp.key==='winds') nm=nm.replace('Clarinet (color dots)',W.winds+' (color dots)');
             if(grp.key==='melody') nm=nm.replace(/Woodwind Solo \([^)]*\)/,'Violin I (melody)'); }
           if(grp.key==='horns' && (gsel==='wellorch'||(typeof wellOrchMode!=='undefined'&&wellOrchMode))) nm=nm.replace(/\|\s*horns\b.*$/,'| French Horns (warm long tones)');
+          if(grp.key==='harp' && (gsel==='wellorch'||(typeof wellOrchMode!=='undefined'&&wellOrchMode))) nm=nm.replace(/Harp \([^)]*\)/,'Gayageum (arp, pluck)');   /* 하프 자리는 가야금 */
           if(grp.key==='counter' && /Cello/.test(nm.split(' | ').slice(1).join(' ')) && !/Cello/.test(sf)){ const inst=/Flute/.test(sf)?'Flute':/Horn/.test(sf)?'Horn':/Violin/.test(sf)?'Violin':null; if(inst){ const ps=nm.split(' | '); nm=ps[0]+' | '+ps.slice(1).join(' | ').replace(/Cello/g,inst); } }   /* 역할 이름 속 악기 = 실제 악기 (2026-09-27) */
         }catch(e){}
         try{ if(window.__scoreOn && window.__scoreOn()){ const _r=(nm.indexOf(' | ')>=0?nm.split(' | ').slice(1).join(' '):nm).replace(/\[[^\]]*\]/g,'').replace(/\([^)]*\)/g,'').replace(/\s+/g,' ').trim(); if(_r) nm=_r; } }catch(e){}   /* 악보용: 보표 이름 */
@@ -42802,10 +42807,22 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             N.forEach(function(n){ const a=Math.round(n.on/g16)*g16, b=Math.round(n.on/g12)*g12; const tri=(Math.abs(b-n.on)+2<Math.abs(a-n.on)); const g=tri?g12:g16; const on=tri?b:a; let off=Math.round(n.off/g)*g; if(off<=on) off=on+g; n.on=on; n.off=off; }); } }catch(e){}   /* 끝도 시작과 같은 격자, 최소 한 칸 (콘트라베이스 1/6박 음 1057개이던 것) */
           try{ if(gsel==='wellorch' && N.length){ const W=window.__WCAST||{};   /* ★ 2026-10-01 웰니스 오케 실제 연주 음역 (비올라 첼로 E7, 호른 B5 까지 올라가던 것) */
             const CAST={Flute:[60,93],Oboe:[58,91],'English Horn':[52,81],Clarinet:[50,91],Cello:[36,76],Horn:[34,77],Vibraphone:[53,89],Celesta:[60,108],Glockenspiel:[67,96]};
-            const RG=({strings:[36,81],counter:[55,93],horns:[34,77],bass:[28,60],harp:[24,103],brass:[40,72],melody:[55,100],winds:CAST[W.winds],piano2:CAST[W.piano2]})[grp.key];
+            const RG=({strings:[36,81],counter:[55,93],horns:[34,77],bass:[28,60],harp:[43,74],brass:[40,72],melody:[55,100],winds:CAST[W.winds],piano2:[55,84]})[grp.key];
             if(RG){ N.forEach(function(n){ while(n.note<RG[0]) n.note+=12; while(n.note>RG[1]) n.note-=12; }); } } }catch(e){}
           try{ if(N.length && typeof SONG_END==='number' && SONG_END>0){ for(let q=N.length-1;q>=0;q--){ if(N[q].on>SONG_END+TPQ*2) N.splice(q,1); } } }catch(e){}   /* ★ 2026-10-01 음악이 끝난 뒤(END 보다 2박 넘게) 시작하는 음 지우기 (웰니스 오케 공연판 피아노가 끝 뒤 9분 더 이어지던 것) */
           try{ if((gsel==='wellorch'||(typeof wellOrchMode!=='undefined'&&wellOrchMode)) && ['winds','winds2','winds3','horns','brass','brass2','brass3','lowbrass'].indexOf(grp.key)>=0){ N.length=0; } }catch(e){}   /* ★ 웰니스 오케는 현악과 포인트 악기만 (목관 금관 비우기, 그룹이 어디서 생기든) */
+          try{ if((gsel==='wellorch'||(typeof wellOrchMode!=='undefined'&&wellOrchMode)) && grp.key==='harp' && N.length){ const byOn={}; N.forEach(function(n){ (byOn[n.on]=byOn[n.on]||[]).push(n); }); const drop=new Set(); Object.keys(byOn).forEach(function(k){ const g=byOn[k]; if(g.length>2) g.sort(function(a,b){ return b.note-a.note; }).slice(2).forEach(function(n){ drop.add(n); }); }); if(drop.size){ for(let q=N.length-1;q>=0;q--){ if(drop.has(N[q])) N.splice(q,1); } } } }catch(e){}   /* 가야금: 같은 순간 위 두 음까지 */
+          try{ if(loungeMode && gsel==='wellorch' && typeof __barPcs!=='undefined' && __barPcs){ const VR={pad:[55,72,3,0], bass:[36,48,1,0], strings:[48,64,2,1], counter:[62,76,1,2], melody:[67,84,1,3]}[grp.key];   /* ★ 고요 구간: 현 성부가 화음 하나를 두 마디씩 길게, 바뀌는 때를 엇갈려(베이스 패드 0, 비올라첼로 1박, 바이올린II 2박, 바이올린I 3박) */
+            currentSong.forEach(function(s,si){ if(!s.still || !SEC_TK[si]) return; const T=SEC_TK[si], a=T.start, b=T.start+T.bars*T.meas;
+              for(let q=N.length-1;q>=0;q--){ const n=N[q]; if(n.on>=a-2 && n.on<b){ N.splice(q,1); continue; } if(n.on<a && n.off>a) n.off=a; }
+              if(!VR) return; let prev=null; const off=VR[3]*TPQ; const chg=[]; for(let bi=0; bi<T.bars; bi+=2) chg.push(a+bi*T.meas);
+              chg.forEach(function(c,ci){ const P=__barPcs[barAtTick(c,PAD,measureTick)]||[]; if(!P.length) return; const on=Math.min(b-TPQ, c+(ci===0?0:off)); const nx=(ci+1<chg.length)?chg[ci+1]+off:b; const end=Math.min(b, nx);
+                const cand=[]; for(let m=VR[0]; m<=VR[1]; m++){ if(P.indexOf(((m%12)+12)%12)>=0) cand.push(m); } if(!cand.length) return; let pick;
+                if(grp.key==='bass'){ const r=P[0]; pick=[cand.filter(function(m){ return m%12===r; })[0]||cand[0]]; }
+                else { const tgt=(prev&&prev.length)?prev[0]:Math.round((VR[0]+VR[1])/2); pick=cand.slice().sort(function(x,y){ return Math.abs(x-tgt)-Math.abs(y-tgt); }).slice(0,VR[2]).sort(function(x,y){ return x-y; }); }
+                pick.forEach(function(m){ N.push({on:on, off:Math.max(on+TPQ, end-((window.__scoreOn&&window.__scoreOn())?0:6)), note:m, vel:42}); }); prev=pick; }); }); } }catch(e){}
+          try{ if(loungeMode && gsel==='wellorch' && N.length){ const R=[]; currentSong.forEach(function(s,i){ if(SEC_TK[i]) R.push([SEC_TK[i].start, SEC_TK[i].start+SEC_TK[i].bars*SEC_TK[i].meas, s]); });   /* ★ 악장 세기 배율과 밤 악장 바이올린 I 낮게 (실측: 일곱 악장 세기가 47~52 로 같았고 밤의 선율이 가장 높았다) */
+            N.forEach(function(n){ let r=null; for(let q=0;q<R.length;q++){ if(n.on>=R[q][0] && n.on<R[q][1]){ r=R[q]; break; } } const W=r&&r[2].wellMov; if(!W) return; if(W.vmul) n.vel=Math.max(18,Math.min(122,Math.round((n.vel||70)*W.vmul))); if(grp.key==='melody' && W.melHi){ while(n.note>W.melHi && n.note-12>=55) n.note-=12; } }); } }catch(e){}
           const byN={}; N.forEach(function(n){ (byN[n.note]=byN[n.note]||[]).push(n); });
           const drop=new Set();
           Object.keys(byN).forEach(function(k){
@@ -43024,13 +43041,13 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         let b2=[]; const nb2=Array.from(new TextEncoder().encode('['+({Staccato:'스타카토',Pizzicato:'피치카토',Muted:'뮤트',Spiccato:'스피카토',Marcato:'마르카토'}[window.__artName]||window.__artName||'짧은 음')+'] '+_nm2+' | '+_role2));   /* 로직 화면에서 긴 음 트랙과 바로 구분 (2026-09-27) */
         b2=b2.concat([0,0xFF,0x03]).concat(vlq(nb2.length)).concat(nb2);
         if(grp.ch!==9) b2=b2.concat([0,0xC0|grp.ch,grp.gm&0x7f]); try{ if(!__isCos(gsel)){ const _wsp2=window.__wellStagePan&&window.__wellStagePan(grp.key); const _mp2=(_wsp2!=null)?_wsp2:(((typeof MIXMAP!=='undefined'&&MIXMAP[grp.key])?MIXMAP[grp.key][1]:0)||0);   /* 분리 트랙도 무대 자리 */ b2=b2.concat([0,0xB0|grp.ch,10,Math.max(0,Math.min(127,Math.round(64+_mp2*63)))]); try{ b2=b2.concat([0,0xB0|grp.ch,7,window.__volCC(window.__playVolDb(grp.key)-2)]); }catch(e){} } }catch(e){}   /* 주법 분리 트랙도 같은 자리 */
-        const _fold2=(function(){ const _sg=/^Kontakt > (Picked Acoustic|Electric Mint) \(Melody\)/.test(_nm2); const _cp2=String((typeof _nm2!=='undefined'&&_nm2)||'');   /* 이 자리엔 LOGIC_PATCH 가 없다 (분리 트랙이 통째로 사라졌던 원인) */ const _lo=(grp.key==='counter'&&/Flute/.test(_cp2))?60:(grp.key==='counter'&&/Violin/.test(_cp2))?55:(({bass:24,lowbrass:28,brass:40,brass2:40,brass3:40,horns:40})[grp.key]||28); const _RGw=(function(){ try{ if(gsel!=='wellorch') return null; const W=window.__WCAST||{}; const CAST={Flute:[60,93],Oboe:[58,91],'English Horn':[52,81],Clarinet:[50,91],Cello:[36,76],Horn:[34,77],Vibraphone:[53,89],Celesta:[60,108],Glockenspiel:[67,96]}; return ({strings:[36,81],counter:[55,93],horns:[34,77],bass:[28,60],harp:[24,103],brass:[40,72],melody:[55,100],winds:CAST[W.winds],piano2:CAST[W.piano2]})[grp.key]||null; }catch(e){ return null; } })();   /* 웰니스 오케 연주 음역도 분리 트랙에 */ return function(n){ if(_sg){ while(n<48) n+=12; while(n>83) n-=12; } while(n<_lo) n+=12; while(n>108) n-=12; if(_RGw){ while(n<_RGw[0]) n+=12; while(n>_RGw[1]) n-=12; } return n; }; })();   /* 분리 트랙도 음역 안전망 */   /* Session Guitarist 음역(뮤트 트랙도) */
+        const _fold2=(function(){ const _sg=/^Kontakt > (Picked Acoustic|Electric Mint) \(Melody\)/.test(_nm2); const _cp2=String((typeof _nm2!=='undefined'&&_nm2)||'');   /* 이 자리엔 LOGIC_PATCH 가 없다 (분리 트랙이 통째로 사라졌던 원인) */ const _lo=(grp.key==='counter'&&/Flute/.test(_cp2))?60:(grp.key==='counter'&&/Violin/.test(_cp2))?55:(({bass:24,lowbrass:28,brass:40,brass2:40,brass3:40,horns:40})[grp.key]||28); const _RGw=(function(){ try{ if(gsel!=='wellorch') return null; const W=window.__WCAST||{}; const CAST={Flute:[60,93],Oboe:[58,91],'English Horn':[52,81],Clarinet:[50,91],Cello:[36,76],Horn:[34,77],Vibraphone:[53,89],Celesta:[60,108],Glockenspiel:[67,96]}; return ({strings:[36,81],counter:[55,93],horns:[34,77],bass:[28,60],harp:[43,74],brass:[40,72],melody:[55,100],winds:CAST[W.winds],piano2:[55,84]})[grp.key]||null; }catch(e){ return null; } })();   /* 웰니스 오케 연주 음역도 분리 트랙에 */ return function(n){ if(_sg){ while(n<48) n+=12; while(n>83) n-=12; } while(n<_lo) n+=12; while(n>108) n-=12; if(_RGw){ while(n<_RGw[0]) n+=12; while(n>_RGw[1]) n-=12; } return n; }; })();   /* 분리 트랙도 음역 안전망 */   /* Session Guitarist 음역(뮤트 트랙도) */
                   /* ★ 2026-09-26 접은 뒤 같은 음 겹침 정리 (GUARD edm Electric Mint 뮤트 note72 겹침: 서로 다른 두 음이 접혀 같은 음이 됨) */
                   try{ if((gsel==='wellorch'||(typeof wellOrchMode!=='undefined'&&wellOrchMode)) && ['winds','winds2','winds3','horns','brass','brass2','brass3','lowbrass'].indexOf(grp.key)>=0 && window.__artShort) window.__artShort.length=0; }catch(e){}   /* 분리 트랙도 */
                   /* ★ 2026-10-01 공연판 편성 출입을 분리 트랙에도 (쉬는 자리의 짧은 음 지우기) */
                   try{ if(loungeMode && gsel==='wellorch' && window.__wellAllowed && window.__artShort){ const A0=window.__artShort; const R=[]; currentSong.forEach(function(s,i){ if(SEC_TK[i]) R.push([SEC_TK[i].start, SEC_TK[i].start+SEC_TK[i].bars*SEC_TK[i].meas, s]); });
                     const secAt=function(tk){ for(let q=0;q<R.length;q++){ if(tk>=R[q][0] && tk<R[q][1]) return R[q]; } return null; }; const offs=A0.filter(function(e){ return e.on===0; }); const used=new Set(); const drop=new Set();
-                    A0.filter(function(e){ return e.on===1; }).forEach(function(e){ const r=secAt(e.tick); if(!r || window.__wellAllowed(grp.key, r[2])) return; let f=null; offs.forEach(function(o){ if(!used.has(o) && o.note===e.note && o.tick>e.tick && (!f||o.tick<f.tick)) f=o; }); drop.add(e); if(f){ used.add(f); drop.add(f); } });
+                    A0.filter(function(e){ return e.on===1; }).forEach(function(e){ const r=secAt(e.tick); if(!r || (!r[2].still && window.__wellAllowed(grp.key, r[2]))) return; let f=null; offs.forEach(function(o){ if(!used.has(o) && o.note===e.note && o.tick>e.tick && (!f||o.tick<f.tick)) f=o; }); drop.add(e); if(f){ used.add(f); drop.add(f); } });
                     if(drop.size){ for(let q=A0.length-1;q>=0;q--){ if(drop.has(A0[q])) A0.splice(q,1); } } } }catch(e){}
                   /* ★ 2026-10-01 찬불가 라운지 선율층 회피음 교정을 분리 트랙에도 (분리 트랙은 최종 블록보다 먼저 떼어져 거기 교정이 안 닿았다. MELHARM 대금 짧은 음 반 박 ♯11) */
                   try{ if(loungeMode && gsel==='chanbul' && (grp.key==='melody'||grp.key==='winds'||grp.key==='counter') && typeof __barPcs!=='undefined' && __barPcs){ const A0=window.__artShort||[]; const offs=A0.filter(function(e){ return e.on===0; }); const used=new Set();
@@ -43621,8 +43638,6 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
         const secAt=function(tk){ for(let q=0;q<R.length;q++){ if(tk>=R[q][0] && tk<R[q][1]) return R[q]; } return null; };
         const fold=function(m,lo,hi){ while(m<lo) m+=12; while(m>hi) m-=12; return m; };
         const PT=[ {inst:'daegeum',  src:'melody', lo:62, hi:86, name:'Kontakt > East Asia/Daegeum | Daegeum (point solo)', ch:13, db:0, pan:0.05},
-                   {inst:'gayageum', src:'harp',   lo:43, hi:74, top:2, name:'Kontakt > East Asia/Gayageum | Gayageum (point pluck)', ch:14, db:-2, pan:-0.35},
-                   {inst:'yanggeum', src:'piano2', lo:55, hi:84, name:'Sampler > Strings/YangGeum - DEMO | Yanggeum (point sparkle)', ch:15, db:-4, pan:0.35},
                    {inst:'saeng',    src:'pad',    lo:60, hi:84, name:'DecentSampler > Saenghwang | Saenghwang (point breath)', ch:11, db:-5, pan:0, top:3},
                    {inst:'geomungo', src:'bass',   lo:36, hi:64, name:'Sampler > Strings/GeoMunGo (JeongAk) - DEMO_modal | Geomungo (point low accent)', ch:12, db:-3, pan:0.45, accent:true},
                    {inst:'handpan',  src:'piano',  lo:50, hi:86, top:2, name:'Kontakt > Pan Drums II/Hang Mk.1 (Centre) | Handpan (point pulse)', ch:7, db:-4, pan:-0.2, pulse:true} ];
@@ -43638,7 +43653,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           ons.forEach(function(o){ const f=offs.find(function(x){ return !used.has(x) && x.n===o.n && x.t>o.t; }); if(f) used.add(f); iv.push([o.t, f?f.t:o.t+TPQ, o.n, o.v||70]); }); M.trks.push({key:key, role:key, gm:0, ch:0, iv:iv}); }catch(e){} };   /* 미리 듣기 목록에도 */
         PT.forEach(function(P){ const src=S[P.src]; if(!src||!src.length) return; const ev=[]; const byOn={}; let lastBar=-9;
           src.slice().sort(function(a,c){ return a.on-c.on; }).forEach(function(n,ni){ const r=secAt(n.on); if(!r || !window.__wellPointOn(P.inst, r[2])) return;
-            let on=n.on, off=n.off, v=n.vel;
+            let on=n.on, off=n.off, v=n.vel; try{ const W=r[2].wellMov; if(W&&W.vmul) v=Math.max(18,Math.min(122,Math.round(v*W.vmul))); }catch(e){}   /* 포인트 악기도 악장 세기 배율 */
             if(P.accent){ const bi=Math.floor((on-r[0])/r[3]); if(bi%2!==0 || bi===lastBar) return; lastBar=bi; off=Math.min(off,on+Math.round(TPQ*1.5)); v=Math.min(96,Math.round(v*0.9)); }
             if(P.pulse){ if(ni%2) return; off=Math.min(off,on+TPQ); v=Math.round(v*0.75); }
             if(P.top){ (byOn[on]=byOn[on]||[]).push({on:on,off:off,n:fold(n.note,P.lo,P.hi),v:Math.round(v*0.8)}); return; }
@@ -43647,7 +43662,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           if(ev.length){ trackBytes.push(enc(P.name,P.ch,ev,P.db,P.pan,P.top||(P.inst==='daegeum'?1:0))); made.push(P.inst+':'+(ev.length/2)); addPlay('pt_'+P.inst,ev); } });
         /* 띵샤: 악장 시작(여백과 다리 지나 첫 구간)마다, 절정 들어갈 때(악장 위치 0.4 를 처음 넘는 구간) */
         const tev=[]; let prevMv=null, peakDone={};
-        R.forEach(function(r){ const s=r[2]; if(!s.wellMov || s.gp || s.lounge==='bridge') return; const P=WELL_POINT[s.wellMov.en]; if(!P||!P.ting) return; const mv=s.wellMov.en;
+        R.forEach(function(r){ const s=r[2]; if(!s.wellMov || s.gp || s.still || s.lounge==='bridge') return; const P=WELL_POINT[s.wellMov.en]; if(!P||!P.ting) return; const mv=s.wellMov.en;
           if(mv!==prevMv && P.ting.indexOf('start')>=0){ tev.push({t:r[0],k:1,n:81,v:72}); tev.push({t:r[0]+TPQ*2,k:0,n:81,v:0}); prevMv=mv; } else if(mv!==prevMv) prevMv=mv;
           if(P.ting.indexOf('peak')>=0 && !peakDone[mv] && (s.mvPos||0)>=0.4){ tev.push({t:r[0],k:1,n:81,v:64}); tev.push({t:r[0]+TPQ*2,k:0,n:81,v:0}); peakDone[mv]=1; } });
         if(tev.length){ trackBytes.push(enc('Kontakt > True Strike 1/Triangle s | Tingsha (띵샤, 악장과 분위기 바뀔 때)',6,tev,-6,0.2)); made.push('ting:'+(tev.length/2)); addPlay('pt_ting',tev); }
@@ -44582,17 +44597,20 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
     const len=(typeof songLenSec==='function')?songLenSec(currentSong):0;
     const fmt=s=>Math.floor(s/60)+':'+String(Math.round(s%60)).padStart(2,'0');
     const L=[];
-    L.push('=================================================='); try{ const S=window.__wellScene&&window.__wellScene(); if(S){ const PU=window.__wellPurpose&&window.__wellPurpose(); L.push('   웰니스 오케 장면: '+S.name+' ('+S.desc+')'+(PU?', 목적 '+PU.name:'')+'. 새로 만들면 장면이 바뀝니다.'); } }catch(e){} try{ if(loungeMode && gsel==='wellorch' && window.__WELL_MOV){ const KO={pad:'현 패드',strings:'비올라 첼로',harp:'하프',bass:'베이스',melody:'바이올린 I',counter:'바이올린 II',piano2:'점묘',winds:'색채 목관',piano:'피아노',horns:'호른',brass:'트롬본'};
+    L.push('=================================================='); try{ const S=window.__wellScene&&window.__wellScene(); if(S){ const PU=window.__wellPurpose&&window.__wellPurpose(); L.push('   웰니스 오케 장면: '+S.name+' ('+S.desc+')'+(PU?', 목적 '+PU.name:'')+'. 새로 만들면 장면이 바뀝니다.'); } }catch(e){} try{ if(loungeMode && gsel==='wellorch' && window.__WELL_MOV){ const KO={pad:'현 패드',strings:'비올라 첼로',harp:'가야금',bass:'베이스',melody:'바이올린 I',counter:'바이올린 II',piano2:'양금',winds:'색채 목관',piano:'피아노',horns:'호른',brass:'트롬본'};
       const PK={saeng:'생황',daegeum:'대금',gayageum:'가야금',yanggeum:'양금',geomungo:'거문고',handpan:'핸드팬'}; const MD={core:'처음부터',add:'4분의 1부터',peak:'가운데'};
       const mvs=[]; currentSong.forEach(function(s){ if(s.wellMov && mvs.indexOf(s.wellMov)<0) mvs.push(s.wellMov); });
       L.push(''); L.push('■ 공연판 악장표 (악장 '+mvs.length+'개, 마커는 영문 이름)');
       mvs.forEach(function(W){ const O=(window.__WELL_ORCH||{})[W.en]||{core:[],add:[],peak:[]}; const P=(window.__WELL_POINT||{})[W.en]||{};
         const nm=function(a){ return a.map(function(k){ return KO[k]||k; }).join(', '); };
         const pt=Object.keys(P).filter(function(k){ return k!=='ting'; }).map(function(k){ return PK[k]+'('+MD[P[k]]+')'; }).join(', ');
-        L.push('   '+W.n+'  약 '+W.bpm+' BPM, '+W.sig+'  |  처음부터: '+nm(O.core)+(O.add.length?'  /  4분의 1부터: '+nm(O.add):'')+(O.peak.length?'  /  가운데: '+nm(O.peak):''));
+        L.push('   '+W.n+'  「'+(W.ko||'')+' · '+(W.ti||'')+'」  '+(W.mean||'')+(W.still?'  (맺음 앞에 고요 구간)':''));
+        L.push('        약 '+W.bpm+' BPM, '+W.sig+'  |  처음부터: '+nm(O.core)+(O.add.length?'  /  4분의 1부터: '+nm(O.add):'')+(O.peak.length?'  /  가운데: '+nm(O.peak):''));
         L.push('        포인트: '+(pt||'없음')+'  /  띵샤: '+((P.ting||[]).map(function(x){ return x==='start'?'악장 시작':'절정 들어갈 때'; }).join(', ')||'없음')); });
+      L.push('   구간의 의미: 인트로 들어섬, 벌스 머묾, 코러스 펼침, 브릿지 바뀜, 절정 정점, 아웃트로 내려놓음, 다리 건너감, G.P. 멈춤, 고요 숨 고르기.');
+      L.push('   고요 구간: 현만 남아 화음 하나를 두 마디씩 길게 끌고, 성부마다 바뀌는 때를 엇갈립니다(베이스와 패드 먼저, 비올라 첼로 한 박 뒤, 바이올린 II 두 박 뒤, 바이올린 I 세 박 뒤). 가야금 피아노 양금 포인트 악기 띵샤는 쉬고 pp. 마커 Stillness - strings only.');
       L.push('   악장 끝: 마지막 두 마디 rit., 마지막 박 늘임표, 그다음 G.P.(앞 악장들 1마디, 뒤 악장들 2마디), 다리 구간을 지나 a tempo. 모두 MIDI 마커(rit. fermata G.P.)로 들어 있어 로직 악보와 MusicXML 에 실립니다.');
-      L.push('   포인트 악기는 그 악장에서 같은 역할의 서양 악기 몫을 넘겨받습니다(대금은 독주, 가야금은 하프, 양금은 점묘). 생황은 현 패드 화음을, 거문고는 베이스를 두 마디마다, 핸드팬은 피아노 리듬을 성기게 받습니다.');
+      L.push('   포인트 악기는 그 악장에서 같은 역할의 몫을 넘겨받습니다(대금은 바이올린 I 선율). 가야금은 하프 자리를, 양금은 반짝이는 점(점묘) 자리를 맡아 처음부터 함께합니다. 생황은 현 패드 화음을, 거문고는 베이스를 두 마디마다, 핸드팬은 피아노 리듬을 성기게 받습니다.');
       try{ L.push(''); L.push('■ 공연판 셈여림 큐 (악보용 내보내기의 리허설 기호와 같은 순서)'); const LT=function(i){ const A='ABCDEFGHIJKLMNOPQRSTUVWXYZ'; return i<26?A[i]:A[Math.floor(i/26)-1]+A[i%26]; }; let li=0, pm=null; const KL={'인트로':'인트로','벌스':'벌스','코러스':'코러스','브릿지':'브릿지','간주':'간주','하이라이트':'절정','아웃트로':'맺음'};
         currentSong.forEach(function(s,i){ if(s.gp) return; const d0=window.__wellDyn(s); let nx=null; for(let q=i+1;q<currentSong.length;q++){ if(!currentSong[q].gp){ nx=currentSong[q]; break; } } const d1=nx?window.__wellDyn(nx):d0;
           const mvn=s.wellMov?s.wellMov.n:''; if(mvn && mvn!==pm){ L.push('   '+mvn+'  현 주법: '+((window.__WELL_ART||{})[s.wellMov.en]||'레가토')); pm=mvn; }
