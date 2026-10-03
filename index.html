@@ -31812,7 +31812,7 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
   const MIDIPLAY_ALL=true;
   const MIDIPLAY_GENRE={ has:function(){ return MIDIPLAY_ALL; } };
   function mpVoice(key, role, gm){
-    if(String(key).indexOf('pt_')===0) return ({daegeum:'winds',saeng:'winds',gayageum:'harp',geomungo:'harp',handpan:'harp',yanggeum:'piano',ting:'piano',cello:'strings'})[String(key).slice(3)]||'piano';   /* ★ 2026-10-01 공연판 포인트 악기 미리 듣기 */
+    if(String(key).indexOf('pt_')===0) return ({daegeum:'winds',saeng:'winds',gayageum:'harp',geomungo:'harp',handpan:'harp',yanggeum:'piano',ting:'piano',cello:'strings',timpani:'timpani',daebuk:'timpani'})[String(key).slice(3)]||'piano';   /* ★ 2026-10-01 공연판 포인트 악기 미리 듣기 */
     /* 장르 고유 음색을 잃지 않게 — 해금(국악 대선율)과 시타르 계열은 따로 잇는다 */
     if(gm===104) return 'harp';
     if((gsel==='gugak'||gsel==='gukvocal') && (key==='counter'||key==='melody')) return 'haegeum';
@@ -42889,10 +42889,17 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
                 cand.sort(function(x,y){ const rx=(((x%12)+12)%12===P[0])?0:1, ry=(((y%12)+12)%12===P[0])?0:1; return (rx-ry)||(Math.abs(x-60)-Math.abs(y-60)); }); lo=cand[0];
                 const ph=((tt-a)%per)/per; const v=Math.round(36+18*(0.5-0.5*Math.cos(2*Math.PI*ph)));
                 N.push({on:tt, off:tt+Math.round(g16*((window.__scoreOn&&window.__scoreOn())?1:0.9)), note:(k%2===0)?lo:lo+7, vel:v}); } }); } }catch(e){}
+          try{ if(loungeMode && gsel==='wellorch' && N.length && ['counter','strings','pad'].indexOf(grp.key)>=0){   /* ★ 2026-10-02 현 섹션 안은 같이 들어가고 같이 끝나게, 같은 순간 두 음까지 (형: 3성부 엇갈림이 악보 보기 어렵다). 엇갈림은 섹션 사이에만 */
+            N.sort(function(x,y){ return x.on-y.on || y.note-x.note; }); const tol=Math.round(TPQ/4)+2; const cl=[]; N.forEach(function(n){ const c=cl[cl.length-1]; if(c && n.on-c.on<=tol) c.ns.push(n); else cl.push({on:n.on, ns:[n]}); });
+            const keep=new Set(); cl.forEach(function(c){ c.ns.forEach(function(n){ n.on=c.on; }); const off=Math.max.apply(null,c.ns.map(function(n){ return n.off; })); const s=[...c.ns].sort(function(x,y){ return y.note-x.note; }).filter(function(n,i,A){ return A.findIndex(function(m){ return m.note===n.note; })===i; });
+              const pick=(grp.key==='pad')?(s.length>1?[s[0],s[s.length-1]]:s):s.slice(0,2); pick.forEach(function(n){ n.off=off; keep.add(n); }); });
+            for(let q=N.length-1;q>=0;q--){ if(!keep.has(N[q])) N.splice(q,1); } } }catch(e){}
+          try{ if(loungeMode && gsel==='wellorch' && window.__scoreOn && window.__scoreOn() && N.length && ['counter','strings','pad','bass','melody'].indexOf(grp.key)>=0){ const q8=Math.round(TPQ/2);   /* 악보용: 긴 음은 박이나 8분 격자 (가독성) */
+            N.forEach(function(n){ const d=n.off-n.on; const g=(d>=TPQ*2)?TPQ:((d>=TPQ || grp.key!=='melody')?q8:0); if(!g) return;   /* 현의 짧은 음도 8분 격자 (바이올린 I 선율은 리듬 살림) */ n.on=Math.round(n.on/g)*g; n.off=Math.max(n.on+g, Math.round(n.off/g)*g); }); } }catch(e){}
           try{ if(loungeMode && gsel==='wellorch' && N.length){   /* ★ 2026-10-02 비올라와 첼로 나누기, 현 패드는 현 뒷줄 (형: 키보드 없음, 실제 연주자 파트) */
             if(grp.key==='strings'){ const by={}; N.forEach(function(n){ (by[n.on]=by[n.on]||[]).push(n); }); const vc=[]; Object.keys(by).forEach(function(k){ const g=by[k].sort(function(a,b){ return a.note-b.note; }); const nc=(g.length===1)?(g[0].note<55?1:0):(g.length>=4?2:1); g.slice(0,nc).forEach(function(n){ vc.push(n); }); });
-              const set=new Set(vc); for(let q=N.length-1;q>=0;q--){ if(set.has(N[q])) N.splice(q,1); } N.forEach(function(n){ while(n.note<48) n.note+=12; while(n.note>84) n.note-=12; });
-              window.__CELLO_N=vc.map(function(n){ let m=n.note; while(m<36) m+=12; while(m>76) m-=12; return {on:n.on, off:n.off, note:m, vel:n.vel}; }); }
+              const set=new Set(vc); for(let q=N.length-1;q>=0;q--){ if(set.has(N[q])) N.splice(q,1); } N.forEach(function(n){ while(n.note<48) n.note+=12; while(n.note>77) n.note-=12; });   /* 비올라 섹션 C3~F5 */
+              window.__CELLO_N=vc.map(function(n){ let m=n.note; while(m<36) m+=12; while(m>69) m-=12;   /* 첼로 섹션 C2~A4 */ return {on:n.on, off:n.off, note:m, vel:n.vel}; }); }
             if(grp.key==='pad'){ const by={}; N.forEach(function(n){ (by[n.on]=by[n.on]||[]).push(n); }); Object.keys(by).forEach(function(k){ const g=by[k].sort(function(a,b){ return a.note-b.note; }); const top=g[g.length-1]; if(g.length>=2 && top.note<55) top.note+=12; }); N.forEach(function(n){ while(n.note<36) n.note+=12; while(n.note>84) n.note-=12; }); }   /* 현 뒷줄 음역 C2~C6 */
           } }catch(e){}
           try{ if(loungeMode && gsel==='wellorch' && grp.key==='harp' && N.length && typeof __barPcs!=='undefined'){ const pcs=new Array(12).fill(0); N.forEach(function(n){ pcs[((n.note%12)+12)%12]++; }); const MAJ=[0,2,4,5,7,9,11]; let best=0, bs=-1; for(let r=0;r<12;r++){ let s=0; MAJ.forEach(function(d){ s+=pcs[(r+d)%12]; }); if(s>bs){ bs=s; best=r; } }   /* ★ 2026-10-02 25현 가야금 (형): 한 판에 7음 조율 하나(가야금 음에 가장 맞는 장음계), 음역 E2~A5(C3 아래는 베이스에게), 조율 밖 음은 가까운 조율 음 중 화음 음으로 옮기거나 뺀다 */
@@ -43741,6 +43748,7 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             if(P.accent){ const bi=Math.floor((on-r[0])/r[3]); if(bi%2!==0 || bi===lastBar) return; lastBar=bi; off=Math.min(off,on+Math.round(TPQ*1.5)); v=Math.min(96,Math.round(v*0.9)); }
             if(P.pulse){ if(ni%2) return; off=Math.min(off,on+TPQ); v=Math.round(v*0.75); }
             if(P.inst==='handpan'){ const Pc=__barPcs[barAtTick(on,PAD,measureTick)]||[]; const cand=HP.p.filter(function(x){ return Pc.indexOf(x%12)>=0; }); if(!cand.length) return; const tgt=fold(n.note,48,72); cand.sort(function(a,b){ return Math.abs(a-tgt)-Math.abs(b-tgt); }); n={on:n.on, off:n.off, note:cand[0], vel:n.vel}; }   /* 실제 핸드팬 음만 */
+            if(P.inst==='saeng'){ const h=Math.round(TPQ/2); on=Math.round(on/h)*h; off=Math.max(on+h, Math.round(off/h)*h); }   /* 생황은 8분 격자 (현 패드 원본의 엇갈림, 가독성) */
             if(P.top){ (byOn[on]=byOn[on]||[]).push({on:on,off:off,n:fold(n.note,P.lo,P.hi),v:Math.round(v*0.8)}); return; }
             ev.push({t:on,k:1,n:fold(n.note,P.lo,P.hi),v:Math.max(30,Math.min(110,v))}); ev.push({t:Math.max(on+10,off),k:0,n:fold(n.note,P.lo,P.hi),v:0}); });
           if(P.top) Object.keys(byOn).forEach(function(k){ const g=byOn[k].sort(function(a,c){ return c.n-a.n; }).filter(function(x,i,A){ return A.findIndex(function(y){ return y.n===x.n; })===i; }).slice(0,P.top); g.forEach(function(x){ ev.push({t:x.on,k:1,n:x.n,v:Math.max(30,x.v)}); ev.push({t:Math.max(x.on+10,x.off),k:0,n:x.n,v:0}); }); });
@@ -43765,6 +43773,24 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
           if(mv!==prevMv && P.ting.indexOf('start')>=0){ tev.push({t:r[0],k:1,n:81,v:72}); tev.push({t:r[0]+TPQ*2,k:0,n:81,v:0}); prevMv=mv; } else if(mv!==prevMv) prevMv=mv;
           if(P.ting.indexOf('peak')>=0 && !peakDone[mv] && (s.mvPos||0)>=0.4){ tev.push({t:r[0],k:1,n:81,v:64}); tev.push({t:r[0]+TPQ*2,k:0,n:81,v:0}); peakDone[mv]=1; } });
         if(tev.length){ trackBytes.push(enc('Kontakt > True Strike 1/Triangle s | Tingsha (띵샤, 악장과 분위기 바뀔 때)',6,tev,-6,0.2)); made.push('ting:'+(tev.length/2)); addPlay('pt_ting',tev); }
+        /* ★ 2026-10-02 팀파니와 대북 (형: 소품처럼 크지 않게, 너무 띄엄띄엄하지 않게, 음악에 맞게) */
+        try{ const sc=(window.__scoreOn&&window.__scoreOn()); const T0=((typeof tonic==='number')?tonic:0); const tim=[], dae=[]; const tingT=new Set(tev.filter(function(e){ return e.k===1; }).map(function(e){ return e.t; }));
+          const vm=function(s,v){ const W=s.wellMov; return Math.max(30,Math.min(72,Math.round(v*((W&&W.vmul)||1)))); };
+          const hit=function(arr,t,n,v,len){ arr.push({t:t,k:1,n:n,v:v}); arr.push({t:t+Math.max(10,len||Math.round(TPQ*0.9)),k:0,n:n,v:0}); };
+          const roll=function(t0,t1,n,v0,v1){ const st=sc?Math.round(TPQ/4):Math.round(TPQ/8); for(let x=t0; x+st<=t1; x+=st){ const g=(x-t0)/Math.max(1,t1-t0); hit(tim,x,n,Math.round(v0+(v1-v0)*g),st-4); } };
+          const roots=function(s){ const pc=((T0+(s.keyShift||0))%12+12)%12; const T=40+((pc-4+12)%12); const D=(T+7<=55)?T+7:T-5; return [T,D]; };
+          let prevMv=null; const L=R.length;
+          R.forEach(function(r,ri){ const s=r[2]; if(!s.wellMov || s.gp || s.still || s.lounge==='bridge') { if(s.wellMov) prevMv=s.wellMov; return; } const a=r[0], b=r[1]-(s.caes?TPQ:0), me=r[3]; const [T,D]=roots(s); const st=s.stage||3; const A=s.wellMov.arch||s.wellMov.en;
+            const nx=R[ri+1]&&R[ri+1][2]; const nextPeak=nx && !nx.gp && (nx.stage||0)>=4 && (st<4);
+            const firstOfMv=(s.wellMov!==prevMv); prevMv=s.wellMov; const last=(ri===L-1);
+            if(firstOfMv){ roll(a, Math.min(b, a+me*2), T, 30, vm(s,48)); if(a+me<b){ const t1=a+me; if(!tingT.has(t1)) hit(dae,t1,36,vm(s,60),TPQ*2); } }
+            else if(st>=4){ for(let bt=a; bt<b; bt+=me){ hit(tim,bt,T,vm(s,52)); const half=(me>=TPQ*4)?TPQ*2:((me===Math.round(TPQ*3) && String(s.sig||'').indexOf('/8')>0)?Math.round(TPQ*1.5):0); if(half && bt+half<b) hit(tim,bt+half,D,vm(s,44)); } }
+            else if(((a/TPQ*7+ri*13)%10)<6){ hit(tim,a,T,vm(s,42)); }
+            if(st>=4 || A==='IV. Wind - Allegro'){ for(let bt=a+(firstOfMv?me*2:0); bt<b; bt+=me*2){ if(tingT.has(bt)) continue; hit(dae,bt,36,vm(s,58),TPQ); if(bt+Math.round(TPQ/2)<b) hit(dae,bt+Math.round(TPQ/2),36,vm(s,46),TPQ); } }
+            if(nextPeak && b-me>a) roll(b-me, b, D, 32, vm(s,62));
+            if(last){ roll(Math.max(a,b-me*2), b, T, vm(s,46), 28); if(!tingT.has(a)) hit(dae,a,36,vm(s,56),TPQ*2); } });
+          if(tim.length){ trackBytes.push(enc('Kontakt > True Strike 1/Timpani hits and roll s (Stage Mic) | Timpani',2,tim,-6,-0.1,0)); made.push('timp:'+(tim.length/2)); addPlay('pt_timpani',tim); }
+          if(dae.length){ trackBytes.push(enc('Kontakt > True Strike 1/Gran Cassa and Tutti Hits s (Stage Mic) | Daebuk (Gran Cassa)',8,dae,-8,0.1,0)); made.push('daebuk:'+(dae.length/2)); addPlay('pt_daebuk',dae); } }catch(e){ window.__WOPERR2=String(e); }
         window.__WO_POINTS=made; } }catch(e){ try{ window.__WOPERR=String(e); }catch(_){} }
     try{ window.__WO_SRC=null; }catch(e){}
     const _tbS=sortPlayTracks(trackBytes);
@@ -44726,7 +44752,7 @@ function buildSetupSheet(){ // 곡별 로직 셋업 시트 — 논리 순서: �
           const lab=r.still?'고요, 숨 고르기 (현만 긴 음 엇갈림)':(r.bridge?'다리, 건너감':(KL[r.label]||r.label));
           L.push('      '+mm(r.t)+'  ['+LT(li++)+']  '+lab+'  '+dy+(r.pizz?'  pizz.':'')+(r.malbal?'  가야금 말발굽, 두 마디마다 < >':'')+(r.caes?'  끝에 여백 //':'')+'  |  '+r.ins.map(function(k){ return KO[k]||k; }).join(', ')); });
         L.push('   콘트라베이스의 짧은 음(한 박 이하)은 pizz. 를 권합니다. 셈여림은 MIDI 기호로 실리지 않아 이 구성표와 리허설 마커를 보고 피날레에 적어 넣으면 됩니다.'); }catch(e){}
-      try{ const NN=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B']; const PN=function(m){ return NN[m%12]+(Math.floor(m/12)-1); }; if(window.__GAYA25){ const G=window.__GAYA25; L.push('   가야금 25현 조율(이 판): '+G.set.map(function(x){ return NN[x]; }).join(' ')+' 장음계. 1번 줄 '+PN(G.lo)+'(미) ~ 25번 줄 '+PN(G.hi)+'(라). C3 아래는 콘트라베이스에게 맡겨 쓰지 않음. 조율 밖 음은 가까운 조율 음으로 옮기거나 뺐습니다.'); } if(window.__HANDPAN) L.push('   핸드팬(이 판): '+window.__HANDPAN.n+' ('+window.__HANDPAN.p.map(PN).join(' ')+'). 이 음계의 실제 음 중 그 마디 화음 음만 칩니다.'); L.push('   키보드 없음: 공연판에는 피아노가 없습니다. 현 패드 자리는 \'현 뒷줄\' 보표(위 음 바이올린 II 뒷줄, 가운데 비올라 뒷줄, 아래 첼로 뒷줄, 한 사람 한 음)입니다. 기준 편성 바이올린 I 6, II 6, 비올라 4, 첼로 4, 베이스 2.'); L.push('   비올라와 첼로는 따로 나뉩니다(같은 순간 가장 낮은 음은 첼로, 4음 이상이면 아래 두 음). 악보용 MIDI 의 템포는 악장마다 기본 템포 하나와 piu mosso, meno mosso 자리뿐이고 rit. 늘임표 a tempo 는 말 지시입니다.'); }catch(e){}
+      try{ const NN=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B']; const PN=function(m){ return NN[m%12]+(Math.floor(m/12)-1); }; if(window.__GAYA25){ const G=window.__GAYA25; L.push('   가야금 25현 조율(이 판): '+G.set.map(function(x){ return NN[x]; }).join(' ')+' 장음계. 1번 줄 '+PN(G.lo)+'(미) ~ 25번 줄 '+PN(G.hi)+'(라). C3 아래는 콘트라베이스에게 맡겨 쓰지 않음. 조율 밖 음은 가까운 조율 음으로 옮기거나 뺐습니다.'); } if(window.__HANDPAN) L.push('   핸드팬(이 판): '+window.__HANDPAN.n+' ('+window.__HANDPAN.p.map(PN).join(' ')+'). 이 음계의 실제 음 중 그 마디 화음 음만 칩니다.'); L.push('   키보드 없음: 공연판에는 피아노가 없습니다. 현 패드 자리는 \'현 뒷줄\' 보표(위 음 바이올린 II 뒷줄, 가운데 비올라 뒷줄, 아래 첼로 뒷줄, 한 사람 한 음)입니다. 기준 편성 바이올린 I 6, II 6, 비올라 4, 첼로 4, 베이스 2.'); L.push('   팀파니(True Strike Timpani)와 대북(실제 공연은 대북, 음원은 Gran Cassa): 팀파니는 그 구간 조의 으뜸음과 딸림음, 악장 첫 두 마디 롤, 구간 시작 여린 한 타, 절정 1박 3박 맥박, 절정 앞 마디 크레셴도 롤, 맨 끝 롤. 대북은 악장 둘째 마디 한 타, 절정과 빠른 악장 두 마디마다 둥 둥, 맨 끝 한 타. 띵샤와 대북은 한 사람이 치도록 겹치지 않습니다.'); L.push('   비올라와 첼로는 따로 나뉩니다(같은 순간 가장 낮은 음은 첼로, 4음 이상이면 아래 두 음). 악보용 MIDI 의 템포는 악장마다 기본 템포 하나와 piu mosso, meno mosso 자리뿐이고 rit. 늘임표 a tempo 는 말 지시입니다.'); }catch(e){}
       L.push('   띵샤 트랙은 형 목록에 띵샤 음원이 없어 True Strike 트라이앵글을 걸었습니다. 띵샤 음원이 있으면 그 트랙 음원만 바꾸면 됩니다(음 하나, A5).'); } }catch(e){}
  try{ if(window.__wellStagePan&&window.__wellStagePan('pad')!=null){ const W=window.__WELL_STAGE; L.push('   무대 배치 (좌우 자리 CC10, 리버브 보냄 권장): '+Object.keys(W).map(function(k){ const v=W[k]; const ps=v[0]===0?'가운데':(v[0]<0?'왼 '+Math.round(-v[0]*100):'오 '+Math.round(v[0]*100)); return v[2]+' '+ps+', 리버브 '+v[1]+'%'; }).join(' / ')+'. 앞줄 현과 독주는 리버브를 적게, 뒤쪽 목관 하프 점묘는 많게. 공간을 도는 트랙도 자기 자리를 중심으로 조금씩만 흔들립니다.'); } }catch(e){}
     L.push('  로직 셋업 시트 · '+G[gsel].name);
@@ -47194,6 +47220,14 @@ window.__soPlayDebug=()=>({has:!!currentSong,bp:soPlayBlueprint()});
   /* 나타낼 수 있는 길이(12분의 1 박): 이름, 점, 셋잇단 */
   const DUR=[[48,'whole',0,0],[36,'half',1,0],[24,'half',0,0],[18,'quarter',1,0],[12,'quarter',0,0],[9,'eighth',1,0],[8,'quarter',0,1],[6,'eighth',0,0],[4,'eighth',0,1],[3,'16th',0,0],[2,'16th',0,1],[1,'32nd',0,1]];
   function splitDur(d){ const out=[]; let r=d; while(r>0){ const x=DUR.find(z=>z[0]<=r); if(!x) break; out.push(x); r-=x[0]; } return out; }
+  /* 박 경계를 지키는 나누기 (형: 리듬 가독성). 박 = /4 는 4분, 겹박자 /8 은 점4분. 쉼표는 박마다(마디 첫 박이나 가운데의 2박 쉼은 하나로), 음표는 박 중간에서 시작하면 다음 박까지, 4/4 에서 첫 박 3박이 아닌 시작은 마디 가운데를 넘지 않음 */
+  function splitPos(st, len, ms, isRest){ const comp=(ms.den===8 && ms.num%3===0); const beat=comp?18:Math.round(48/ms.den); const four=(ms.num===4&&ms.den===4); const out=[]; let s=st, r=len, guard=0;
+    while(r>0 && guard++<64){ let chunk;
+      if(isRest){ if(four && (s===0||s===24) && r>=24) chunk=24; else if(comp && s%18===0 && r>=18) chunk=18; else chunk=Math.min(r, (Math.floor(s/beat)+1)*beat-s); }
+      else if(s%beat!==0) chunk=Math.min(r, (Math.floor(s/beat)+1)*beat-s);
+      else { let lim=ms.len; if(four && s!==0 && s!==24) lim=(s<24)?24:48; chunk=Math.min(r, lim-s); }
+      if(chunk<=0) chunk=r; splitDur(chunk).forEach(x=>out.push(x)); s+=chunk; r-=chunk; }
+    return out; }
   function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function clefFor(name, notes){ const ps=notes.map(n=>n.note).sort((a,b)=>a-b); const med=ps.length?ps[Math.floor(ps.length/2)]:60;
     if(/Viola/.test(name)) return {sign:'C',line:3,oct:0};
@@ -47204,6 +47238,10 @@ window.__soPlayDebug=()=>({has:!!currentSong,bp:soPlayBlueprint()});
   function toMusicXML(u8, opts){
     opts=opts||{}; const M=parseSMF(u8); const tpq=M.tpq; const DIV=12; const D=(tk)=>Math.round(tk*DIV/tpq);
     const cond=M.tracks[0]||{meta:[]}; const parts=M.tracks.slice(1).filter(t=>t.notes.length);
+    /* ★ 한 줄로 묶기 (형): 팀파니 위 성부 + 핸드팬 아래 성부, 띵샤 위 + 대북 아래 */
+    const combine=(reA,reB,name,kind)=>{ const ia=parts.findIndex(t=>reA.test(t.name)), ib=parts.findIndex(t=>reB.test(t.name)); if(ia<0&&ib<0) return; const A=ia>=0?parts[ia]:{notes:[]}, B=ib>=0?parts[ib]:{notes:[]};
+      const C={name:name, combo:kind, notes:A.notes.map(n=>Object.assign({},n,{src:1})).concat(B.notes.map(n=>Object.assign({},n,{src:2})))}; const idx=[ia,ib].filter(x=>x>=0); const pos=Math.min.apply(null,idx); idx.sort((x,y)=>y-x).forEach(i=>parts.splice(i,1)); parts.splice(pos,0,C); };
+    combine(/Timpani/,/Handpan/,'Timpani / Handpan','pitched'); combine(/Tingsha/,/Daebuk/,'Tingsha / Daebuk','perc');
     let end=0; parts.forEach(t=>t.notes.forEach(n=>{ end=Math.max(end,D(n.off)); }));
     const sigs=[], keys=[], tempos=[], marks=[];
     cond.meta.forEach(m=>{ const d=D(m.t);
@@ -47222,16 +47260,19 @@ window.__soPlayDebug=()=>({has:!!currentSong,bp:soPlayBlueprint()});
     parts.forEach((t,i)=>{ xml+='<score-part id="P'+(i+1)+'"><part-name>'+esc(t.name.split(' | ').pop().replace(/\s*\[[^\]]*\]/g,'').trim())+'</part-name></score-part>\n'; });
     xml+='</part-list>\n';
     parts.forEach((t,pi)=>{
-      const clef=clefFor(t.name,t.notes); const wshift=(clef.oct===-1)?12:0; const strg=isString(t.name); const grand=/Strings div|Gayageum/.test(t.name); const slurPart=/Violin|Viola|Cello|Daegeum/.test(t.name)&&!/Strings div/.test(t.name); let pizzOn=false; const restCarry={};
-      const notes=t.notes.map(n=>({s:D(n.on), e:Math.max(D(n.on)+1,D(n.off)), note:n.note+wshift})).filter(n=>n.e>n.s).sort((a,b)=>a.s-b.s||b.note-a.note);
+      const clef=t.combo==='pitched'?{sign:'F',line:4,oct:0}:(t.combo==='perc'?{sign:'percussion',line:0,oct:0}:clefFor(t.name,t.notes)); const wshift=(clef.oct===-1)?12:0; const strg=isString(t.name); const grand=/Strings div|Gayageum/.test(t.name); const slurPart=/Violin|Viola|Cello|Daegeum/.test(t.name)&&!/Strings div/.test(t.name); let pizzOn=false; const restCarry={};
+      let notes=t.notes.map(n=>({s:D(n.on), e:Math.max(D(n.on)+1,D(n.off)), note:n.note+wshift, src:n.src||1})).filter(n=>n.e>n.s).sort((a,b)=>a.s-b.s||b.note-a.note);
+      if(t.combo==='pitched'){ /* 팀파니 롤: 같은 음이 16분 이하로 이어 되풀이되면 한 음 + 트레몰로 */ const out=[]; notes.forEach(n=>{ const p=out[out.length-1]; if(n.src===1 && p && p.src===1 && p.note===n.note && n.s-p.e<=1 && (n.e-n.s)<=3 && (p.rollN?true:(p.e-p.s)<=3)){ p.e=n.e; p.rollN=(p.rollN||1)+1; return; } out.push(Object.assign({},n)); }); out.forEach(n=>{ if(n.rollN>=3) n.roll=true; }); notes=out; }
       xml+='<part id="P'+(pi+1)+'">\n'; let prevKey=null, prevSig=null;
       meas.forEach((ms,mi)=>{ const a=ms.start, b=ms.start+ms.len;
         xml+='<measure number="'+(mi+1)+'">';
         const k=keyAt(a); const attrs=[];
         if(mi===0) attrs.push('<divisions>'+DIV+'</divisions>');
-        if(!prevKey || prevKey.fifths!==k.fifths || prevKey.mode!==k.mode){ attrs.push('<key><fifths>'+k.fifths+'</fifths><mode>'+k.mode+'</mode></key>'); prevKey=k; }
+        if(t.combo){ if(mi===0) attrs.push('<key print-object="no"><fifths>0</fifths><mode>major</mode></key>'); prevKey={fifths:0,mode:'major'}; }   /* 타악기 보표와 팀파니는 조표 없이 */
+        else if(!prevKey || prevKey.fifths!==k.fifths || prevKey.mode!==k.mode){ attrs.push('<key><fifths>'+k.fifths+'</fifths><mode>'+k.mode+'</mode></key>'); prevKey=k; }
         const sk=ms.num+'/'+ms.den; if(sk!==prevSig){ attrs.push('<time><beats>'+ms.num+'</beats><beat-type>'+ms.den+'</beat-type></time>'); prevSig=sk; }
         if(mi===0 && grand){ attrs.push('<staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef>'); }
+        else if(mi===0 && t.combo==='perc'){ attrs.push('<clef><sign>percussion</sign></clef>'); }
         else if(mi===0){ attrs.push('<clef><sign>'+clef.sign+'</sign><line>'+clef.line+'</line>'+(clef.oct?'<clef-octave-change>'+clef.oct+'</clef-octave-change>':'')+'</clef>'); if(wshift) attrs.push('<transpose><diatonic>-7</diatonic><chromatic>-12</chromatic><octave-change>0</octave-change></transpose>'); }
         if(attrs.length) xml+='<attributes>'+attrs.join('')+'</attributes>';
         /* 지시: 템포와 리허설과 악장 제목은 첫 파트, 셈여림은 모든 파트, pizz arco 는 현 */
@@ -47245,27 +47286,28 @@ window.__soPlayDebug=()=>({has:!!currentSong,bp:soPlayBlueprint()});
           if(/^(pizz\.|arco)$/.test(tx)){ if(strg){ xml+=dir(off,'<words>'+tx+'</words>'); pizzOn=(tx==='pizz.'); } return; }
           if(/^(rit\.|fermata|G\.P\.|poco accel\.|piu mosso|meno mosso|caesura \/\/|Stillness)/.test(tx)){ if(pi===0||/^(G\.P\.|caesura|fermata)/.test(tx)) xml+=dir(off,'<words>'+esc(tx==='fermata'?'U (fermata)':tx)+'</words>'); return; } });
         /* 이 마디의 음 조각 (마디 넘는 음은 자르고 붙임줄) */
-        const segs=[]; notes.forEach(n=>{ if(n.e<=a||n.s>=b) return; segs.push({s:Math.max(n.s,a)-a, e:Math.min(n.e,b)-a, note:n.note, tieIn:n.s<a, tieOut:n.e>b}); });
+        const segs=[]; notes.forEach(n=>{ if(n.e<=a||n.s>=b) return; segs.push({s:Math.max(n.s,a)-a, e:Math.min(n.e,b)-a, note:n.note, src:n.src, roll:!!n.roll, tieIn:n.s<a, tieOut:n.e>b}); });
         segs.sort((x,y)=>x.s-y.s||y.note-x.note);
         const staves=grand?[1,2]:[1]; let firstVoice=true;
         staves.forEach(stf=>{
           const ss=grand?segs.filter(sg=>(stf===1)?(sg.note>=60):(sg.note<60)):segs;
           /* 성부 나누기: 같은 시작 같은 끝은 화음, 아니면 비어 있는 성부, 없으면 새 성부(4까지) */
-          const voices=[]; ss.forEach(sg=>{ let placed=false;
+          const voices=[]; if(t.combo){ [1,2].forEach(src=>{ const v=[]; ss.filter(sg=>sg.src===src).forEach(sg=>{ const last=v[v.length-1]; if(last && last.s===sg.s){ if(sg.e!==last.e){ sg.e=last.e; } last.chord.push(sg); return; } if(last && last.e>sg.s){ last.e=sg.s; last.chord.forEach(c=>{ c.e=sg.s; c.tieOut=false; }); } v.push({s:sg.s,e:sg.e,chord:[sg]}); }); voices.push(v.filter(x=>x.e>x.s)); }); }
+          else ss.forEach(sg=>{ let placed=false;
             for(const v of voices){ const last=v[v.length-1]; if(last && last.s===sg.s && last.e===sg.e){ last.chord.push(sg); placed=true; break; } }
             if(!placed) for(const v of voices){ const last=v[v.length-1]; if(!last || last.e<=sg.s){ v.push({s:sg.s,e:sg.e,chord:[sg]}); placed=true; break; } }
             if(!placed && voices.length<4){ voices.push([{s:sg.s,e:sg.e,chord:[sg]}]); placed=true; } });
-          if(!voices.length) voices.push([]);
+          if(!voices.length) voices.push([]); const combo=!!t.combo;
           voices.forEach((v,vi)=>{ const vn=(stf-1)*4+vi+1;
             /* 요소 목록 만들기 */
             const els=[]; let cur=0;
-            const restEl=(len)=>{ splitDur(len).forEach(x=>els.push({rest:true,d:x[0],type:x[1],dot:x[2],trip:x[3]})); };
-            v.forEach(ev=>{ if(ev.s>cur) restEl(ev.s-cur); const pieces=splitDur(ev.e-ev.s);
-              pieces.forEach((x,xi)=>{ els.push({rest:false,d:x[0],type:x[1],dot:x[2],trip:x[3], cont:(xi>0)||ev.chord.every(sg=>sg.tieIn),
-                notes:ev.chord.map(sg=>({note:sg.note, tStart:(xi<pieces.length-1)||sg.tieOut, tStop:(xi>0)||sg.tieIn}))}); });
+            const restEl=(st,len)=>{ splitPos(st,len,ms,true).forEach(x=>els.push({rest:true,d:x[0],type:x[1],dot:x[2],trip:x[3]})); };
+            v.forEach(ev=>{ if(ev.s>cur) restEl(cur,ev.s-cur); const pieces=splitPos(ev.s,ev.e-ev.s,ms,false);
+              pieces.forEach((x,xi)=>{ els.push({rest:false,d:x[0],type:x[1],dot:x[2],trip:x[3], roll:ev.chord.some(sg=>sg.roll), cont:(xi>0)||ev.chord.every(sg=>sg.tieIn),
+                notes:ev.chord.map(sg=>({note:sg.note, src:sg.src, tStart:(xi<pieces.length-1)||sg.tieOut, tStop:(xi>0)||sg.tieIn}))}); });
               cur=ev.e; });
-            if(cur<ms.len) restEl(ms.len-cur);
-            if(!v.length && els.length===1 && !grand){ els[0].measureRest=true; els[0].d=ms.len; }
+            if(cur<ms.len) restEl(cur,ms.len-cur);
+            if(!v.length){ els.length=0; els.push({rest:true, measureRest:true, d:ms.len}); }   /* 소리 없는 성부는 마디 쉼표 하나 */
             /* 셋잇단 괄호: 이어진 셋잇단 요소를 첫 요소 길이의 세 배씩 묶음 */
             for(let q=0;q<els.length;){ if(!els[q].trip){ q++; continue; } const target=els[q].d*3; let sum=0, r=q; while(r<els.length && els[r].trip && sum<target){ sum+=els[r].d; r++; } els[q].tupStart=true; els[r-1].tupStop=true; q=r; }
             /* 이음줄: 선율 파트 첫 성부, 쉼 없이 이어지는 2~8 음 */
@@ -47277,9 +47319,10 @@ window.__soPlayDebug=()=>({has:!!currentSong,bp:soPlayBlueprint()});
             if(!firstVoice) xml+='<backup><duration>'+ms.len+'</duration></backup>'; firstVoice=false;
             els.forEach(x=>{ const tm=x.trip?'<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>':''; const st=grand?'<staff>'+stf+'</staff>':'';
               if(x.rest){ xml+='<note><rest'+(x.measureRest?' measure="yes"':'')+'/><duration>'+x.d+'</duration><voice>'+vn+'</voice>'+(x.measureRest?'':'<type>'+x.type+'</type>'+(x.dot?'<dot/>':'')+tm)+st; const nt=(x.tupStart?'<tuplet type="start" bracket="yes"/>':'')+(x.tupStop?'<tuplet type="stop"/>':''); if(nt) xml+='<notations>'+nt+'</notations>'; xml+='</note>'; return; }
-              x.notes.forEach((nn,ci)=>{ xml+='<note>'+(ci>0?'<chord/>':'')+pitchXML(nn.note,prevKey?prevKey.fifths:0)+'<duration>'+x.d+'</duration>'+(nn.tStop?'<tie type="stop"/>':'')+(nn.tStart?'<tie type="start"/>':'')+'<voice>'+vn+'</voice><type>'+x.type+'</type>'+(x.dot?'<dot/>':'')+tm+st;
+              x.notes.forEach((nn,ci)=>{ const ph=(t.combo==='perc')?('<unpitched><display-step>'+(nn.src===1?'E':'F')+'</display-step><display-octave>'+(nn.src===1?5:4)+'</display-octave></unpitched>'):pitchXML(nn.note,prevKey?prevKey.fifths:0); const stem=combo?('<stem>'+(vi===0?'up':'down')+'</stem>'):'';
+                xml+='<note>'+(ci>0?'<chord/>':'')+ph+'<duration>'+x.d+'</duration>'+(nn.tStop?'<tie type="stop"/>':'')+(nn.tStart?'<tie type="start"/>':'')+'<voice>'+vn+'</voice><type>'+x.type+'</type>'+(x.dot?'<dot/>':'')+tm+stem+st;
                 let nt=(nn.tStop?'<tied type="stop"/>':'')+(nn.tStart?'<tied type="start"/>':'');
-                if(ci===0){ if(x.slurStart) nt+='<slur type="start" number="1"/>'; if(x.slurStop) nt+='<slur type="stop" number="1"/>'; if(x.tupStart) nt+='<tuplet type="start" bracket="yes"/>'; if(x.tupStop) nt+='<tuplet type="stop"/>'; if(x.down) nt+='<technical><down-bow/></technical>'; }
+                if(ci===0){ if(x.slurStart) nt+='<slur type="start" number="1"/>'; if(x.slurStop) nt+='<slur type="stop" number="1"/>'; if(x.tupStart) nt+='<tuplet type="start" bracket="yes"/>'; if(x.tupStop) nt+='<tuplet type="stop"/>'; if(x.down) nt+='<technical><down-bow/></technical>'; if(x.roll) nt+='<ornaments><tremolo type="single">3</tremolo></ornaments>'; }
                 if(nt) xml+='<notations>'+nt+'</notations>'; xml+='</note>'; }); }); }); });
         xml+='</measure>\n'; });
       xml+='</part>\n'; });
