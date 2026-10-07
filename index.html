@@ -1352,6 +1352,8 @@ input[type=range]{accent-color:var(--teal)}
 .prog-row .sel-hintx{margin-left:auto;font-size:10.5px;color:#5d688a;white-space:nowrap}
 .prog-row:hover{background:rgba(79,209,181,.04)}
 
+.aq-btn{border:0;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;background:#1d2733;color:#cfe3da;border:1px solid #33465a}
+  .aq-btn.main{background:#4fd1b5;color:#07211a;border-color:#4fd1b5}.aq-btn.playing{background:#e8b06a;color:#2a1a05;border-color:#e8b06a}
 }
 
 #app-med{
@@ -2098,6 +2100,26 @@ input[type=range]{accent-color:var(--teal)}
     <p>호흡에 맞춰 명상·요가·수면용 음악을 만드는 적응형 사운드 빌더.</p>
   </div>
 
+  <!-- ★ 2026-10-07 형: 호흡 앰비언트를 단순하게. 목적, 에스테틱, 진행 고를 필요 없이 호흡만 고르고 듣고 받기 -->
+  <style>.aq-btn{border:0;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;background:#1d2733;color:#cfe3da;border:1px solid #33465a}
+  .aq-btn.main{background:#4fd1b5;color:#07211a;border-color:#4fd1b5}.aq-btn.playing{background:#e8b06a;color:#2a1a05;border-color:#e8b06a}</style>
+  <div id="aqBox" style="border:1px solid #2f5d52;border-radius:14px;padding:14px 16px;margin:6px 0 20px;background:rgba(79,209,181,.06)">
+    <div style="font-weight:700;font-size:16px;color:#7ee2b8;margin-bottom:3px">🌬 호흡 앰비언트 바로 만들기</div>
+    <div style="font-size:12px;color:#9ab;margin-bottom:10px">호흡만 고르면 됩니다. 호흡 패드 스웰, 저음 드론, 핸드팬, 양금, 피아노 캐논 5트랙, 장조.</div>
+    <div class="toggle-row"><span class="toggle-label">호흡</span><div class="opts" id="aqBreath"></div></div>
+    <div class="toggle-row"><span class="toggle-label">키</span><div class="opts" id="aqKey"></div></div>
+    <div class="toggle-row"><span class="toggle-label">스웰</span><div class="opts" id="aqSwell"></div></div>
+    <div class="toggle-row"><span class="toggle-label">길이</span><div class="opts" id="aqDur"></div></div>
+    <div class="toggle-row"><span class="toggle-label">흐름</span><div class="opts" id="aqFlow"></div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="aq-btn main" id="aqPlay" onclick="aqPlay(this)">▶ 듣기</button>
+      <button class="aq-btn" onclick="aqNew()">🎲 새 곡</button>
+      <button class="aq-btn main" onclick="aqMidi()">🎼 MIDI 받기</button>
+      <button class="aq-btn" onclick="aqWav()">🔊 WAV 받기</button>
+    </div>
+    <div id="aqInfo" style="font-size:12.5px;color:#cfe3da;margin-top:9px"></div>
+  </div>
+
   <div style="display:flex;align-items:center;gap:10px;margin:4px 0 8px;">
     <div style="font-weight:700;font-size:15px;color:#8fd8c9;">✨ 추천 조합 <span style="font-weight:400;font-size:12px;opacity:.72;color:#9ab;">— 목적·빌드업·시간을 한 번에 골라줘요</span></div>
     <button id="bGuideBtn" style="margin-left:auto;background:#1d2733;border:1px solid #33465a;color:#bfe3d8;border-radius:8px;padding:7px 13px;font-size:13px;cursor:pointer;white-space:nowrap;">📖 가이드</button>
@@ -2188,6 +2210,14 @@ input[type=range]{accent-color:var(--teal)}
     </div>
   </div>
   <div id="breathIntHint" class="breath-hint"></div>
+  <div class="toggle-row">
+    <span class="toggle-label">구성</span>
+    <div class="opts" id="structToggle">
+      <span class="opt-g active" onclick="setStruct('basic')" data-sc="basic">목적별 기본</span>
+      <span class="opt-g" onclick="setStruct('amb5')" data-sc="amb5">🌬 호흡 앰비언트 5트랙</span>
+    </div>
+  </div>
+  <div id="structHint" class="breath-hint"></div>
 
   <div class="toggle-row">
     <span class="toggle-label">개화 패턴</span>
@@ -2287,8 +2317,8 @@ input[type=range]{accent-color:var(--teal)}
   <div id="finalExport" style="border:1px solid #2b3b4d;border-radius:12px;padding:12px 14px;margin:12px 0 4px;background:rgba(79,209,181,.04);">
     <div style="font-size:12.5px;color:#8fd8c9;font-weight:700;margin-bottom:4px;">🎁 최종 추출 — ✓ 선택된 진행 하나로만</div>
     <div id="finalProgLabel" style="font-size:12px;color:#cfe3da;margin-bottom:9px;"></div>
-    <button class="dl-btn" onclick="state.selProg?exportMidi(state.selProg):alert('음악 색에서 진행을 먼저 ✓ 선택해 주세요')" style="margin-right:6px;">🎼 MIDI 추출</button>
-    <button class="dl-btn" onclick="state.selProg?exportWav(state.selProg):alert('음악 색에서 진행을 먼저 ✓ 선택해 주세요')">🔊 WAV 추출</button>
+    <button class="dl-btn" onclick="(state.selProg||state.struct==='amb5')?exportMidi(state.selProg||'amb5'):alert('음악 색에서 진행을 먼저 ✓ 선택해 주세요')" style="margin-right:6px;">🎼 MIDI 추출</button>
+    <button class="dl-btn" onclick="(state.selProg||state.struct==='amb5')?exportWav(state.selProg||'amb5'):alert('음악 색에서 진행을 먼저 ✓ 선택해 주세요')">🔊 WAV 추출</button>
   </div>
   <div class="toggle-row">
     <span class="toggle-label">이펙트</span>
@@ -47944,7 +47974,7 @@ const AES_FXREC = {
   minimal:"패드/피아노: 짧은 룸 리버브 1~1.5s·Mix 15%만. 딜레이·모듈레이션 없음(여백이 핵심). 전체 드라이·투명.",
   cinematic:"패드·현: 긴 홀 리버브(ChromaVerb Hall 4~6s·Mix 30%). 현 스웰엔 센드 크게. 버스 글루컴프 1~2dB. 저역 드론 드라이.",
   natural:"전 트랙 짧은 룸 0.8~1.5s. 패드·기타에 ChromaGlow 온기(Drive 15%). 리버브 적게·가깝게. 자연음 베드 -24dB.",
-  ambient:"패드·텍스처: 매우 긴 리버브 6~10s·Mix 40% + Chorus(Rate 0.3Hz). 롱 딜레이 피드백. 저역만 드라이. 넓게 와이드.",
+  ambient:"몽환적으로: 패드·텍스처에 ChromaVerb(Dreamy 또는 Shimmer 계열) 10~14s·Mix 45%·프리딜레이 30ms·고역 댐핑 약하게. Tape Delay 1/4 점음표·피드백 45%·핑퐁·로우컷 300Hz. Chorus Rate 0.2Hz. 벨·종은 리버브 센드를 더 크게(60%). 저역(Bass)만 드라이·센터. 넓게, 음정 모호하게.",
   zen:"싱잉볼·포인트: 긴 자연 잔향 4~6s. 딜레이 없음(절제). 리버브 꼬리 길게·담핑, 한 음의 여운 살림.",
   vintage:"패드·EP: 테이프 새추레이션(ChromaGlow/Phat FX) + 고역 롤오프 6~8kHz(로파이). 짧은 테이프/스프링 리버브. Tape Delay 워블.",
   neoclassical:"피아노·현: 자연스러운 홀 2.5~4s(실연 공간). 모듈레이션 없음. 센드 적당·다이내믹 살림.",
@@ -48699,6 +48729,41 @@ function midiTrackSpec(){
       memo:function(){return '드라이를 0%로 두고 리버스 IR만 들리게 하세요. 원음이 들리면 예고가 아니라 소리가 됩니다.';}}
   ];
 }
+/* ★ 2026-10-06 트랙마다 추천 가상악기 (형 로직, 콘탁 목록에서 실제 있는 이름만). 미감이 목적보다 앞선다. 앰비언트는 몽환적으로 */
+const MED_REC_BASE={chord:'Alchemy > Atmospheric/Pads/Enveloped In Warm Air', bass:'Synthesizer/Pad/Meditation Drone', mel:'Synthesizer/Bell/Dreamy Bells',
+  bell:'World/Tibetan Singing Bowls', sing:'Synthesizer/Soundscape/Ancient Singing Bowl', ting:'Synthesizer/Bell/Shimmering Star Chimes',
+  hp:'Kontakt > Pan Drums II/Hang Mk.1 (Centre)', solo:'World/Native American Flute', pulse:'Retro Synth (사인)', arp:'Kontakt > Pan Drums II/Hang Mk.1 (Edge)', cue:'Synthesizer/Soundscape/Lost Reverse'};
+const MED_REC_PURPOSE={
+  cosmos:{chord:'Synthesizer/Pad/Floating in the Ether', bass:'Synthesizer/Pad/Infinite Drone', mel:'Synthesizer/Bell/Distant Ethereal Bells', bell:'Synthesizer/Bell/Echoing Glass Bells'},
+  handpan:{chord:'Alchemy > Atmospheric/Pads/Enveloped In Warm Air', mel:'Kontakt > Pan Drums II/Hang Mk.1 (Edge)'},
+  sleep:{chord:'Alchemy > Atmospheric/Pads/On The Edge Of Sleep', bass:'Synthesizer/Pad/Infinite Drone', mel:'Synthesizer/Bell/Gentle Sine Bells'},
+  meditation:{chord:'Synthesizer/Pad/Sea of Tranquility', mel:'Synthesizer/Bell/Pensive Meditation Bell', solo:'World/Japanese Shakuhachi Flute'},
+  focus:{chord:'Alchemy > Vintage Synth/Pads/Analog Silk', bass:'Alchemy > Basic/Soundscapes/Moonlight Comfort', mel:'Kontakt > Cinematic Studio Piano/CSP Piano', solo:'Kontakt > Stradivari Cello'},
+  relax:{chord:'Alchemy > Atmospheric/Pads/Endless Ocean', mel:'Synthesizer/Bell/Dreamy Bells', solo:'World/Indian Bansuri Flute'},
+  morning:{chord:'Alchemy > Atmospheric/Pads/Slow Rising Sun', bass:'Synthesizer/Pad/Infinite Drone', mel:'Synthesizer/Bell/Echoing Glass Bells'},
+  calm:{chord:'Alchemy > Atmospheric/Pads/Lonesome Calm', mel:'Synthesizer/Bell/Dreamy Music Box Bells'},
+  flow:{chord:'Alchemy > Atmospheric/Pads/Soft Space Drift', mel:'World/African Kalimba'},
+  pilates:{chord:'Alchemy > Vintage Synth/Pads/Soft and Gentle', mel:'Kontakt > Cinematic Studio Piano/CSP Piano'},
+  walking:{chord:'Alchemy > Atmospheric/Pads/Peaceful Valley', mel:'Mallet/Glass Marimba Soft'},
+  spa:{chord:'Alchemy > Atmospheric/Pads/Salt Mist', mel:'World/Celtic Harp'},
+  baby:{chord:'Synthesizer/Pad/Dream Sines Pad', mel:'Mallet/Music Box'}};
+const MED_REC_AES={
+  ambient:{chord:'Synthesizer/Pad/Floating in the Ether', bass:'Synthesizer/Pad/Infinite Drone', mel:'Synthesizer/Bell/Distant Ethereal Bells', bell:'Synthesizer/Bell/Echoing Glass Bells', sing:'Synthesizer/Soundscape/Ancient Singing Bowl', arp:'Kontakt > Pan Drums II/Hang Mk.1 (Edge)'},
+  minimal:{chord:'Synthesizer/Pad/Soft Analog Pad', mel:'Kontakt > Cinematic Studio Piano/CSP Piano', bell:'Synthesizer/Bell/Glass Bells', arp:'Kontakt > Cinematic Studio Piano/CSP Piano'},
+  cinematic:{chord:'Alchemy > Atmospheric/Pads/Endless Universe', bass:'Kontakt > Stradivari Cello', mel:'Kontakt > Cinematic Studio Piano/CSP Piano', bell:'World/Celtic Harp', sing:'Synthesizer/Pad/Infinity Strings', solo:'Kontakt > Stradivari Cello'},
+  natural:{chord:'Alchemy > Atmospheric/Pads/Nature Pad', mel:'Kontakt > Pan Drums II/Hang Mk.1 (Edge)', bell:'Mallet/Glass Marimba Soft', arp:'World/African Kalimba'},
+  zen:{chord:'Synthesizer/Pad/Sea of Tranquility', mel:'World/Japanese Shakuhachi Flute', bell:'World/Tibetan Singing Bowls', solo:'World/Chinese Xiao Flute', arp:'World/Japanese Koto'},
+  vintage:{chord:'Alchemy > Vintage Synth/Pads/Obie Warmth', mel:'Vintage Electric Piano/Watery Rhodes', bell:'Mallet/Vibraphone', arp:'Vintage Electric Piano/Watery Rhodes'},
+  neoclassical:{chord:'Synthesizer/Pad/Modeled String Pad', bass:'Kontakt > Stradivari Cello', mel:'Kontakt > Cinematic Studio Piano/CSP Piano', bell:'Mallet/Toy Celesta', sing:'Synthesizer/Pad/Infinity Strings', solo:'Kontakt > Stradivari Cello', arp:'Kontakt > Cinematic Studio Piano/CSP Piano'},
+  indian:{chord:'Synthesizer/Pad/Meditation Drone', mel:'World/Indian Sitar', bell:'World/Persian Santoor', solo:'World/Indian Bansuri Flute'},
+  tibetan:{chord:'Synthesizer/Soundscape/Tranquility', bass:'Synthesizer/Pad/Meditation Drone', mel:'Alchemy > Atmospheric/Soundscapes/Tibetan Monks', bell:'World/Tibetan Singing Bowls'},
+  bali:{chord:'World/Indonesian Gamelan', bass:'World/Indonesian Gamelan Gongs', mel:'World/Indian Bansuri Flute', bell:'World/Indonesian Gamelan Gongs'},
+  soundhealing:{chord:'Synthesizer/Pad/Dream Sines Pad', mel:'Synthesizer/Bell/Gentle Sine Bells', bell:'Synthesizer/Bell/Golden Bowl Mallets'}};
+function medRec(key){ const a=(state.aes&&MED_REC_AES[state.aes])||{}, p=MED_REC_PURPOSE[state.purpose]||{}; return a[key]||p[key]||MED_REC_BASE[key]||''; }
+function medTrackName(sp){ const r=medRec(sp.key); if(!r) return midiNameFor(sp);
+  const g=(state.aes && typeof GENRE_SPEC!=='undefined' && GENRE_SPEC[state.aes])?GENRE_SPEC[state.aes].name:'';
+  const PT={bell:'Point 1 · 구간 경계', ting:'Point 2 · 시작·마침', hp:'Point 3 · 리듬 점'};
+  const role=(g && PT[sp.key])?PT[sp.key]:sp.name; return r+' | '+(sp.vol===0?'[뮤트] ':'')+role+(g?'  ['+g+']':''); }   /* 트랙 이름: 추천 음원 | 역할 (음원 성격 설명은 가이드에) */
 // 장르 선택 시 트랙 이름을 그 장르 악기 성격으로 (미선택 시 기본 midiName)
 function midiNameFor(sp){
   const g = (state.aes && typeof GENRE_SPEC!=='undefined' && GENRE_SPEC[state.aes]) ? GENRE_SPEC[state.aes] : null;
@@ -49114,7 +49179,7 @@ function padVoiceP(ac,G,t,dur,midi,pan,breath,vel,inten){
     const n=Math.max(1,Math.round(dur/breath.cycle));
     for(let bi=0;bi<n;bi++){const bt=t+bi*breath.cycle;
       amp.gain.linearRampToValueAtTime(peak,bt+breath.in);
-      amp.gain.linearRampToValueAtTime(peak*0.35,bt+breath.cycle);}
+      amp.gain.linearRampToValueAtTime(peak*(breath.floor!=null?breath.floor:0.35),bt+breath.cycle);}
   } else {
     amp.gain.exponentialRampToValueAtTime(peak,t+Math.min(3.2,dur*0.45));
     amp.gain.setValueAtTime(peak,t+dur*0.7);
@@ -49239,6 +49304,7 @@ function solfeggioToneP(ac,master,t,dur,hz){
 
 /* ── 악보 생성: 진행 → 완성된 타임 스코어 (재생·WAV·MIDI 공용) ── */
 function generatePiece(prog, capMin){
+  if(state.struct==='amb5') return buildAmb5Piece(prog, capMin);
   const chords = prog.split(/→|\|/).map(s=>s.trim()).filter(Boolean);
   if(!chords.length) return null;
   const cl = chordLength();
@@ -49556,6 +49622,7 @@ function generatePiece(prog, capMin){
   // 포인트 악기: 에스테틱별 (전부 시드 — Orion의 Math.random 버그 교정)
   const aesPoint={tibetan:'bowl',soundhealing:'bowl',indian:'bowl',ambient:'bowl',zen:'tingsha',bali:'handpan',natural:'handpan',cinematic:'bowl'};
   let ptype=state.aes?aesPoint[state.aes]:null;
+  if(!ptype && state.purpose==='handpan') ptype='handpan';   /* ★ 2026-10-06 핸드팬 목적인데 핸드팬 트랙이 안 나오던 것 */
   if(!ptype && ['sleep','meditation'].includes(state.purpose)) ptype='bowl';
   else if(!ptype && ['spa','calm'].includes(state.purpose)) ptype='tingsha';
   if(ptype){
@@ -49784,6 +49851,7 @@ function buildAmbientArp(ev, breath, lengthSec){
 }
 /* ── 악보 스케줄: 라이브·오프라인 공용 (재생=WAV 완전 일치) ── */
 function schedulePiece(ac, g, piece, t0){
+  if(piece && piece.amb5){ scheduleAmb5(ac,g,piece,t0); return; }
   const L=state.layersOn||{pad:true,bass:true,melody:true,point:true};
   if(L.pad!==false) piece.ev.chords.forEach(c=>{
     c.notes.forEach((m,i)=>{
@@ -49881,6 +49949,7 @@ function stopBGM(){
   // 하단 '전체 재생' 버튼도 초기화 (dockPlay는 .bgm-btn이 아니라 별도 처리)
   const _dpBtn=document.getElementById('dockPlay');
   if(_dpBtn){ _dpBtn.textContent='▶ 전체 재생'; _dpBtn.classList.remove('playing'); }
+  const _aq=document.getElementById('aqPlay'); if(_aq){ _aq.textContent='▶ 듣기'; _aq.classList.remove('playing'); }
 }
 
 function playBGM(btn, chordStr){
@@ -50161,7 +50230,7 @@ let randomMelodies = [];
 
 
 
-function defaultState(){ return { purpose:null, scaleType:"auto", key:"C", breath:"auto", breathInt:"normal", bloomPat:"auto", mode:"auto", aes:null, masking:false, binaural:"off", midiDur:5, range:"mid", voicing:"root",
+function defaultState(){ return { purpose:null, scaleType:"auto", key:"C", breath:"auto", breathInt:"normal", bloomPat:"auto", mode:"auto", aes:null, masking:false, binaural:"off", midiDur:5, range:"mid", voicing:"root", struct:"basic", amb5Flow:"natural",
   space:"auto", bright:"auto", tuning:440, solfeggio:"off", take:0, melodyIdx:0,
   pulse:"off", cue:"off", rubato:"off",
   layersOn:{pad:true,bass:true,melody:true,point:true,arp:false} }; }
@@ -50178,7 +50247,7 @@ try{
    'selectProg','setBloom','setBreath','setBreathInt','setCue','setDur','setDurCustom',
    'setKey','setMode','setPulse','setRange','setRubato','setScaleType','setTuning',
    'setVoicing','showFxSettings','sumPlayArc','sumStopArc','sumToggleBox',
-   'toggleLayerP','toggleMelody'].forEach(function(n){
+   'toggleLayerP','toggleMelody','setStruct','aqSetBreath','aqSetKey','aqSetSwell','aqSetDur','aqNew','aqPlay','aqMidi','aqWav','aqSetFlow'].forEach(function(n){
     try{ if(typeof eval(n)==='function' && !window[n]) window[n]=eval(n); }catch(e){}
   });
 }catch(e){}
@@ -50226,7 +50295,7 @@ function renderKeys(){
     `<span class="opt ${state.key===k?'active':''}" onclick="setKey('${k}')">${BOTH[k]||k}</span>`
   ).join(''); }
 function pickPurpose(k){
-  if(typeof medStepTo==='function') medStepTo(2); stopBGM(); state.purpose = k; state.selProg=null; showRandom=false; randomProgs=[]; randomMelodies=[]; render(); if(typeof renderStageSeq==='function')renderStageSeq(); if(window.sumOpenSection)sumOpenSection(1); }
+  if(typeof medStepTo==='function') medStepTo(2); stopBGM(); if(typeof amb5Reseed==='function') amb5Reseed(); state.purpose = k; state.selProg=null; showRandom=false; randomProgs=[]; randomMelodies=[]; render(); if(typeof renderStageSeq==='function')renderStageSeq(); if(window.sumOpenSection)sumOpenSection(1); }
 function updatePurposeHint(){
   const el=document.getElementById('purposeHint'); if(!el) return;
   if(!state.purpose){ el.textContent=''; return; }
@@ -50268,7 +50337,7 @@ function updateAesHint(){
 }
 function setScaleType(t){ stopBGM(); state.scaleType=t; state.selProg=null; state.mode='auto'; randomMelodies=[]; randomProgs=[]; showRandom=false; document.querySelectorAll('#scaleToggle .opt-g').forEach(e=>e.classList.toggle('active',e.dataset.st===t)); render(); }
 function setMode(m){ state.mode=m; render(); }
-function setKey(k){ state.selProg=null;
+function setKey(k){ state.selProg=null; if(typeof amb5Reseed==='function') amb5Reseed();
   stopBGM(); state.key=k;
   // 이미 생성된 멜로디를 키에 맞춰 라벨·주파수 갱신 (음정관계 semis는 유지)
   if(randomMelodies.length){
@@ -50292,6 +50361,7 @@ const BREATH_DESC = {
   longout:"들숨 4초 : 날숨 8초 (1호흡 12초). 날숨이 들숨의 2배. 부교감신경을 강하게 자극해 가장 깊은 이완.",
 };
 function updateBreathHint(){
+  if(typeof aqRender==='function') try{ aqRender(); }catch(e){}
   const el = document.getElementById('breathHint');
   if(!el) return;
   let key = state.breath;
@@ -50302,7 +50372,7 @@ function updateBreathHint(){
   }
   el.textContent = txt;
 }
-function setBreath(b){ state.breath=b; document.querySelectorAll("#breathToggle .opt-g").forEach(e=>e.classList.toggle("active",e.dataset.bt===b));
+function setBreath(b){ state.breath=b; if(typeof amb5Reseed==='function') amb5Reseed(); document.querySelectorAll("#breathToggle .opt-g").forEach(e=>e.classList.toggle("active",e.dataset.bt===b));
   /* 러닝·걷기 호흡을 고르면 심박을 함께 켠다 — 발이 따라갈 맥이 없으면 그 호흡을 쓸 수 없다.
      이미 켜 두었으면 그 값을 존중한다(러닝 호흡에 걷기 케이던스를 쓸 수도 있다). */
   if(typeof autoPulseForBreath==='function') autoPulseForBreath(b);
@@ -50867,7 +50937,411 @@ function pulseCueTuning(tracks, breathSec, totalTick, PPQ, PAD, sections){
   }
 }
 
+/* ★ 2026-10-06 호흡 앰비언트 5트랙 (형)
+   고른 호흡법 하나로 곡 전체를 짠다. 한 마디 = 한 호흡(60BPM 이면 박 = 초, 러닝 호흡은 박 = 걸음).
+   ① 패드: 들숨에 차오르고 날숨에 잦아드는 스웰(CC11)이 호흡 시간 그대로. 화음은 늘 들숨 첫머리에서 바뀐다.
+   ② 저음 드론: 으뜸음과 5도를 처음부터 끝까지.
+   ③ 핸드팬: 들숨 첫머리와 숨의 꼭대기에 드문드문, 실제 핸드팬처럼 딩(으뜸) 위 음계음만, D3 부근~C5.
+   ④ 양금: 들숨에 오르고 날숨에 내려오는 선율, 두 호흡 노래하고 한 호흡 쉼.
+   ⑤ 피아노: 양금을 한 호흡 늦게 한 옥타브 아래에서 따라가는 캐논(그 자리 화음에 맞춰 고침).
+   양금과 피아노는 뒤에 깔리도록 세기, 볼륨, 팬, 리버브를 낮고 넓게. */
+const AMB5_REC={
+  /* ★ 2026-10-07 형: 기계적 느낌 없는 것만. Alchemy 의 Arpeggiated, Rhythmic 분류는 통째로 빼고, Pads Soundscapes 안에서도
+     이름에 펄스 스텝 시퀀스 게이트 글리치 스윕 스월 플러터 모션 같은 움직임이 드러나는 것은 뺐다. 그대로 길게 머무는 소리만 */
+  pad:  {name:'Alchemy > Atmospheric/Pads/Enveloped In Warm Air', alt:['Alchemy > Vintage Synth/Pads/Warm and Soft','Alchemy > Vintage Synth/Pads/Soft and Gentle','Alchemy > Vintage Synth/Pads/Analog Silk','Alchemy > Atmospheric/Pads/Classic Simple Pad','Alchemy > Basic/Pads/Dream Sines Pad','Alchemy > Visions/Pads/Comfort'], role:'Breath Pad', ko:'호흡 패드',
+         why:'아르페지에이터나 스텝처럼 스스로 움직이는 것이 없는, 그대로 길게 머무는 따뜻한 패드라야 호흡 스웰만 들립니다'},
+  drone:{name:'Alchemy > Visions/Pads/Meditation Drone', alt:['Alchemy > Basic/Soundscapes/Infinite Drone','Alchemy > Basic/Soundscapes/Moonlight Comfort','Alchemy > Basic/Soundscapes/Meditation Sphere','Alchemy > Basic/Soundscapes/Mellow Heart','Alchemy > Vintage Synth/Pads/Density Sine'], role:'Low Drone', ko:'저음 드론',
+         why:'끝없이 같은 결로 이어지는 부드러운 저역. 톱니 버즈나 박자에 맞춘 출렁임이 없는 것'},
+  hp:   {name:'Kontakt > Pan Drums (스냅샷 Hang Mk 1 - Filter Delay)', alt:['Hang Mk 1 - Default','Hang Mk 1 - Enobe Pad'], role:'Handpan', ko:'핸드팬',
+         why:'Pan Drums II 의 Hang Mk 1. 손끝으로 살짝 친 소리, 딜레이 꼬리가 앰비언트에 잘 섞임'},
+  yg:   {name:'Sampler > Strings/YangGeum - DEMO', alt:['Kontakt > East Asia/Melodic China/Yangqin','Synthesizer/Soundscape/Modeled Dulcimer'], role:'Yanggeum', ko:'양금',
+         why:'형 국악기 EXS 양금. 음역 G3~C6 안에서만 씀'},
+  pn:   {name:'Kontakt > Orchestral Essentials 2/Intimate Piano (extra dreamy)', alt:['Kontakt > CSP Piano','Kontakt > Piano Uno - Celestial'], role:'Piano canon', ko:'피아노 캐논',
+         why:'멀리서 울리는 여린 피아노. 양금을 한 호흡 늦게 따라감'}
+};
+/* 볼륨(CC7) 팬(CC10, 64 가운데) 리버브(CC91). 양금 오른쪽, 피아노 왼쪽으로 벌려 서로 부딪히지 않고 뒤에 깔리게 */
+const AMB5_MIX={pad:{vol:100,pan:64,rev:80,ch:0,prog:89}, drone:{vol:90,pan:64,rev:40,ch:1,prog:88},
+                hp:{vol:80,pan:56,rev:95,ch:2,prog:114}, yg:{vol:62,pan:92,rev:108,ch:3,prog:15}, pn:{vol:56,pan:36,rev:108,ch:4,prog:0}};
+/* 단화음 없는 장조 진행(C 기준, 고른 으뜸음으로 옮김). 첫 화음과 끝은 으뜸 */
+const AMB5_PROGS=[['Cadd9','Fmaj7','Cadd9','Gsus4'],['Cmaj7','Fadd9','Csus2','Fmaj7'],['Cadd9','Gsus2','Fmaj9','Csus2'],['C6/9','Fmaj7','Gsus4','Cadd9'],['Csus2','Fmaj9','Cadd9','Gsus2']];
+/* ★ 2026-10-07 형: 스웰을 극적으로. 날숨 끝은 거의 숨만 남고(보통 CC11 14) 들숨 끝은 꽉 차게(127).
+   곡선은 1.35제곱: 들숨 앞부분은 천천히 일어나다 끝에서 확 차오르고, 날숨은 꼭대기에서 빠르게 내려와 바닥에서 길게 가라앉는다 */
+const AMB5_SWELL={off:{lo:104,hi:104,ex:1}, soft:{lo:40,hi:120,ex:1.2}, normal:{lo:14,hi:127,ex:1.35}, strong:{lo:4,hi:127,ex:1.5}};
+function amb5Breath(){
+  const bKey=state.breath==='auto'?PURPOSE_BREATH[state.purpose]:state.breath;
+  const b=BREATHS[bKey]||BREATHS.deep;
+  if(b.run){ const st=b.in+b.out, cad=(state.pulse==='walk')?CADENCE.walk:CADENCE.run, cyc=st*60/cad;
+    return {key:bKey,name:b.name,cycle:cyc,in:cyc*b.in/st,out:cyc*b.out/st,bpm:cad,beats:st,inB:b.in,outB:b.out,run:true}; }
+  return {key:bKey,name:b.name,cycle:b.total,in:b.in,out:b.out,bpm:60,beats:b.total,inB:b.in,outB:b.out,run:false};
+}
+/* 시각 t(초)의 호흡 위치 0(날숨 끝)~1(들숨 끝) */
+function amb5Phase(B,t){ const x=((t%B.cycle)+B.cycle)%B.cycle;
+  return x<B.in ? (0.5-0.5*Math.cos(Math.PI*x/B.in)) : (0.5+0.5*Math.cos(Math.PI*(x-B.in)/B.out)); }
+function amb5Names(prog){
+  const _pr=mulberryP(hashStrP('amb5prog|'+(state.key||'')+'|'+(state.amb5Seed||0))+(state.take||0)*104729);   // 진행 문자열은 씨앗에 안 넣음: 어디서 받든(위 상자, 아래 추출) 같은 곡
+  const _flat=/\u266d/.test(state.key||'')||state.key==='F';   // 플랫 조는 플랫으로 적는다(E♭ 장조에 G#maj7 이 아니라 A♭maj7)
+  return AMB5_PROGS[Math.floor(_pr()*AMB5_PROGS.length)].map(c=>{ let x=transposeChord(c,state.key||'C');
+    if(_flat) x=x.replace(/([CDFGA])#/g,(m,l)=>({C:'D',D:'E',F:'G',G:'A',A:'B'})[l]+'\u266d'); return x; });
+}
+/* ★ 2026-10-07 형: 호흡 흐름. 자연스럽게(기본) = 들어가기 1분(목표의 70% 길이에서 늘어남), 머물기(고른 호흡 그대로, 숨마다 ±2%),
+   가라앉기 마지막 20%(최대 8% 길어짐). 정확하게 = 처음부터 끝까지 같은 길이. 러닝 호흡은 걸음에 묶여 늘 정확하게.
+   10분이면 0~1분 들어가기, 1~8분 머물기, 8~10분 가라앉기 */
+function amb5Sched(B, target, natural, seed){
+  const C=B.cycle, fr=B.in/C, t=[], d=[], ii=[];
+  const nat=natural && !B.run;
+  const r=mulberryP(seed||7);
+  const E=nat?Math.min(60, target*0.15):0, Ks=nat?target*0.8:target;
+  const sm=x=>{ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); };
+  let x=0;
+  while(true){
+    let f=1, j=0;
+    if(nat){ if(x<E) f=0.70+0.30*sm(x/E); else if(x>=Ks) f=1+0.08*sm((x-Ks)/Math.max(1,target-Ks)); j=(x<E?0.01:0.02)*(r()*2-1); }
+    const len=C*f*(1+j);
+    if(t.length && x+len*0.5>target) break;
+    t.push(x); d.push(len); ii.push(len*fr); x+=len;
+  }
+  return {t:t, d:d, i:ii, T:x, nat:nat, E:E, Ks:Ks};
+}
+function amb5At(S,x){ let lo=0, hi=S.t.length-1, k=0; while(lo<=hi){ const m=(lo+hi)>>1; if(S.t[m]<=x){ k=m; lo=m+1; } else hi=m-1; } return k; }
+/* 시각 x(초)의 호흡 위치 0(날숨 끝)~1(들숨 끝), 시각표를 따른다. 끝 여운에서는 마지막 숨 꼴을 되풀이 */
+function amb5PhaseS(S,x){ let k=amb5At(S,x), st=S.t[k], len=S.d[k], ins=S.i[k];
+  if(x>=S.T){ len=S.d[S.d.length-1]; ins=S.i[S.i.length-1]; st=S.T+Math.floor((x-S.T)/len)*len; }
+  const y=x-st; return y<ins ? (0.5-0.5*Math.cos(Math.PI*y/ins)) : (0.5+0.5*Math.cos(Math.PI*Math.min(1,(y-ins)/(len-ins)))); }
+function buildAmb5Piece(prog, capMin){
+  if(!String(prog||'').trim()) return null;
+  /* ★ 2026-10-06 형: 마이너 느낌 없이. 목적별 진행(단조 화음이 섞임) 대신 고른 으뜸음의 장조, 단화음 없는 진행(add9 maj7 sus)만 */
+  const names=amb5Names(prog);
+  const B=amb5Breath(), C=B.cycle, IN=B.in, OUT=B.out;
+  const mins=(state.midiDur>0?state.midiDur:10);
+  const durMin=capMin?Math.min(mins,capMin):mins;
+  const m=Math.max(1,Math.round(22/C));                          // 화음 하나 = m 호흡(20초 안팎)
+  const SC=amb5Sched(B, (state.midiDur>0?state.midiDur:10)*60, state.amb5Flow!=='exact', hashStrP('amb5flow|'+(state.amb5Seed||0))+(state.take||0)*31);
+  if(capMin){ const lim=capMin*60; let n=SC.t.length; while(n>1 && SC.t[n-1]+SC.d[n-1]>lim+1e-6) n--; SC.t.length=n; SC.d.length=n; SC.i.length=n; SC.T=SC.t[n-1]+SC.d[n-1]; }
+  const N=SC.t.length;                                           // 호흡 수(정수). 곡 길이 = 숨 길이의 합
+  const T=SC.T, TAIL=Math.max(6,Math.min(12,C*1.2));
+  const bT=k=>k<N?SC.t[k]:T, bI=k=>SC.i[Math.min(k,N-1)], bO=k=>SC.d[Math.min(k,N-1)]-SC.i[Math.min(k,N-1)], bD=k=>SC.d[Math.min(k,N-1)];
+  const rng=mulberryP(hashStrP('amb5|'+(state.key||'')+'|'+(state.amb5Seed||0))+(state.take||0)*7919);   /* amb5Seed: 새로 고를 때마다 바뀌는 씨앗(같은 설정이어도 새 곡). 미리듣기와 추출 사이엔 그대로라 같은 곡 */
+  const mod=x=>((x%12)+12)%12;
+  const pcsOf=nm=>{ const r=chordToSemis(nm); return new Set((r||[0,4,7]).map(mod)); };
+  /* 패드 보이싱 48~79 */
+  const vn=voiceProgressionNotes(names, effectiveRange(), effectiveVoicing());
+  const vo=vn.map(function(a,i){ let x=(a&&a.length?a:[...pcsOf(names[i])].map(p=>60+p)).slice().sort((p,q)=>p-q);
+    while(x[0]<48) x=x.map(n=>n+12); while(x[x.length-1]>79) x=x.map(n=>n-12);
+    x=[...new Set(x.filter(n=>n>=45&&n<=81))]; if(x.length>5) x=x.slice(x.length-5); return x; });
+  /* 화음 칸 */
+  const slots=[]; for(let s=0;s*m<N;s++){ const b0=s*m, nb=Math.min(m,N-b0); slots.push({b0:b0,nb:nb,ci:s%names.length,t:bT(b0),dur:bT(b0+nb)-bT(b0)}); }
+  slots[slots.length-1].ci=0;                                     // 끝은 으뜸 화음
+  const slotAt=t=>{ let k=0; for(let i=0;i<slots.length;i++) if(t+1e-6>=slots[i].t) k=i; return slots[k]; };
+  /* 선율층(핸드팬 양금 피아노)이 기대는 화음음: 다른 화음음 바로 반음 아래인 색채음(9도, 장7도)은 뺀다.
+     그대로 두면 두 선율층이 각자 화음음을 골라도 반음으로 비빈다(실측: Am9 의 B 와 C) */
+  const corePcs=nm=>{ const r=chordToSemis(nm)||[0,4,7], root=mod(r[0]), P=pcsOf(nm); return new Set([...P].filter(p=>p===root || !P.has(mod(p+1)))); };
+  const chordPcs=t=>corePcs(names[slotAt(t).ci]);
+  /* 선율 음계 = 장조 5음(도 레 미 솔 라). 반음이 없어 어둡거나 비비는 음이 없다 */
+  const tonic=rootOf(names[0]);
+  const scale=new Set([0,2,4,7,9].map(x=>mod(tonic+x)));
+  const drPcs=new Set([tonic, mod(tonic+7)]);                    // 드론이 늘 울리는 음
+  const adj=(pc,S)=>S.has(mod(pc+1))||S.has(mod(pc-1));
+  const okPc=(pc,cp)=>cp.has(pc) || (scale.has(pc) && !adj(pc,cp) && !adj(pc,drPcs));   // 화음음, 또는 화음과 드론에 반음으로 비비지 않는 음계음
+  const nearestIn=(arr,target)=>{ let b=null,bd=1e9; arr.forEach(n=>{ const d=Math.abs(n-target); if(d<bd){bd=d;b=n;} }); return b; };
+  const hum=s=>(rng()-0.5)*2*s;
+  /* ① 패드 */
+  const chords=slots.map((sl,i)=>({t:sl.t, dur:sl.dur, notes:vo[sl.ci], vel:68, inten:0.6, name:names[sl.ci], last:i===slots.length-1}));
+  /* ② 드론: 으뜸 + 5도, A1~G#2 */
+  let dr=36+tonic; if(dr>44) dr-=12;
+  const drone=[{t:0,dur:T+TAIL,midi:dr},{t:0,dur:T+TAIL,midi:dr+7}];
+  /* ③ 핸드팬: 딩(으뜸) + 그 위 5도부터 C5 까지 음계음 */
+  let ding=48+tonic; if(ding<50) ding+=12;
+  const hpSet=[ding]; for(let n=ding+(ding<=55?7:2);n<=72;n++) if(scale.has(mod(n))) hpSet.push(n);   // 딩이 높으면(C4 등) 바로 위부터 채워 음이 모자라지 않게
+  const hpPick=(t,target)=>{ const cp=chordPcs(t); const c=hpSet.filter(n=>cp.has(mod(n))); return nearestIn(c.length?c:hpSet,target); };
+  const handpan=[]; const hpStart=Math.min(N-1,2), short=C<5;
+  let hpLast=null; const hpVar=(t,target)=>{ let n=hpPick(t,target); if(n===hpLast){ const m=hpPick(t,target+(rng()<0.5?4:-4)); if(m!==n) n=m; } hpLast=n; return n; };   // 같은 음만 되풀이하지 않게
+  for(let k=hpStart;k<N-1;k++){
+    if(short && k%2) continue;
+    const d=Math.pow(Math.sin(Math.PI*k/N),0.7), t0=bT(k), r=rng(), IN=bI(k), OUT=bO(k);
+    let pat = (k===hpStart)?'A' : (r<0.12+0.25*(1-d))?'R' : (r<0.5)?'A' : (r<0.78||short)?'B':'C';
+    const v=Math.round(40+12*d);
+    if(pat==='A'){ handpan.push({t:t0+Math.abs(hum(0.02)), midi:((rng()<0.6 && chordPcs(t0).has(mod(ding)))?ding:hpVar(t0,ding+4+Math.floor(rng()*9))), vel:v, decay:6}); }
+    else if(pat==='B'){ const lo=hpVar(t0,ding+3+Math.floor(rng()*7)); handpan.push({t:t0+Math.abs(hum(0.02)), midi:lo, vel:v, decay:6});
+                        handpan.push({t:t0+IN+hum(0.02), midi:hpVar(t0+IN,lo+3+Math.floor(rng()*6)), vel:v-4, decay:6}); }
+    else if(pat==='C'){ const a=hpVar(t0+IN,66+Math.floor(rng()*6)), b=hpPick(t0+IN+OUT*0.35,a-3), c=hpPick(t0+IN+OUT*0.7,b-3);
+                        handpan.push({t:t0+IN+hum(0.02), midi:a, vel:v-2, decay:6});
+                        handpan.push({t:t0+IN+OUT*0.35+hum(0.03), midi:(b===a?hpPick(t0+IN+OUT*0.35,a-5):b), vel:v-7, decay:6});
+                        handpan.push({t:t0+IN+OUT*0.7+hum(0.03), midi:(c===b||c===a?hpPick(t0+IN+OUT*0.7,Math.min(a,b)-4):c), vel:v-11, decay:6}); }
+  }
+  if(N>2) handpan.push({t:bT(N-1), midi:ding, vel:38, decay:8});   // 마지막 들숨에 딩 한 번
+  const clipToSlot=(t,d)=>{ const nx=slots.find(sl=>sl.t>t+1e-6); return nx?Math.min(d, nx.t-t-0.02):d; };   // 다음 화음 위로 끌지 않게
+  handpan.forEach(b=>{ b.decay=clipToSlot(b.t,b.decay); });
+  /* ④ 양금: 들숨에 오르고 날숨에 내려옴. 음역 G3~C6(55~84) 중 62~81 */
+  const ygNotes=[]; for(let n=62;n<=81;n++) if(scale.has(mod(n))) ygNotes.push(n);
+  const ctNear=(t,target)=>{ const cp=chordPcs(t); const c=ygNotes.filter(n=>cp.has(mod(n))); return nearestIn(c.length?c:ygNotes,target); };
+  const stepFrom=(p,k)=>{ let i=ygNotes.indexOf(nearestIn(ygNotes,p)); i=Math.max(0,Math.min(ygNotes.length-1,i+k)); return ygNotes[i]; };
+  const fit=(t,p)=>okPc(mod(p),chordPcs(t))?p:ctNear(t,p);
+  const yg=[];
+  /* 한 호흡 = 아치 하나: 들숨 동안 시작음에서 꼭대기로 오르고, 날숨 첫머리가 꼭대기, 날숨 동안 내려와 화음음에 내려앉는다.
+     리듬은 호흡마다 다른 꼴(같은 간격으로 똑딱이지 않게), 같은 음 되풀이 없이 */
+  const INC=IN<2.5?[[0]]:IN<4.5?[[0],[0,0.5],[0,0.6],[0.3]]:[[0,0.5],[0,0.4,0.75],[0,0.6],[0.25,0.7]];
+  const OUTC=OUT<2.5?[[]]:OUT<5?[[],[0.45],[0.55]]:OUT<7?[[0.4],[0.3,0.65],[0.5],[0.35,0.6]]:[[0.3,0.65],[0.4],[0.25,0.5,0.75],[0.45,0.7]];
+  const idxOf=x=>ygNotes.indexOf(nearestIn(ygNotes,x));
+  const ctAt=(t,x)=>{ const c=ygNotes.filter(n=>chordPcs(t).has(mod(n))); return nearestIn(c.length?c:ygNotes,x); };
+  const path=(t,from,to,frs,base)=>{ const out=[]; if(!frs.length) return out; const a=idxOf(from), z=idxOf(to); let last=a;
+    frs.forEach((f,q)=>{ const tt=t+f*base; let ix=Math.round(a+(z-a)*(q+1)/(frs.length+1)); if(ix===last) ix+=(z>a?1:-1);
+      let n=ygNotes[Math.max(0,Math.min(ygNotes.length-1,ix))]; if(!okPc(mod(n),chordPcs(tt))) n=ctAt(tt,n);
+      if((z>a && n>last && n<to) || (z<a && n<ygNotes[last] && n>to) ) { out.push({t:tt,midi:n}); last=idxOf(n); } });
+    return out; };
+  let k=(slots[1]?slots[1].b0:2), p=66, prevPk=72;
+  while(k<N-3){
+    const L=short?4:(rng()<0.3?3:2), R=short?2:(rng()<0.35?2:1);
+    for(let j=0;j<L && k+j<N-3;j++){
+      const t0=bT(k+j), ph=[], IN=bI(k+j), OUT=bO(k+j), Cb=bD(k+j);
+      const st = (j===0) ? ctAt(t0, 63+Math.round(rng()*5)) : ctAt(t0, p);                       // 들숨 첫 음
+      let pk = ctAt(t0+IN, Math.min(80, st+4+Math.round(rng()*5)+(j===L-1?0:1)));                  // 꼭대기
+      if(pk<=st) pk=ctAt(t0+IN, st+5); if(pk===prevPk && rng()<0.6) pk=ctAt(t0+IN, pk+(rng()<0.5?3:-3)); if(pk<=st) pk=Math.min(81,st+5);
+      const en = ctAt(t0+Cb-0.5, Math.max(62, pk-5-Math.round(rng()*4)));                           // 날숨 끝에 내려앉는 음
+      const ic=INC[Math.floor(rng()*INC.length)], oc=OUTC[Math.floor(rng()*OUTC.length)];
+      ph.push({t:t0+ic[0]*IN, midi:st, vel:50});
+      path(t0, st, pk, ic.slice(1), IN).forEach((n,q)=>ph.push({t:n.t, midi:n.midi, vel:53+q*3}));
+      ph.push({t:t0+IN, midi:pk, vel:60, peak:true});
+      const down=path(t0+IN, pk, en, oc.length>1?oc.slice(0,-1):[], OUT);
+      down.forEach((n,q)=>ph.push({t:n.t, midi:n.midi, vel:55-q*4}));
+      if(oc.length) ph.push({t:t0+IN+oc[oc.length-1]*OUT, midi:(en===ph[ph.length-1].midi?ctAt(t0+Cb-0.5,en-3):en), vel:47});
+      p=ph[ph.length-1].midi; prevPk=pk;
+      ph.forEach((n,i)=>{ n.first=(i===0); n.t+=(i===0||n.peak?0:hum(0.04)); n.vel=Math.max(36,Math.min(66,n.vel+Math.round(hum(3)))); yg.push(n); });
+    }
+    k+=L+R;
+  }
+  yg.sort((a,b)=>a.t-b.t);
+  yg.forEach((n,i)=>{ const nx=yg[i+1]; n.dur=nx?Math.min(2.8,Math.max(0.6,nx.t-n.t+0.4)):Math.min(C,4); if(nx && nx.t-n.t>C*0.9) n.dur=Math.min(4,C*0.9); n.dur=clipToSlot(n.t,n.dur); });
+  /* ⑤ 피아노 캐논: 한 호흡 뒤, 한 옥타브 아래, 그 자리 화음에 맞춤 */
+  const pnRange=n=>{ while(n<48)n+=12; while(n>72)n-=12; return n; };
+  const pn=[];
+  yg.forEach(n=>{
+    const kb=amb5At(SC,n.t); if(kb+1>=N-2) return; const t=bT(kb+1)+(n.t-bT(kb))/bD(kb)*bD(kb+1);   // 다음 숨의 같은 자리
+    if(!(n.first||n.peak) && rng()<0.25) return;
+    const cp=chordPcs(t); let q=pnRange(n.midi-12);
+    if(!okPc(mod(q),cp)){ const c=[]; for(let x=48;x<=72;x++) if(cp.has(mod(x))) c.push(x); q=nearestIn(c,q); }
+    const clash=x=>yg.some(y=>y.t<t+n.dur && y.t+y.dur>t && (Math.abs(y.midi-x)%12===1));
+    if(clash(q)){ const c=[]; for(let x=48;x<=72;x++) if(cp.has(mod(x)) && !clash(x)) c.push(x); if(!c.length) return; q=nearestIn(c,q); }
+    pn.push({t:t, midi:q, dur:clipToSlot(t,n.dur), vel:Math.max(28,n.vel-16)});
+  });
+  /* 마지막 안전망: 핸드팬이 양금 피아노와 반음으로 겹치면 겹치지 않는 화음음으로, 없으면 뺀다 */
+  for(let i=handpan.length-1;i>=0;i--){ const h=handpan[i], e=h.t+h.decay;
+    const hit=x=>yg.concat(pn).some(n=>n.t<e && n.t+n.dur>h.t && Math.abs(n.midi-x)%12===1);
+    if(!hit(h.midi)) continue;
+    const cp=chordPcs(h.t), c=hpSet.filter(n=>cp.has(mod(n)) && !hit(n));
+    if(c.length) h.midi=nearestIn(c,h.midi); else handpan.splice(i,1); }
+  return {amb5:true, B:B, names:names, slots:slots, N:N, m:m, T:T, TAIL:TAIL, sched:SC, lengthSec:T+TAIL, tailSec:0, loops:1, chordDur:m*C, chordNames:names,
+          breath:{name:B.name, cycle:C, in:IN, out:OUT, total:C, floor:({off:0.85,soft:0.25,normal:0.05,strong:0.02})[state.breathInt||'normal']}, ding:ding, hpSet:hpSet, drRoot:dr, tonic:tonic,
+          ev:{chords:chords, bass:[], melody:[], bells:[], bellsSing:[], tingsha:[], handpan:handpan, layers:[], arp:[], drone:drone, yg:yg, pn:pn}, hasAir:false};
+}
+/* 미리듣기와 WAV: 같은 악보 */
+function scheduleAmb5(ac,g,piece,t0){
+  const E=piece.ev;
+  /* 패드 드론 양금 피아노 모두 게인 곡선을 호흡 시각표대로(숨 길이가 달라도 정확히) */
+  const S=piece.sched;
+  const breathe=(node,lo,hi)=>{ node.gain.setValueAtTime(lo,t0);
+    for(let k=0;k<S.t.length;k++){ node.gain.linearRampToValueAtTime(hi,t0+S.t[k]+S.i[k]); node.gain.linearRampToValueAtTime(lo,t0+S.t[k]+S.d[k]); } };
+  const gPad=ac.createGain(); gPad.connect(g.buses.pad); breathe(gPad, piece.breath.floor, 1.0);
+  E.chords.forEach(c=>c.notes.forEach((m,i)=>padVoiceP(ac,gPad,t0+c.t,c.dur,m,(i/Math.max(1,c.notes.length-1)-0.5)*0.7,null,c.vel,c.inten)));
+  const gD=ac.createGain(); gD.connect(g.buses.bass); breathe(gD,0.5,1.0);
+  E.drone.forEach(d=>bassVoiceP(ac,gD,t0+d.t,d.dur,d.midi));
+  const sub=(lvl)=>{ const s=ac.createGain(); s.gain.value=lvl; s.connect(g.buses.handpan); return s; };
+  const gH=sub(0.85), gY=sub(0.42), gP=sub(0.34); breathe(gY,0.26,0.46); breathe(gP,0.21,0.37);
+  E.handpan.forEach(b=>handpanVoiceP(ac,gH,t0+b.t,b.midi,b.decay,-0.1));
+  E.yg.forEach(n=>handpanVoiceP(ac,gY,t0+n.t,n.midi,Math.max(3,n.dur*1.6),0.55));
+  E.pn.forEach(n=>handpanVoiceP(ac,gP,t0+n.t,n.midi,Math.max(3,n.dur*2),-0.55));
+}
+function buildAmb5Midi(){
+  const piece=generatePiece(lastProgForMidi||state.selProg||'amb5');
+  if(!piece||!piece.amb5) return null;
+  const B=piece.B, PPQ=480, BAR=B.beats*PPQ, PAD=2*BAR;            // 앞 두 마디(두 호흡) 편집 여백
+  /* 숨 길이가 달라도 한 마디 = 한 호흡: 마디마다 템포를 그 숨 길이에 맞춘다(템포 맵) */
+  const SC=piece.sched;
+  const tk=s=>{ if(s<0) return PAD+Math.round(s*B.bpm/60*PPQ);
+    if(s>=SC.T) return PAD+SC.t.length*BAR+Math.round((s-SC.T)*B.bpm/60*PPQ);
+    const k=amb5At(SC,s); return PAD+k*BAR+Math.round((s-SC.t[k])/SC.d[k]*BAR); };
+  const vl=v=>{ const o=[]; let b=v&0x7F; while((v>>=7)){ b<<=8; b|=((v&0x7F)|0x80); } while(true){ o.push(b&0xFF); if(b&0x80) b>>=8; else break; } return o; };
+  const u8=s=>{ const e=unescape(encodeURIComponent(window.__L12?window.__L12(s):s)); const a=[]; for(let i=0;i<e.length;i++) a.push(e.charCodeAt(i)&0xFF); return a; };
+  const meta=(type,s)=>{ const b=u8(s); return [0xFF,type].concat(vl(b.length)).concat(b); };
+  function track(evs){ evs.sort((a,b)=>a.t-b.t || a.o-b.o); const out=[]; let last=0;
+    evs.forEach(e=>{ const d=Math.max(0,e.t-last); last=Math.max(last,e.t); vl(d).forEach(x=>out.push(x)); e.b.forEach(x=>out.push(x)); });
+    out.push(0x00,0xFF,0x2F,0x00); return out; }
+  const S=AMB5_SWELL[state.breathInt||'normal']||AMB5_SWELL.normal;
+  const T=piece.T, TAIL=piece.TAIL, C=B.cycle;
+  const tracks=[];
+  /* 지휘 트랙: 템포, 박자(한 마디 = 한 호흡), 조표, 마커 */
+  { const ev=[]; const us=Math.round(60000000/B.bpm);
+    ev.push({t:0,o:0,b:meta(0x03,'Conductor')});
+    ev.push({t:0,o:1,b:[0xFF,0x51,0x03,(us>>16)&255,(us>>8)&255,us&255]});
+    const dd=2; ev.push({t:0,o:2,b:[0xFF,0x58,0x04,B.beats,dd,24,8]});
+    if(SC.nat){ const tem=(tick,bpm)=>{ const u=Math.round(60000000/bpm); ev.push({t:tick,o:1,b:[0xFF,0x51,0x03,(u>>16)&255,(u>>8)&255,u&255]}); };
+      let prevB=B.bpm; for(let k=0;k<SC.t.length;k++){ const bpm=B.beats*60/SC.d[k]; if(Math.abs(bpm-prevB)>0.005){ tem(PAD+k*BAR,bpm); prevB=bpm; } }
+      tem(PAD+SC.t.length*BAR,B.bpm);
+      ev.push({t:tk(SC.E),o:7,b:meta(0x06,'◎ 머물기 ('+B.name+' 그대로)')});
+      ev.push({t:tk(SC.t[amb5At(SC,SC.Ks)]),o:7,b:meta(0x06,'◎ 가라앉기 (숨이 조금씩 길어짐)')}); }
+    { const SF={0:0,7:1,2:2,9:3,4:4,11:5,6:6,1:-5,8:-4,3:-3,10:-2,5:-1}[piece.tonic]||0; ev.push({t:0,o:3,b:[0xFF,0x59,0x02,(SF+256)&255,0]}); }   // 장조
+    ev.push({t:0,o:4,b:meta(0x01,'[호흡 앰비언트 5트랙] '+(SC.nat?'(자연스럽게: 들어가기, 머물기, 가라앉기, 템포 맵으로 한 마디 = 한 숨) ':'(정확하게) ')+B.name+' : 들숨 '+(B.run?B.inB+'걸음':B.in+'초')+' 날숨 '+(B.run?B.outB+'걸음':B.out+'초')+'. 한 마디 = 한 호흡('+B.beats+'/4, '+B.bpm+'BPM). 앞 두 마디는 편집 여백. 총 '+piece.N+'호흡 '+fmtDur(T/60))});
+    ev.push({t:0,o:5,b:meta(0x06,'여백 (두 호흡)')});
+    piece.slots.forEach((sl,i)=>ev.push({t:tk(sl.t),o:6,b:meta(0x06,(i===0?'▶ 시작 들숨, ':'')+piece.names[sl.ci])}));
+    const hp0=piece.ev.handpan[0], y0=piece.ev.yg[0], p0=piece.ev.pn[0];
+    if(hp0) ev.push({t:tk(SC.t[amb5At(SC,hp0.t)]),o:7,b:meta(0x06,'◇ 핸드팬')});
+    if(y0) ev.push({t:tk(SC.t[amb5At(SC,y0.t)]),o:7,b:meta(0x06,'◇ 양금')});
+    if(p0) ev.push({t:tk(SC.t[amb5At(SC,p0.t)]),o:7,b:meta(0x06,'◇ 피아노 캐논')});
+    ev.push({t:tk(T),o:8,b:meta(0x06,'마지막 날숨 뒤 여운')});
+    ev.push({t:tk(T+TAIL)+BAR,o:9,b:meta(0x06,'끝')});
+    tracks.push(track(ev)); }
+  function head(key,memo){ const R=AMB5_REC[key], X=AMB5_MIX[key], ch=X.ch;
+    return [{t:0,o:0,b:meta(0x03,R.name+' | '+R.role)},{t:0,o:1,b:meta(0x01,memo)},
+            {t:0,o:2,b:[0xC0|ch,X.prog]},{t:0,o:3,b:[0xB0|ch,7,X.vol]},{t:0,o:4,b:[0xB0|ch,10,X.pan]},{t:0,o:5,b:[0xB0|ch,91,X.rev]}]; }
+  const on=(ch,t,n,v)=>({t:t,o:20,b:[0x90|ch,n&0x7F,Math.max(1,Math.min(127,v|0))]});
+  const off=(ch,t,n)=>({t:t,o:10,b:[0x80|ch,n&0x7F,0]});
+  const cc=(ch,t,c,v)=>({t:t,o:15,b:[0xB0|ch,c,Math.max(0,Math.min(127,Math.round(v)))]});
+  /* 양금 피아노도 호흡 따라 함께 부풀게(70~112): 들숨 끝에 치는 꼭대기 음이 가장 크게 들린다 */
+  function breathCC(ev,ch,lo,hi){ let prev=-1; for(let t=0;t<=T+TAIL+1e-6;t+=0.1){ const r=Math.round(lo+(hi-lo)*Math.pow(amb5PhaseS(piece.sched,t),S.ex||1)); if(r!==prev){ ev.push(cc(ch,tk(t),11,r)); prev=r; } } }
+  /* ① 호흡 패드: 같은 음은 이어 붙이고, 바뀌는 음만 다음 들숨 위로 0.8초 겹쳐 스며들게 */
+  { const ch=AMB5_MIX.pad.ch, ev=head('pad','호흡 패드. CC11 이 '+B.name+' 그대로: 들숨 '+B.in.toFixed(2)+'초 동안 '+S.lo+'→'+S.hi+', 날숨 '+B.out.toFixed(2)+'초 동안 '+S.hi+'→'+S.lo+'. 화음은 늘 들숨 첫머리에서 바뀜');
+    const sl=piece.ev.chords, notes=[];
+    sl.forEach((c,i)=>c.notes.forEach(n=>{ const prev=notes.find(x=>x.n===n && Math.abs(x.end-c.t)<1e-6); if(prev){ prev.end=c.t+c.dur; } else notes.push({n:n,s:c.t,end:c.t+c.dur}); }));
+    notes.forEach(x=>{ let e=x.end; if(e<T-1e-6){ const nxt=notes.find(y=>y.n===x.n && y.s>x.s); e=Math.min(e+0.8, nxt?nxt.s-0.05:e+0.8); } else e=T+TAIL;
+      ev.push(on(ch,tk(x.s),x.n,68)); ev.push(off(ch,tk(e),x.n)); });
+    const st=Math.min(0.1,C/80); let prev=-1;
+    for(let t=0;t<=T+1e-6;t+=st){ const v=S.lo+(S.hi-S.lo)*Math.pow(amb5PhaseS(piece.sched,t),S.ex||1); const r=Math.round(v); if(r!==prev){ ev.push(cc(ch,tk(t),11,r)); prev=r; } }
+    for(let t=0;t<=TAIL+1e-6;t+=0.1){ const r=Math.round(S.lo*(0.5+0.5*Math.cos(Math.PI*t/TAIL))); if(r!==prev){ ev.push(cc(ch,tk(T+t),11,r)); prev=r; } }
+    tracks.push(track(ev)); }
+  /* ② 저음 드론: 처음부터 끝까지. 첫 두 호흡에 걸쳐 들어오고 아주 얕게 숨쉬다 끝에서 빠짐 */
+  { const ch=AMB5_MIX.drone.ch, ev=head('drone','저음 드론. 으뜸음과 5도를 처음부터 끝까지 한 번에. CC11 은 처음 두 호흡 들어오기, 끝 여운에서 빠지기, 그 사이는 호흡 따라 함께 부풂(84~110)');
+    piece.ev.drone.forEach(d=>{ ev.push(on(ch,tk(d.t),d.midi,64)); ev.push(off(ch,tk(d.t+d.dur),d.midi)); });
+    let prev=-1; const FI=Math.min(2*C,16);
+    for(let t=0;t<=T+TAIL+1e-6;t+=0.2){ let v=84+26*Math.pow(amb5PhaseS(piece.sched,t),S.ex||1);
+      if(t<FI) v*=0.5-0.5*Math.cos(Math.PI*t/FI);
+      if(t>T) v*=0.5+0.5*Math.cos(Math.PI*Math.min(1,(t-T)/TAIL));
+      const r=Math.round(v); if(r!==prev){ ev.push(cc(ch,tk(t),11,r)); prev=r; } }
+    tracks.push(track(ev)); }
+  /* ③ 핸드팬 */
+  { const ch=AMB5_MIX.hp.ch, ev=head('hp','핸드팬. 딩 '+midiNameP(piece.ding)+' 위 음계음만('+piece.hpSet.map(midiNameP).join(' ')+'). 들숨 첫머리와 숨의 꼭대기에 드문드문, 세기 30~52');
+    piece.ev.handpan.forEach(b=>{ ev.push(on(ch,tk(b.t),b.midi,b.vel)); ev.push(off(ch,tk(b.t+Math.min(b.decay,C*0.95)),b.midi)); });
+    tracks.push(track(ev)); }
+  /* ④ 양금 */
+  { const ch=AMB5_MIX.yg.ch, ev=head('yg','양금. 들숨에 오르고 날숨에 내려오는 선율, 두 호흡 노래하고 한두 호흡 쉼. 뒤에 깔리게 세기 36~66, 볼륨 62, 오른쪽');
+    piece.ev.yg.forEach(n=>{ ev.push(on(ch,tk(n.t),n.midi,n.vel)); ev.push(off(ch,tk(n.t+n.dur),n.midi)); });
+    breathCC(ev,ch,70,112);
+    tracks.push(track(ev)); }
+  /* ⑤ 피아노 캐논 + 페달(화음 바뀔 때 갈아 밟기) */
+  { const ch=AMB5_MIX.pn.ch, ev=head('pn','피아노 캐논. 양금을 한 호흡 늦게 한 옥타브 아래에서 따라감(그 자리 화음에 맞춰 고침, 양금과 반음 부딪힘 없음). 세기 28~50, 볼륨 56, 왼쪽. 페달은 화음마다 갈아 밟음');
+    const P=piece.ev.pn; P.forEach(n=>{ ev.push(on(ch,tk(n.t),n.midi,n.vel)); ev.push(off(ch,tk(n.t+n.dur),n.midi)); });
+    breathCC(ev,ch,70,112);
+    if(P.length){ const a=P[0].t, z=P[P.length-1].t+P[P.length-1].dur;
+      piece.slots.forEach(sl=>{ if(sl.t+sl.dur<a || sl.t>z) return; if(sl.t>a) ev.push(cc(ch,tk(sl.t)-12,64,0)); ev.push(cc(ch,tk(Math.max(sl.t,a-0.2))+24,64,100)); });
+      ev.push(cc(ch,tk(z+1.5),64,0)); }
+    tracks.push(track(ev)); }
+  /* 파일 */
+  const hdr=[0x4D,0x54,0x68,0x64,0,0,0,6,0,1,(tracks.length>>8)&255,tracks.length&255,(PPQ>>8)&255,PPQ&255];
+  let bytes=hdr.slice();
+  tracks.forEach(tr=>{ const L=tr.length; bytes=bytes.concat([0x4D,0x54,0x72,0x6B,(L>>24)&255,(L>>16)&255,(L>>8)&255,L&255]); for(let i=0;i<tr.length;i++) bytes.push(tr[i]); });
+  _emittedTracks=null;
+  window.__AMB5=piece;
+  const _u=new Uint8Array(bytes); return (window.__midiSafety?window.__midiSafety(_u):_u);
+}
+function midiNameP(n){ const N=['C','C#','D','E♭','E','F','F#','G','A♭','A','B♭','B']; return N[((n%12)+12)%12]+(Math.floor(n/12)-1); }
+function _amm(x){ x=Math.round(x); return Math.floor(x/60)+':'+String(x%60).padStart(2,'0'); }
+function buildAmb5Sheet(prog){
+  const piece=generatePiece(prog||lastProgForMidi||state.selProg||'amb5');
+  if(!piece||!piece.amb5) return '';
+  const B=piece.B, S=AMB5_SWELL[state.breathInt||'normal']||AMB5_SWELL.normal, L=[];
+  const ks=midiNameP(piece.tonic+60).replace(/-?\d+$/,'')+' 장조 (선율은 장조 5음: 1 2 3 5 6, 단화음 없음)';
+  L.push('[호흡 앰비언트 5트랙] 제작 가이드');
+  L.push('');
+  L.push('호흡   : '+B.name+'  들숨 '+(B.run?B.inB+'걸음':B.in+'초')+' 날숨 '+(B.run?B.outB+'걸음':B.out+'초')+' (한 호흡 '+B.cycle.toFixed(2).replace(/\.00$/,'')+'초)');
+  L.push('길이   : '+piece.N+'호흡 = '+fmtDur(piece.T/60)+' + 마지막 여운 '+Math.round(piece.TAIL)+'초');
+  { const SC=piece.sched, f=x=>x.toFixed(1).replace(/\.0$/,'')+'초';
+    if(SC.nat){ const kE=amb5At(SC,SC.E), kS=amb5At(SC,SC.Ks), N=SC.t.length;
+      L.push('흐름   : 자연스럽게. 사람 숨처럼 들어가고 머물고 가라앉습니다.');
+      L.push('         '+_amm(0)+' ~ '+_amm(SC.t[kE])+' 들어가기: 첫 숨 '+f(SC.d[0])+'에서 '+f(B.cycle)+'까지 천천히 늘어남');
+      L.push('         '+_amm(SC.t[kE])+' ~ '+_amm(SC.t[kS])+' 머물기: '+B.name+' 그대로, 숨마다 2% 안팎으로만 흔들림');
+      L.push('         '+_amm(SC.t[kS])+' ~ '+_amm(SC.T)+' 가라앉기: 숨이 조금씩 길어져 마지막 숨 '+f(SC.d[N-1]));
+      L.push('박자   : '+B.beats+'/4. 한 마디가 한 숨입니다. 숨 길이가 달라지는 만큼 마디마다 템포가 조금씩 바뀝니다(템포 맵, 머물기 구간은 '+B.bpm+'BPM 안팎).');
+      L.push('         앞 두 마디는 편집 여백, 3마디째가 첫 들숨. 로직에서 템포 트랙을 지우거나 바꾸지 마세요.');
+    } else {
+      L.push('흐름   : 정확하게. 처음부터 끝까지 '+f(B.cycle)+' 숨'+(B.run?'(러닝 호흡은 걸음에 묶여 늘 정확하게)':'')+'.');
+      L.push('박자   : '+B.beats+'/4, '+B.bpm+'BPM. 한 마디가 한 호흡입니다(앞 두 마디는 편집 여백, 3마디째가 첫 들숨).'); } }
+  L.push('         들숨은 마디의 1~'+B.inB+'박, 날숨은 '+(B.inB+1)+'~'+B.beats+'박. 로직에서 템포와 박자를 바꾸지 마세요.');
+  L.push('조성   : '+ks+'   진행: '+piece.names.join(' → ')+' (화음 하나 = '+piece.m+'호흡, 늘 들숨 첫머리에서 바뀜, 끝은 으뜸)');
+  L.push('');
+  L.push('■ 트랙 (로직에서 파일 열기 File > Open, 1번은 Conductor)');
+  const rows=[['pad','들숨에 차오르고 날숨에 잦아드는 스웰. CC11 '+S.lo+'↔'+S.hi+' 을 호흡 시간 그대로 그렸습니다. 날숨 끝은 거의 숨만 남고 들숨 끝은 꽉 찹니다(호흡 세기 \'보통\' 기준, \'과하게\'는 4↔127). 음원에서 CC11(Expression)이 볼륨에 걸려 있어야 합니다.'],
+              ['drone','으뜸음 '+midiNameP(piece.drRoot)+' 과 5도. 처음부터 끝까지 한 음. 처음 두 호흡에 들어오고 마지막 여운에서 빠집니다. 호흡 따라 CC11 84~110 으로 함께 부풉니다.'],
+              ['hp','딩 '+midiNameP(piece.ding)+', 음 '+piece.hpSet.map(midiNameP).join(' ')+'. 들숨 첫머리와 숨의 꼭대기에만 드문드문.'],
+              ['yg','들숨에 오르고 날숨에 내려오는 선율. 두 호흡 노래하고 한두 호흡 쉼. 화음음과 반음으로 비비지 않는 음계음만. CC11 70~112 로 호흡 따라 부풉니다.'],
+              ['pn','양금을 한 호흡 늦게, 한 옥타브 아래에서 따라가는 캐논. 그 자리 화음에 맞춰 고쳤고 양금과 반음 부딪힘이 없습니다. 페달은 화음마다 갈아 밟음.']];
+  rows.forEach((r,i)=>{ const R=AMB5_REC[r[0]], X=AMB5_MIX[r[0]];
+    const pan=X.pan===64?'가운데':(X.pan<64?('왼쪽 L'+Math.round((64-X.pan)/64*100)):('오른쪽 R'+Math.round((X.pan-64)/63*100)));
+    L.push('');
+    L.push('▸ 트랙 '+(i+2)+'. '+R.ko+'  ('+R.role+')');
+    L.push('   추천 음원 : '+R.name);
+    L.push('   다른 후보 : '+R.alt.join(' / '));
+    L.push('   고른 이유 : '+R.why);
+    if(r[0]==='pad'||r[0]==='drone') L.push('   고르는 기준: Alchemy 의 Arpeggiated, Rhythmic 분류는 뺐고, 움직임이 드러나는 이름도 뺐습니다. 들어 보고 혹시 스스로 출렁이면 다음 후보로.');
+    L.push('   하는 일   : '+r[1]);
+    L.push('   볼륨 팬   : CC7 '+X.vol+', 팬 '+pan+', 리버브 CC91 '+X.rev+'  (파일에 이미 들어 있음)'); });
+  L.push('');
+  L.push('■ 믹스 (양금과 피아노는 튀지 않고 뒤에 깔리게)');
+  L.push('   크기 순서: 패드 > 드론 > 핸드팬 > 양금 > 피아노. 양금은 오른쪽, 피아노는 왼쪽으로 벌려 서로 가리지 않게.');
+  L.push('   양금 피아노: 리버브 센드를 크게(Mix 50% 안팎), EQ 로 3~5kHz 를 -3dB 낮춰 어택을 둥글게, 필요하면 Low Pass 7kHz.');
+  L.push('   패드 드론: ChromaVerb Dreamy 계열 8~12초 Mix 35%. 드론은 리버브를 적게, 120Hz 아래는 모노.');
+  L.push('   핸드팬: Tape Delay 점4분 피드백 30% 로우컷 300Hz, 리버브 40%.');
+  L.push('   마스터: -16 LUFS 안팎, 리미터는 살짝만(호흡 스웰이 눌리지 않게).');
+  return L.join('\n');
+}
+function amb5Reseed(){ state.amb5Seed=(Math.random()*2147483647)|0; }
+
+/* ── 호흡 앰비언트 바로 만들기 (위 상자) ── 아래 섹션들과 같은 상태를 쓴다(고르면 아래 토글도 같이 바뀜) */
+const AQ_BREATHS=[['basic','기본 1:2'],['relax','이완 2:4'],['deep','명상 4:6'],['equal','균등 4:4'],['coherent','코히런트 5:5'],['longout','긴날숨 4:8'],['run33','🏃 3:3 회복'],['run32','🏃 3:2 일반'],['run22','🏃 2:2 템포'],['run21','🏃 2:1 스퍼트']];   /* 메디의 호흡 전부(러닝 호흡은 걸음 수, 케이던스는 심박 토글: 러닝 170 걷기 100) */
+const AQ_SWELL=[['soft','약하게'],['normal','보통'],['strong','과하게']];
+const AQ_DUR=[5,10,15,20,30];
+const AQ_FLOW=[['natural','자연스럽게 (들어가기, 머물기, 가라앉기)'],['exact','정확하게']];
+function aqEnsure(){
+  if(state.struct!=='amb5') setStruct('amb5');
+  if(!AQ_BREATHS.some(b=>b[0]===state.breath)) setBreath('deep');
+}
+function aqRender(){
+  const box=document.getElementById('aqBox'); if(!box) return;
+  const chip=(id,list,cur,fn)=>{ const el=document.getElementById(id); if(!el) return;
+    el.innerHTML=list.map(x=>{ const v=Array.isArray(x)?x[0]:x, l=Array.isArray(x)?x[1]:(x+'분'); return '<span class="opt-g'+(String(v)===String(cur)?' active':'')+'" onclick="'+fn+'(\''+v+'\')">'+l+'</span>'; }).join(''); };
+  const on=state.struct==='amb5';
+  chip('aqBreath',AQ_BREATHS,on?state.breath:'','aqSetBreath');
+  chip('aqKey',KEYS.map(k=>[k,k]),state.key,'aqSetKey');
+  chip('aqSwell',AQ_SWELL,state.breathInt,'aqSetSwell');
+  chip('aqDur',AQ_DUR,on?state.midiDur:'','aqSetDur');
+  chip('aqFlow',AQ_FLOW,state.amb5Flow||'natural','aqSetFlow');
+  const inf=document.getElementById('aqInfo');
+  if(on && typeof updateDock==='function') try{ updateDock(); }catch(e){}
+  if(inf){ if(!on){ inf.textContent='호흡을 고르면 시작합니다.'; }
+    else { try{ const B=amb5Breath(); inf.textContent='지금 곡: '+B.name+((state.amb5Flow||'natural')==='natural'&&!B.run?' (자연스럽게)':' (정확하게)')+', '+amb5Names('amb5').join(' → ')+' ('+(state.key||'C')+' 장조), '+fmtDur(state.midiDur||10)+'. 🎲 새 곡을 누르면 진행, 선율, 핸드팬이 새로 짜입니다.'; }catch(e){ inf.textContent=''; } } }
+}
+function aqSetBreath(b){ stopBGM(); if(state.struct!=='amb5') setStruct('amb5'); setBreath(b); aqRender(); }
+function aqSetKey(k){ stopBGM(); setKey(k); aqEnsure(); aqRender(); }
+function aqSetSwell(v){ stopBGM(); setBreathInt(v); aqEnsure(); aqRender(); }
+function aqSetDur(d){ stopBGM(); aqEnsure(); setDur(+d); aqRender(); }
+function aqSetFlow(v){ stopBGM(); state.amb5Flow=v; aqEnsure(); aqRender(); }
+function aqNew(){ stopBGM(); aqEnsure(); amb5Reseed(); aqRender(); }
+function aqPlay(btn){ aqEnsure(); aqRender();
+  if(bgmActive){ stopBGM(); return; }
+  playBGM(btn,'amb5'); if(bgmActive){ btn.textContent='⏹ 멈춤'; btn.classList.add('playing'); } }
+function aqMidi(){ stopBGM(); aqEnsure(); aqRender();
+  lastProgForMidi='amb5'; const data=buildAmb5Midi(); if(!data){ alert('만들지 못했습니다.'); return; }
+  const B=amb5Breath(); const fname='BreathAmbient_'+(state.key||'C').replace('\u266d','b')+'_'+B.key+'_'+String(state.midiDur||10)+'min'+(state.amb5Seed?('_'+String(state.amb5Seed%10000)):'')+'.mid';
+  sumSaveModal(data, fname, 'audio/midi');
+  try{ const sh=buildAmb5Sheet('amb5'); if(sh) setTimeout(()=>sumSaveModal(strBytes(window.__L12?window.__L12(sh):sh), fname.replace(/\.mid$/,'_제작가이드.txt'), 'text/plain'), 350); }catch(e){}
+}
+function aqWav(){ stopBGM(); aqEnsure(); aqRender(); exportWav('amb5'); }
+function setStruct(v){ state.struct=v; amb5Reseed();
+  document.querySelectorAll('#structToggle .opt-g').forEach(e=>e.classList.toggle('active',e.dataset.sc===v));
+  const el=document.getElementById('structHint');
+  if(el) el.textContent = v==='amb5' ? '고른 호흡법 하나로: 호흡 패드(스웰이 호흡 그대로), 저음 드론, 핸드팬, 양금 선율, 피아노 캐논 5트랙. 고른 으뜸음의 장조, 단화음 없는 진행, 선율은 장조 5음. 한 마디 = 한 호흡. 길이는 10분부터.' : '';
+  if(v==='amb5' && state.midiDur!==10 && typeof setDur==='function') setDur(10);
+  if(typeof render==='function') render(); if(typeof updateDock==='function') updateDock(); }
+
 function buildMidi(){
+  if(state.struct==='amb5') return buildAmb5Midi();   /* 호흡 앰비언트 5트랙 */
   // 셀렉터 프리셋 반영 시 곡 길이를 프리셋에 맞춤 (명상 Hz만 — 러닝 BPM은 템포 재해석 충돌로 길이 어긋나므로 제외)
   var _durBak=state.midiDur;
   if(sumSpec && sumSpecApply && sumSpec.totalMin && !sumSpec.loop && sumSpec.unit!=='BPM'){
@@ -51251,7 +51725,8 @@ function buildMidi(){
 
   const tracks = [];
   const fxNow = currentFx();
-  const rev = Math.round(Math.min(1, state.space==='auto' ? (fxNow.wet||0.3) : state.space/100*0.55)*127); // 공간감 오버라이드 반영
+  let rev = Math.round(Math.min(1, state.space==='auto' ? (fxNow.wet||0.3) : state.space/100*0.55)*127); // 공간감 오버라이드 반영
+  if(state.space==='auto' && (state.aes==='ambient' || state.purpose==='cosmos')) rev=Math.max(rev,100);   /* ★ 앰비언트는 몽환적으로 (형) */
   // 콘덕터: 4/4 · 60BPM · 루프 마커
   let cond = trackNameMeta('Conductor');
   cond = cond.concat([0x00,0xFF,0x58,0x04, 4,2,24,8]);
@@ -51382,6 +51857,14 @@ function buildMidi(){
     tracks.push(trackNameMeta(baseName).concat(utf8Meta(0x01,memo)).concat(setup).concat(noteEvents(noteArr,ch)));
   }
   // 단일 소스(midiTrackSpec)로 7개 트랙 생성 — buildSongSheet와 정의 공유
+  /* ★ 2026-10-06 핸드팬(Pan Drums II Hang)으로 가는 트랙은 실제 핸드팬 음계, 음역 D3~C5(50~72) 안으로 (형: 음역이 안 맞아 소리가 안 남. 전에는 67~88) */
+  try{ const HPS=[{n:'D Kurd 9',p:[50,57,58,60,62,64,65,67,69]},{n:'E Kurd 9',p:[52,59,60,62,64,66,67,69,71]},{n:'D Celtic Minor 9',p:[50,57,60,62,64,65,67,69,72]},{n:'F Kurd 9',p:[53,60,61,63,65,67,68,70,72]},{n:'C Major 9',p:[52,55,57,59,60,62,64,67,69]}];
+    const pcs=new Array(12).fill(0); chordTrack.forEach(function(e){ if(e.note!=null) pcs[((e.note%12)+12)%12]+=(e.dur||1); });
+    let HP=HPS[0], bs=-1; HPS.forEach(function(h){ const set=[...new Set(h.p.map(function(x){ return x%12; }))]; const s=set.reduce(function(a,c){ return a+pcs[c]; },0)-[...Array(12).keys()].filter(function(c){ return set.indexOf(c)<0; }).reduce(function(a,c){ return a+pcs[c]*0.5; },0); if(s>bs){ bs=s; HP=h; } });
+    const chordAt=function(st){ const S2=new Set(); chordTrack.forEach(function(e){ if(e.note!=null && e.start<=st && e.start+(e.dur||0)>st) S2.add(((e.note%12)+12)%12); }); return S2; };
+    const snap=function(arr){ arr.forEach(function(e){ if(e.note==null) return; const cs=chordAt(e.start); let best=null, bd=1e9; HP.p.forEach(function(q){ const d=Math.abs(q-e.note)%12, dd=Math.min(d,12-d)+(cs.size&&!cs.has(q%12)?6:0)+Math.abs(q-e.note)/48; if(dd<bd){ bd=dd; best=q; } }); e.note=best; }); };
+    snap(hpTrack); if(/Pan Drums/.test(medRec('mel'))) snap(melTrack); if(/Pan Drums/.test(medRec('arp'))) snap(arpTrack);
+    window.__MED_HP=HP.n; }catch(e){ window.__MED_HPERR=String(e); }
   const _noteArrs={chord:chordTrack, bass:bassTrack, mel:melTrack, solo:soloTrack, bell:bellTrack, sing:singTrack, ting:tingTrack, hp:hpTrack, pulse:pulseTrack, cue:cueTrack, arp:arpTrack};
   // Meditation Builder 페이드: 시작 3초 0→볼륨, 끝 10초 볼륨→0 (CC7). 호흡(CC11)과 별개 컨트롤러라 함께 적용됨.
   const FADE_IN=3, FADE_OUT=10, _L=piece.lengthSec;
@@ -51479,8 +51962,8 @@ function buildMidi(){
     var rv=Math.min(127, Math.round(rev*sp.revMul));
     if(sp.vol>0) addFades(arr, sp.vol);   // 뮤트 트랙(볼륨 0)은 페이드 CC7을 넣지 않는다 — 넣으면 소리가 난다
     if(_medCC && sp.key!=='pulse' && sp.key!=='cue') _medCC(arr, sp.key);   /* 우주 궤도 */
-    _emittedTracks.push({key:sp.key, name:midiNameFor(sp), notes:arr.filter(function(x){return x.cc==null;}).length, rev:rv});
-    pushTrack(midiNameFor(sp), sp.memo(rev), chSetup(sp.ch, sp.prog, sp.vol, sp.pan, rv), arr, sp.ch);
+    _emittedTracks.push({key:sp.key, name:medTrackName(sp), notes:arr.filter(function(x){return x.cc==null;}).length, rev:rv});
+    pushTrack(medTrackName(sp), sp.memo(rev), chSetup(sp.ch, sp.prog, sp.vol, sp.pan, rv), arr, sp.ch);
   });
   /* ★ 우주 레이어 트랙 넷 — 로직 패치 이름을 트랙 이름으로 (06 Synthesizers/03 Synth Pads/…) */
   try{
@@ -51583,7 +52066,8 @@ function updateDock(){
   const info=document.getElementById('dockInfo'), fl=document.getElementById('finalProgLabel');
   const lm=document.getElementById('loopMode');
   const durTxt=(typeof fmtDur==='function'?fmtDur(state.midiDur||5):(state.midiDur+'분'))+((lm&&lm.checked)?' · ↻루프':'');
-  const txt=state.selProg ? ('✓ '+state.selProg+' · '+durTxt) : ('진행을 ✓ 선택해 주세요 · '+durTxt);
+  let txt=state.selProg ? ('✓ '+state.selProg+' · '+durTxt) : ('진행을 ✓ 선택해 주세요 · '+durTxt);
+  if(state.struct==='amb5'){ try{ const B=amb5Breath(); txt='🌬 호흡 앰비언트 5트랙, '+B.name+', 장조 진행 '+amb5Names('amb5').join(' → ')+', '+durTxt; }catch(e){} }
   if(info)info.textContent=txt;
   if(fl)fl.textContent=txt;
 }
@@ -51696,6 +52180,7 @@ function sumSaveModal(bytes, fname, mime){
   };
 }
 function exportMidi(prog){
+  if(state.struct==='amb5' && typeof aqMidi==='function'){ aqMidi(); return; }   /* 5트랙은 진행 선택 없이 같은 길로 */
   lastProgForMidi = prog;
   const data = buildMidi();
   if(!data){ alert('추출할 내용이 없습니다. 목적을 먼저 선택해 주세요.'); return; }
@@ -51907,6 +52392,7 @@ function trackSetupBlocks(piece, prog){
     const num=idx+2;                       // 1번은 Conductor
     L.push('▸ 트랙 '+num+'.  '+t.name);
     L.push('   역할       : '+(sp.role||(/^spark/.test(t.key)?'반짝임 층 (화음음 느린 아르페지오, 음마다 좌우를 번갈아)':/^echo/.test(t.key)?'우주 메아리 층 (몇 초 늦게, 반대쪽 먼 곳 한 자리)':(/^layer/.test(t.key)?'우주 층 (주기가 서로 어긋나 도는 패드)':'—')))+'   ('+t.notes+'음)');
+    { const _r=(typeof medRec==='function')?medRec(t.key):''; if(_r) L.push('   ① 추천 음원 : '+_r+'   (트랙 이름 앞부분과 같음'+(/^Kontakt/.test(_r)?', 콘탁에서 엶':(/^Alchemy/.test(_r)?', Alchemy 브라우저에서 검색':', 라이브러리(Y)에서 검색'))+')');  if(/Pan Drums/.test(_r)) L.push('   　핸드팬 음계 : '+(window.__MED_HP||'D Kurd 9')+'  (이 음계의 음만 씀, D3~C5. Pan Drums II 의 Hang Mk.1 음역 안)'); }
     if(g){
       L.push('   ① 음원     : 트랙 선택 → 라이브러리(Y) → 「'+g.path+'」 계열에서 고르기');
       L.push('                찾는 성격: '+g.inst);
@@ -51956,6 +52442,7 @@ function trackSetupBlocks(piece, prog){
 }
 
 function buildSongSheet(prog){
+  if(state.struct==='amb5') return buildAmb5Sheet(prog);
   const piece = generatePiece(prog || lastProgForMidi || '');
   if(!piece) return '';
   var ks=''; try{ const k=midiKeySig(); ks=k.label+(state.key?(' · 본청 '+state.key):''); }catch(e){}
@@ -52329,6 +52816,7 @@ function copyResult(){
   let chordOrScale;
   chordOrScale = "코드("+state.key+"): "+p.chords.map(c=>transposeChord(c,state.key)).join('  |  ');
   const bKey = state.breath==='auto' ? PURPOSE_BREATH[state.purpose] : state.breath;
+  const st = STRUCTURE[state.purpose] || {length:'', steps:[]};   /* ★ 2026-10-06 설계 복사가 st 없음으로 멈추던 것 */
   const b = BREATHS[bKey];
   const aesTxt = state.aes ? `\n에스테틱: ${AESTHETICS[state.aes].name} (${AESTHETICS[state.aes].ref}) — ${AESTHETICS[state.aes].inst} / ${AESTHETICS[state.aes].fx}` : '';
   const t = `[웰니스 명상음악 설계]
@@ -52436,8 +52924,8 @@ function toggleMelody(){ _stopIfPlaying(); state.layersOn.melody = state.layersO
 function syncLayerChips(){
   document.querySelectorAll('#layerToggle .opt').forEach(e=>{ e.classList.toggle('active', state.layersOn[e.dataset.ly]!==false); });
 }
-function nextTake(){ _stopIfPlaying(); state.take=(state.take+1)%9;
-  const el=document.getElementById('takeLabel'); if(el) el.textContent='테이크 '+(state.take+1); updateSoundHint(); }
+function nextTake(){ _stopIfPlaying(); state.take=(state.take+1)%9; if(typeof amb5Reseed==='function') amb5Reseed();
+  const el=document.getElementById('takeLabel'); if(el) el.textContent='테이크 '+(state.take+1); updateSoundHint(); if(typeof updateDock==='function') updateDock(); }
 function updateSoundHint(){
   const el=document.getElementById('soundHint'); if(!el) return;
   const parts=[];
@@ -52588,11 +53076,11 @@ const _lm=document.getElementById('loopMode');
 if(_lm)_lm.onchange=()=>{ if(typeof stopBGM==='function')stopBGM(); updateDock(); };
 function _wireDock(){
   const _dp=document.getElementById('dockPlay'), _ds=document.getElementById('dockStop');
-  if(_dp)_dp.onclick=()=>{ if(!state.selProg){ alert('음악 색에서 진행을 먼저 ✓ 선택해 주세요'); return; } playBGM(_dp, state.selProg); };
+  if(_dp)_dp.onclick=()=>{ if(!state.selProg && state.struct!=='amb5'){ alert('음악 색에서 진행을 먼저 ✓ 선택해 주세요'); return; } playBGM(_dp, state.selProg||'amb5'); };
   if(_ds)_ds.onclick=()=>{ if(typeof stopBGM==='function')stopBGM(); };
   const _dkM=document.getElementById('dockMidi'), _dkW=document.getElementById('dockWav');
-  if(_dkM)_dkM.onclick=()=>{ state.selProg?exportMidi(state.selProg):alert('음악 색에서 진행을 먼저 ✓ 선택해 주세요'); };
-  if(_dkW)_dkW.onclick=()=>{ state.selProg?exportWav(state.selProg):alert('음악 색에서 진행을 먼저 ✓ 선택해 주세요'); };
+  if(_dkM)_dkM.onclick=()=>{ (state.selProg||state.struct==='amb5')?exportMidi(state.selProg||'amb5'):alert('음악 색에서 진행을 먼저 ✓ 선택해 주세요'); };
+  if(_dkW)_dkW.onclick=()=>{ (state.selProg||state.struct==='amb5')?exportWav(state.selProg||'amb5'):alert('음악 색에서 진행을 먼저 ✓ 선택해 주세요'); };
   if(typeof updateDock==='function')updateDock();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_wireDock);
@@ -52707,7 +53195,7 @@ try{
    'selectProg','setBloom','setBreath','setBreathInt','setCue','setDur','setDurCustom',
    'setKey','setMode','setPulse','setRange','setRubato','setScaleType','setTuning',
    'setVoicing','showFxSettings','sumPlayArc','sumStopArc','sumToggleBox',
-   'toggleLayerP','toggleMelody'].forEach(function(n){
+   'toggleLayerP','toggleMelody','setStruct','aqSetBreath','aqSetKey','aqSetSwell','aqSetDur','aqNew','aqPlay','aqMidi','aqWav','aqSetFlow'].forEach(function(n){
     try{ const f=eval(n); if(typeof f==='function') window[n]=f; }catch(e){}
   });
 }catch(e){}
