@@ -2765,12 +2765,19 @@ if(!window.__ccRelease){ window.__ccRelease=function(u8){ try{
       if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
       else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
       else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
-    chunks.push({ev:ev, eot:(eot==null?t:eot)}); }
-  let vmax=0; chunks.forEach(function(c){ if(!c.ev) return; c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7 && e.d[1]>vmax) vmax=e.d[1]; }); });
+    const k7=ev.some(function(e){ return e.meta===0x7F && e.dat.length===4 && String.fromCharCode.apply(null,e.dat)==='SOK7'; });   /* 숨 볼륨 트랙: CC7 이 숨 따라 움직이는 것을 그대로 둔다 */
+    chunks.push({ev:ev, eot:(eot==null?t:eot), k7:k7}); }
+  let vmax=0; chunks.forEach(function(c){ if(!c.ev) return; let seen=false; c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7){ if(c.k7 && seen) return; seen=true; if(e.d[1]>vmax) vmax=e.d[1]; } }); });
   if(!vmax) return u8;
   let changed=0; const table=[];
   chunks.forEach(function(c){ if(!c.ev) return;
     const c7=c.ev.filter(function(e){ return e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7; }); if(!c7.length) return;
+    if(c.k7){ const h7=c7[0], vt7=h7.d[1]; changed++; const out7=c.ev.filter(function(e){ return e!==h7 && !(e.meta===0x7F); });   /* 첫 CC7(트랙 크기)만 Gain 으로, 숨 따라 움직이는 CC7 은 그대로 */
+      const db7=Math.round(2*40*Math.log10(vt7/vmax))/2; const nmE7=out7.find(function(e){ return e.meta===0x03; });
+      let nm7=''; if(nmE7){ try{ nm7=decodeURIComponent(escape(String.fromCharCode.apply(null,nmE7.dat))); }catch(_){ nm7=String.fromCharCode.apply(null,nmE7.dat); } }
+      table.push({name:nm7, db:db7});
+      if(nmE7 && db7<=-0.5){ const tag=' [Gain '+String(db7)+'dB]'; const nb=nmE7.dat.concat(tag.split('').map(function(ch){ return ch.charCodeAt(0); })); nmE7.raw=[0xFF,0x03].concat(vlq(nb.length)).concat(nb); }
+      c.ev=out7; return; }
     if(c7.every(function(e){ return e.d[1]===0; })) return;   /* 뮤트 층 */
     const vt=Math.max.apply(null,c7.map(function(e){ return e.d[1]; }));
     const moving=c7.some(function(e){ return e.d[1]!==vt; });
@@ -6829,12 +6836,19 @@ if(!window.__ccRelease){ window.__ccRelease=function(u8){ try{
       if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
       else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
       else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
-    chunks.push({ev:ev, eot:(eot==null?t:eot)}); }
-  let vmax=0; chunks.forEach(function(c){ if(!c.ev) return; c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7 && e.d[1]>vmax) vmax=e.d[1]; }); });
+    const k7=ev.some(function(e){ return e.meta===0x7F && e.dat.length===4 && String.fromCharCode.apply(null,e.dat)==='SOK7'; });   /* 숨 볼륨 트랙: CC7 이 숨 따라 움직이는 것을 그대로 둔다 */
+    chunks.push({ev:ev, eot:(eot==null?t:eot), k7:k7}); }
+  let vmax=0; chunks.forEach(function(c){ if(!c.ev) return; let seen=false; c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7){ if(c.k7 && seen) return; seen=true; if(e.d[1]>vmax) vmax=e.d[1]; } }); });
   if(!vmax) return u8;
   let changed=0; const table=[];
   chunks.forEach(function(c){ if(!c.ev) return;
     const c7=c.ev.filter(function(e){ return e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7; }); if(!c7.length) return;
+    if(c.k7){ const h7=c7[0], vt7=h7.d[1]; changed++; const out7=c.ev.filter(function(e){ return e!==h7 && !(e.meta===0x7F); });   /* 첫 CC7(트랙 크기)만 Gain 으로, 숨 따라 움직이는 CC7 은 그대로 */
+      const db7=Math.round(2*40*Math.log10(vt7/vmax))/2; const nmE7=out7.find(function(e){ return e.meta===0x03; });
+      let nm7=''; if(nmE7){ try{ nm7=decodeURIComponent(escape(String.fromCharCode.apply(null,nmE7.dat))); }catch(_){ nm7=String.fromCharCode.apply(null,nmE7.dat); } }
+      table.push({name:nm7, db:db7});
+      if(nmE7 && db7<=-0.5){ const tag=' [Gain '+String(db7)+'dB]'; const nb=nmE7.dat.concat(tag.split('').map(function(ch){ return ch.charCodeAt(0); })); nmE7.raw=[0xFF,0x03].concat(vlq(nb.length)).concat(nb); }
+      c.ev=out7; return; }
     if(c7.every(function(e){ return e.d[1]===0; })) return;   /* 뮤트 층 */
     const vt=Math.max.apply(null,c7.map(function(e){ return e.d[1]; }));
     const moving=c7.some(function(e){ return e.d[1]!==vt; });
@@ -14800,12 +14814,19 @@ if(!window.__ccRelease){ window.__ccRelease=function(u8){ try{
       if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
       else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
       else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
-    chunks.push({ev:ev, eot:(eot==null?t:eot)}); }
-  let vmax=0; chunks.forEach(function(c){ if(!c.ev) return; c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7 && e.d[1]>vmax) vmax=e.d[1]; }); });
+    const k7=ev.some(function(e){ return e.meta===0x7F && e.dat.length===4 && String.fromCharCode.apply(null,e.dat)==='SOK7'; });   /* 숨 볼륨 트랙: CC7 이 숨 따라 움직이는 것을 그대로 둔다 */
+    chunks.push({ev:ev, eot:(eot==null?t:eot), k7:k7}); }
+  let vmax=0; chunks.forEach(function(c){ if(!c.ev) return; let seen=false; c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7){ if(c.k7 && seen) return; seen=true; if(e.d[1]>vmax) vmax=e.d[1]; } }); });
   if(!vmax) return u8;
   let changed=0; const table=[];
   chunks.forEach(function(c){ if(!c.ev) return;
     const c7=c.ev.filter(function(e){ return e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7; }); if(!c7.length) return;
+    if(c.k7){ const h7=c7[0], vt7=h7.d[1]; changed++; const out7=c.ev.filter(function(e){ return e!==h7 && !(e.meta===0x7F); });   /* 첫 CC7(트랙 크기)만 Gain 으로, 숨 따라 움직이는 CC7 은 그대로 */
+      const db7=Math.round(2*40*Math.log10(vt7/vmax))/2; const nmE7=out7.find(function(e){ return e.meta===0x03; });
+      let nm7=''; if(nmE7){ try{ nm7=decodeURIComponent(escape(String.fromCharCode.apply(null,nmE7.dat))); }catch(_){ nm7=String.fromCharCode.apply(null,nmE7.dat); } }
+      table.push({name:nm7, db:db7});
+      if(nmE7 && db7<=-0.5){ const tag=' [Gain '+String(db7)+'dB]'; const nb=nmE7.dat.concat(tag.split('').map(function(ch){ return ch.charCodeAt(0); })); nmE7.raw=[0xFF,0x03].concat(vlq(nb.length)).concat(nb); }
+      c.ev=out7; return; }
     if(c7.every(function(e){ return e.d[1]===0; })) return;   /* 뮤트 층 */
     const vt=Math.max.apply(null,c7.map(function(e){ return e.d[1]; }));
     const moving=c7.some(function(e){ return e.d[1]!==vt; });
@@ -24193,12 +24214,19 @@ if(!window.__ccRelease){ window.__ccRelease=function(u8){ try{
       if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
       else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
       else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
-    chunks.push({ev:ev, eot:(eot==null?t:eot)}); }
-  let vmax=0; chunks.forEach(function(c){ if(!c.ev) return; c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7 && e.d[1]>vmax) vmax=e.d[1]; }); });
+    const k7=ev.some(function(e){ return e.meta===0x7F && e.dat.length===4 && String.fromCharCode.apply(null,e.dat)==='SOK7'; });   /* 숨 볼륨 트랙: CC7 이 숨 따라 움직이는 것을 그대로 둔다 */
+    chunks.push({ev:ev, eot:(eot==null?t:eot), k7:k7}); }
+  let vmax=0; chunks.forEach(function(c){ if(!c.ev) return; let seen=false; c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7){ if(c.k7 && seen) return; seen=true; if(e.d[1]>vmax) vmax=e.d[1]; } }); });
   if(!vmax) return u8;
   let changed=0; const table=[];
   chunks.forEach(function(c){ if(!c.ev) return;
     const c7=c.ev.filter(function(e){ return e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7; }); if(!c7.length) return;
+    if(c.k7){ const h7=c7[0], vt7=h7.d[1]; changed++; const out7=c.ev.filter(function(e){ return e!==h7 && !(e.meta===0x7F); });   /* 첫 CC7(트랙 크기)만 Gain 으로, 숨 따라 움직이는 CC7 은 그대로 */
+      const db7=Math.round(2*40*Math.log10(vt7/vmax))/2; const nmE7=out7.find(function(e){ return e.meta===0x03; });
+      let nm7=''; if(nmE7){ try{ nm7=decodeURIComponent(escape(String.fromCharCode.apply(null,nmE7.dat))); }catch(_){ nm7=String.fromCharCode.apply(null,nmE7.dat); } }
+      table.push({name:nm7, db:db7});
+      if(nmE7 && db7<=-0.5){ const tag=' [Gain '+String(db7)+'dB]'; const nb=nmE7.dat.concat(tag.split('').map(function(ch){ return ch.charCodeAt(0); })); nmE7.raw=[0xFF,0x03].concat(vlq(nb.length)).concat(nb); }
+      c.ev=out7; return; }
     if(c7.every(function(e){ return e.d[1]===0; })) return;   /* 뮤트 층 */
     const vt=Math.max.apply(null,c7.map(function(e){ return e.d[1]; }));
     const moving=c7.some(function(e){ return e.d[1]!==vt; });
@@ -49839,12 +49867,19 @@ if(!window.__ccRelease){ window.__ccRelease=function(u8){ try{
       if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
       else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
       else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
-    chunks.push({ev:ev, eot:(eot==null?t:eot)}); }
-  let vmax=0; chunks.forEach(function(c){ if(!c.ev) return; c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7 && e.d[1]>vmax) vmax=e.d[1]; }); });
+    const k7=ev.some(function(e){ return e.meta===0x7F && e.dat.length===4 && String.fromCharCode.apply(null,e.dat)==='SOK7'; });   /* 숨 볼륨 트랙: CC7 이 숨 따라 움직이는 것을 그대로 둔다 */
+    chunks.push({ev:ev, eot:(eot==null?t:eot), k7:k7}); }
+  let vmax=0; chunks.forEach(function(c){ if(!c.ev) return; let seen=false; c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7){ if(c.k7 && seen) return; seen=true; if(e.d[1]>vmax) vmax=e.d[1]; } }); });
   if(!vmax) return u8;
   let changed=0; const table=[];
   chunks.forEach(function(c){ if(!c.ev) return;
     const c7=c.ev.filter(function(e){ return e.s!=null && (e.s&0xF0)===0xB0 && e.d[0]===7; }); if(!c7.length) return;
+    if(c.k7){ const h7=c7[0], vt7=h7.d[1]; changed++; const out7=c.ev.filter(function(e){ return e!==h7 && !(e.meta===0x7F); });   /* 첫 CC7(트랙 크기)만 Gain 으로, 숨 따라 움직이는 CC7 은 그대로 */
+      const db7=Math.round(2*40*Math.log10(vt7/vmax))/2; const nmE7=out7.find(function(e){ return e.meta===0x03; });
+      let nm7=''; if(nmE7){ try{ nm7=decodeURIComponent(escape(String.fromCharCode.apply(null,nmE7.dat))); }catch(_){ nm7=String.fromCharCode.apply(null,nmE7.dat); } }
+      table.push({name:nm7, db:db7});
+      if(nmE7 && db7<=-0.5){ const tag=' [Gain '+String(db7)+'dB]'; const nb=nmE7.dat.concat(tag.split('').map(function(ch){ return ch.charCodeAt(0); })); nmE7.raw=[0xFF,0x03].concat(vlq(nb.length)).concat(nb); }
+      c.ev=out7; return; }
     if(c7.every(function(e){ return e.d[1]===0; })) return;   /* 뮤트 층 */
     const vt=Math.max.apply(null,c7.map(function(e){ return e.d[1]; }));
     const moving=c7.some(function(e){ return e.d[1]!==vt; });
@@ -53522,6 +53557,11 @@ const AMB5_REC={
 /* ★ 2026-10-10 형: 드론과 호흡 패드가 너무 큼 → 패드 100→75(-5dB), 드론 90→60(-7dB). 손으로 치는 핸드팬이 앞, 패드와 드론은 바닥에 깔리게 */
 /* 셈여림(CC1) 숨 범위: 날숨 끝 pp, 들숨 끝 mf 안팎(현 합창 음원의 셈여림 휠) */
 const AMB5_DYN={soft:[30,70], normal:[20,85], strong:[12,100]};
+/* 호흡 패드 볼륨(CC7 = 로직 페이더) 숨 범위: 들숨 끝 90(0dB), 날숨 끝은 스웰 세기대로 */
+const AMB5_VOL7={off:[90,90], soft:[78,90], normal:[62,90], strong:[48,90]};
+/* 로직 페이더: CC7 90 = 0dB, dB 는 40 log10(v/90) 꼴(127 이 +6dB). 패드 크기(가장 큰 트랙 대비 dB)를 곡선에 곱한다 */
+function amb5Vol7(){ const V=AMB5_VOL7[state.breathInt||'normal']||AMB5_VOL7.normal; const vmax=Math.max.apply(null,['pad','drone','hp','yg','pn','ting'].map(function(k){ return AMB5_MIX[k].vol; }));
+  const g=AMB5_MIX.pad.vol/vmax, db=Math.round(2*40*Math.log10(g))/2; return {lo:Math.round(V[0]*g), hi:Math.round(V[1]*g), vmax:vmax, db:db}; }
 function amb5DynR(){ const D=AMB5_DYN[state.breathInt||'normal']||AMB5_DYN.normal, f=amb5Char().dynHi; return [D[0], Math.max(D[0]+10, Math.min(110, Math.round(D[0]+(D[1]-D[0])*f)))]; }   /* 분류 성격으로 상한만 */
 const AMB5_MIX={pad:{vol:54,pan:64,rev:80,ch:0,prog:89}, drone:{vol:60,pan:64,rev:40,ch:1,prog:42},
                 hp:{vol:80,pan:56,rev:95,ch:2,prog:114}, yg:{vol:62,pan:92,rev:108,ch:3,prog:15}, pn:{vol:56,pan:36,rev:108,ch:4,prog:0},
@@ -53865,7 +53905,7 @@ function buildAmb5Midi(){
   /* 양금 피아노도 호흡 따라 함께 부풀게(70~112): 들숨 끝에 치는 꼭대기 음이 가장 크게 들린다 */
   function breathCC(ev,ch,lo,hi){ let prev=-1; for(let t=0;t<=T+TAIL+1e-6;t+=0.1){ const r=Math.round(lo+(hi-lo)*Math.pow(amb5PhaseS(piece.sched,t),S.ex||1)); if(r!==prev){ ev.push(cc(ch,tk(t),11,r)); prev=r; } } }
   /* ① 호흡 패드: 같은 음은 이어 붙이고, 바뀌는 음만 다음 들숨 위로 0.8초 겹쳐 스며들게 */
-  { const ch=AMB5_MIX.pad.ch, ev=head('pad','호흡 패드. CC11 이 '+B.name+' 그대로: 들숨 '+B.in.toFixed(2)+'초 동안 '+SP.lo+'→'+SP.hi+(B.h1?', 멈춤 '+B.h1+'초 꼭대기 그대로':'')+', 날숨 '+B.out.toFixed(2)+'초 동안 '+SP.hi+'→'+SP.lo+(B.h2?', 멈춤 '+B.h2+'초 바닥 그대로':'')+(SC.flatFrom!=null?'. '+_amm(SC.flatFrom)+' 부터 고른 소리':'')+'. 화음은 늘 들숨 첫머리에서 바뀜');
+  { const ch=AMB5_MIX.pad.ch, ev=head('pad','호흡 패드. CC11(스웰)과 CC7(볼륨, 페이더)이 '+B.name+' 그대로: 들숨 '+B.in.toFixed(2)+'초 동안 '+SP.lo+'→'+SP.hi+(B.h1?', 멈춤 '+B.h1+'초 꼭대기 그대로':'')+', 날숨 '+B.out.toFixed(2)+'초 동안 '+SP.hi+'→'+SP.lo+(B.h2?', 멈춤 '+B.h2+'초 바닥 그대로':'')+(SC.flatFrom!=null?'. '+_amm(SC.flatFrom)+' 부터 고른 소리':'')+'. 화음은 늘 들숨 첫머리에서 바뀜');
     const sl=piece.ev.chords, notes=[];
     sl.forEach((c,i)=>c.notes.forEach(n=>{ const prev=notes.find(x=>x.n===n && Math.abs(x.end-c.t)<1e-6); if(prev){ prev.end=c.t+c.dur; } else notes.push({n:n,s:c.t,end:c.t+c.dur}); }));
     notes.forEach(x=>{ let e=x.end; if(e<T-1e-6){ const nxt=notes.find(y=>y.n===x.n && y.s>x.s); e=Math.min(e+0.8, nxt?nxt.s-0.05:e+0.8); } else e=T+TAIL;
@@ -53873,6 +53913,12 @@ function buildAmb5Midi(){
     const st=Math.min(0.1,C/80); let prev=-1;
     for(let t=0;t<=T+1e-6;t+=st){ const v=SP.lo+(SP.hi-SP.lo)*Math.pow(amb5PhaseS(piece.sched,t),SP.ex||1); const r=Math.round(v); if(r!==prev){ ev.push(cc(ch,tk(t),11,r)); prev=r; } }
     for(let t=0;t<=TAIL+1e-6;t+=0.1){ const r=Math.round(SP.lo*(0.5+0.5*Math.cos(Math.PI*t/TAIL))); if(r!==prev){ ev.push(cc(ch,tk(T+t),11,r)); prev=r; } }
+    /* ★ 2026-10-14 형: 스웰(CC11)만으로는 숨이 안 느껴짐 → 볼륨(CC7, 로직 페이더)도 숨 따라. 첫 CC7(트랙 크기)은 Gain 으로 가고 이 곡선은 남는다(SOK7 표시) */
+    /* ★ 형: 패드 크기도 이 곡선 안에(Gain 플러그인 없이). 첫 CC7 을 가장 큰 트랙 값으로 두어 Gain 표시가 안 붙게 하고, 곡선은 크기 비율 g 만큼 낮춘다 */
+    { const V=amb5Vol7(); let pv=-1; ev.push({t:0,o:1,b:[0xFF,0x7F,0x04,0x53,0x4F,0x4B,0x37]});
+      ev.forEach(function(e){ if(e.b[0]===(0xB0|ch) && e.b[1]===7 && e.t===0 && e.o===3) e.b[2]=V.vmax; });
+      for(let t=0;t<=T+1e-6;t+=st){ const r=Math.round(V.lo+(V.hi-V.lo)*Math.pow(amb5PhaseS(piece.sched,t),SP.ex||1)); if(r!==pv){ ev.push(cc(ch,tk(t),7,r)); pv=r; } }
+      ev.push(cc(ch,tk(T+TAIL),7,V.hi)); }   /* 끝나면 패드 크기 그대로 */
     /* ★ 2026-10-07 선택: 밝기(모듈레이션 휠 CC1)도 숨 따라. 들숨 끝에 고음이 열리고 날숨에 닫힘. 휠이 필터나 밝기에 걸린 프리셋에서만 들린다 */
     if(state.amb5Bright==='breath'){ let pv=-1; const D=amb5DynR();
       for(let t=0;t<=T+1e-6;t+=st){ const r=Math.round(D[0]+(D[1]-D[0])*Math.pow(amb5PhaseS(piece.sched,t),S.ex||1)); if(r!==pv){ ev.push(cc(ch,tk(t),1,r)); pv=r; } }
@@ -53977,11 +54023,11 @@ function buildAmb5Sheet(prog){
     L.push('   고른 이유 : '+R.why);
     if(r[0]==='pad') L.push('   고르는 기준: 형이 고른 결, LFO 없이 부드러운 신스. 이름에 움직임(Swell Drift Waves Motion Flutter Pulse)이 드러나는 것은 뺐습니다.');
     if(r[0]==='pad') L.push('   울렁이면  : Alchemy 창 Advanced 의 LFO Depth 를 0, Unison Detune 을 줄이면 숨 스웰만 남습니다. 모듈레이션 휠(CC1)은 파일에 넣지 않았습니다(신스에서 비브라토가 되기 쉬움).');
-    if(r[0]==='pad') L.push('   안 오르내리면: 그 음원이 CC11 을 안 받는 것입니다. 이 트랙 MIDI FX 에 Modifier 를 넣고 Input 11, Remap 7 로 두면 숨이 볼륨으로 걸립니다.');
+    if(r[0]==='pad'){ const V=amb5Vol7(); L.push('   볼륨      : 숨 따라 부풀고 줄어드는 것은 파일에 다 들어 있습니다. 페이더(CC7)가 '+V.lo+'↔'+V.hi+' 로 숨 따라 움직이고(들숨 끝 '+V.hi+' 이 약 '+V.db+'dB, 날숨 끝 '+V.lo+'), 스웰(CC11)도 함께 오르내립니다. 패드 크기도 이 곡선 안에 넣어 두어 Gain 플러그인은 넣지 않습니다(그래서 이름 끝에 [Gain] 이 없습니다).'); }
     if(r[0]==='drone') L.push('   고르는 기준: 실제로 긋는 낮은 현. 신스처럼 스스로 출렁이는 것이 없습니다.');
     if(r[0]==='drone') L.push('   음원 설정 : 아티큘레이션은 긴 음(Sustain, Long). 레가토는 끄기(으뜸음과 5도가 함께 울려야 함). 비브라토 조절이 있는 음원이면 낮게.');
     L.push('   하는 일   : '+r[1]);
-    { const _vm=Math.max.apply(null,rows.map(function(q){ return AMB5_MIX[q[0]].vol; })); const _g=Math.round(2*40*Math.log10(X.vol/_vm))/2; L.push('   게인 팬   : Gain 플러그인 '+(_g<=-0.5?String(_g)+'dB':'0dB (가장 큰 트랙)')+' (트랙 이름 끝 [Gain] 과 같음), 페이더는 0dB 에서 자유. '+(r[0]==='cue'?(B.tech==='right'?'팬은 CC10 오른쪽(112)':'팬은 음마다 CC10 으로 왼쪽(16) 오른쪽(112)')+', 로직 팬 노브는 건드리지 마세요':'팬 '+pan+' (CC10)')); }
+    { const _vm=Math.max.apply(null,rows.map(function(q){ return AMB5_MIX[q[0]].vol; })); const _g=Math.round(2*40*Math.log10(X.vol/_vm))/2; L.push('   게인 팬   : '+(r[0]==='pad'?'Gain 플러그인 없음(크기 '+String(_g)+'dB 는 숨 볼륨 곡선 안에), 페이더는 숨이 씀. ':'Gain 플러그인 '+(_g<=-0.5?String(_g)+'dB':'0dB (가장 큰 트랙)')+' (트랙 이름 끝 [Gain] 과 같음), 페이더는 0dB 에서 자유. ')+(r[0]==='cue'?(B.tech==='right'?'팬은 CC10 오른쪽(112)':'팬은 음마다 CC10 으로 왼쪽(16) 오른쪽(112)')+', 로직 팬 노브는 건드리지 마세요':'팬 '+pan+' (CC10)')); }
     L.push('   리버브    : 로직 Sends 에서 센드 약 '+Math.round(X.rev/127*55)+'%. 파일 안 CC91('+X.rev+')은 GM 음원용 참고값이라 로직 센드에는 걸리지 않습니다.');
     if(r[0]==='pad' && state.amb5Bright==='breath'){ const D=amb5DynR(); L.push('   셈여림    : 모듈레이션 휠(CC1) '+D[0]+'↔'+D[1]+' 을 숨 따라 그렸습니다. 현과 합창 음원은 휠이 셈여림이라 들숨 끝에 활이 더 깊어져 소리 결이 밝아지고, 날숨 끝은 여린 결로 돌아옵니다(크기는 CC11). 휠이 비브라토에 걸린 음원이면 위 상자에서 셈여림을 끄세요.'); }
     if(r[0]==='drone') L.push('   셈여림    : 모듈레이션 휠(CC1) 28↔42, 낮은 현은 여리게(pp~p) 숨 따라 조금만.');
