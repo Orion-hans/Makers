@@ -53560,8 +53560,11 @@ const AMB5_DYN={soft:[30,70], normal:[20,85], strong:[12,100]};
 /* 호흡 패드 볼륨(CC7 = 로직 페이더) 숨 범위: 들숨 끝 90(0dB), 날숨 끝은 스웰 세기대로 */
 const AMB5_VOL7={off:[90,90], soft:[78,90], normal:[62,90], strong:[48,90]};
 /* 로직 페이더: CC7 90 = 0dB, dB 는 40 log10(v/90) 꼴(127 이 +6dB). 패드 크기(가장 큰 트랙 대비 dB)를 곡선에 곱한다 */
-function amb5Vol7(){ const V=AMB5_VOL7[state.breathInt||'normal']||AMB5_VOL7.normal; const vmax=Math.max.apply(null,['pad','drone','hp','yg','pn','ting'].map(function(k){ return AMB5_MIX[k].vol; }));
-  const g=AMB5_MIX.pad.vol/vmax, db=Math.round(2*40*Math.log10(g))/2; return {lo:Math.round(V[0]*g), hi:Math.round(V[1]*g), vmax:vmax, db:db}; }
+/* 저음 드론: 바닥이라 패드보다 얕게(스웰 CC11 도 드론 표) */
+const AMB5_VOL7D={off:[90,90], soft:[82,90], normal:[72,90], strong:[62,90]};
+const AMB5_SW11D={off:[100,100], soft:[88,110], normal:[72,110], strong:[58,112]};
+function amb5Vol7(key){ key=key||'pad'; const T7=(key==='drone')?AMB5_VOL7D:AMB5_VOL7; const V=T7[state.breathInt||'normal']||T7.normal; const vmax=Math.max.apply(null,['pad','drone','hp','yg','pn','ting'].map(function(k){ return AMB5_MIX[k].vol; }));
+  const g=AMB5_MIX[key].vol/vmax, db=Math.round(2*40*Math.log10(g))/2; return {lo:Math.round(V[0]*g), hi:Math.round(V[1]*g), vmax:vmax, db:db}; }
 function amb5DynR(){ const D=AMB5_DYN[state.breathInt||'normal']||AMB5_DYN.normal, f=amb5Char().dynHi; return [D[0], Math.max(D[0]+10, Math.min(110, Math.round(D[0]+(D[1]-D[0])*f)))]; }   /* 분류 성격으로 상한만 */
 const AMB5_MIX={pad:{vol:54,pan:64,rev:80,ch:0,prog:89}, drone:{vol:60,pan:64,rev:40,ch:1,prog:42},
                 hp:{vol:80,pan:56,rev:95,ch:2,prog:114}, yg:{vol:62,pan:92,rev:108,ch:3,prog:15}, pn:{vol:56,pan:36,rev:108,ch:4,prog:0},
@@ -53925,14 +53928,20 @@ function buildAmb5Midi(){
       for(let t=0;t<=TAIL+1e-6;t+=0.2){ const r=Math.round(D[0]*(0.5+0.5*Math.cos(Math.PI*t/TAIL))); if(r!==pv){ ev.push(cc(ch,tk(T+t),1,r)); pv=r; } } }
     tracks.push(track(ev)); }
   /* ② 저음 드론: 처음부터 끝까지. 첫 두 호흡에 걸쳐 들어오고 아주 얕게 숨쉬다 끝에서 빠짐 */
-  { const ch=AMB5_MIX.drone.ch, ev=head('drone','저음 드론. 으뜸음과 5도를 처음부터 끝까지(들숨 첫머리에서 활만 바꿈). CC1 셈여림 28~42. CC11 은 처음 두 호흡 들어오기, 끝 여운에서 빠지기, 그 사이는 호흡 따라 함께 부풂(84~110)');
+  { const ch=AMB5_MIX.drone.ch, ev=head('drone','저음 드론. 으뜸음과 5도를 처음부터 끝까지(들숨 첫머리에서 활만 바꿈). CC1 셈여림 28~42. CC11(스웰)은 처음 두 호흡 들어오기, 끝 여운에서 빠지기, 그 사이는 호흡 따라 부풂('+(AMB5_SW11D[state.breathInt||'normal']||AMB5_SW11D.normal).join('~')+'). CC7(볼륨, 페이더)도 숨 따라, 드론 크기도 그 안에');
     piece.ev.drone.forEach(d=>{ amb5Bows(SC,d.t,d.t+d.dur).forEach(function(w){ ev.push(on(ch,tk(w[0]),d.midi,64)); ev.push(off(ch,tk(w[1]),d.midi)); }); });
     let prev=-1; const FI=Math.min(2*C,16);
-    for(let t=0;t<=T+TAIL+1e-6;t+=0.2){ let v=84+26*Math.pow(amb5PhaseS(piece.sched,t),S.ex||1);
+    const W=AMB5_SW11D[state.breathInt||'normal']||AMB5_SW11D.normal;
+    for(let t=0;t<=T+TAIL+1e-6;t+=0.2){ let v=W[0]+(W[1]-W[0])*Math.pow(amb5PhaseS(piece.sched,t),S.ex||1);
       if(t<FI) v*=0.5-0.5*Math.cos(Math.PI*t/FI);
       if(t>T) v*=0.5+0.5*Math.cos(Math.PI*Math.min(1,(t-T)/TAIL));
       const r=Math.round(v); if(r!==prev){ ev.push(cc(ch,tk(t),11,r)); prev=r; } }
     { let pv=-1; for(let t=0;t<=T+1e-6;t+=0.2){ const r=Math.round(28+14*Math.pow(amb5PhaseS(piece.sched,t),S.ex||1)); if(r!==pv){ ev.push(cc(ch,tk(t),1,r)); pv=r; } } }   /* 낮은 현은 여리게(pp~p) 숨 따라 조금만 */
+    /* ★ 형: 드론도 스웰과 볼륨 둘 다. 패드와 같은 방식(SOK7, 크기는 곡선 안에, Gain 없이) */
+    { const V=amb5Vol7('drone'); let pv=-1; ev.push({t:0,o:1,b:[0xFF,0x7F,0x04,0x53,0x4F,0x4B,0x37]});
+      ev.forEach(function(e){ if(e.b[0]===(0xB0|ch) && e.b[1]===7 && e.t===0 && e.o===3) e.b[2]=V.vmax; });
+      for(let t=0;t<=T+1e-6;t+=0.2){ const r=Math.round(V.lo+(V.hi-V.lo)*Math.pow(amb5PhaseS(piece.sched,t),S.ex||1)); if(r!==pv){ ev.push(cc(ch,tk(t),7,r)); pv=r; } }
+      ev.push(cc(ch,tk(T+TAIL),7,V.hi)); }
     tracks.push(track(ev)); }
   /* ③ 핸드팬 */
   { const ch=AMB5_MIX.hp.ch, ev=head('hp','핸드팬. 딩 '+midiNameP(piece.ding)+' 위 음계음만('+piece.hpSet.map(midiNameP).join(' ')+'). 들숨 첫머리와 숨의 꼭대기에 드문드문, 세기 30~52');
@@ -54008,7 +54017,7 @@ function buildAmb5Sheet(prog){
   L.push('');
   L.push('■ 트랙 (로직에서 파일 열기 File > Open, 1번은 Conductor)');
   const rows=[['pad','들숨에 차오르고 날숨에 잦아드는 스웰. CC11 '+SP.lo+'↔'+SP.hi+' 을 호흡 시간 그대로 그렸습니다(트랙 크기는 따로 Gain 줄). 날숨 끝은 거의 숨만 남고 들숨 끝은 차오릅니다(약하게 36↔88, 보통 14↔100, 과하게 4↔115).'+(B.h1>0?' 들숨 뒤 멈춤 '+B.h1B+'초 동안은 꼭대기 그대로':'')+(B.h2>0?', 날숨 뒤 멈춤 '+B.h2B+'초 동안은 바닥 그대로':'')+((B.h1>0||B.h2>0)?'.':'')+(piece.sched.sighS>0?' 앞 한숨 숨은 짧게 두 번 부풉니다.':'')+(piece.sched.flatFrom!=null?' '+_amm(piece.sched.flatFrom)+' 안내 끝부터는 중간 높이로 고르게 머뭅니다.':'')+' 음원에서 CC11(Expression)이 볼륨에 걸려 있어야 합니다.'],
-              ['drone','으뜸음 '+midiNameP(piece.drRoot)+' 과 5도. 처음부터 끝까지 같은 두 음(들숨 첫머리에서 활만 바꿈). 처음 두 호흡에 들어오고 마지막 여운에서 빠집니다. 호흡 따라 CC11 84~110 으로 함께 부풉니다.'],
+              ['drone','으뜸음 '+midiNameP(piece.drRoot)+' 과 5도. 처음부터 끝까지 같은 두 음(들숨 첫머리에서 활만 바꿈). 처음 두 호흡에 들어오고 마지막 여운에서 빠집니다. 호흡 따라 스웰(CC11 '+(AMB5_SW11D[state.breathInt||'normal']||AMB5_SW11D.normal).join('~')+')과 볼륨(CC7)이 함께 부풉니다.'],
               ['hp','딩 '+midiNameP(piece.ding)+', 음 '+piece.hpSet.map(midiNameP).join(' ')+'. 들숨 첫머리와 숨의 꼭대기에만 드문드문.'],
               ['yg','들숨에 오르고 날숨에 내려오는 선율. 두 호흡 노래하고 한두 호흡 쉼. 화음음과 반음으로 비비지 않는 음계음만. CC11 70~112 로 호흡 따라 부풉니다.'],
               ['pn','양금을 한 호흡 늦게, 한 옥타브 아래에서 따라가는 캐논. 그 자리 화음에 맞춰 고쳤고 양금과 반음 부딪힘이 없습니다. 페달은 화음마다 갈아 밟음.']];
@@ -54027,9 +54036,10 @@ function buildAmb5Sheet(prog){
     if(r[0]==='drone') L.push('   고르는 기준: 실제로 긋는 낮은 현. 신스처럼 스스로 출렁이는 것이 없습니다.');
     if(r[0]==='drone') L.push('   음원 설정 : 아티큘레이션은 긴 음(Sustain, Long). 레가토는 끄기(으뜸음과 5도가 함께 울려야 함). 비브라토 조절이 있는 음원이면 낮게.');
     L.push('   하는 일   : '+r[1]);
-    { const _vm=Math.max.apply(null,rows.map(function(q){ return AMB5_MIX[q[0]].vol; })); const _g=Math.round(2*40*Math.log10(X.vol/_vm))/2; L.push('   게인 팬   : '+(r[0]==='pad'?'Gain 플러그인 없음(크기 '+String(_g)+'dB 는 숨 볼륨 곡선 안에), 페이더는 숨이 씀. ':'Gain 플러그인 '+(_g<=-0.5?String(_g)+'dB':'0dB (가장 큰 트랙)')+' (트랙 이름 끝 [Gain] 과 같음), 페이더는 0dB 에서 자유. ')+(r[0]==='cue'?(B.tech==='right'?'팬은 CC10 오른쪽(112)':'팬은 음마다 CC10 으로 왼쪽(16) 오른쪽(112)')+', 로직 팬 노브는 건드리지 마세요':'팬 '+pan+' (CC10)')); }
+    { const _vm=Math.max.apply(null,rows.map(function(q){ return AMB5_MIX[q[0]].vol; })); const _g=Math.round(2*40*Math.log10(X.vol/_vm))/2; L.push('   게인 팬   : '+((r[0]==='pad'||r[0]==='drone')?'Gain 플러그인 없음(크기 '+String(_g)+'dB 는 숨 볼륨 곡선 안에), 페이더는 숨이 씀. ':'Gain 플러그인 '+(_g<=-0.5?String(_g)+'dB':'0dB (가장 큰 트랙)')+' (트랙 이름 끝 [Gain] 과 같음), 페이더는 0dB 에서 자유. ')+(r[0]==='cue'?(B.tech==='right'?'팬은 CC10 오른쪽(112)':'팬은 음마다 CC10 으로 왼쪽(16) 오른쪽(112)')+', 로직 팬 노브는 건드리지 마세요':'팬 '+pan+' (CC10)')); }
     L.push('   리버브    : 로직 Sends 에서 센드 약 '+Math.round(X.rev/127*55)+'%. 파일 안 CC91('+X.rev+')은 GM 음원용 참고값이라 로직 센드에는 걸리지 않습니다.');
     if(r[0]==='pad' && state.amb5Bright==='breath'){ const D=amb5DynR(); L.push('   셈여림    : 모듈레이션 휠(CC1) '+D[0]+'↔'+D[1]+' 을 숨 따라 그렸습니다. 현과 합창 음원은 휠이 셈여림이라 들숨 끝에 활이 더 깊어져 소리 결이 밝아지고, 날숨 끝은 여린 결로 돌아옵니다(크기는 CC11). 휠이 비브라토에 걸린 음원이면 위 상자에서 셈여림을 끄세요.'); }
+    if(r[0]==='drone'){ const V=amb5Vol7('drone'); L.push('   볼륨      : 페이더(CC7)가 '+V.lo+'↔'+V.hi+' 로 숨 따라 움직입니다(들숨 끝 '+V.hi+' 이 약 '+V.db+'dB). 바닥이라 패드보다 얕게. 드론 크기도 이 곡선 안에 있어 Gain 플러그인은 넣지 않습니다.'); }
     if(r[0]==='drone') L.push('   셈여림    : 모듈레이션 휠(CC1) 28↔42, 낮은 현은 여리게(pp~p) 숨 따라 조금만.');
     if(r[0]==='drone') L.push('   활 바꿈   : 오래 끄는 음은 들숨 첫머리에서 같은 음을 다시 그었습니다(한 활 6~24초). 실제 현처럼 활이 바뀌고, 긴 음 샘플이 되풀이되는 소리가 나지 않습니다.'); });
   L.push('');
