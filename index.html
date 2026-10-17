@@ -55747,7 +55747,7 @@ const AMB5_CATS={
   short:{name:'짧은 음원', beat:'', dirn:'down', dirTxt:'아래', pose:'앉거나 누움', rows:[['b478','4-7-8','mouth',null,'short','']], fixed:8} };   /* 여덟 주기로 끝(2분 32초), 늘리지 않음, 바이노럴 없음 */
 /* 바이노럴 프로파일 글: [10] 은 '10Hz 고정', [8,6,4] 는 '8→6→4Hz' */
 /* 가운데 흐름: 처음 1분 그대로, 30초에 걸쳐 바뀌어 머물고, 마지막 1분 앞 30초에 걸쳐 되돌림. 짧은 곡(4분 미만)은 없음 */
-const AQ_MIDFLOW=[['off','끔'],['3','3dB'],['6','6dB'],['9','9dB']];
+const AQ_MIDFLOW=[['off','끔'],['6','6dB'],['9','9dB'],['12','12dB'],['15','15dB']];   /* ★ 2026-10-17 형: 1분 뒤 음악이 더 작게, 자연음은 처음에 더 작았다가 커지게. 기본 12dB */
 /* ★ 2026-10-17 형: 5분 구조. 0~10초 인트로(서서히 커짐, 10초에 숨 스웰이 다 살아남), 1:00~1:20 음악 낮아지고 자연음 커짐, 4:00~4:20 되돌림, 4:50~5:00 사라짐, 5:00 끝 */
 /* ★ 2026-10-17 형: 10분도 앞뒤는 5분과 같게, 가운데만 1분부터 (길이-1)분까지. 모든 길이에 같은 구조. 돌려주는 값은 곡 길이(초), 아니면 0 */
 function amb5Five(){ const c=amb5Cur(); const b=BREATHS[state.breath==='auto'?PURPOSE_BREATH[state.purpose]:state.breath]||{}; const m=+state.midiDur||10; return (m>=5 && !c.fixed && !b.run)?m*60:0; }
@@ -55755,7 +55755,7 @@ function amb5Five(){ const c=amb5Cur(); const b=BREATHS[state.breath==='auto'?PU
    그 마디가 5초 이상이면 60BPM(한 박 1초, 숨 10초면 한 마디 = 한 숨), 아니면 120BPM 4/4(한 마디 2초). 템포는 하나, 숨 길이는 그대로 */
 function amb5Meter(C){ const q=Math.round(C*2), gd=(x,y)=>y?gd(y,x%y):x; let g=(Math.abs(q-C*2)<1e-6&&q>0)?gd(20,q)/2:0.5;
   const bpm=g>=5?60:120, num=Math.round(g*bpm/60); return {g:g, bpm:bpm, num:num, pad:20, one:Math.abs(g-C)<1e-6}; }
-function amb5FlowPlan(T){ const D=+(state.amb5Mid||'6')||0; if(amb5Cur().fixed) return null;
+function amb5FlowPlan(T){ const D=+(state.amb5Mid||'12')||0; if(amb5Cur().fixed) return null;
   { const Ls=amb5Five(); if(Ls) return {D:D, a:60, b:80, c:Ls-60, d:Ls-40, fi:10, fo0:Ls-10, fo1:Ls, five:true, L:Ls}; }
   if(!D || !(T>=240)) return null; const E=60, R=30; return {D:D, a:E, b:E+R, c:T-E-R, d:T-E, fi:0}; }
 /* 페이더 배수(CC7 값에 곱함): 가운데 흐름 dB 와 5분 구조의 들어오기 사라지기 */
@@ -56110,15 +56110,15 @@ function buildAmb5Piece(prog, capMin){
     /* ★ 2026-10-15 형: 바로 시작이면 띵샤를 첫 숨이 아니라 그 호흡을 몇 번 하고 난 뒤에(느린 호흡 5번, 빠른 호흡 10번). 느림 = 한 숨 9.5초 이상(분당 6회 이하). 한숨 숨은 세지 않음. 짧은 음원은 그대로 첫 숨 */
     const _nS=SC.sg?SC.sg.filter(Boolean).length:0, _aft=(_dir&&!CAT.fixed)?(C>=9.5?5:10):0, _kA=Math.min(_nS+_aft, Math.max(0,N-2));
     const at=[['stay',_dir?(_aft?SC.t[_kA]:0):Math.min(60,tgt*0.2)],sec];
-    const tn=(function(){ let n=72+(((tonic-72)%12)+12)%12; if(n>79) n-=12; return n; })();
+    const tn=(function(){ let n=36+(((tonic-36)%12)+12)%12; if(n>43) n-=12; return n; })();   /* ★ 2026-10-17 형: 띵샤 세 옥타브 아래(C2~G2) */
     let prevK=_dir?-1:0; at.forEach(function(a){ let k=0, best=1e9; for(let q=(_dir&&a[0]==='stay')?0:1;q<N;q++){ const d=Math.abs(SC.t[q]-a[1]); if(d<best){ best=d; k=q; } }
       if(k<=prevK || (k>=N-1 && a[0]!=='last')) return; prevK=k; ting.push({t:SC.t[k], k:k, midi:tn, vel:a[0]==='stay'?72:66, decay:6, pan:0.3, what:a[0], after:(a[0]==='stay'&&_aft)?(k-_nS):0}); }); }
   /* ★ 2026-10-17 형: 길이 구조의 띵샤 둘 더. 0:10(인트로 끝, 숨 스웰 시작)과 끝 10초 전(사라지기 시작). 숨 첫머리가 아니라 그 시각에 */
   /* ★ 2026-10-17 형: 길이 구조에서는 머물기 가라앉기 띵샤도 음악이 내려가고 되돌아오는 그 시각(1:00, 끝 1분 전)에 딱(숨 첫머리에 맞추지 않음) */
-  if(FIVE){ const put=(what,t)=>{ let x=ting.find(q=>q.what===what && !q.after); if(!x){ x={midi:(ting[0]&&ting[0].midi)||72, vel:what==='stay'?72:66, decay:6, pan:0.3, what:what, after:0}; ting.push(x); } x.t=t; x.k=Math.min(N-1,amb5At(SC,t)); };
+  if(FIVE){ const put=(what,t)=>{ let x=ting.find(q=>q.what===what && !q.after); if(!x){ x={midi:(ting[0]&&ting[0].midi)||36, vel:what==='stay'?72:66, decay:6, pan:0.3, what:what, after:0}; ting.push(x); } x.t=t; x.k=Math.min(N-1,amb5At(SC,t)); };
     for(let q=ting.length-1;q>=0;q--){ if(ting[q].after) ting.splice(q,1); }   /* 바로 시작의 '몇 숨 뒤 자리잡음' 띵샤는 1:00 띵샤와 겹쳐서 뺌 */
     put('stay',60); put('settle',FIVE-60); ting.sort((p,q)=>p.t-q.t); }
-  const ting2=[]; if(FIVE){ const tn2=(ting[0]&&ting[0].midi)||(function(){ let n=72+(((tonic-72)%12)+12)%12; if(n>79) n-=12; return n; })();
+  const ting2=[]; if(FIVE){ const tn2=(ting[0]&&ting[0].midi)||(function(){ let n=36+(((tonic-36)%12)+12)%12; if(n>43) n-=12; return n; })();
     ting2.push({t:10, k:amb5At(SC,10), midi:tn2, vel:68, decay:6, pan:0.3, what:'intro'}); ting2.push({t:FIVE-10, k:Math.min(N-1,amb5At(SC,FIVE-10)), midi:tn2, vel:62, decay:6, pan:0.3, what:'fade'}); }
   /* 콧구멍 신호(선택): 교호 호흡은 들숨마다 왼쪽 오른쪽 번갈아, 우측 코 호흡은 늘 오른쪽. 안내 구간에서만 */
   const cue=[]; if(state.amb5Cue==='on' && (B.tech==='nadi'||B.tech==='right')){ const cn=tn0=>{ let n=84+(((tonic-84)%12)+12)%12; if(n>91) n-=12; return n; };
@@ -56443,7 +56443,7 @@ function buildAmb5Sheet(prog){
   L.push('   존재감: 포인트 악기는 리버브를 줄여 가깝게(마른 소리일수록 작아도 또렷). 양금 피아노는 EQ 로 2~4kHz 를 +1~2dB 살짝(어택이 귀에 걸리게), 5kHz 위는 그대로 두거나 Low Pass 9kHz.');
   L.push('   패드 드론: ChromaVerb Dreamy 계열 8~12초 Mix 35%. 드론은 리버브를 적게, 120Hz 아래는 모노.');
   L.push('   핸드팬: Tape Delay 점4분 피드백 30% 로우컷 300Hz, 리버브 30%(가깝게).');
-  L.push('   띵샤 신호: 가장 큰 트랙(0dB), 오른쪽 R13, 리버브 센드 넉넉히(약 48%). 한 번 울리고 길게 사라지게, 로우컷 400Hz.');
+  L.push('   띵샤 신호: 가장 큰 트랙(0dB), 오른쪽 R13, 리버브 센드 넉넉히(약 48%). 한 번 울리고 길게 사라지게. 세 옥타브 아래 낮은 울림이라 로우컷은 30Hz 정도만.');
   if(!(piece.cat&&piece.cat.fixed)) L.push('   바이노럴 자리: 형이 넣을 반송음 주파수를 정하면 패드와 드론 Channel EQ 에서 그 주파수를 -3dB(Q 2) 비워 두세요. 패드 드론이 200~400Hz 에 넓게 깔려 있어 반송음과 겹치기 쉽습니다.');
   L.push('   마스터: 믹스 단계에서는 리미터 없이(아래 게인과 마스터링). 마스터링에서 -18 ~ -16 LUFS, 리미터는 살짝만(호흡 스웰이 눌리지 않게).');
   try{ (window.__gainGuide?window.__gainGuide('-18 ~ -16 LUFS (명상, 웰니스, 앰비언트는 여유 있게)'):[]).forEach(function(x){ L.push(x); }); }catch(e){}
@@ -56484,7 +56484,7 @@ function aqRender(){
   chip('aqStart',AQ_START,state.amb5Start||'settle','aqSetStart');
   chip('aqBright',AQ_BRIGHT,state.amb5Bright||'off','aqSetBright');
   chip('aqPmel',AQ_PMEL,state.amb5Pmel||'on','aqSetPmel');
-  chip('aqMid',AQ_MIDFLOW.map(x=>[x[0],x[0]==='off'?x[1]:'음악 -'+x[1]+', 자연음 +'+x[1]]),state.amb5Mid||'6','aqSetMid');
+  chip('aqMid',AQ_MIDFLOW.map(x=>[x[0],x[0]==='off'?x[1]:'음악 -'+x[1]+', 자연음 +'+x[1]]),state.amb5Mid||'12','aqSetMid');
   const inf=document.getElementById('aqInfo');
   if(on && typeof updateDock==='function') try{ updateDock(); }catch(e){}
   if(inf){ if(!on){ inf.textContent='호흡을 고르면 시작합니다.'; }
