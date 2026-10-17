@@ -55747,7 +55747,7 @@ const AMB5_CATS={
   short:{name:'짧은 음원', beat:'', dirn:'down', dirTxt:'아래', pose:'앉거나 누움', rows:[['b478','4-7-8','mouth',null,'short','']], fixed:8} };   /* 여덟 주기로 끝(2분 32초), 늘리지 않음, 바이노럴 없음 */
 /* 바이노럴 프로파일 글: [10] 은 '10Hz 고정', [8,6,4] 는 '8→6→4Hz' */
 /* 가운데 흐름: 처음 1분 그대로, 30초에 걸쳐 바뀌어 머물고, 마지막 1분 앞 30초에 걸쳐 되돌림. 짧은 곡(4분 미만)은 없음 */
-const AQ_MIDFLOW=[['off','끔'],['6','6dB'],['9','9dB'],['12','12dB'],['15','15dB']];   /* ★ 2026-10-17 형: 1분 뒤 음악이 더 작게, 자연음은 처음에 더 작았다가 커지게. 기본 12dB */
+const AQ_MIDFLOW=[['off','끔'],['6','6dB'],['9','9dB'],['12','12dB'],['15','15dB']];   /* 자연음은 그 두 배(15 → 30) */   /* ★ 2026-10-17 형: 1분 뒤 음악이 더 작게, 자연음은 처음에 더 작았다가 커지게. 기본 12dB */
 /* ★ 2026-10-17 형: 5분 구조. 0~10초 인트로(서서히 커짐, 10초에 숨 스웰이 다 살아남), 1:00~1:20 음악 낮아지고 자연음 커짐, 4:00~4:20 되돌림, 4:50~5:00 사라짐, 5:00 끝 */
 /* ★ 2026-10-17 형: 10분도 앞뒤는 5분과 같게, 가운데만 1분부터 (길이-1)분까지. 모든 길이에 같은 구조. 돌려주는 값은 곡 길이(초), 아니면 0 */
 function amb5Five(){ const c=amb5Cur(); const b=BREATHS[state.breath==='auto'?PURPOSE_BREATH[state.purpose]:state.breath]||{}; const m=+state.midiDur||10; return (m>=5 && !c.fixed && !b.run)?m*60:0; }
@@ -55755,17 +55755,17 @@ function amb5Five(){ const c=amb5Cur(); const b=BREATHS[state.breath==='auto'?PU
    그 마디가 5초 이상이면 60BPM(한 박 1초, 숨 10초면 한 마디 = 한 숨), 아니면 120BPM 4/4(한 마디 2초). 템포는 하나, 숨 길이는 그대로 */
 function amb5Meter(C){ const q=Math.round(C*2), gd=(x,y)=>y?gd(y,x%y):x; let g=(Math.abs(q-C*2)<1e-6&&q>0)?gd(20,q)/2:0.5;
   const bpm=g>=5?60:120, num=Math.round(g*bpm/60); return {g:g, bpm:bpm, num:num, pad:20, one:Math.abs(g-C)<1e-6}; }
-function amb5FlowPlan(T){ const D=+(state.amb5Mid||'12')||0; if(amb5Cur().fixed) return null;
-  { const Ls=amb5Five(); if(Ls) return {D:D, a:60, b:80, c:Ls-60, d:Ls-40, fi:10, fo0:Ls-10, fo1:Ls, five:true, L:Ls}; }
-  if(!D || !(T>=240)) return null; const E=60, R=30; return {D:D, a:E, b:E+R, c:T-E-R, d:T-E, fi:0}; }
+function amb5FlowPlan(T){ const D=+(state.amb5Mid||'15')||0, DN=2*D; if(amb5Cur().fixed) return null;   /* ★ 2026-10-17 형: 음악 가운데 -15dB, 자연음 작은 상태 -30dB(아주 살짝 들릴 만큼). 자연음 깊이 = 음악의 두 배 */
+  { const Ls=amb5Five(); if(Ls) return {D:D, DN:DN, a:60, b:80, c:Ls-60, d:Ls-40, fi:10, fo0:Ls-10, fo1:Ls, five:true, L:Ls}; }
+  if(!D || !(T>=240)) return null; const E=60, R=30; return {D:D, DN:DN, a:E, b:E+R, c:T-E-R, d:T-E, fi:0}; }
 /* 페이더 배수(CC7 값에 곱함): 가운데 흐름 dB 와 5분 구조의 들어오기 사라지기 */
 function amb5FlowFac(F,t,nat){ const sm=x=>{ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); };
   let db=F.D?amb5FlowDb(F,t,nat):0;
   /* ★ 2026-10-17 형: 길이 구조의 자연음은 1초 만에 제 크기로 들어와서 0:10 까지 서서히 작아지고(-D), 1:00 까지 그대로, 1:00 부터 다시 제 크기 */
   const natIn=nat && F.five && F.fi>1;
-  if(natIn && F.D && t<F.fi) db=-F.D*sm((t-1)/(F.fi-1));
+  if(natIn && F.D && t<F.fi) db=-(F.DN||F.D)*sm((t-1)/(F.fi-1));
   let f=Math.pow(10,db/40); if(F.fi>0) f*=natIn?sm(t/1):sm(t/F.fi); if(F.fo1) f*=1-sm((t-F.fo0)/(F.fo1-F.fo0)); return f; }
-function amb5FlowDb(F,t,nat){ const sm=x=>{ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); }; let w=0; if(t<=F.a||t>=F.d) w=0; else if(t<F.b) w=sm((t-F.a)/(F.b-F.a)); else if(t<=F.c) w=1; else w=1-sm((t-F.c)/(F.d-F.c)); return nat?(-F.D*(1-w)):(-F.D*w); }   /* 음악은 가운데에서 -D, 자연음은 처음과 끝에서 -D */
+function amb5FlowDb(F,t,nat){ const sm=x=>{ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); }; let w=0; if(t<=F.a||t>=F.d) w=0; else if(t<F.b) w=sm((t-F.a)/(F.b-F.a)); else if(t<=F.c) w=1; else w=1-sm((t-F.c)/(F.d-F.c)); return nat?(-(F.DN||F.D)*(1-w)):(-F.D*w); }   /* 음악은 가운데에서 -D, 자연음은 처음과 끝에서 -D */
 function amb5ProfTxt(p){ if(!p||!p.length) return ''; return p.length===1?(p[0]+'Hz 고정'):(p.join('→')+'Hz'); }
 /* 바이노럴 길: 들어가기는 첫 값, 머물기 동안 직선으로 내려 가라앉기 시작에서 마지막 값(셋이면 머물기 가운데에서 가운데 값). 띵샤 두 번이 경계 */
 function amb5BinPts(piece){ const P=piece&&piece.cat&&piece.cat.prof; if(!P||!P.length) return [];
@@ -56227,7 +56227,7 @@ function buildAmb5Midi(){
     { const m0=(piece.ev.pm||[])[0]; if(m0) ev.push({t:tk(SC.t[amb5At(SC,m0.t)]),o:7,b:meta(0x06,'◇ 피아노 선율')}); }
     { const F=amb5FlowPlan(T); if(F){ const R=Math.round(F.b-F.a);
         if(F.fi>0){ ev.push({t:0,o:8,b:meta(0x06,'◎ 인트로: 0:10 까지 서서히 커짐')}); ev.push({t:tk(F.fi),o:8,b:meta(0x06,'◎ 숨 스웰과 볼륨 시작')}); }
-        if(F.D){ ev.push({t:tk(F.a),o:8,b:meta(0x06,'◎ 가운데 흐름: 음악 -'+F.D+'dB 로, 자연음 올라옴 ('+R+'초)')}); ev.push({t:tk(F.c),o:8,b:meta(0x06,'◎ 가운데 흐름 되돌림: 음악 0dB, 자연음 -'+F.D+'dB 로 ('+R+'초)')}); }
+        if(F.D){ ev.push({t:tk(F.a),o:8,b:meta(0x06,'◎ 가운데 흐름: 음악 -'+F.D+'dB 로, 자연음 0dB 로 올라옴 ('+R+'초)')}); ev.push({t:tk(F.c),o:8,b:meta(0x06,'◎ 가운데 흐름 되돌림: 음악 0dB, 자연음 -'+(F.DN||F.D)+'dB 로 ('+R+'초)')}); }
         if(F.fo1){ ev.push({t:tk(F.fo0),o:8,b:meta(0x06,'◎ 사라짐: '+_amm(F.fo1)+' 까지 서서히')}); } } }
     (piece.ting2||[]).forEach(x=>ev.push({t:tk(x.t),o:7,b:meta(0x06,x.what==='intro'?'◎ 띵샤 (인트로 끝, 숨 스웰 시작)':'◎ 띵샤 (사라지기 시작)')}));
     ev.push({t:tk(T),o:8,b:meta(0x06,'마지막 날숨 뒤 여운')});
@@ -56370,7 +56370,7 @@ function buildAmb5Sheet(prog){
   L.push('');
   if(piece.cat && piece.cat.key!=='free') L.push('분류   : 숨웨이브 '+piece.cat.name+(piece.cat.row?' '+piece.cat.row:'')+(piece.cat.beat?'  바이노럴 자리 '+piece.cat.beat+' (형이 나중에 따로 넣음)':'  바이노럴 없음')+'  방향 '+({deep:'깊이 아래',down:'아래',flat:'중립',up:'위'}[piece.cat.dirn])+'  자세 '+piece.cat.pose);
   if(piece.cat && piece.cat.prof) L.push('바이노럴: '+piece.cat.beat+' (형이 나중에 따로 넣음). '+amb5BinText(piece)+'. Conductor 트랙에 ◎ 바이노럴 표지.');
-  { const F=amb5FlowPlan(piece.T); if(F && F.five) L.push('구조   : '+Math.round(F.L/60)+'분. 0:00 ~ 0:10 인트로(음악은 서서히 커지고 숨 스웰은 0:10 에 다 살아남. 자연음은 1초 만에 제 크기로 들어와 0:10 까지 서서히 작아짐), 0:10 ~ 1:00 숨 스웰과 볼륨'+(F.D?', 1:00 ~ 1:20 음악 -'+F.D+'dB 로 내려가고 자연음 커짐, '+_amm(F.c)+' ~ '+_amm(F.d)+' 음악 되돌아오고 자연음 작아짐':' (가운데 흐름 끔)')+', '+_amm(F.fo0)+' ~ '+_amm(F.fo1)+' 모두 서서히 사라짐, '+_amm(F.fo1)+' 끝. 띵샤 0:10, 1:00, '+_amm(F.c)+', '+_amm(F.fo0)+'. 페이더(CC7) 곡선이라 그 트랙 볼륨 오토메이션은 그리지 말고 Gain 플러그인으로.'); else if(F) L.push('흐름2  : 가운데 흐름 '+F.D+'dB. '+_amm(0)+' ~ '+_amm(F.a)+' 지금 크기, '+_amm(F.a)+' ~ '+_amm(F.b)+' 음악(패드 드론 바닥 핸드팬 양금 피아노)은 -'+F.D+'dB 로 내려가고 자연음은 -'+F.D+'dB 에서 제 크기로 올라옴, '+_amm(F.c)+' ~ '+_amm(F.d)+' 되돌림, 마지막 1분은 처음 크기. 띵샤 신호는 그대로. 페이더(CC7) 곡선이라 그 트랙 볼륨 오토메이션은 그리지 말고, 더 바꾸려면 Gain 플러그인으로.'); }
+  { const F=amb5FlowPlan(piece.T); if(F && F.five) L.push('구조   : '+Math.round(F.L/60)+'분. 0:00 ~ 0:10 인트로(음악은 서서히 커지고 숨 스웰은 0:10 에 다 살아남. 자연음은 1초 만에 제 크기로 들어와 0:10 까지 서서히 작아짐), 0:10 ~ 1:00 숨 스웰과 볼륨'+(F.D?', 1:00 ~ 1:20 음악 -'+F.D+'dB 로 내려가고 자연음 -'+F.DN+'dB 에서 0dB 로 커짐, '+_amm(F.c)+' ~ '+_amm(F.d)+' 음악 되돌아오고 자연음 작아짐':' (가운데 흐름 끔)')+', '+_amm(F.fo0)+' ~ '+_amm(F.fo1)+' 모두 서서히 사라짐, '+_amm(F.fo1)+' 끝. 띵샤 0:10, 1:00, '+_amm(F.c)+', '+_amm(F.fo0)+'. 페이더(CC7) 곡선이라 그 트랙 볼륨 오토메이션은 그리지 말고 Gain 플러그인으로.'); else if(F) L.push('흐름2  : 가운데 흐름 '+F.D+'dB. '+_amm(0)+' ~ '+_amm(F.a)+' 지금 크기, '+_amm(F.a)+' ~ '+_amm(F.b)+' 음악(패드 드론 바닥 핸드팬 양금 피아노)은 -'+F.D+'dB 로 내려가고 자연음은 -'+F.D+'dB 에서 제 크기로 올라옴, '+_amm(F.c)+' ~ '+_amm(F.d)+' 되돌림, 마지막 1분은 처음 크기. 띵샤 신호는 그대로. 페이더(CC7) 곡선이라 그 트랙 볼륨 오토메이션은 그리지 말고, 더 바꾸려면 Gain 플러그인으로.'); }
   if(piece.cat && piece.cat.depth) L.push('회복   : '+piece.cat.depth+' ('+piece.cat.name+' '+piece.cat.row+')');
   L.push('호흡   : '+B.name+'  '+amb5BreathText(B)+' (한 호흡 '+B.cycle.toFixed(2).replace(/\.00$/,'')+'초, 분당 '+(function(r){ const r2=Math.round(r*100); return (r2%5===0&&r2%10!==0)?(r2/100).toFixed(2):r.toFixed(1); })(60/B.cycle).replace(/\.?0+$/,'')+'회)');
   if(B.tech && AMB5_TECH[B.tech]) L.push('통로   : '+AMB5_TECH[B.tech]);
@@ -56407,7 +56407,7 @@ function buildAmb5Sheet(prog){
   const rows=[['pad','들숨에 차오르고 날숨에 잦아드는 스웰. CC11 '+SP.lo+'↔'+SP.hi+' 을 호흡 시간 그대로 그렸습니다(트랙 크기는 따로 Gain 줄). 날숨 끝은 거의 숨만 남고 들숨 끝은 차오릅니다(약하게 36↔88, 보통 14↔100, 과하게 4↔115).'+(B.h1>0?' 들숨 뒤 멈춤 '+B.h1B+'초 동안은 꼭대기 그대로':'')+(B.h2>0?', 날숨 뒤 멈춤 '+B.h2B+'초 동안은 바닥 그대로':'')+((B.h1>0||B.h2>0)?'.':'')+(piece.sched.sighS>0?' 앞 한숨 숨은 짧게 두 번 부풉니다.':'')+(piece.sched.flatFrom!=null?' '+_amm(piece.sched.flatFrom)+' 안내 끝부터는 중간 높이로 고르게 머뭅니다.':'')+' 음원에서 CC11(Expression)이 볼륨에 걸려 있어야 합니다.'],
               ['drone','으뜸음 '+midiNameP(piece.drRoot)+' 과 5도. 처음부터 끝까지 같은 두 음(들숨 첫머리에서 활만 바꿈). 처음 두 호흡에 들어오고 마지막 여운에서 빠집니다. 호흡 따라 스웰(CC11 '+(AMB5_SW11D[state.breathInt||'normal']||AMB5_SW11D.normal).join('~')+')과 볼륨(CC7)이 함께 부풉니다.'],
               ['floor','으뜸음, 5도, 옥타브, 그 위 5도로 아주 넓게 펼친 '+amb5FloorNotes(piece.ev.drone[0].midi).map(midiNameP).join(' ')+'. 숨 쉬지 않고 처음부터 끝까지 아주 작게(페이더 CC7 한 값, 가장 큰 트랙보다 약 '+(-AMB5_FLOOR_DB)+'dB 작게) 깔립니다. 처음 두 호흡에 들어오고 마지막 여운에서 빠지는 것 말고는 움직임 없음(CC11 은 들어오고 빠질 때만).'],
-              ['nature','형이 녹음한 자연음(이 곡 추천: '+(AMB5_NATURE_PICK[(piece.cat&&piece.cat.key)||'free']||'바다')+'). 노트 C3 하나가 곡 끝까지 이어지고, 페이더(CC7)가 숨 따라 '+AMB5_NATURE_SWING+'dB 안에서 아주 조금 오르내립니다(크기 약 '+AMB5_NATURE_DB+'dB, Gain 없음). '+(piece.five?'0:00 부터 1초 만에 제 크기로 들어와 0:10 까지 서서히 작아지고(-'+(+(state.amb5Mid||'12')||0)+'dB), 1:00 부터 20초에 걸쳐 다시 제 크기, 끝 1분 전부터 다시 작아지고 끝 10초에 사라집니다.':'처음 두 호흡에 들어오고 끝 여운에서 빠집니다.')],
+              ['nature','형이 녹음한 자연음(이 곡 추천: '+(AMB5_NATURE_PICK[(piece.cat&&piece.cat.key)||'free']||'바다')+'). 노트 C3 하나가 곡 끝까지 이어지고, 페이더(CC7)가 숨 따라 '+AMB5_NATURE_SWING+'dB 안에서 아주 조금 오르내립니다(크기 약 '+AMB5_NATURE_DB+'dB, Gain 없음). '+(piece.five?'0:00 부터 1초 만에 제 크기로 들어와 0:10 까지 서서히 작아지고(-'+(2*(+(state.amb5Mid||'15')||0))+'dB, 아주 살짝 들릴 만큼), 1:00 부터 20초에 걸쳐 다시 제 크기, 끝 1분 전부터 다시 작아지고 끝 10초에 사라집니다.':'처음 두 호흡에 들어오고 끝 여운에서 빠집니다.')],
               ['hp','딩 '+midiNameP(piece.ding)+', 음 '+piece.hpSet.map(midiNameP).join(' ')+'. 들숨 첫머리와 숨의 꼭대기에만 드문드문.'],
               ['yg','들숨에 오르고 날숨에 내려오는 선율. 두 호흡 노래하고 한두 호흡 쉼. 화음음과 반음으로 비비지 않는 음계음만. CC11 70~112 로 호흡 따라 부풉니다.'],
               ['pn','양금을 한 호흡 늦게, 한 옥타브 아래에서 따라가는 캐논. 그 자리 화음에 맞춰 고쳤고 양금과 반음 부딪힘이 없습니다. 페달은 화음마다 갈아 밟음.'+((piece.ev.pm||[]).length?' 피아노 선율이 대답하는 자리에서는 빠집니다(피아노 둘이 겹치지 않게).':'')]];
@@ -56488,7 +56488,7 @@ function aqRender(){
   chip('aqStart',AQ_START,state.amb5Start||'settle','aqSetStart');
   chip('aqBright',AQ_BRIGHT,state.amb5Bright||'off','aqSetBright');
   chip('aqPmel',AQ_PMEL,state.amb5Pmel||'on','aqSetPmel');
-  chip('aqMid',AQ_MIDFLOW.map(x=>[x[0],x[0]==='off'?x[1]:'음악 -'+x[1]+', 자연음 +'+x[1]]),state.amb5Mid||'12','aqSetMid');
+  chip('aqMid',AQ_MIDFLOW.map(x=>[x[0],x[0]==='off'?x[1]:'음악 -'+x[1]+', 자연음 -'+(2*parseInt(x[1]))+'dB → 0dB']),state.amb5Mid||'15','aqSetMid');
   const inf=document.getElementById('aqInfo');
   if(on && typeof updateDock==='function') try{ updateDock(); }catch(e){}
   if(inf){ if(!on){ inf.textContent='호흡을 고르면 시작합니다.'; }
