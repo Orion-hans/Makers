@@ -2123,6 +2123,7 @@ input[type=range]{accent-color:var(--teal)}
       <button class="aq-btn" onclick="aqNew()">🎲 새 곡</button>
       <button class="aq-btn main" onclick="aqMidi()">🎼 MIDI 받기</button>
       <button class="aq-btn" onclick="aqWav()">🔊 WAV 받기</button>
+      <button class="aq-btn" id="aqBinWav" onclick="aqBinWav()">🎧 바이노럴 WAV</button>
     </div>
     <div id="aqInfo" style="font-size:12.5px;color:#cfe3da;margin-top:9px"></div>
   </div>
@@ -54977,7 +54978,7 @@ try{
    'selectProg','setBloom','setBreath','setBreathInt','setCue','setDur','setDurCustom',
    'setKey','setMode','setPulse','setRange','setRubato','setScaleType','setTuning',
    'setVoicing','showFxSettings','sumPlayArc','sumStopArc','sumToggleBox',
-   'toggleLayerP','toggleMelody','setStruct','aqSetBreath','aqSetKey','aqSetSwell','aqSetDur','aqNew','aqPlay','aqMidi','aqWav','aqSetFlow','aqSetBright','aqSetStart','aqSetCat','aqSetCue','aqSetPmel','aqSetMid','aqSetTone','aqSetBin'].forEach(function(n){
+   'toggleLayerP','toggleMelody','setStruct','aqSetBreath','aqSetKey','aqSetSwell','aqSetDur','aqNew','aqPlay','aqMidi','aqWav','aqSetFlow','aqSetBright','aqSetStart','aqSetCat','aqSetCue','aqSetPmel','aqSetMid','aqSetTone','aqSetBin','aqBinWav'].forEach(function(n){
     try{ if(typeof eval(n)==='function' && !window[n]) window[n]=eval(n); }catch(e){}
   });
 }catch(e){}
@@ -55723,7 +55724,7 @@ const AMB5_MIX={pad:{vol:43,pan:64,rev:80,ch:0,prog:89}, drone:{vol:48,pan:64,re
                 /* ★ 2026-10-15 형 헤드폰: 포인트 악기는 작게(2dB 내림) 대신 좌우로 벌리고(핸드팬 L38 양금 R63 피아노 L63, 끝까지는 안 벌림) 리버브를 줄여 가깝게 → 작아도 귀 옆에서 또렷 */
                 hp:{vol:71,pan:40,rev:70,ch:2,prog:114}, yg:{vol:55,pan:104,rev:84,ch:3,prog:15}, pn:{vol:50,pan:24,rev:90,ch:4,prog:0},
                 ting:{vol:84,pan:72,rev:110,ch:5,prog:112}, pm:{vol:66,pan:56,rev:76,ch:10,prog:0}, cue:{vol:58,pan:64,rev:70,ch:6,prog:9}, floor:{vol:60,pan:64,rev:50,ch:7,prog:89}, nature:{vol:60,pan:64,rev:20,ch:8,prog:122},
-                binL:{vol:60,pan:0,rev:0,ch:11,prog:79}, binR:{vol:60,pan:127,rev:0,ch:12,prog:79}};   /* ★ 2026-10-17 바이노럴: 팬 좌우 끝, 리버브 없음 */
+                binL:{vol:60,pan:0,rev:0,ch:11,prog:null}, binR:{vol:60,pan:127,rev:0,ch:12,prog:null}};   /* ★ 2026-10-17 프로그램 체인지를 넣으면 로직이 GM 번호대로 Mellotron Flute 을 넣어 테이프 울렁임이 남 → 안 넣음 */   /* ★ 2026-10-17 바이노럴: 팬 좌우 끝, 리버브 없음 */
 /* ★ 형: 바닥 드론은 숨 쉬지 않고 아주 작게. 가장 큰 트랙보다 이만큼 작게(페이더 CC7 한 값) */
 /* ★ 2026-10-15 형: 팬도 MIDI 에 그려 천천히 움직이게(헤드폰). 숨과 상관없이 느린 흐름, 제자리 중심 좌우 a 만큼, p 초에 한 번 오감.
    핸드팬과 피아노는 서로 반대로(둘 다 왼쪽이라 엇갈리게). 패드 드론 바닥 드론 띵샤는 고정 */
@@ -55757,11 +55758,28 @@ const AMB5_TONE={deep:{dr:0, fl:0, pad:[48,74], lo:0, hi:0, ting:0, name:'중후
 const AQ_TONE=[['deep','중후 (낮은 바닥)'],['mid','적당 (중역)'],['light','가벼움 (밝게)']];
 function amb5Tone(){ return AMB5_TONE[state.amb5Tone||'deep']||AMB5_TONE.deep; }
 /* ★ 2026-10-17 형: 바이노럴 비트를 MIDI 두 트랙으로. 왼쪽은 반송음 그대로, 오른쪽은 같은 음을 피치벤드(범위 위아래 2반음)로 비트 Hz 만큼 올림. 헤드폰 전용 */
-const AQ_BIN=[['on','넣음 (헤드폰)'],['off','뺌']];
+const AQ_BIN=[['wav','WAV 파일 (추천)'],['midi','MIDI 트랙 (ES2)'],['off','뺌']];   /* ★ 2026-10-17 형: 바이노럴은 앱이 정확한 사인파 WAV 로 바로 뽑음(악기 설정 없이 끌어다 놓기). MIDI 트랙은 고르면 */
+function amb5BinMode(){ const m=state.amb5Bin||'wav'; return m==='on'?'wav':m; }
+function amb5BinWant(piece){ return amb5BinMode()!=='off' && !!(piece&&piece.cat&&piece.cat.prof&&piece.cat.prof.length); }
+function amb5BinWhere(){ return amb5BinMode()==='midi'?'Binaural L R 트랙':'바이노럴 WAV'; }
+/* 앞 여백(초): 길이 구조는 20초, 아니면 두 마디(두 숨). WAV 도 이만큼 비우고 시작해 로직 1마디 맨 앞에 놓으면 MIDI 와 딱 맞음 */
+function amb5PadSec(piece){ return piece.five?20:(2*piece.B.beats*60/piece.B.bpm); }
+/* 바이노럴 WAV: 44.1kHz 16비트 스테레오. 왼쪽 반송음 그대로, 오른쪽 반송음 + 비트(위상을 이어 가며 부드럽게 바뀜). 크기 -24dBFS, 인트로 10초 들어오기, 끝 10초 사라지기 */
+function amb5BinWav(piece){ const SR=44100, pad=amb5PadSec(piece), L0=piece.T+piece.TAIL, n=Math.ceil((pad+L0+0.5)*SR), BN=amb5BinInfo(piece), F=amb5FlowPlan(piece.T), T=piece.T, TL=piece.TAIL;
+  const sm=x=>{ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); }, A=Math.pow(10,-24/20)*32767;
+  const env=t=>{ if(t<0||t>L0) return 0; let f=1; if(F&&F.fi>0) f*=sm(t/F.fi); else f*=sm(t/8); if(F&&F.fo1) f*=1-sm((t-F.fo0)/(F.fo1-F.fo0)); else if(t>T) f*=1-sm((t-T)/Math.max(1,TL)); return f; };
+  const buf=new ArrayBuffer(44+n*4), v=new DataView(buf); const wr=(o,str)=>{ for(let i=0;i<str.length;i++) v.setUint8(o+i,str.charCodeAt(i)); };
+  wr(0,'RIFF'); v.setUint32(4,36+n*4,true); wr(8,'WAVE'); wr(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,2,true); v.setUint32(24,SR,true); v.setUint32(28,SR*4,true); v.setUint16(32,4,true); v.setUint16(34,16,true); wr(36,'data'); v.setUint32(40,n*4,true);
+  const pi2=2*Math.PI; let pL=0, pR=0, b=amb5BinHz(piece,0), e=0, o=44;
+  for(let i=0;i<n;i++){ if(i%441===0){ const t=i/SR-pad; b=amb5BinHz(piece,Math.max(0,t)); e=env(t); }
+    pL+=pi2*BN.f0/SR; pR+=pi2*(BN.f0+b)/SR; if(pL>pi2) pL-=pi2; if(pR>pi2) pR-=pi2;
+    const a=A*e; v.setInt16(o,Math.round(a*Math.sin(pL)),true); v.setInt16(o+2,Math.round(a*Math.sin(pR)),true); o+=4; }
+  return new Uint8Array(buf); }
+function amb5BinWavName(piece){ const BN=amb5BinInfo(piece), c=piece.cat||{}; return 'Binaural_'+(c.row?String(c.row).replace(/\s+/g,''):(c.key||''))+'_'+amb5ProfTxt(c.prof).replace(/Hz.*$/,'').replace(/→/g,'-')+'Hz_'+(state.key||'C').replace('\u266d','b')+'_'+Math.round(BN.f0)+'Hz_'+String(piece.five?Math.round(piece.five/60):Math.round((piece.T+piece.TAIL)/60))+'min'+(state.amb5Seed?('_'+String(state.amb5Seed%10000)):'')+'.wav'; }
 function amb5BinHz(piece,t){ const Q=amb5BinPts(piece); if(!Q.length) return 0; if(t<=Q[0].t) return Q[0].hz; for(let i=0;i<Q.length-1;i++){ const a=Q[i], b=Q[i+1]; if(t<=b.t) return a.hz+(b.hz-a.hz)*((t-a.t)/Math.max(1e-6,b.t-a.t)); } return Q[Q.length-1].hz; }
-function amb5BinOn(piece){ return (state.amb5Bin||'on')!=='off' && !!(piece&&piece.cat&&piece.cat.prof&&piece.cat.prof.length); }
+function amb5BinOn(piece){ return amb5BinMode()==='midi' && !!(piece&&piece.cat&&piece.cat.prof&&piece.cat.prof.length); }   /* MIDI 트랙으로 넣을 때만 */
 /* 반송음: 으뜸음, C3~B3(로직 이름 C2~B2, 131~247Hz). 크기 CC7 45(-12dB) */
-function amb5BinInfo(piece){ const car=48+(((piece.tonic%12)+12)%12), tun=+state.tuning||440, f0=tun*Math.pow(2,(car-69)/12); return {car:car, f0:f0, cc:45, tun:tun}; }
+function amb5BinInfo(piece){ const car=48+(((piece.tonic%12)+12)%12), tun=+state.tuning||440, f0=tun*Math.pow(2,(car-69)/12); return {car:car, f0:f0, cc:28, tun:tun}; }   /* ★ 2026-10-17 형: 더 작게(CC7 45 → 28, Gain -6 과 합쳐 약 -26dB) */
 function amb5BinBend(f0,b){ const cents=1200*Math.log2((f0+b)/f0); return Math.max(0,Math.min(16383,Math.round(8192+cents/200*8192))); }
 const AMB5_CATS={
   free:{name:'자유', beat:'', dirn:'down', pose:'', list:null},
@@ -56228,9 +56246,10 @@ function buildAmb5Midi(){
     ev.push({t:0,o:0,b:meta(0x03,'Conductor')});
     ev.push({t:0,o:1,b:[0xFF,0x51,0x03,(us>>16)&255,(us>>8)&255,us&255]});
     const dd=2; ev.push({t:0,o:2,b:[0xFF,0x58,0x04,G?G.num:B.beats,dd,24,8]});
-    if(piece.cat && piece.cat.key!=='free') ev.push({t:0,o:4,b:meta(0x01,'[숨웨이브 '+piece.cat.name+'] '+B.name+(piece.cat.beat?', 바이노럴 '+piece.cat.beat+(amb5BinOn(piece)?'(Binaural L R 트랙)':'(바이노럴 트랙 뺌)'):', 바이노럴 없음')+((B.h1>0||B.h2>0)?', 멈춤 호흡 금기 확인(가이드 주의)':'')+(piece.cat.pose?', 자세 '+piece.cat.pose:''))});
+    if(piece.cat && piece.cat.key!=='free') ev.push({t:0,o:4,b:meta(0x01,'[숨웨이브 '+piece.cat.name+'] '+B.name+(piece.cat.beat?', 바이노럴 '+piece.cat.beat+(amb5BinWant(piece)?'('+amb5BinWhere()+')':'(바이노럴 뺌)'):', 바이노럴 없음')+((B.h1>0||B.h2>0)?', 멈춤 호흡 금기 확인(가이드 주의)':'')+(piece.cat.pose?', 자세 '+piece.cat.pose:''))});
     if(SC.sighS>0) ev.push({t:tk(0),o:6,b:meta(0x06,'◎ 생리적 한숨 (코로 짧게 두 번 들이쉬고 입으로 길게 내쉼)')});
-    amb5BinPts(piece).forEach(function(q){ const txt=q.kind==='fix'?('◎ 바이노럴 '+q.hz+'Hz 고정 (Binaural L R 트랙)'):q.kind==='hold'?('◎ 바이노럴 '+q.hz+'Hz (Binaural L R 트랙)'):(q.kind==='from'||q.kind==='via')?('◎ 바이노럴 '+q.hz+'Hz 에서 '+q.to+'Hz 로 천천히'):('◎ 바이노럴 '+q.hz+'Hz 도착'); ev.push({t:tk(q.t),o:8,b:meta(0x06,txt)}); });   /* ★ 2026-10-16 8개 조합 바이노럴 프로파일 자리 */
+    if(amb5BinWant(piece) && amb5BinMode()==='wav') ev.push({t:0,o:8,b:meta(0x06,'◎ 바이노럴 WAV 자리: 새 오디오 트랙(스테레오) 1마디 맨 앞에 '+amb5BinWavName(piece)+' 놓기. 헤드폰 전용')});
+    amb5BinPts(piece).forEach(function(q){ const txt=q.kind==='fix'?('◎ 바이노럴 '+q.hz+'Hz 고정 ('+amb5BinWhere()+')'):q.kind==='hold'?('◎ 바이노럴 '+q.hz+'Hz ('+amb5BinWhere()+')'):(q.kind==='from'||q.kind==='via')?('◎ 바이노럴 '+q.hz+'Hz 에서 '+q.to+'Hz 로 천천히'):('◎ 바이노럴 '+q.hz+'Hz 도착'); ev.push({t:tk(q.t),o:8,b:meta(0x06,txt)}); });   /* ★ 2026-10-16 8개 조합 바이노럴 프로파일 자리 */
     if(piece.five){ const tem=(tick,bpm)=>{ const u=Math.round(60000000/bpm); ev.push({t:tick,o:1,b:[0xFF,0x51,0x03,(u>>16)&255,(u>>8)&255,u&255]}); };   /* 길이 구조: 템포 하나(amb5Meter), 템포 맵 없음 */
       (piece.ting||[]).forEach(x=>ev.push({t:tk(x.t),o:7,b:meta(0x06,x.what==='stay'?'◎ 띵샤 (음악 내려가고 자연음 올라옴)':'◎ 띵샤 (음악 되돌아오고 자연음 작아짐)')})); }
     else if(SC.nat){ const tem=(tick,bpm)=>{ const u=Math.round(60000000/bpm); ev.push({t:tick,o:1,b:[0xFF,0x51,0x03,(u>>16)&255,(u>>8)&255,u&255]}); };
@@ -56261,7 +56280,7 @@ function buildAmb5Midi(){
     tracks.push(track(ev)); }
   function head(key,memo){ const R=AMB5_REC[key], X=AMB5_MIX[key], ch=X.ch; const nm=(key==='drone'&&amb5Tone().drone)?amb5Tone().drone:R.name;
     return [{t:0,o:0,b:meta(0x03,nm+' | '+R.role)},{t:0,o:1,b:meta(0x01,memo)},
-            {t:0,o:2,b:[0xC0|ch,X.prog]},{t:0,o:3,b:[0xB0|ch,7,X.vol]},{t:0,o:4,b:[0xB0|ch,10,X.pan]},{t:0,o:5,b:[0xB0|ch,91,X.rev]}]; }
+            (X.prog==null?{t:0,o:2,b:meta(0x01,'악기: ES2 사인파 하나로 바꾸세요(로직이 넣은 악기는 지우고)')}:{t:0,o:2,b:[0xC0|ch,X.prog]}),{t:0,o:3,b:[0xB0|ch,7,X.vol]},{t:0,o:4,b:[0xB0|ch,10,X.pan]},{t:0,o:5,b:[0xB0|ch,91,X.rev]}]; }
   const on=(ch,t,n,v)=>({t:t,o:20,b:[0x90|ch,n&0x7F,Math.max(1,Math.min(127,v|0))]});
   const off=(ch,t,n)=>({t:t,o:10,b:[0x80|ch,n&0x7F,0]});
   const cc=(ch,t,c,v)=>({t:t,o:15,b:[0xB0|ch,c,Math.max(0,Math.min(127,Math.round(v)))]});
@@ -56406,8 +56425,8 @@ function buildAmb5Sheet(prog){
   const ks=midiNameP(piece.tonic+60).replace(/-?\d+$/,'')+' 장조 (선율은 장조 5음: 1 2 3 5 6, 단화음 없음)';
   L.push('[호흡 앰비언트 5트랙] 제작 가이드');
   L.push('');
-  if(piece.cat && piece.cat.key!=='free') L.push('분류   : 숨웨이브 '+piece.cat.name+(piece.cat.row?' '+piece.cat.row:'')+(piece.cat.beat?'  바이노럴 '+piece.cat.beat+(amb5BinOn(piece)?' (Binaural L R 트랙)':' (바이노럴 트랙 뺌)'):'  바이노럴 없음')+'  방향 '+({deep:'깊이 아래',down:'아래',flat:'중립',up:'위'}[piece.cat.dirn])+'  자세 '+piece.cat.pose);
-  if(piece.cat && piece.cat.prof) L.push('바이노럴: '+piece.cat.beat+'. '+amb5BinText(piece)+'. '+(amb5BinOn(piece)?('Binaural L R 두 트랙에 들어 있음(반송음 '+midiNameP(amb5BinInfo(piece).car)+' '+amb5BinInfo(piece).f0.toFixed(1)+'Hz). 헤드폰 전용, 스피커로 들을 때는 두 트랙 뮤트.'):'바이노럴 트랙 뺌.')+' Conductor 트랙에 ◎ 바이노럴 표지.');
+  if(piece.cat && piece.cat.key!=='free') L.push('분류   : 숨웨이브 '+piece.cat.name+(piece.cat.row?' '+piece.cat.row:'')+(piece.cat.beat?'  바이노럴 '+piece.cat.beat+(amb5BinWant(piece)?' ('+amb5BinWhere()+')':' (바이노럴 뺌)'):'  바이노럴 없음')+'  방향 '+({deep:'깊이 아래',down:'아래',flat:'중립',up:'위'}[piece.cat.dirn])+'  자세 '+piece.cat.pose);
+  if(piece.cat && piece.cat.prof) L.push('바이노럴: '+piece.cat.beat+'. '+amb5BinText(piece)+'. '+(amb5BinMode()==='midi'?('Binaural L R 두 트랙에 들어 있음(반송음 '+midiNameP(amb5BinInfo(piece).car)+' '+amb5BinInfo(piece).f0.toFixed(1)+'Hz). 헤드폰 전용, 스피커로 들을 때는 두 트랙 뮤트.'):amb5BinMode()==='wav'?('위 상자 "🎧 바이노럴 WAV" 로 받은 '+amb5BinWavName(piece)+' 를 새 오디오 트랙 1마디 맨 앞에(반송음 '+amb5BinInfo(piece).f0.toFixed(1)+'Hz). 헤드폰 전용, 스피커로 들을 때는 그 트랙 뮤트. 아래 "바이노럴 WAV" 참고.'):'바이노럴 뺌.')+' Conductor 트랙에 ◎ 바이노럴 표지.');
   { const F=amb5FlowPlan(piece.T); if(F && F.five) L.push('구조   : '+Math.round(F.L/60)+'분. 0:00 ~ 0:10 인트로(음악은 서서히 커지고 숨 스웰은 0:10 에 다 살아남. 자연음은 1초 만에 제 크기로 들어와 0:10 까지 서서히 작아짐), 0:10 ~ 1:00 숨 스웰과 볼륨'+(F.D?', 1:00 ~ 1:20 음악 -'+F.D+'dB 로 내려가고 자연음 -'+F.DN+'dB 에서 0dB 로 커짐, '+_amm(F.c)+' ~ '+_amm(F.d)+' 음악 되돌아오고 자연음 작아짐':' (가운데 흐름 끔)')+', '+_amm(F.fo0)+' ~ '+_amm(F.fo1)+' 모두 서서히 사라짐, '+_amm(F.fo1)+' 끝. 띵샤 0:10, 1:00, '+_amm(F.c)+', '+_amm(F.fo0)+'. 페이더(CC7) 곡선이라 그 트랙 볼륨 오토메이션은 그리지 말고 Gain 플러그인으로.'); else if(F) L.push('흐름2  : 가운데 흐름 '+F.D+'dB. '+_amm(0)+' ~ '+_amm(F.a)+' 지금 크기, '+_amm(F.a)+' ~ '+_amm(F.b)+' 음악(패드 드론 바닥 핸드팬 양금 피아노)은 -'+F.D+'dB 로 내려가고 자연음은 -'+F.D+'dB 에서 제 크기로 올라옴, '+_amm(F.c)+' ~ '+_amm(F.d)+' 되돌림, 마지막 1분은 처음 크기. 띵샤 신호는 그대로. 페이더(CC7) 곡선이라 그 트랙 볼륨 오토메이션은 그리지 말고, 더 바꾸려면 Gain 플러그인으로.'); }
   if(piece.cat && piece.cat.depth) L.push('회복   : '+piece.cat.depth+' ('+piece.cat.name+' '+piece.cat.row+')');
   L.push('호흡   : '+B.name+'  '+amb5BreathText(B)+' (한 호흡 '+B.cycle.toFixed(2).replace(/\.00$/,'')+'초, 분당 '+(function(r){ const r2=Math.round(r*100); return (r2%5===0&&r2%10!==0)?(r2/100).toFixed(2):r.toFixed(1); })(60/B.cycle).replace(/\.?0+$/,'')+'회)');
@@ -56474,8 +56493,9 @@ function buildAmb5Sheet(prog){
       L.push('   오디오로  : 오디오 트랙에 두고 싶으면 이 트랙 리전의 CC7 을 그 트랙 볼륨 오토메이션으로 옮기면 같습니다(Quick Sampler 쪽이 손이 덜 갑니다).'); }
     if(r[0]==='drone') L.push('   고르는 기준: 실제로 긋는 낮은 현. 신스처럼 스스로 출렁이는 것이 없습니다.');
     if(r[0]==='binL'||r[0]==='binR'){ const BN=amb5BinInfo(piece);
+      L.push('   먼저      : 로직이 MIDI 를 열면 이 트랙에 아무 악기(예: Mellotron Flute)나 넣습니다. 반드시 ES2 로 바꾸세요. Mellotron 은 테이프 흔들림이 있어 울렁거리고, 벤드 범위도 달라 비트 Hz 가 틀어집니다.');
       L.push('   음원 설정 : ES2 기본(Init)에서 오실레이터 1 만 사인파, 2 와 3 은 끄기. Pitch Bend 범위 위아래 2(반음). Analog(음 흔들림) 0, Glide 0, Chorus 와 효과 끄기. 두 트랙 똑같이.');
-      L.push('   크기      : 이름 끝 Gain -6dB 에 페이더(CC7) 45(약 -12dB), 합쳐 약 -18dB. 인트로 10초에 들어오고 끝 10초에 사라짐. 가운데 흐름은 따르지 않음(늘 같은 크기). 음악보다 살짝 작게, 들릴 듯 말 듯이 보통.');
+      L.push('   크기      : 이름 끝 Gain -6dB 에 페이더(CC7) 28(약 -20dB), 합쳐 약 -26dB. 인트로 10초에 들어오고 끝 10초에 사라짐. 가운데 흐름은 따르지 않음(늘 같은 크기). 음악보다 살짝 작게, 들릴 듯 말 듯이 보통.');
       if(r[0]==='binR'){ const Q=amb5BinPts(piece); L.push('   대안      : 오디오 트랙 두 개에 Test Oscillator(사인)를 넣고 왼쪽 '+BN.f0.toFixed(1)+'Hz, 오른쪽 '+Q.map(q=>(BN.f0+q.hz).toFixed(1)+'Hz('+_amm(q.t)+')').join(' → ')+' 로 주파수 오토메이션을 그려도 같습니다.');
         L.push('   확인      : 벤드 범위가 2 가 아니면 비트 Hz 가 달라집니다(예: 범위 12 면 6배). 헤드폰으로 들어 웅웅 하는 느린 맥놀이가 머리 가운데에서 느껴지면 맞습니다.');
         L.push('   스피커    : 헤드폰을 안 쓰는 판(스피커, 공간 재생)은 Binaural L R 두 트랙을 뮤트하거나 지우세요. 스피커에서는 비트가 공기 중에서 섞여 그냥 맥놀이가 됩니다.'); } }
@@ -56487,6 +56507,13 @@ function buildAmb5Sheet(prog){
     if(r[0]==='drone'){ const V=amb5Vol7('drone'); L.push('   볼륨      : 페이더(CC7)가 '+V.lo+'↔'+V.hi+' 로 숨 따라 움직입니다(들숨 끝 '+V.hi+' 이 약 '+V.db+'dB). 바닥이라 패드보다 얕게. 드론 크기도 이 곡선 안에 있어 Gain 플러그인은 넣지 않습니다.'); }
     if(r[0]==='drone') L.push('   셈여림    : 모듈레이션 휠(CC1) 28↔42, 낮은 현은 여리게(pp~p) 숨 따라 조금만.');
     if(r[0]==='drone') L.push('   활 바꿈   : 오래 끄는 음은 들숨 첫머리에서 같은 음을 다시 그었습니다(한 활 6~24초). 실제 현처럼 활이 바뀌고, 긴 음 샘플이 되풀이되는 소리가 나지 않습니다.'); });
+  if(amb5BinWant(piece) && amb5BinMode()==='wav'){ const BN=amb5BinInfo(piece), Q=amb5BinPts(piece);
+    L.push(''); L.push('▸ 바이노럴 WAV  (오디오 트랙, 헤드폰 전용)');
+    L.push('   파일      : '+amb5BinWavName(piece)+' (위 상자 "🎧 바이노럴 WAV" 로 받기, 44.1kHz 16비트 스테레오)');
+    L.push('   넣는 법   : ① 새 오디오 트랙(스테레오) 하나. ② 파일을 그 트랙 1마디 맨 앞(0:00)에 끌어 놓기. 앞 '+Math.round(amb5PadSec(piece))+'초는 비어 있어 MIDI 와 딱 맞습니다(곡 0:00 = 로직 '+Math.round(amb5PadSec(piece))+'초). ③ 팬은 가운데 그대로(파일 안에서 왼쪽 오른쪽이 이미 나뉨).');
+    L.push('   들어 있는 것: 왼쪽 '+BN.f0.toFixed(2)+'Hz 사인파('+midiNameP(BN.car)+', 으뜸음), 오른쪽 '+Q.map(q=>(BN.f0+q.hz).toFixed(2)+'Hz').join(' → ')+'. '+amb5BinText(piece)+'.');
+    L.push('   크기      : 파일 안 -24dBFS. 인트로 10초에 들어오고 끝 10초에 사라짐(가운데 흐름은 따르지 않음). 들릴 듯 말 듯이 보통이라 페이더로 -6 ~ -12dB 더 내려도 됩니다.');
+    L.push('   지킬 것   : 리버브와 딜레이 센드, 스테레오 넓히기, Direction Mixer, 모노 합치기 금지(소리가 반대쪽 귀로 새면 비트가 깨짐). 스피커로 들을 때는 이 트랙 뮤트.'); }
   L.push('');
   L.push('■ 믹스 (헤드폰 기준: 바닥은 가운데, 포인트 악기는 작지만 귀 옆에서 또렷하게)');
   L.push('   자리: 패드, 숨 쉬는 드론, 바닥 드론, 자연음은 가운데에서 머리 안쪽을 채웁니다. 포인트 악기는 좌우로 벌려 핸드팬 왼쪽 L38, 피아노 왼쪽 L63, 양금 오른쪽 R63, 띵샤 오른쪽 R13. 팬은 파일(CC10)에 들어 있습니다.');
@@ -56498,7 +56525,7 @@ function buildAmb5Sheet(prog){
   L.push('   패드 드론: ChromaVerb Dreamy 계열 8~12초 Mix 35%. 드론은 리버브를 적게, 120Hz 아래는 모노.');
   L.push('   핸드팬: Tape Delay 점4분 피드백 30% 로우컷 300Hz, 리버브 30%(가깝게).');
   L.push('   띵샤 신호: 가장 큰 트랙(0dB), 오른쪽 R13, 리버브 센드 넉넉히(약 48%). 한 번 울리고 길게 사라지게. 로우컷은 '+({deep:'30Hz 정도만(C2~G2 낮은 울림)',mid:'60Hz(C3~G3)',light:'120Hz(C4~G4)'})[state.amb5Tone||'deep']+'.');
-  if(amb5BinOn(piece)){ const BN=amb5BinInfo(piece); L.push('   바이노럴: 반송음 '+BN.f0.toFixed(1)+'Hz. 패드와 드론 Channel EQ 에서 '+Math.round(BN.f0)+'Hz 를 -3dB(Q 2) 비워 두면 비트가 묻히지 않습니다. Binaural L R 두 트랙은 리버브 센드, 스테레오 효과, Direction Mixer 를 걸지 마세요(소리가 반대쪽 귀로 새면 비트가 깨짐). 마스터에 스테레오 넓히기나 모노 합치기도 금지.'); }
+  if(amb5BinWant(piece)){ const BN=amb5BinInfo(piece); L.push('   바이노럴: 반송음 '+BN.f0.toFixed(1)+'Hz. 패드와 드론 Channel EQ 에서 '+Math.round(BN.f0)+'Hz 를 -3dB(Q 2) 비워 두면 비트가 묻히지 않습니다. 바이노럴 트랙은 리버브 센드, 스테레오 효과, Direction Mixer 를 걸지 마세요(소리가 반대쪽 귀로 새면 비트가 깨짐). 마스터에 스테레오 넓히기나 모노 합치기도 금지.'); }
   else if(!(piece.cat&&piece.cat.fixed)) L.push('   바이노럴 자리: 형이 넣을 반송음 주파수를 정하면 패드와 드론 Channel EQ 에서 그 주파수를 -3dB(Q 2) 비워 두세요. 패드 드론이 200~400Hz 에 넓게 깔려 있어 반송음과 겹치기 쉽습니다.');
   L.push('   마스터: 믹스 단계에서는 리미터 없이(아래 게인과 마스터링). 마스터링에서 -18 ~ -16 LUFS, 리미터는 살짝만(호흡 스웰이 눌리지 않게).');
   try{ (window.__gainGuide?window.__gainGuide('-18 ~ -16 LUFS (명상, 웰니스, 앰비언트는 여유 있게)'):[]).forEach(function(x){ L.push(x); }); }catch(e){}
@@ -56541,7 +56568,7 @@ function aqRender(){
   chip('aqPmel',AQ_PMEL,state.amb5Pmel||'on','aqSetPmel');
   chip('aqMid',AQ_MIDFLOW.map(x=>[x[0],x[0]==='off'?x[1]:'음악 -'+x[1]+', 자연음 -20dB → 0dB']),state.amb5Mid||'15','aqSetMid');
   chip('aqTone',AQ_TONE,state.amb5Tone||'deep','aqSetTone');
-  { const C=amb5Cur(), r=document.getElementById('aqBinRow'); const has=!!(C&&C.prof&&C.prof.length); if(r) r.style.display=has?'':'none'; chip('aqBin',AQ_BIN.map(x=>[x[0],x[0]==='on'?(x[1]+(has?', '+amb5ProfTxt(C.prof):'')):x[1]]),state.amb5Bin||'on','aqSetBin'); }
+  { const C=amb5Cur(), r=document.getElementById('aqBinRow'); const has=!!(C&&C.prof&&C.prof.length); if(r) r.style.display=has?'':'none'; chip('aqBin',AQ_BIN.map(x=>[x[0],x[0]==='wav'?(x[1]+(has?', '+amb5ProfTxt(C.prof):'')):x[1]]),amb5BinMode(),'aqSetBin'); const bb=document.getElementById('aqBinWav'); if(bb) bb.style.display=(has&&amb5BinMode()==='wav')?'':'none'; }
   const inf=document.getElementById('aqInfo');
   if(on && typeof updateDock==='function') try{ updateDock(); }catch(e){}
   if(inf){ if(!on){ inf.textContent='호흡을 고르면 시작합니다.'; }
@@ -56573,6 +56600,9 @@ function aqMidi(){ stopBGM(); aqEnsure(); aqRender();
   try{ const sh=buildAmb5Sheet('amb5'); if(sh) setTimeout(()=>sumSaveModal(strBytes(window.__L12?window.__L12(sh):sh), fname.replace(/\.mid$/,'_제작가이드.txt'), 'text/plain'), 350); }catch(e){}
 }
 function aqWav(){ stopBGM(); aqEnsure(); aqRender(); exportWav('amb5'); }
+function aqBinWav(){ stopBGM(); aqEnsure(); aqRender(); lastProgForMidi='amb5'; const pc=generatePiece('amb5'); if(!pc||!amb5BinWant(pc)){ alert('바이노럴 프로파일이 있는 분류(숨웨이브 8조합)를 고르세요.'); return; }
+  const btn=document.getElementById('aqBinWav'); if(btn){ btn.textContent='⏳ 만드는 중'; }
+  setTimeout(function(){ try{ sumSaveModal(amb5BinWav(pc), amb5BinWavName(pc), 'audio/wav'); } finally { if(btn) btn.textContent='🎧 바이노럴 WAV'; } }, 30); }
 function setStruct(v){ state.struct=v; amb5Reseed();
   document.querySelectorAll('#structToggle .opt-g').forEach(e=>e.classList.toggle('active',e.dataset.sc===v));
   const el=document.getElementById('structHint');
@@ -58438,7 +58468,7 @@ try{
    'selectProg','setBloom','setBreath','setBreathInt','setCue','setDur','setDurCustom',
    'setKey','setMode','setPulse','setRange','setRubato','setScaleType','setTuning',
    'setVoicing','showFxSettings','sumPlayArc','sumStopArc','sumToggleBox',
-   'toggleLayerP','toggleMelody','setStruct','aqSetBreath','aqSetKey','aqSetSwell','aqSetDur','aqNew','aqPlay','aqMidi','aqWav','aqSetFlow','aqSetBright','aqSetStart','aqSetCat','aqSetCue','aqSetPmel','aqSetMid','aqSetTone','aqSetBin'].forEach(function(n){
+   'toggleLayerP','toggleMelody','setStruct','aqSetBreath','aqSetKey','aqSetSwell','aqSetDur','aqNew','aqPlay','aqMidi','aqWav','aqSetFlow','aqSetBright','aqSetStart','aqSetCat','aqSetCue','aqSetPmel','aqSetMid','aqSetTone','aqSetBin','aqBinWav'].forEach(function(n){
     try{ const f=eval(n); if(typeof f==='function') window[n]=f; }catch(e){}
   });
 }catch(e){}
