@@ -55708,7 +55708,7 @@ const AMB5_SW11D={off:[100,100], soft:[88,110], normal:[72,110], strong:[58,112]
 function amb5Vol7(key){ key=key||'pad'; const T7=(key==='drone')?AMB5_VOL7D:AMB5_VOL7; const V=T7[state.breathInt||'normal']||T7.normal; const vmax=Math.max.apply(null,['pad','drone','hp','yg','pn','ting'].map(function(k){ return AMB5_MIX[k].vol; }));
   const g=AMB5_MIX[key].vol/vmax, db=Math.round(2*40*Math.log10(g))/2; return {lo:Math.round(V[0]*g), hi:Math.round(V[1]*g), vmax:vmax, db:db}; }
 function amb5DynR(){ const D=AMB5_DYN[state.breathInt||'normal']||AMB5_DYN.normal, f=amb5Char().dynHi; return [D[0], Math.max(D[0]+10, Math.min(110, Math.round(D[0]+(D[1]-D[0])*f)))]; }   /* 분류 성격으로 상한만 */
-const AMB5_MIX={pad:{vol:54,pan:64,rev:80,ch:0,prog:89}, drone:{vol:60,pan:64,rev:40,ch:1,prog:42},
+const AMB5_MIX={pad:{vol:43,pan:64,rev:80,ch:0,prog:89}, drone:{vol:48,pan:64,rev:40,ch:1,prog:42},   /* ★ 2026-10-17 형: 숨 쉬는 패드와 저음 드론 4dB 작게(54 → 43, 60 → 48) */
                 /* ★ 2026-10-15 형 헤드폰: 포인트 악기는 작게(2dB 내림) 대신 좌우로 벌리고(핸드팬 L38 양금 R63 피아노 L63, 끝까지는 안 벌림) 리버브를 줄여 가깝게 → 작아도 귀 옆에서 또렷 */
                 hp:{vol:71,pan:40,rev:70,ch:2,prog:114}, yg:{vol:55,pan:104,rev:84,ch:3,prog:15}, pn:{vol:50,pan:24,rev:90,ch:4,prog:0},
                 ting:{vol:84,pan:72,rev:110,ch:5,prog:112}, pm:{vol:66,pan:56,rev:76,ch:10,prog:0}, cue:{vol:58,pan:64,rev:70,ch:6,prog:9}, floor:{vol:60,pan:64,rev:50,ch:7,prog:89}, nature:{vol:60,pan:64,rev:20,ch:8,prog:122}};
@@ -55721,7 +55721,7 @@ const AMB5_FLOOR_DB=-25;   /* 네 음으로 넓게 펼쳐 -18 → -20, 형: 더 
 /* 바닥 드론 펼침: 으뜸음, 5도, 옥타브, 그 위 5도(열린 배치, 큰 공간의 울림) */
 function amb5FloorNotes(r0){ return [r0, r0+7, r0+12, r0+19]; }
 /* ★ 2026-10-15 형: 자연음 바닥. 형이 녹음한 바다 바람 숲 계곡 비를 Quick Sampler 에 넣으면 숨 따라 아주 조금(3dB) 오르내림. 크기는 가장 큰 트랙보다 12dB 작게 */
-const AMB5_NATURE_DB=-12, AMB5_NATURE_SWING=3;
+const AMB5_NATURE_DB=0, AMB5_NATURE_SWING=3;   /* ★ 2026-10-17 형: 자연음 커진 상태 = 페이더 0dB(CC7 90, 들숨 끝), 날숨 끝 -3dB. 작은 상태는 -D */
 const AMB5_NATURE_PICK={rest:'비', meditate:'숲', relax:'바다', focus:'바람(아주 약하게)', energy:'계곡', short:'바다', free:'바다나 숲'};
 /* 단화음 없는 장조 진행(C 기준, 고른 으뜸음으로 옮김). 첫 화음과 끝은 으뜸 */
 /* ★ 2026-10-17 형: 진행 5개에서 18개로. 단화음 없이(vi ii 자리는 sus 로 3음 없이: Asus4 = A D E, Dsus2 = D E A, Dsus4 = D G A), IV/I 페달(Fmaj7/C), 모두 장조 5음과 드론(으뜸 5도)에 반음으로 비비지 않음 */
@@ -55760,7 +55760,11 @@ function amb5FlowPlan(T){ const D=+(state.amb5Mid||'12')||0; if(amb5Cur().fixed)
   if(!D || !(T>=240)) return null; const E=60, R=30; return {D:D, a:E, b:E+R, c:T-E-R, d:T-E, fi:0}; }
 /* 페이더 배수(CC7 값에 곱함): 가운데 흐름 dB 와 5분 구조의 들어오기 사라지기 */
 function amb5FlowFac(F,t,nat){ const sm=x=>{ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); };
-  let f=Math.pow(10,(F.D?amb5FlowDb(F,t,nat):0)/40); if(F.fi>0) f*=sm(t/F.fi); if(F.fo1) f*=1-sm((t-F.fo0)/(F.fo1-F.fo0)); return f; }
+  let db=F.D?amb5FlowDb(F,t,nat):0;
+  /* ★ 2026-10-17 형: 길이 구조의 자연음은 1초 만에 제 크기로 들어와서 0:10 까지 서서히 작아지고(-D), 1:00 까지 그대로, 1:00 부터 다시 제 크기 */
+  const natIn=nat && F.five && F.fi>1;
+  if(natIn && F.D && t<F.fi) db=-F.D*sm((t-1)/(F.fi-1));
+  let f=Math.pow(10,db/40); if(F.fi>0) f*=natIn?sm(t/1):sm(t/F.fi); if(F.fo1) f*=1-sm((t-F.fo0)/(F.fo1-F.fo0)); return f; }
 function amb5FlowDb(F,t,nat){ const sm=x=>{ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); }; let w=0; if(t<=F.a||t>=F.d) w=0; else if(t<F.b) w=sm((t-F.a)/(F.b-F.a)); else if(t<=F.c) w=1; else w=1-sm((t-F.c)/(F.d-F.c)); return nat?(-F.D*(1-w)):(-F.D*w); }   /* 음악은 가운데에서 -D, 자연음은 처음과 끝에서 -D */
 function amb5ProfTxt(p){ if(!p||!p.length) return ''; return p.length===1?(p[0]+'Hz 고정'):(p.join('→')+'Hz'); }
 /* 바이노럴 길: 들어가기는 첫 값, 머물기 동안 직선으로 내려 가라앉기 시작에서 마지막 값(셋이면 머물기 가운데에서 가운데 값). 띵샤 두 번이 경계 */
@@ -56304,13 +56308,13 @@ function buildAmb5Midi(){
     for(let t=0;t<=T+TAIL+1e-6;t+=0.25){ let v=100; if(t<FI) v*=0.5-0.5*Math.cos(Math.PI*t/FI); if(t>T) v*=0.5+0.5*Math.cos(Math.PI*Math.min(1,(t-T)/TAIL)); const r=Math.round(v); if(r!==pv){ ev.push(cc(ch,tk(t),11,r)); pv=r; } }
     amb5Flow(ev,ch,'floor'); tracks.push(track(ev)); }
   /* ②-3 자연음 바닥: 노트 하나(C3)를 처음부터 끝까지, 숨 따라 페이더(CC7)가 3dB 안에서 오르내림. 처음 두 호흡 들어오고 끝 여운에서 빠짐 */
-  { const ch=AMB5_MIX.nature.ch, ev=head('nature','자연음 바닥. 이 트랙에 Quick Sampler 를 두고 형 녹음(wav)을 끌어 놓기, 모드 One Shot, Root Key C3. 노트 C3 하나가 곡 끝까지 이어져 녹음이 처음부터 흐름. 페이더(CC7)가 숨 따라 '+AMB5_NATURE_SWING+'dB 안에서 오르내림, 크기 약 '+AMB5_NATURE_DB+'dB');
+  { const ch=AMB5_MIX.nature.ch, ev=head('nature','자연음 바닥. 이 트랙에 Quick Sampler 를 두고 형 녹음(wav)을 Original 칸에 끌어 놓기, 모드 Classic, Root Key C3. 노트 C3 하나가 곡 끝까지 이어져 녹음이 처음부터 흐름. 페이더(CC7)가 숨 따라 '+AMB5_NATURE_SWING+'dB 안에서 오르내림, 크기 약 '+AMB5_NATURE_DB+'dB');
     ev.push(on(ch,tk(0),60,100)); ev.push(off(ch,tk(T+TAIL),60));
     const vmax=Math.max.apply(null,['pad','drone','hp','yg','pn','ting'].map(function(k){ return AMB5_MIX[k].vol; }));
     ev.push({t:0,o:1,b:[0xFF,0x7F,0x04,0x53,0x4F,0x4B,0x37]});
     ev.forEach(function(e){ if(e.b[0]===(0xB0|ch) && e.b[1]===7 && e.t===0 && e.o===3) e.b[2]=vmax; });
     const VN=90*Math.pow(10,AMB5_NATURE_DB/40), lo=Math.pow(10,-AMB5_NATURE_SWING/40), FI=Math.min(2*C,16);
-    const nv=function(t){ let v=VN*(lo+(1-lo)*Math.pow(amb5PhaseS(piece.sched,Math.min(t,T)),S.ex||1)); if(t<FI) v*=0.5-0.5*Math.cos(Math.PI*t/FI); if(t>T) v*=0.5+0.5*Math.cos(Math.PI*Math.min(1,(t-T)/TAIL)); return Math.round(v); };
+    const nv=function(t){ let v=VN*(lo+(1-lo)*Math.pow(amb5PhaseS(piece.sched,Math.min(t,T)),S.ex||1)); if(t<FI && !piece.five) v*=0.5-0.5*Math.cos(Math.PI*t/FI); if(t>T) v*=0.5+0.5*Math.cos(Math.PI*Math.min(1,(t-T)/TAIL)); return Math.round(v); };
     amb5Grid(SC).forEach(function(t){ ev.push(cc(ch,tk(t),7,nv(t))); });
     for(let t=0.25;t<=TAIL+1e-6;t+=0.25) ev.push(cc(ch,tk(T+t),7,nv(T+t)));
     panMove(ev,ch,'nature'); amb5Flow(ev,ch,'nature'); tracks.push(track(ev)); }
@@ -56366,7 +56370,7 @@ function buildAmb5Sheet(prog){
   L.push('');
   if(piece.cat && piece.cat.key!=='free') L.push('분류   : 숨웨이브 '+piece.cat.name+(piece.cat.row?' '+piece.cat.row:'')+(piece.cat.beat?'  바이노럴 자리 '+piece.cat.beat+' (형이 나중에 따로 넣음)':'  바이노럴 없음')+'  방향 '+({deep:'깊이 아래',down:'아래',flat:'중립',up:'위'}[piece.cat.dirn])+'  자세 '+piece.cat.pose);
   if(piece.cat && piece.cat.prof) L.push('바이노럴: '+piece.cat.beat+' (형이 나중에 따로 넣음). '+amb5BinText(piece)+'. Conductor 트랙에 ◎ 바이노럴 표지.');
-  { const F=amb5FlowPlan(piece.T); if(F && F.five) L.push('구조   : '+Math.round(F.L/60)+'분. 0:00 ~ 0:10 인트로(모든 트랙이 서서히 커짐, 숨 스웰은 0:10 에 다 살아남), 0:10 ~ 1:00 숨 스웰과 볼륨'+(F.D?', 1:00 ~ 1:20 음악 -'+F.D+'dB 로 내려가고 자연음 커짐, '+_amm(F.c)+' ~ '+_amm(F.d)+' 음악 되돌아오고 자연음 작아짐':' (가운데 흐름 끔)')+', '+_amm(F.fo0)+' ~ '+_amm(F.fo1)+' 모두 서서히 사라짐, '+_amm(F.fo1)+' 끝. 띵샤 0:10, 1:00, '+_amm(F.c)+', '+_amm(F.fo0)+'. 페이더(CC7) 곡선이라 그 트랙 볼륨 오토메이션은 그리지 말고 Gain 플러그인으로.'); else if(F) L.push('흐름2  : 가운데 흐름 '+F.D+'dB. '+_amm(0)+' ~ '+_amm(F.a)+' 지금 크기, '+_amm(F.a)+' ~ '+_amm(F.b)+' 음악(패드 드론 바닥 핸드팬 양금 피아노)은 -'+F.D+'dB 로 내려가고 자연음은 -'+F.D+'dB 에서 제 크기로 올라옴, '+_amm(F.c)+' ~ '+_amm(F.d)+' 되돌림, 마지막 1분은 처음 크기. 띵샤 신호는 그대로. 페이더(CC7) 곡선이라 그 트랙 볼륨 오토메이션은 그리지 말고, 더 바꾸려면 Gain 플러그인으로.'); }
+  { const F=amb5FlowPlan(piece.T); if(F && F.five) L.push('구조   : '+Math.round(F.L/60)+'분. 0:00 ~ 0:10 인트로(음악은 서서히 커지고 숨 스웰은 0:10 에 다 살아남. 자연음은 1초 만에 제 크기로 들어와 0:10 까지 서서히 작아짐), 0:10 ~ 1:00 숨 스웰과 볼륨'+(F.D?', 1:00 ~ 1:20 음악 -'+F.D+'dB 로 내려가고 자연음 커짐, '+_amm(F.c)+' ~ '+_amm(F.d)+' 음악 되돌아오고 자연음 작아짐':' (가운데 흐름 끔)')+', '+_amm(F.fo0)+' ~ '+_amm(F.fo1)+' 모두 서서히 사라짐, '+_amm(F.fo1)+' 끝. 띵샤 0:10, 1:00, '+_amm(F.c)+', '+_amm(F.fo0)+'. 페이더(CC7) 곡선이라 그 트랙 볼륨 오토메이션은 그리지 말고 Gain 플러그인으로.'); else if(F) L.push('흐름2  : 가운데 흐름 '+F.D+'dB. '+_amm(0)+' ~ '+_amm(F.a)+' 지금 크기, '+_amm(F.a)+' ~ '+_amm(F.b)+' 음악(패드 드론 바닥 핸드팬 양금 피아노)은 -'+F.D+'dB 로 내려가고 자연음은 -'+F.D+'dB 에서 제 크기로 올라옴, '+_amm(F.c)+' ~ '+_amm(F.d)+' 되돌림, 마지막 1분은 처음 크기. 띵샤 신호는 그대로. 페이더(CC7) 곡선이라 그 트랙 볼륨 오토메이션은 그리지 말고, 더 바꾸려면 Gain 플러그인으로.'); }
   if(piece.cat && piece.cat.depth) L.push('회복   : '+piece.cat.depth+' ('+piece.cat.name+' '+piece.cat.row+')');
   L.push('호흡   : '+B.name+'  '+amb5BreathText(B)+' (한 호흡 '+B.cycle.toFixed(2).replace(/\.00$/,'')+'초, 분당 '+(function(r){ const r2=Math.round(r*100); return (r2%5===0&&r2%10!==0)?(r2/100).toFixed(2):r.toFixed(1); })(60/B.cycle).replace(/\.?0+$/,'')+'회)');
   if(B.tech && AMB5_TECH[B.tech]) L.push('통로   : '+AMB5_TECH[B.tech]);
@@ -56403,7 +56407,7 @@ function buildAmb5Sheet(prog){
   const rows=[['pad','들숨에 차오르고 날숨에 잦아드는 스웰. CC11 '+SP.lo+'↔'+SP.hi+' 을 호흡 시간 그대로 그렸습니다(트랙 크기는 따로 Gain 줄). 날숨 끝은 거의 숨만 남고 들숨 끝은 차오릅니다(약하게 36↔88, 보통 14↔100, 과하게 4↔115).'+(B.h1>0?' 들숨 뒤 멈춤 '+B.h1B+'초 동안은 꼭대기 그대로':'')+(B.h2>0?', 날숨 뒤 멈춤 '+B.h2B+'초 동안은 바닥 그대로':'')+((B.h1>0||B.h2>0)?'.':'')+(piece.sched.sighS>0?' 앞 한숨 숨은 짧게 두 번 부풉니다.':'')+(piece.sched.flatFrom!=null?' '+_amm(piece.sched.flatFrom)+' 안내 끝부터는 중간 높이로 고르게 머뭅니다.':'')+' 음원에서 CC11(Expression)이 볼륨에 걸려 있어야 합니다.'],
               ['drone','으뜸음 '+midiNameP(piece.drRoot)+' 과 5도. 처음부터 끝까지 같은 두 음(들숨 첫머리에서 활만 바꿈). 처음 두 호흡에 들어오고 마지막 여운에서 빠집니다. 호흡 따라 스웰(CC11 '+(AMB5_SW11D[state.breathInt||'normal']||AMB5_SW11D.normal).join('~')+')과 볼륨(CC7)이 함께 부풉니다.'],
               ['floor','으뜸음, 5도, 옥타브, 그 위 5도로 아주 넓게 펼친 '+amb5FloorNotes(piece.ev.drone[0].midi).map(midiNameP).join(' ')+'. 숨 쉬지 않고 처음부터 끝까지 아주 작게(페이더 CC7 한 값, 가장 큰 트랙보다 약 '+(-AMB5_FLOOR_DB)+'dB 작게) 깔립니다. 처음 두 호흡에 들어오고 마지막 여운에서 빠지는 것 말고는 움직임 없음(CC11 은 들어오고 빠질 때만).'],
-              ['nature','형이 녹음한 자연음(이 곡 추천: '+(AMB5_NATURE_PICK[(piece.cat&&piece.cat.key)||'free']||'바다')+'). 노트 C3 하나가 곡 끝까지 이어지고, 페이더(CC7)가 숨 따라 '+AMB5_NATURE_SWING+'dB 안에서 아주 조금 오르내립니다(크기 약 '+AMB5_NATURE_DB+'dB, Gain 없음). 처음 두 호흡에 들어오고 끝 여운에서 빠집니다.'],
+              ['nature','형이 녹음한 자연음(이 곡 추천: '+(AMB5_NATURE_PICK[(piece.cat&&piece.cat.key)||'free']||'바다')+'). 노트 C3 하나가 곡 끝까지 이어지고, 페이더(CC7)가 숨 따라 '+AMB5_NATURE_SWING+'dB 안에서 아주 조금 오르내립니다(크기 약 '+AMB5_NATURE_DB+'dB, Gain 없음). '+(piece.five?'0:00 부터 1초 만에 제 크기로 들어와 0:10 까지 서서히 작아지고(-'+(+(state.amb5Mid||'12')||0)+'dB), 1:00 부터 20초에 걸쳐 다시 제 크기, 끝 1분 전부터 다시 작아지고 끝 10초에 사라집니다.':'처음 두 호흡에 들어오고 끝 여운에서 빠집니다.')],
               ['hp','딩 '+midiNameP(piece.ding)+', 음 '+piece.hpSet.map(midiNameP).join(' ')+'. 들숨 첫머리와 숨의 꼭대기에만 드문드문.'],
               ['yg','들숨에 오르고 날숨에 내려오는 선율. 두 호흡 노래하고 한두 호흡 쉼. 화음음과 반음으로 비비지 않는 음계음만. CC11 70~112 로 호흡 따라 부풉니다.'],
               ['pn','양금을 한 호흡 늦게, 한 옥타브 아래에서 따라가는 캐논. 그 자리 화음에 맞춰 고쳤고 양금과 반음 부딪힘이 없습니다. 페달은 화음마다 갈아 밟음.'+((piece.ev.pm||[]).length?' 피아노 선율이 대답하는 자리에서는 빠집니다(피아노 둘이 겹치지 않게).':'')]];
@@ -56421,7 +56425,7 @@ function buildAmb5Sheet(prog){
     if(r[0]==='pad') L.push('   고르는 기준: 형이 고른 결, LFO 없이 부드러운 신스. 이름에 움직임(Swell Drift Waves Motion Flutter Pulse)이 드러나는 것은 뺐습니다.');
     if(r[0]==='pad') L.push('   울렁이면  : Alchemy 창 Advanced 의 LFO Depth 를 0, Unison Detune 을 줄이면 숨 스웰만 남습니다. 모듈레이션 휠(CC1)은 파일에 넣지 않았습니다(신스에서 비브라토가 되기 쉬움).');
     if(r[0]==='pad'){ const V=amb5Vol7(); L.push('   볼륨      : 숨 따라 부풀고 줄어드는 것은 파일에 다 들어 있습니다. 페이더(CC7)가 '+V.lo+'↔'+V.hi+' 로 숨 따라 움직이고(들숨 끝 '+V.hi+' 이 약 '+V.db+'dB, 날숨 끝 '+V.lo+'), 스웰(CC11)도 함께 오르내립니다. 패드 크기도 이 곡선 안에 넣어 두어 Gain 플러그인은 넣지 않습니다(그래서 이름 끝에 [Gain] 이 없습니다).'); }
-    if(r[0]==='nature'){ L.push('   넣는 법   : ① 이 트랙 악기를 Quick Sampler 로. ② 녹음 파일(wav)을 Quick Sampler 창에 끌어 놓기. ③ 모드 One Shot, Root Key C3(소리 높이 그대로). 노트 C3 하나가 곡 끝까지 이어져 녹음이 처음부터 흐릅니다.');
+    if(r[0]==='nature'){ L.push('   넣는 법   : ① 이 트랙 악기를 Quick Sampler 로. ② 녹음 파일(wav)을 Quick Sampler 창에 끌어 놓기. Original 과 Optimized 가 나오면 Original 에(Optimized 는 음높이를 찾아 기준 건반을 바꾸고 앞뒤를 잘라 냄). ③ 모드 Classic(One Shot 도 됨), Root Key C3(녹음 속도와 소리 그대로). MIDI 리전은 지우지 마세요(볼륨 흐름 CC7 이 들어 있음). 노트 C3 하나가 곡 끝까지 이어져 녹음이 처음부터 흐릅니다.');
       L.push('   녹음 길이 : 곡보다 길게(이 곡 '+fmtDur((piece.T+piece.TAIL)/60)+'). 짧으면 모드를 Loop 로, 크로스페이드를 길게. 녹음이 없으면 이 트랙은 비워 두어도 됩니다(소리 없음).');
       L.push('   오디오로  : 오디오 트랙에 두고 싶으면 이 트랙 리전의 CC7 을 그 트랙 볼륨 오토메이션으로 옮기면 같습니다(Quick Sampler 쪽이 손이 덜 갑니다).'); }
     if(r[0]==='drone') L.push('   고르는 기준: 실제로 긋는 낮은 현. 신스처럼 스스로 출렁이는 것이 없습니다.');
