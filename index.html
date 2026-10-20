@@ -4003,7 +4003,7 @@ window.__cosmosFx=function(o, at){
   const line=function(P,ix,fmt){ let out=AT(P[0][0])+' '+fmt(P[0][ix]); for(let k=1;k<P.length;k++){ out+=(P[k][ix]===P[k-1][ix])?', '+AT(P[k][0])+' 까지 그대로':' → '+AT(P[k][0])+' '+fmt(P[k][ix]); } return out; };
   const fdb=function(v){ return v==null?'-∞':B(v+' dB'); }, fhz=function(v){ return B(hz(v)); };
   const many=W.length>1, top=Math.max.apply(null,W.map(function(P){ return Math.max.apply(null,P.map(function(x){ return x[2]; })); }));
-  return {title:o.title||'우주로 열리는 효과 (Cosmos 버스)', why:o.why||'',
+  return {W:W, title:o.title||'우주로 열리는 효과 (Cosmos 버스)', why:o.why||'',
     steps:['새 Aux 하나: 아무 트랙 센드 빈 칸 → '+B('Bus')+' → 믹서에 생긴 Aux 이름을 '+B('Cosmos'),
       'Cosmos 오디오 FX 위에서 아래로 세 개: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+', 나머지 기본) → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B((o.decay||12)+' s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+', 나머지 기본) → '+B('Channel EQ')+' (첫째 띠 Low Cut 켬 '+B('400 Hz')+' '+B('24 dB/Oct')+', 여덟째 띠 High Cut 켬 '+B('1000 Hz')+' '+B('24 dB/Oct')+', 가운데 여섯 띠는 0 dB 그대로)'+Gr(' (EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐. Timing Vocals 는 패드처럼 이어지는 소리용, Drums 나 Speech 면 이어지는 소리가 울렁일 수 있음)'),
       '센드 Cosmos 를 걸 트랙: '+o.sends.map(function(x){ return B(x); }).join(', ')+'. 처음 값은 '+R('맨 아래(-∞)')+(o.sendNote?' '+o.sendNote:'')+(o.nosend?' '+Gr('('+o.nosend+' 은 걸지 않음)'):''),
@@ -4231,7 +4231,7 @@ const altShow=function(a){ a=String(a); const sn=/\(스냅샷 ([^)]+)\)/.exec(a)
   return a.indexOf('/')>=0?a.split('/').pop():a; };
 const mmss=function(s){ s=Math.round(s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 
-const CSS='.oncek{display:block;margin:4px 0 8px;font-weight:600}details.once>summary{color:var(--sub);font-size:13px;cursor:pointer}h4{font-size:15px;margin:14px 0 4px}.dif,.dif .b,.dif .g{color:var(--red);font-weight:600}'+':root{--ink:#1d1f23;--sub:#6b7078;--line:#e3e5e8;--red:#c62828;--blue:#1e5bb8;--soft:#f6f7f9}*{box-sizing:border-box}'
+const CSS='a.pl{text-decoration:none}tr.hl td{background:#fff4c2}.oncek{display:block;margin:4px 0 8px;font-weight:600}details.once>summary{color:var(--sub);font-size:13px;cursor:pointer}h4{font-size:15px;margin:14px 0 4px}.dif,.dif .b,.dif .g{color:var(--red);font-weight:600}'+':root{--ink:#1d1f23;--sub:#6b7078;--line:#e3e5e8;--red:#c62828;--blue:#1e5bb8;--soft:#f6f7f9}*{box-sizing:border-box}'
  +'body{margin:0;background:#fff;color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}main{max-width:1000px;margin:0 auto;padding:28px 16px 60px}'
  +'h1{font-size:22px;margin:0 0 4px}.meta{color:var(--sub);font-size:13.5px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 6px}.chip{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px}'
  +'.legend{font-size:13px;color:var(--sub);margin:10px 0 0}.r{color:var(--red);font-weight:600}.b{color:var(--blue);font-weight:600}.g{color:var(--sub)}'
@@ -4251,6 +4251,32 @@ const JS='(function(){var key="guide:"+document.title+":"+location.pathname;var 
  +'document.querySelectorAll("input[type=checkbox]:not(#onceDone)").forEach(function(cb,i){var row=cb.closest("tr")||cb.closest("li");var set=function(){if(row)row.classList.toggle("done",cb.checked)};cb.checked=!!st[i];set();cb.addEventListener("change",function(){st[i]=cb.checked;set();try{localStorage.setItem(key,JSON.stringify(st))}catch(e){}})});'
  +'document.querySelectorAll(".tabs button").forEach(function(b){b.addEventListener("click",function(){var p=b.parentNode.parentNode;p.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x===b)});p.querySelectorAll(".tab").forEach(function(t){t.classList.toggle("on",t.id===b.dataset.t)})})})})();';
 
+/* ★ 2026-10-20 형: 가장 큰 자리를 MIDI 로 바로 찾아 분 초로(Stereo Out 피크, 리미터 REDUCTION 보는 자리).
+   0.25초마다 트랙 합: (Gain 이름값) x (CC7 페이더, 로직 40 log 곡선) x (CC11) x 음 세기. 치는 악기(띵샤 종 편종, 핸드팬, 양금 피아노)는 친 뒤 줄어드는 꼬리로,
+   패드 드론은 울리는 동안 그대로. 자연음(녹음 파일 크기를 모름)과 바이노럴은 뺌. 가장 큰 순간 peak 와 그 앞뒤 10초 창 */
+function loudPeak(u8, M, st0){ try{ const d=u8, rd32=function(p){ return ((d[p]<<24)|(d[p+1]<<16)|(d[p+2]<<8)|d[p+3])>>>0; };
+  const ntr=(d[10]<<8)|d[11]; let p=8+rd32(4); const dec=new TextDecoder('utf-8'); const TR=[];
+  for(let k=0;k<ntr && p<d.length;k++){ const len=rd32(p+4); let q=p+8; const end=q+len; p=end; let t=0, rs=0, nm=''; const N=[], C7=[], C11=[], open={};
+    const vlq=function(){ let v=0,b; do{ b=d[q++]; v=(v<<7)|(b&0x7f); }while(b&0x80); return v; };
+    while(q<end){ t+=vlq(); let st=d[q];
+      if(st===0xFF){ const ty=d[q+1]; q+=2; const l=vlq(); if(ty===0x03&&!nm) nm=dec.decode(d.subarray(q,q+l)); q+=l; continue; }
+      if(st===0xF0||st===0xF7){ q++; const l=vlq(); q+=l; continue; }
+      if(st&0x80){ rs=st; q++; } const h=rs&0xF0, a=d[q], b=(h===0xC0||h===0xD0)?0:d[q+1]; q+=(h===0xC0||h===0xD0)?1:2;
+      if((rs&15)===9) continue;
+      if(h===0x90&&b>0){ (open[a]=open[a]||[]).push([t,b]); }
+      else if((h===0x80||(h===0x90&&b===0)) && open[a] && open[a].length){ const o=open[a].shift(); N.push([M.secOf(o[0])-st0, M.secOf(t)-st0, o[1], a]); }
+      else if(h===0xB0&&a===7) C7.push([M.secOf(t)-st0,b]); else if(h===0xB0&&a===11) C11.push([M.secOf(t)-st0,b]); }
+    if(!N.length || /Nature|Binaural|Conductor|자연음|바이노럴/i.test(nm)) continue;
+    const tau=/Tingsha|Bell|Pyeonjong|Chimes|띵샤/i.test(nm)?3:/Handpan|Pan Drums|Hang/i.test(nm)?1.2:/Yanggeum|Piano|양금|피아노/i.test(nm)?1.5:0;
+    const ks=/Yanggeum/i.test(nm)?[36,38,40]:[];   /* 양금 키스위치 음은 소리가 아님 */
+    const g=/\[Gain\s*([-+]?\d+(?:\.\d+)?)\s*dB\]/i.exec(nm); TR.push({N:N.filter(function(n){ return ks.indexOf(n[3])<0; }), C7:C7, C11:C11, tau:tau, g:g?Math.pow(10,parseFloat(g[1])/10):1}); }
+  const at=function(A,t,def){ let v=def; for(let i=0;i<A.length;i++){ if(A[i][0]<=t) v=A[i][1]; else break; } return v; };
+  const endS=Math.max.apply(null,TR.map(function(T){ return Math.max.apply(null,T.N.map(function(n){ return n[1]; })); }));
+  let best=-1, bt=0; for(let s=0;s<=endS;s+=0.25){ let e=0;
+    TR.forEach(function(T){ let a=0; T.N.forEach(function(n){ if(T.tau){ if(n[0]<=s && s<n[0]+4*T.tau) a+=Math.pow(n[2]/127,2)*Math.exp(-2*(s-n[0])/T.tau); } else if(n[0]<=s && s<n[1]) a+=Math.pow(n[2]/127,2); });
+      if(a) e+=a*T.g*Math.pow(at(T.C7,s,90)/90,4)*Math.pow(at(T.C11,s,127)/127,4); });
+    if(e>best){ best=e; bt=s; } }
+  if(best<=0) return null; const a=Math.max(0,Math.floor(bt-4)); return {peak:bt, a:a, z:a+10}; }catch(e){ window.__loudErr=String(e&&e.stack||e); return null; } }
 window.__guideHTML=function(opt){
   opt=opt||{}; const M=parseMidi(opt.midi); const TB=window.__STAGE_TABLE||[], sp=(window.__STAGE_INFO&&window.__STAGE_INFO.space)||'band';
   const SPC=(window.__STAGE_SPACES&&window.__STAGE_SPACES[sp])||{room:'Room', decay:1.2, pre:[24,14,6]}, GS=Object.assign({},GSPACE[sp]||{},opt.spaceOv||{}), airy=!!AIRY[sp];   /* ★ 2026-10-19 opt.spaceOv{decay,pre}: 곡 음색별 잔향 */
@@ -4346,14 +4372,15 @@ window.__guideHTML=function(opt){
   if(opt.book){ /* ★ 2026-10-20 형: 호흡 앰비언트 패치 방식. 순서 0 프로젝트 설정, 1 처음 한 번(버스 셋, 공통 패치, 음색 패치, 마스터, 다 만들면 접힘), 2 곡마다, 3 선택 우주 효과, 4 크기와 바운스, 5 마스터링, 6 곡 지도 */
     const K=opt.book, NM=K.names, curN=NM[K.cur];
     const pn=function(tk, r){ return 'SO '+(tk?NM[tk]:'공통')+' '+r.n+' '+r.ko; };
+    const pid=function(name){ return 'p-'+String(name).replace(/\s+/g,'-'); };
     const dif=function(x){ return '<span class="dif">'+x+'</span>'; };
     const sendTxt=function(r, base){ const d=function(k,x){ return (base && base[k]!==r[k])?dif(x):x; };
-      return 'Bus 1 Space '+d('space',B(r.space+' dB'))+'<br>'+(r.air!=null?d('air','Bus 2 Air '+B(r.air+' dB')):d('air',Gr('Bus 2 Air 비움')))+'<br>'+(r.cos?d('cos','Bus 3 Cosmos '+B('-∞')):d('cos',Gr('Bus 3 비움'))); };
+      return 'Bus 1 Space '+d('space',B(r.space+' dB'))+'<br>'+(r.air!=null?d('air','Bus 2 Air '+B(r.air+' dB')):d('air',Gr('Bus 2 Air 비움')))+'<br>'+(r.cos?d('cos','Bus 3 Cosmos '+B(K.cosDb+' dB')):d('cos',Gr('Bus 3 비움'))); };
     const eqCell=function(r, base){ return r.eq.map(function(e){ const be=base?base.eq.find(function(x){ return x.b===e.b; }):null; const t=eqTxt(e); return (base && JSON.stringify(be)!==JSON.stringify(e))?dif(t):t; }).join('<br>')
       +(base?base.eq.filter(function(x){ return !r.eq.some(function(e){ return e.b===x.b; }); }).map(function(x){ return '<br>'+dif(bd(x.b)+' '+R('끄기')); }).join(''):''); };
     const cell=function(v, bv, base){ return (base && bv!==v)?dif(v):v; };
     const rowsOf=function(list, tk, base){ return list.map(function(r,i){ const b=base?base[i]:null;
-      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B(esc(pn(tk,r)))+'<br>'+Gr(esc(r.role))+'</td><td>'+cell(B(esc(r.inst)),b&&B(esc(b.inst)),b)+(r.set?'<br>'+r.set:'')+'</td><td>'+(r.gain!=null?cell(B(r.gain+' dB'),b&&b.gain!=null?B(b.gain+' dB'):null,b):Gr('0 dB'))+'</td><td>'+eqCell(r,b)+'</td><td>Spread '+cell(B(r.spread.toFixed(2)),b&&B(b.spread.toFixed(2)),b)+'</td><td>'+sendTxt(r,b)+'</td></tr>'; }).join(''); };
+      return '<tr id="'+esc(pid(pn(tk,r)))+'"><td class="c"><input type="checkbox"></td><td class="t">'+B(esc(pn(tk,r)))+'<br>'+Gr(esc(r.role))+'</td><td>'+cell(B(esc(r.inst)),b&&B(esc(b.inst)),b)+(r.set?'<br>'+r.set:'')+'</td><td>'+(r.gain!=null?cell(B(r.gain+' dB'),b&&b.gain!=null?B(b.gain+' dB'):null,b):Gr('0 dB'))+'</td><td>'+eqCell(r,b)+'</td><td>Spread '+cell(B(r.spread.toFixed(2)),b&&B(b.spread.toFixed(2)),b)+'</td><td>'+sendTxt(r,b)+'</td></tr>'; }).join(''); };
     const head='<tr><th></th><th>저장 이름<br>(트랙)</th><th>악기와 설정</th><th>1 Gain</th><th>2 Channel EQ</th><th>3 Direction Mixer</th><th>센드</th></tr>';
     /* 1 처음 한 번 */
     h.push('<h2>1. 처음 한 번: 패치 만들기 <small>모든 호흡 앰비언트 공통, 5분 10분 같음</small></h2>');
@@ -4367,42 +4394,63 @@ window.__guideHTML=function(opt){
       +K.order.map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Air')+'</td><td>Bus 2</td><td>'+B('ChromaVerb')+': Room '+B('Airy')+', Predelay '+B('40 ms')+', Decay '+B('8 s')+', Dry '+B('0 %')+', Wet '+B('100 %')+', Damping EQ 오른쪽 끝 점 '+B('100 %')+'. DETAILS 탭 Output EQ '+B('켬')+': 첫째 '+B('400 Hz')+', 다섯째 '+B('10 kHz +4 dB')+', 여섯째 '+R('끄기')+'</td></tr>'
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Cosmos')+'<br>'+Gr('우주 효과용')+'</td><td>Bus 3</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B('12 s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('400 Hz, 24 dB/Oct')+', '+bd(8)+' High Cut '+B('1000 Hz, 24 dB/Oct')+')<br>'+Gr('EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐')+'</td></tr></table></div>');
-    h.push('<h3>나. 트랙 패치 만드는 법 <small class="g">트랙 하나마다 이 순서, 아래 표대로</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
+    h.push('<h3>나. 트랙마다 값 넣기 <small class="g">아래 표 한 줄이 패치 하나. 그 트랙에 이 순서로 값을 다 넣은 뒤 다 에서 저장</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
       '<b>악기</b>: 이름이 Synthesizer/, Strings/ 로 시작하면 '+B('Y')+' 라이브러리에서 그 이름을 누름. Kontakt, DecentSampler, Quick Sampler 는 채널 스트립 악기 칸에서 고르고 악기까지 불러 둠 '+Gr('(불러 둔 악기와 설정이 패치에 같이 저장되어 다음부터 바로 열림)')+'. 표의 설정까지',
       '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
       '<b>오디오 FX</b> 그 아래 빈칸에 위에서부터 '+B('Gain')+' → '+B('Channel EQ')+' → '+B('Direction Mixer')+' 를 넣고 표의 값. Direction Mixer 는 Input '+B('LR')+', Direction '+B('0')+' 그대로 두고 Spread 만',
-      '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos) 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠, Cosmos '+B('-∞')+' 는 손잡이를 맨 아래로',
-      '<b>저장</b>: 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 열고 맨 아래 '+B('저장...')+' → 표의 저장 이름 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김 '+Gr('(다음 곡부터는 트랙 고르고 이 이름 한 번 누르면 악기, 플러그인, 센드가 한꺼번에)')])
+      '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos) 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠 '+Gr('(Cosmos 는 Bus 3 Aux 가 없으면 소리가 안 나서 우주 효과를 안 쓰는 곡에서는 그냥 꺼진 셈)')])
       +'<details><summary>Channel EQ 보는 법</summary><figure><img src="'+EQIMG+'" alt="Channel EQ"></figure><div class="box"><div>밴드는 왼쪽부터 '+bd(1)+'~'+bd(8)+'. 흐린 밴드는 그림을 눌러 켭니다.</div><div>밴드 아래 숫자 세 줄: 위부터 '+B('주파수 Hz')+', '+B('크기 dB')+', '+B('폭 Q')+'. 숫자를 위아래로 끌거나 더블클릭해서 입력.</div><div>'+bd(1)+' Low Cut 은 기울기 '+B('12 dB/Oct')+' 그대로(표에 따로 적은 것만 바꿈).</div></div></details>');
-    h.push('<h3>다. 공통 패치 다섯 <small class="g">음색과 상관없이 같음</small></h3><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
-    h.push('<h3>라. 음색 패치 <small class="g">음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름: '+esc(NM[K.order[0]])+' 패치를 불러와 빨강 칸만 고치고 새 이름으로 저장</small></h3>');
-    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>'+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
-    h.push('<h3>마. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
+    h.push('<h4>공통 다섯 <small class="g">음색과 상관없이 같음</small></h4><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
+    h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
+    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
+    h.push('<h3>다. 패치로 저장 <small class="g">표 한 줄의 값을 다 넣은 트랙마다</small></h3>'+stp(['값을 다 넣은 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 엶',
+      '라이브러리 맨 아래 '+B('저장...')+' → 그 줄의 저장 이름(예: '+B('SO '+esc(NM[K.order[0]])+' 02 호흡 패드')+') 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김. 표 줄 왼쪽 칸에 체크',
+      '음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)'),
+      '다음 곡부터는 트랙을 고르고 이 이름을 한 번 누르면 악기, 플러그인, 센드가 한꺼번에 들어옴']));
+    h.push('<h3>라. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
       '마스터링용: 빈 프로젝트(48 kHz) 오디오 트랙 하나에 '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('25 Hz')+' 만) → '+B('Adaptive Limiter')+' (Out Ceiling '+B('-1.0 dB')+', True Peak Detection '+R('ON')+') → '+B('Loudness Meter')+' → '+B('Y')+' 라이브러리 <b>저장...</b> → '+B('SO 마스터링')]));
     h.push('</details>');
     /* 2 곡마다 */
     const trRows=tracks.map(function(t){ if(t.bin) return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+R('패치 없음')+'. '+t.set+(t.gain?'<br>Gain '+B(t.gain):'')+'<br>'+R('플러그인과 Send 넣지 않기')+'</td></tr>';
-      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+B(esc(t.info.patchName||'(표에 없음)'))+(/^Quick Sampler/.test(t.patch)?'<br>그다음 녹음 파일('+B(esc(K.nat))+', '+B(esc(K.dur)+' 넘게')+')을 '+B('Original')+' 칸에 끌어 놓기. '+R('MIDI 리전은 지우지 않기'):'')+'</td></tr>'; }).join('');
+      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+(t.info.patchName?'<a class="pl" href="#'+esc(pid(t.info.patchName))+'">'+B(esc(t.info.patchName))+'</a> '+Gr('(값 보기)'):B('(표에 없음)'))+(/^Quick Sampler/.test(t.patch)?'<br>그다음 녹음 파일('+B(esc(K.nat))+', '+B(esc(K.dur)+' 넘게')+')을 '+B('Original')+' 칸에 끌어 놓기. '+R('MIDI 리전은 지우지 않기'):'')+'</td></tr>'; }).join('');
+    const per0='<p class="g" style="font-size:13px;margin:0 0 6px">패치 안의 악기, 플러그인, 센드 값은 1번 처음 한 번 표에 있습니다. 아래 패치 이름을 누르면 그 줄로 갑니다.</p>';
     const per=['<b>버스</b>: '+B('X')+' 믹서에서 첫 트랙 Sends 첫 빈칸 '+B('Bus 1')+', 둘째 '+B('Bus 2')+', 셋째 '+B('Bus 3')+' → Aux 셋이 생김 '+Gr('(우주 효과를 안 쓰면 Bus 3 은 건너뜀)'),
       'Aux 맨 위 <b>설정</b> 단추 → Bus 1 Aux '+B('SO '+curN+' Space')+', Bus 2 Aux '+B('SO 공통 Air')+', Bus 3 Aux '+B('SO 공통 Cosmos'),
       '<b>트랙마다 패치</b>: '+B('Y')+' 로 라이브러리를 연 채 트랙을 하나씩 고르고 <b>사용자 패치</b> 에서 아래 이름을 누름 '+Gr('(키보드 ↓ 로 다음 트랙. 여러 트랙을 한꺼번에 고르면 같은 패치가 다 들어가니 하나씩)')
         +'<div class="wrap"><table><tr><th></th><th>트랙</th><th>누를 패치</th></tr>'+trRows+'</table></div>'];
     if(K.binWav) per.push('<b>바이노럴</b>: 메뉴 <b>트랙</b> → <b>새로운 오디오 트랙</b> (Stereo) → '+B(esc(K.binWav))+' 를 '+B('1마디 맨 앞')+'에 끌어 놓기. '+R('플러그인과 Send 넣지 않기')+', 페이더 '+B('0 dB')+' 그대로 '+Gr('(거의 안 들리고 분위기로만 깔리게 만든 크기)'));
     per.push(B('Stereo Out')+' 맨 위 <b>설정</b> 단추 → '+B('SO 마스터'));
-    h.push('<h2>2. 곡마다 <small>이 곡은 '+esc(curN)+' 패치</small></h2>'+ck(per));
+    h.push('<h2>2. 곡마다 <small>이 곡은 '+esc(curN)+' 패치</small></h2>'+per0+ck(per));
     /* 3 선택 우주 효과 */
     let nextN=3;
     if(opt.optFx){ try{ const stF=st0;
       const snapBar=function(tk){ let from=0; for(let i=0;i<M.sigs.length;i++){ const S=M.sigs[i], nx=(i+1<M.sigs.length)?M.sigs[i+1].t:Infinity, L=M.ppq*4/S.d*S.n; if(tk<nx){ const k=Math.round((tk-from)/L); return Math.min(from+k*L, nx); } from=nx; } return tk; };
+      const bar=function(sec){ const b=M.barOf(snapBar(M.tickOf(stF+sec))); return B(b.bar+'마디')+' '+Gr('('+mmss(sec)+')'); };
       const at=function(sec, snap){ let tk=M.tickOf(stF+sec); if(snap){ tk=snapBar(tk); sec=M.secOf(tk)-stF; } const b=M.barOf(tk); return B(mmss(sec))+' '+Gr('('+b.bar+'마디'+(b.on?'':' '+b.beat+'박')+')'); };
       const O=opt.optFx(at, {mk:[], end:0, endMk:null, tracks:[]});
-      if(O && O.steps && O.steps.length>3){ const st=[B('Bus 3')+' Aux 에 '+B('SO 공통 Cosmos')+' 가 들어 있는지 확인 '+Gr('(2번에서 불러옴. 패치에 Cosmos 센드가 '+K.cosSends.join(', ')+' 에 -∞ 로 들어 있음)')].concat(O.steps.slice(3).map(function(x){ return String(x).replace('믹싱 ④ 의 Loudness Meter','4번 크기 맞추기의 Loudness Meter'); }));
-        h.push('<h2>3. 선택: 우주 효과 <small>하면 이 순서로, 안 해도 됨</small></h2>'+(O.why?'<p class="g" style="font-size:13px;margin:6px 0">'+O.why+'</p>':'')+stp(st)); nextN=4; } }catch(e){ window.__guideErr=String(e&&e.stack||e); } }
+      if(O && O.W && O.W.length){
+        /* ★ 2026-10-20 형: 트랙 넷의 센드를 하나하나 그리던 것 → 센드는 패치에 고정(-4 dB), 여닫이는 Cosmos 트랙 하나의 볼륨(과 EQ High Cut)만 */
+        const fd=function(v){ return v==null?B('맨 아래(-∞)'):B((v-K.cosDb>0?'+':'')+(Math.round((v-K.cosDb)*10)/10)+' dB'); };
+        const lineOf=function(P, ix, fmt){ let out=bar(P[0][0])+' '+fmt(P[0][ix]); for(let k=1;k<P.length;k++){ out+=(P[k][ix]===P[k-1][ix])?', '+bar(P[k][0])+' 까지 그대로':' → '+bar(P[k][0])+' '+fmt(P[k][ix]); } return out; };
+        const hzT=function(x){ return B(x>=1000?(Math.round(x/100)/10)+' kHz':x+' Hz'); };
+        const st=[B('X')+' 믹서에서 '+B('Cosmos')+' Aux 줄 이름 위를 '+B('Control')+' 누른 채 클릭 → '+B('트랙 생성')+' '+Gr('(트랙 영역 맨 아래에 Cosmos 트랙이 생김. 2번에서 Bus 3 에 SO 공통 Cosmos 를 불러온 그 Aux)'),
+          'Cosmos 트랙을 고르고 '+B('A')+' (오토메이션 보기) → 트랙 이름 아래 메뉴에서 '+B('볼륨')+' → 선 위를 클릭하면 점이 생김. 점을 좌우로 끌면 자리, 위아래로 끌면 크기. 마디 자를 보며 아래 자리에 점을 찍음 '+Gr('(트랙 넷을 고를 필요 없음. 이 트랙 하나만)')
+            +'<br>'+O.W.map(function(P){ return lineOf(P,1,fd); }).join('<br>'),
+          Gr('(하면 더 \'화\' 열림, 안 해도 됨)')+' 같은 트랙 오토메이션 메뉴 → '+B('Channel EQ')+' → '+B('High Cut Frequency')+' '+Gr('(8번 밴드 주파수)')+' 에 같은 자리로'
+            +'<br>'+O.W.map(function(P){ return lineOf(P,2,hzT); }).join('<br>'),
+          '크기는 4번을 이 효과를 켠 채로 하면 됨 '+Gr('(실시간 바운스가 효과까지 같이 잼. 열린 구간이 1~2 LU 커짐)'),
+          Gr('오토메이션은 패치에 안 들어가고 이 프로젝트에만 저장됨. 곡마다 길이와 마디가 달라 곡마다 이 표의 자리에 찍음')];
+        h.push('<h2>3. 선택: 우주 효과 <small>하면 이 순서로, 안 해도 됨 (안 하면 2번에서 Bus 3 을 만들지 않음)</small></h2>'+(O.why?'<p class="g" style="font-size:13px;margin:6px 0">'+O.why+'</p>':'')+stp(st)); nextN=4; } }catch(e){ window.__guideErr=String(e&&e.stack||e); } }
     /* 4 크기와 바운스 */
-    let loudBar=''; if(opt.loud){ const a=M.barOf(M.tickOf(st0+opt.loud[0])).bar, z=M.barOf(M.tickOf(st0+opt.loud[1])).bar-1; loudBar=a+' ~ '+z+'마디'; }
-    h.push('<h2>'+nextN+'. 크기 맞추기와 바운스</h2>'+stp([(loudBar?'가장 큰 구간 '+B(loudBar)+' 재생. ':'가장 큰 구간 재생. ')+'Stereo Out 미터 위 피크 숫자가 '+B('-6 dB')+' 근처가 되게 Stereo Out '+B('Gain')+' 조절',
-      '곡 맨 앞에서 Loudness Meter <b>Reset</b> → <b>Start</b> → 끝까지 재생. <b>Integrated</b> '+B(mixLo+' ~ '+mixHi+' LUFS')+' 면 정상',
-      '<b>File &gt; Bounce &gt; Project or Section</b>: PCM, '+B('WAVE 24 bit 48 kHz')+', Normalize '+R('Off')+(opt.bin?'. 헤드폰판(바이노럴 켬), 스피커판(바이노럴 뮤트)':'')])
+    const LP=loudPeak(opt.midi, M, st0); let loudTxt='';
+    if(LP){ const ba=M.barOf(M.tickOf(st0+LP.a)).bar, bz=M.barOf(M.tickOf(st0+LP.z)).bar; loudTxt=B(ba+' ~ '+bz+'마디')+' '+Gr('(로직 시간 '+mmss(LP.a+st0)+' ~ '+mmss(LP.z+st0)+', 곡 지도로는 '+mmss(LP.a)+' ~ '+mmss(LP.z)+', 가장 큰 순간 곡 '+mmss(LP.peak)+')'); }
+    else if(opt.loud){ loudTxt=B(mmss(opt.loud[0])+' ~ '+mmss(opt.loud[1])); }
+    const loudWav=LP?B(mmss(LP.a+st0)+' ~ '+mmss(LP.z+st0))+' '+Gr('(WAV 처음부터 잰 시각. 1마디 맨 앞에 놓았으면 로직 시간 표시와 같음)'):loudTxt;
+    h.push('<h2>'+nextN+'. 크기 맞추기와 바운스 <small>재생은 가장 큰 자리 10초와 실시간 바운스 한 번</small></h2>'+stp([
+      '가장 큰 자리 '+(loudTxt||'')+' 를 사이클(C)로 걸고 재생 '+Gr('(앱이 MIDI 로 찾은 자리)')+'. Stereo Out 미터 위 피크 숫자가 '+B('-6 dB')+' 근처가 되게 Stereo Out '+B('Gain')+' 조절 '+Gr('(이미 -6 ~ -3 dB 사이면 그대로)'),
+      '사이클 끄고 재생 위치를 맨 앞으로 → Stereo Out 의 Loudness Meter '+B('Reset'),
+      '<b>File &gt; Bounce &gt; Project or Section</b>: PCM, '+B('WAVE 24 bit 48 kHz')+', Normalize '+R('Off')+', 모드 '+B('실시간 (Realtime)')+' '+Gr('(바운스하며 소리가 흘러 Loudness Meter 가 곡 전체를 잼)')+(opt.bin?'. 헤드폰판(바이노럴 켬)부터':''),
+      '바운스가 끝나면 Loudness Meter 의 '+B('Integrated')+' 숫자를 적어 둠 '+Gr('('+mixLo+' ~ '+mixHi+' LUFS 면 정상)')+(opt.bin?'. 스피커판은 바이노럴 뮤트하고 한 번 더 바운스 (모드 '+B('오프라인')+' 이어도 됨, 빠름)':'')])
       +'<details><summary>필요할 때만: 리전 바운스 후 대치 <small class="g">(CPU 가 무겁거나 트랙을 오디오로 굳힐 때. 셋팅에는 필요 없음)</small></summary>'+stp(['굳힐 트랙의 리전을 고름 '+Gr('(전부면 Command+A)')+' → '+B('Control+B')+' 로 '+B('리전 바운스 후 대치')+' 창',
         '이름 '+B('그대로')+', 대상 '+B('새로운 트랙')+', '+B('하나의 파일'),
         '소스 '+B('음소거')+' '+Gr('(MIDI 가 꺼진 채 남아 나중에 고칠 수 있음. 두기는 소리가 두 번, 삭제는 MIDI 가 없어짐)'),
@@ -4412,14 +4460,20 @@ window.__guideHTML=function(opt){
         '노멀라이즈 '+R('끔')+' → '+B('확인'),
         '새로 생긴 오디오 트랙의 오디오 FX 칸을 봄. 원래 트랙 플러그인이 따라와 켜져 있으면 이미 소리에 담긴 효과가 한 번 더 걸리니 끔. 센드는 그대로 둠'])+'</details>'); nextN++;
     /* 5 마스터링 */
-    h.push('<h2>'+nextN+'. 마스터링 <small>바운스한 파일을 새 프로젝트(48 kHz) 오디오 트랙에</small></h2>'+stp(['라이브러리 '+B('Y')+' 사용자 패치에서 '+B('SO 마스터링'),
-      'Loudness Meter Reset → Start → 끝까지. Integrated 가 '+B(lufs+' LUFS')+' 가 되게 Adaptive Limiter '+B('Gain')+' 을 올림 '+Gr('('+(lufs-4)+' 이면 +4 dB)'),
-      'REDUCTION 미터가 가장 깊을 때 '+B('-'+(opt.grMax||2)+' dB')+' 까지만. 더 깊으면 Gain 을 내리고 '+B((lufs-1)+' LUFS')+' 에서 멈춤',
-      'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')+'. 배포는 유통사 기준(44.1 kHz 16 bit 만 받는 곳은 그때 Dither 켬)'])); nextN++;
+    h.push('<h2>'+nextN+'. 마스터링 <small>바운스한 파일을 새 프로젝트(48 kHz) 오디오 트랙에</small></h2>'+stp(['새 프로젝트 오디오 트랙에 바운스한 WAV 를 1마디 맨 앞에 → 그 트랙 고르고 라이브러리 '+B('Y')+' 사용자 패치에서 '+B('SO 마스터링'),
+      'Adaptive Limiter '+B('Gain')+' = '+B(String(lufs))+' 빼기 적어 둔 Integrated '+Gr('(예: 적어 둔 값이 '+(lufs-5)+' LUFS 면 +5 dB)'),
+      '같은 가장 큰 자리 '+(loudWav||'')+' 를 사이클로 재생하며 Limiter 의 '+B('REDUCTION')+' 이 가장 깊을 때 '+B('-'+(opt.grMax||2)+' dB')+' 까지만. 더 깊으면 Gain 을 그만큼 내림',
+      Gr('(확인하고 싶을 때만) 맨 앞에서 Loudness Meter Reset 하고 끝까지 재생해 Integrated 가 ')+B(lufs+' LUFS')+Gr(' 근처인지'),
+      'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')+'. 배포는 유통사 기준(44.1 kHz 16 bit 만 받는 곳은 그때 Dither 켬)'])
+      +'<details><summary>참고: Mastering Assistant 로 하기 <small class="g">(SO 마스터링 대신. 곡 전체를 분석해 줘서 끝까지 듣지 않아도 됨)</small></summary>'+stp(['새 프로젝트(48 kHz) 오디오 트랙에 바운스한 WAV 를 1마디 맨 앞에. 그 트랙에는 플러그인을 넣지 않음',
+        B('X')+' 믹서 '+B('Stereo Out')+' 맨 아래 '+B('Mastering')+' 칸을 누르면 Mastering Assistant 가 들어가며 곡 전체를 분석 '+Gr('(분석이 끝날 때까지 기다림)'),
+        'Character '+B('Transparent')+', Auto EQ '+B('30 %')+', Excite '+R('끄기')+', Width '+R('돌리지 않기')+(opt.bin?' '+Gr('(넓히면 바이노럴이 깨짐)'):''),
+        '오른쪽 '+B('Loudness')+' 손잡이를 돌려 LUFS 표시의 '+B('I')+' 가 '+B(String(lufs))+', '+B('True Peak')+' 가 '+B('-1.0')+' 아래가 되게',
+        'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')])+'</details>'); nextN++;
     /* 6 곡 지도 */
     if(pts.length) h.push('<h2>'+nextN+'. 곡 지도</h2><div class="tl">'+pts.map(function(p){ return '<div><b>'+mmss(p.sec)+'</b>'+p.bar.bar+'마디'+(p.bar.on?'':' '+p.bar.beat+'박')+'<br>'+esc(p.label)+'</div>'; }).join('')+'</div>');
     if(opt.sheet) h.push('<p class="g" style="font-size:13px;margin:14px 0 0">앱이 MIDI 에 넣은 것과 자세한 설명은 같이 받은 txt 설명서에 있습니다.</p>');
-    h.push('<script>(function(){var cb=document.getElementById("onceDone"),d=document.getElementById("once"),K="so-guide:amb5-patches-done";if(!cb||!d)return;var v=false;try{v=localStorage.getItem(K)==="1"}catch(e){}var set=function(x){cb.checked=x;if(x)d.removeAttribute("open");else d.setAttribute("open","")};set(v);cb.addEventListener("change",function(){try{localStorage.setItem(K,cb.checked?"1":"0")}catch(e){}set(cb.checked)})})();<\/script>');
+    h.push('<script>(function(){var cb=document.getElementById("onceDone"),d=document.getElementById("once"),K="so-guide:amb5-patches-done";if(!cb||!d)return;var v=false;try{v=localStorage.getItem(K)==="1"}catch(e){}var set=function(x){cb.checked=x;if(x)d.removeAttribute("open");else d.setAttribute("open","")};set(v);cb.addEventListener("change",function(){try{localStorage.setItem(K,cb.checked?"1":"0")}catch(e){}set(cb.checked)});document.querySelectorAll("a.pl").forEach(function(l){l.addEventListener("click",function(ev){var id=l.getAttribute("href").slice(1),r=document.getElementById(id);if(!r)return;ev.preventDefault();d.setAttribute("open","");r.scrollIntoView({block:"center"});r.classList.add("hl");setTimeout(function(){r.classList.remove("hl")},2200)})})})();<\/script>');
   } else {
   if((opt.prep||[]).length) h.push('<h2>1. 준비</h2>'+ck(opt.prep));
   const sn=(opt.prep||[]).length?1:0; const N=function(k){ return (k+sn)+'. '; };
@@ -9474,7 +9528,7 @@ window.__cosmosFx=function(o, at){
   const line=function(P,ix,fmt){ let out=AT(P[0][0])+' '+fmt(P[0][ix]); for(let k=1;k<P.length;k++){ out+=(P[k][ix]===P[k-1][ix])?', '+AT(P[k][0])+' 까지 그대로':' → '+AT(P[k][0])+' '+fmt(P[k][ix]); } return out; };
   const fdb=function(v){ return v==null?'-∞':B(v+' dB'); }, fhz=function(v){ return B(hz(v)); };
   const many=W.length>1, top=Math.max.apply(null,W.map(function(P){ return Math.max.apply(null,P.map(function(x){ return x[2]; })); }));
-  return {title:o.title||'우주로 열리는 효과 (Cosmos 버스)', why:o.why||'',
+  return {W:W, title:o.title||'우주로 열리는 효과 (Cosmos 버스)', why:o.why||'',
     steps:['새 Aux 하나: 아무 트랙 센드 빈 칸 → '+B('Bus')+' → 믹서에 생긴 Aux 이름을 '+B('Cosmos'),
       'Cosmos 오디오 FX 위에서 아래로 세 개: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+', 나머지 기본) → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B((o.decay||12)+' s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+', 나머지 기본) → '+B('Channel EQ')+' (첫째 띠 Low Cut 켬 '+B('400 Hz')+' '+B('24 dB/Oct')+', 여덟째 띠 High Cut 켬 '+B('1000 Hz')+' '+B('24 dB/Oct')+', 가운데 여섯 띠는 0 dB 그대로)'+Gr(' (EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐. Timing Vocals 는 패드처럼 이어지는 소리용, Drums 나 Speech 면 이어지는 소리가 울렁일 수 있음)'),
       '센드 Cosmos 를 걸 트랙: '+o.sends.map(function(x){ return B(x); }).join(', ')+'. 처음 값은 '+R('맨 아래(-∞)')+(o.sendNote?' '+o.sendNote:'')+(o.nosend?' '+Gr('('+o.nosend+' 은 걸지 않음)'):''),
@@ -9702,7 +9756,7 @@ const altShow=function(a){ a=String(a); const sn=/\(스냅샷 ([^)]+)\)/.exec(a)
   return a.indexOf('/')>=0?a.split('/').pop():a; };
 const mmss=function(s){ s=Math.round(s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 
-const CSS='.oncek{display:block;margin:4px 0 8px;font-weight:600}details.once>summary{color:var(--sub);font-size:13px;cursor:pointer}h4{font-size:15px;margin:14px 0 4px}.dif,.dif .b,.dif .g{color:var(--red);font-weight:600}'+':root{--ink:#1d1f23;--sub:#6b7078;--line:#e3e5e8;--red:#c62828;--blue:#1e5bb8;--soft:#f6f7f9}*{box-sizing:border-box}'
+const CSS='a.pl{text-decoration:none}tr.hl td{background:#fff4c2}.oncek{display:block;margin:4px 0 8px;font-weight:600}details.once>summary{color:var(--sub);font-size:13px;cursor:pointer}h4{font-size:15px;margin:14px 0 4px}.dif,.dif .b,.dif .g{color:var(--red);font-weight:600}'+':root{--ink:#1d1f23;--sub:#6b7078;--line:#e3e5e8;--red:#c62828;--blue:#1e5bb8;--soft:#f6f7f9}*{box-sizing:border-box}'
  +'body{margin:0;background:#fff;color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}main{max-width:1000px;margin:0 auto;padding:28px 16px 60px}'
  +'h1{font-size:22px;margin:0 0 4px}.meta{color:var(--sub);font-size:13.5px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 6px}.chip{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px}'
  +'.legend{font-size:13px;color:var(--sub);margin:10px 0 0}.r{color:var(--red);font-weight:600}.b{color:var(--blue);font-weight:600}.g{color:var(--sub)}'
@@ -9722,6 +9776,32 @@ const JS='(function(){var key="guide:"+document.title+":"+location.pathname;var 
  +'document.querySelectorAll("input[type=checkbox]:not(#onceDone)").forEach(function(cb,i){var row=cb.closest("tr")||cb.closest("li");var set=function(){if(row)row.classList.toggle("done",cb.checked)};cb.checked=!!st[i];set();cb.addEventListener("change",function(){st[i]=cb.checked;set();try{localStorage.setItem(key,JSON.stringify(st))}catch(e){}})});'
  +'document.querySelectorAll(".tabs button").forEach(function(b){b.addEventListener("click",function(){var p=b.parentNode.parentNode;p.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x===b)});p.querySelectorAll(".tab").forEach(function(t){t.classList.toggle("on",t.id===b.dataset.t)})})})})();';
 
+/* ★ 2026-10-20 형: 가장 큰 자리를 MIDI 로 바로 찾아 분 초로(Stereo Out 피크, 리미터 REDUCTION 보는 자리).
+   0.25초마다 트랙 합: (Gain 이름값) x (CC7 페이더, 로직 40 log 곡선) x (CC11) x 음 세기. 치는 악기(띵샤 종 편종, 핸드팬, 양금 피아노)는 친 뒤 줄어드는 꼬리로,
+   패드 드론은 울리는 동안 그대로. 자연음(녹음 파일 크기를 모름)과 바이노럴은 뺌. 가장 큰 순간 peak 와 그 앞뒤 10초 창 */
+function loudPeak(u8, M, st0){ try{ const d=u8, rd32=function(p){ return ((d[p]<<24)|(d[p+1]<<16)|(d[p+2]<<8)|d[p+3])>>>0; };
+  const ntr=(d[10]<<8)|d[11]; let p=8+rd32(4); const dec=new TextDecoder('utf-8'); const TR=[];
+  for(let k=0;k<ntr && p<d.length;k++){ const len=rd32(p+4); let q=p+8; const end=q+len; p=end; let t=0, rs=0, nm=''; const N=[], C7=[], C11=[], open={};
+    const vlq=function(){ let v=0,b; do{ b=d[q++]; v=(v<<7)|(b&0x7f); }while(b&0x80); return v; };
+    while(q<end){ t+=vlq(); let st=d[q];
+      if(st===0xFF){ const ty=d[q+1]; q+=2; const l=vlq(); if(ty===0x03&&!nm) nm=dec.decode(d.subarray(q,q+l)); q+=l; continue; }
+      if(st===0xF0||st===0xF7){ q++; const l=vlq(); q+=l; continue; }
+      if(st&0x80){ rs=st; q++; } const h=rs&0xF0, a=d[q], b=(h===0xC0||h===0xD0)?0:d[q+1]; q+=(h===0xC0||h===0xD0)?1:2;
+      if((rs&15)===9) continue;
+      if(h===0x90&&b>0){ (open[a]=open[a]||[]).push([t,b]); }
+      else if((h===0x80||(h===0x90&&b===0)) && open[a] && open[a].length){ const o=open[a].shift(); N.push([M.secOf(o[0])-st0, M.secOf(t)-st0, o[1], a]); }
+      else if(h===0xB0&&a===7) C7.push([M.secOf(t)-st0,b]); else if(h===0xB0&&a===11) C11.push([M.secOf(t)-st0,b]); }
+    if(!N.length || /Nature|Binaural|Conductor|자연음|바이노럴/i.test(nm)) continue;
+    const tau=/Tingsha|Bell|Pyeonjong|Chimes|띵샤/i.test(nm)?3:/Handpan|Pan Drums|Hang/i.test(nm)?1.2:/Yanggeum|Piano|양금|피아노/i.test(nm)?1.5:0;
+    const ks=/Yanggeum/i.test(nm)?[36,38,40]:[];   /* 양금 키스위치 음은 소리가 아님 */
+    const g=/\[Gain\s*([-+]?\d+(?:\.\d+)?)\s*dB\]/i.exec(nm); TR.push({N:N.filter(function(n){ return ks.indexOf(n[3])<0; }), C7:C7, C11:C11, tau:tau, g:g?Math.pow(10,parseFloat(g[1])/10):1}); }
+  const at=function(A,t,def){ let v=def; for(let i=0;i<A.length;i++){ if(A[i][0]<=t) v=A[i][1]; else break; } return v; };
+  const endS=Math.max.apply(null,TR.map(function(T){ return Math.max.apply(null,T.N.map(function(n){ return n[1]; })); }));
+  let best=-1, bt=0; for(let s=0;s<=endS;s+=0.25){ let e=0;
+    TR.forEach(function(T){ let a=0; T.N.forEach(function(n){ if(T.tau){ if(n[0]<=s && s<n[0]+4*T.tau) a+=Math.pow(n[2]/127,2)*Math.exp(-2*(s-n[0])/T.tau); } else if(n[0]<=s && s<n[1]) a+=Math.pow(n[2]/127,2); });
+      if(a) e+=a*T.g*Math.pow(at(T.C7,s,90)/90,4)*Math.pow(at(T.C11,s,127)/127,4); });
+    if(e>best){ best=e; bt=s; } }
+  if(best<=0) return null; const a=Math.max(0,Math.floor(bt-4)); return {peak:bt, a:a, z:a+10}; }catch(e){ window.__loudErr=String(e&&e.stack||e); return null; } }
 window.__guideHTML=function(opt){
   opt=opt||{}; const M=parseMidi(opt.midi); const TB=window.__STAGE_TABLE||[], sp=(window.__STAGE_INFO&&window.__STAGE_INFO.space)||'band';
   const SPC=(window.__STAGE_SPACES&&window.__STAGE_SPACES[sp])||{room:'Room', decay:1.2, pre:[24,14,6]}, GS=Object.assign({},GSPACE[sp]||{},opt.spaceOv||{}), airy=!!AIRY[sp];   /* ★ 2026-10-19 opt.spaceOv{decay,pre}: 곡 음색별 잔향 */
@@ -9817,14 +9897,15 @@ window.__guideHTML=function(opt){
   if(opt.book){ /* ★ 2026-10-20 형: 호흡 앰비언트 패치 방식. 순서 0 프로젝트 설정, 1 처음 한 번(버스 셋, 공통 패치, 음색 패치, 마스터, 다 만들면 접힘), 2 곡마다, 3 선택 우주 효과, 4 크기와 바운스, 5 마스터링, 6 곡 지도 */
     const K=opt.book, NM=K.names, curN=NM[K.cur];
     const pn=function(tk, r){ return 'SO '+(tk?NM[tk]:'공통')+' '+r.n+' '+r.ko; };
+    const pid=function(name){ return 'p-'+String(name).replace(/\s+/g,'-'); };
     const dif=function(x){ return '<span class="dif">'+x+'</span>'; };
     const sendTxt=function(r, base){ const d=function(k,x){ return (base && base[k]!==r[k])?dif(x):x; };
-      return 'Bus 1 Space '+d('space',B(r.space+' dB'))+'<br>'+(r.air!=null?d('air','Bus 2 Air '+B(r.air+' dB')):d('air',Gr('Bus 2 Air 비움')))+'<br>'+(r.cos?d('cos','Bus 3 Cosmos '+B('-∞')):d('cos',Gr('Bus 3 비움'))); };
+      return 'Bus 1 Space '+d('space',B(r.space+' dB'))+'<br>'+(r.air!=null?d('air','Bus 2 Air '+B(r.air+' dB')):d('air',Gr('Bus 2 Air 비움')))+'<br>'+(r.cos?d('cos','Bus 3 Cosmos '+B(K.cosDb+' dB')):d('cos',Gr('Bus 3 비움'))); };
     const eqCell=function(r, base){ return r.eq.map(function(e){ const be=base?base.eq.find(function(x){ return x.b===e.b; }):null; const t=eqTxt(e); return (base && JSON.stringify(be)!==JSON.stringify(e))?dif(t):t; }).join('<br>')
       +(base?base.eq.filter(function(x){ return !r.eq.some(function(e){ return e.b===x.b; }); }).map(function(x){ return '<br>'+dif(bd(x.b)+' '+R('끄기')); }).join(''):''); };
     const cell=function(v, bv, base){ return (base && bv!==v)?dif(v):v; };
     const rowsOf=function(list, tk, base){ return list.map(function(r,i){ const b=base?base[i]:null;
-      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B(esc(pn(tk,r)))+'<br>'+Gr(esc(r.role))+'</td><td>'+cell(B(esc(r.inst)),b&&B(esc(b.inst)),b)+(r.set?'<br>'+r.set:'')+'</td><td>'+(r.gain!=null?cell(B(r.gain+' dB'),b&&b.gain!=null?B(b.gain+' dB'):null,b):Gr('0 dB'))+'</td><td>'+eqCell(r,b)+'</td><td>Spread '+cell(B(r.spread.toFixed(2)),b&&B(b.spread.toFixed(2)),b)+'</td><td>'+sendTxt(r,b)+'</td></tr>'; }).join(''); };
+      return '<tr id="'+esc(pid(pn(tk,r)))+'"><td class="c"><input type="checkbox"></td><td class="t">'+B(esc(pn(tk,r)))+'<br>'+Gr(esc(r.role))+'</td><td>'+cell(B(esc(r.inst)),b&&B(esc(b.inst)),b)+(r.set?'<br>'+r.set:'')+'</td><td>'+(r.gain!=null?cell(B(r.gain+' dB'),b&&b.gain!=null?B(b.gain+' dB'):null,b):Gr('0 dB'))+'</td><td>'+eqCell(r,b)+'</td><td>Spread '+cell(B(r.spread.toFixed(2)),b&&B(b.spread.toFixed(2)),b)+'</td><td>'+sendTxt(r,b)+'</td></tr>'; }).join(''); };
     const head='<tr><th></th><th>저장 이름<br>(트랙)</th><th>악기와 설정</th><th>1 Gain</th><th>2 Channel EQ</th><th>3 Direction Mixer</th><th>센드</th></tr>';
     /* 1 처음 한 번 */
     h.push('<h2>1. 처음 한 번: 패치 만들기 <small>모든 호흡 앰비언트 공통, 5분 10분 같음</small></h2>');
@@ -9838,42 +9919,63 @@ window.__guideHTML=function(opt){
       +K.order.map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Air')+'</td><td>Bus 2</td><td>'+B('ChromaVerb')+': Room '+B('Airy')+', Predelay '+B('40 ms')+', Decay '+B('8 s')+', Dry '+B('0 %')+', Wet '+B('100 %')+', Damping EQ 오른쪽 끝 점 '+B('100 %')+'. DETAILS 탭 Output EQ '+B('켬')+': 첫째 '+B('400 Hz')+', 다섯째 '+B('10 kHz +4 dB')+', 여섯째 '+R('끄기')+'</td></tr>'
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Cosmos')+'<br>'+Gr('우주 효과용')+'</td><td>Bus 3</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B('12 s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('400 Hz, 24 dB/Oct')+', '+bd(8)+' High Cut '+B('1000 Hz, 24 dB/Oct')+')<br>'+Gr('EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐')+'</td></tr></table></div>');
-    h.push('<h3>나. 트랙 패치 만드는 법 <small class="g">트랙 하나마다 이 순서, 아래 표대로</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
+    h.push('<h3>나. 트랙마다 값 넣기 <small class="g">아래 표 한 줄이 패치 하나. 그 트랙에 이 순서로 값을 다 넣은 뒤 다 에서 저장</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
       '<b>악기</b>: 이름이 Synthesizer/, Strings/ 로 시작하면 '+B('Y')+' 라이브러리에서 그 이름을 누름. Kontakt, DecentSampler, Quick Sampler 는 채널 스트립 악기 칸에서 고르고 악기까지 불러 둠 '+Gr('(불러 둔 악기와 설정이 패치에 같이 저장되어 다음부터 바로 열림)')+'. 표의 설정까지',
       '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
       '<b>오디오 FX</b> 그 아래 빈칸에 위에서부터 '+B('Gain')+' → '+B('Channel EQ')+' → '+B('Direction Mixer')+' 를 넣고 표의 값. Direction Mixer 는 Input '+B('LR')+', Direction '+B('0')+' 그대로 두고 Spread 만',
-      '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos) 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠, Cosmos '+B('-∞')+' 는 손잡이를 맨 아래로',
-      '<b>저장</b>: 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 열고 맨 아래 '+B('저장...')+' → 표의 저장 이름 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김 '+Gr('(다음 곡부터는 트랙 고르고 이 이름 한 번 누르면 악기, 플러그인, 센드가 한꺼번에)')])
+      '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos) 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠 '+Gr('(Cosmos 는 Bus 3 Aux 가 없으면 소리가 안 나서 우주 효과를 안 쓰는 곡에서는 그냥 꺼진 셈)')])
       +'<details><summary>Channel EQ 보는 법</summary><figure><img src="'+EQIMG+'" alt="Channel EQ"></figure><div class="box"><div>밴드는 왼쪽부터 '+bd(1)+'~'+bd(8)+'. 흐린 밴드는 그림을 눌러 켭니다.</div><div>밴드 아래 숫자 세 줄: 위부터 '+B('주파수 Hz')+', '+B('크기 dB')+', '+B('폭 Q')+'. 숫자를 위아래로 끌거나 더블클릭해서 입력.</div><div>'+bd(1)+' Low Cut 은 기울기 '+B('12 dB/Oct')+' 그대로(표에 따로 적은 것만 바꿈).</div></div></details>');
-    h.push('<h3>다. 공통 패치 다섯 <small class="g">음색과 상관없이 같음</small></h3><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
-    h.push('<h3>라. 음색 패치 <small class="g">음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름: '+esc(NM[K.order[0]])+' 패치를 불러와 빨강 칸만 고치고 새 이름으로 저장</small></h3>');
-    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>'+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
-    h.push('<h3>마. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
+    h.push('<h4>공통 다섯 <small class="g">음색과 상관없이 같음</small></h4><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
+    h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
+    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
+    h.push('<h3>다. 패치로 저장 <small class="g">표 한 줄의 값을 다 넣은 트랙마다</small></h3>'+stp(['값을 다 넣은 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 엶',
+      '라이브러리 맨 아래 '+B('저장...')+' → 그 줄의 저장 이름(예: '+B('SO '+esc(NM[K.order[0]])+' 02 호흡 패드')+') 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김. 표 줄 왼쪽 칸에 체크',
+      '음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)'),
+      '다음 곡부터는 트랙을 고르고 이 이름을 한 번 누르면 악기, 플러그인, 센드가 한꺼번에 들어옴']));
+    h.push('<h3>라. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
       '마스터링용: 빈 프로젝트(48 kHz) 오디오 트랙 하나에 '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('25 Hz')+' 만) → '+B('Adaptive Limiter')+' (Out Ceiling '+B('-1.0 dB')+', True Peak Detection '+R('ON')+') → '+B('Loudness Meter')+' → '+B('Y')+' 라이브러리 <b>저장...</b> → '+B('SO 마스터링')]));
     h.push('</details>');
     /* 2 곡마다 */
     const trRows=tracks.map(function(t){ if(t.bin) return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+R('패치 없음')+'. '+t.set+(t.gain?'<br>Gain '+B(t.gain):'')+'<br>'+R('플러그인과 Send 넣지 않기')+'</td></tr>';
-      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+B(esc(t.info.patchName||'(표에 없음)'))+(/^Quick Sampler/.test(t.patch)?'<br>그다음 녹음 파일('+B(esc(K.nat))+', '+B(esc(K.dur)+' 넘게')+')을 '+B('Original')+' 칸에 끌어 놓기. '+R('MIDI 리전은 지우지 않기'):'')+'</td></tr>'; }).join('');
+      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+(t.info.patchName?'<a class="pl" href="#'+esc(pid(t.info.patchName))+'">'+B(esc(t.info.patchName))+'</a> '+Gr('(값 보기)'):B('(표에 없음)'))+(/^Quick Sampler/.test(t.patch)?'<br>그다음 녹음 파일('+B(esc(K.nat))+', '+B(esc(K.dur)+' 넘게')+')을 '+B('Original')+' 칸에 끌어 놓기. '+R('MIDI 리전은 지우지 않기'):'')+'</td></tr>'; }).join('');
+    const per0='<p class="g" style="font-size:13px;margin:0 0 6px">패치 안의 악기, 플러그인, 센드 값은 1번 처음 한 번 표에 있습니다. 아래 패치 이름을 누르면 그 줄로 갑니다.</p>';
     const per=['<b>버스</b>: '+B('X')+' 믹서에서 첫 트랙 Sends 첫 빈칸 '+B('Bus 1')+', 둘째 '+B('Bus 2')+', 셋째 '+B('Bus 3')+' → Aux 셋이 생김 '+Gr('(우주 효과를 안 쓰면 Bus 3 은 건너뜀)'),
       'Aux 맨 위 <b>설정</b> 단추 → Bus 1 Aux '+B('SO '+curN+' Space')+', Bus 2 Aux '+B('SO 공통 Air')+', Bus 3 Aux '+B('SO 공통 Cosmos'),
       '<b>트랙마다 패치</b>: '+B('Y')+' 로 라이브러리를 연 채 트랙을 하나씩 고르고 <b>사용자 패치</b> 에서 아래 이름을 누름 '+Gr('(키보드 ↓ 로 다음 트랙. 여러 트랙을 한꺼번에 고르면 같은 패치가 다 들어가니 하나씩)')
         +'<div class="wrap"><table><tr><th></th><th>트랙</th><th>누를 패치</th></tr>'+trRows+'</table></div>'];
     if(K.binWav) per.push('<b>바이노럴</b>: 메뉴 <b>트랙</b> → <b>새로운 오디오 트랙</b> (Stereo) → '+B(esc(K.binWav))+' 를 '+B('1마디 맨 앞')+'에 끌어 놓기. '+R('플러그인과 Send 넣지 않기')+', 페이더 '+B('0 dB')+' 그대로 '+Gr('(거의 안 들리고 분위기로만 깔리게 만든 크기)'));
     per.push(B('Stereo Out')+' 맨 위 <b>설정</b> 단추 → '+B('SO 마스터'));
-    h.push('<h2>2. 곡마다 <small>이 곡은 '+esc(curN)+' 패치</small></h2>'+ck(per));
+    h.push('<h2>2. 곡마다 <small>이 곡은 '+esc(curN)+' 패치</small></h2>'+per0+ck(per));
     /* 3 선택 우주 효과 */
     let nextN=3;
     if(opt.optFx){ try{ const stF=st0;
       const snapBar=function(tk){ let from=0; for(let i=0;i<M.sigs.length;i++){ const S=M.sigs[i], nx=(i+1<M.sigs.length)?M.sigs[i+1].t:Infinity, L=M.ppq*4/S.d*S.n; if(tk<nx){ const k=Math.round((tk-from)/L); return Math.min(from+k*L, nx); } from=nx; } return tk; };
+      const bar=function(sec){ const b=M.barOf(snapBar(M.tickOf(stF+sec))); return B(b.bar+'마디')+' '+Gr('('+mmss(sec)+')'); };
       const at=function(sec, snap){ let tk=M.tickOf(stF+sec); if(snap){ tk=snapBar(tk); sec=M.secOf(tk)-stF; } const b=M.barOf(tk); return B(mmss(sec))+' '+Gr('('+b.bar+'마디'+(b.on?'':' '+b.beat+'박')+')'); };
       const O=opt.optFx(at, {mk:[], end:0, endMk:null, tracks:[]});
-      if(O && O.steps && O.steps.length>3){ const st=[B('Bus 3')+' Aux 에 '+B('SO 공통 Cosmos')+' 가 들어 있는지 확인 '+Gr('(2번에서 불러옴. 패치에 Cosmos 센드가 '+K.cosSends.join(', ')+' 에 -∞ 로 들어 있음)')].concat(O.steps.slice(3).map(function(x){ return String(x).replace('믹싱 ④ 의 Loudness Meter','4번 크기 맞추기의 Loudness Meter'); }));
-        h.push('<h2>3. 선택: 우주 효과 <small>하면 이 순서로, 안 해도 됨</small></h2>'+(O.why?'<p class="g" style="font-size:13px;margin:6px 0">'+O.why+'</p>':'')+stp(st)); nextN=4; } }catch(e){ window.__guideErr=String(e&&e.stack||e); } }
+      if(O && O.W && O.W.length){
+        /* ★ 2026-10-20 형: 트랙 넷의 센드를 하나하나 그리던 것 → 센드는 패치에 고정(-4 dB), 여닫이는 Cosmos 트랙 하나의 볼륨(과 EQ High Cut)만 */
+        const fd=function(v){ return v==null?B('맨 아래(-∞)'):B((v-K.cosDb>0?'+':'')+(Math.round((v-K.cosDb)*10)/10)+' dB'); };
+        const lineOf=function(P, ix, fmt){ let out=bar(P[0][0])+' '+fmt(P[0][ix]); for(let k=1;k<P.length;k++){ out+=(P[k][ix]===P[k-1][ix])?', '+bar(P[k][0])+' 까지 그대로':' → '+bar(P[k][0])+' '+fmt(P[k][ix]); } return out; };
+        const hzT=function(x){ return B(x>=1000?(Math.round(x/100)/10)+' kHz':x+' Hz'); };
+        const st=[B('X')+' 믹서에서 '+B('Cosmos')+' Aux 줄 이름 위를 '+B('Control')+' 누른 채 클릭 → '+B('트랙 생성')+' '+Gr('(트랙 영역 맨 아래에 Cosmos 트랙이 생김. 2번에서 Bus 3 에 SO 공통 Cosmos 를 불러온 그 Aux)'),
+          'Cosmos 트랙을 고르고 '+B('A')+' (오토메이션 보기) → 트랙 이름 아래 메뉴에서 '+B('볼륨')+' → 선 위를 클릭하면 점이 생김. 점을 좌우로 끌면 자리, 위아래로 끌면 크기. 마디 자를 보며 아래 자리에 점을 찍음 '+Gr('(트랙 넷을 고를 필요 없음. 이 트랙 하나만)')
+            +'<br>'+O.W.map(function(P){ return lineOf(P,1,fd); }).join('<br>'),
+          Gr('(하면 더 \'화\' 열림, 안 해도 됨)')+' 같은 트랙 오토메이션 메뉴 → '+B('Channel EQ')+' → '+B('High Cut Frequency')+' '+Gr('(8번 밴드 주파수)')+' 에 같은 자리로'
+            +'<br>'+O.W.map(function(P){ return lineOf(P,2,hzT); }).join('<br>'),
+          '크기는 4번을 이 효과를 켠 채로 하면 됨 '+Gr('(실시간 바운스가 효과까지 같이 잼. 열린 구간이 1~2 LU 커짐)'),
+          Gr('오토메이션은 패치에 안 들어가고 이 프로젝트에만 저장됨. 곡마다 길이와 마디가 달라 곡마다 이 표의 자리에 찍음')];
+        h.push('<h2>3. 선택: 우주 효과 <small>하면 이 순서로, 안 해도 됨 (안 하면 2번에서 Bus 3 을 만들지 않음)</small></h2>'+(O.why?'<p class="g" style="font-size:13px;margin:6px 0">'+O.why+'</p>':'')+stp(st)); nextN=4; } }catch(e){ window.__guideErr=String(e&&e.stack||e); } }
     /* 4 크기와 바운스 */
-    let loudBar=''; if(opt.loud){ const a=M.barOf(M.tickOf(st0+opt.loud[0])).bar, z=M.barOf(M.tickOf(st0+opt.loud[1])).bar-1; loudBar=a+' ~ '+z+'마디'; }
-    h.push('<h2>'+nextN+'. 크기 맞추기와 바운스</h2>'+stp([(loudBar?'가장 큰 구간 '+B(loudBar)+' 재생. ':'가장 큰 구간 재생. ')+'Stereo Out 미터 위 피크 숫자가 '+B('-6 dB')+' 근처가 되게 Stereo Out '+B('Gain')+' 조절',
-      '곡 맨 앞에서 Loudness Meter <b>Reset</b> → <b>Start</b> → 끝까지 재생. <b>Integrated</b> '+B(mixLo+' ~ '+mixHi+' LUFS')+' 면 정상',
-      '<b>File &gt; Bounce &gt; Project or Section</b>: PCM, '+B('WAVE 24 bit 48 kHz')+', Normalize '+R('Off')+(opt.bin?'. 헤드폰판(바이노럴 켬), 스피커판(바이노럴 뮤트)':'')])
+    const LP=loudPeak(opt.midi, M, st0); let loudTxt='';
+    if(LP){ const ba=M.barOf(M.tickOf(st0+LP.a)).bar, bz=M.barOf(M.tickOf(st0+LP.z)).bar; loudTxt=B(ba+' ~ '+bz+'마디')+' '+Gr('(로직 시간 '+mmss(LP.a+st0)+' ~ '+mmss(LP.z+st0)+', 곡 지도로는 '+mmss(LP.a)+' ~ '+mmss(LP.z)+', 가장 큰 순간 곡 '+mmss(LP.peak)+')'); }
+    else if(opt.loud){ loudTxt=B(mmss(opt.loud[0])+' ~ '+mmss(opt.loud[1])); }
+    const loudWav=LP?B(mmss(LP.a+st0)+' ~ '+mmss(LP.z+st0))+' '+Gr('(WAV 처음부터 잰 시각. 1마디 맨 앞에 놓았으면 로직 시간 표시와 같음)'):loudTxt;
+    h.push('<h2>'+nextN+'. 크기 맞추기와 바운스 <small>재생은 가장 큰 자리 10초와 실시간 바운스 한 번</small></h2>'+stp([
+      '가장 큰 자리 '+(loudTxt||'')+' 를 사이클(C)로 걸고 재생 '+Gr('(앱이 MIDI 로 찾은 자리)')+'. Stereo Out 미터 위 피크 숫자가 '+B('-6 dB')+' 근처가 되게 Stereo Out '+B('Gain')+' 조절 '+Gr('(이미 -6 ~ -3 dB 사이면 그대로)'),
+      '사이클 끄고 재생 위치를 맨 앞으로 → Stereo Out 의 Loudness Meter '+B('Reset'),
+      '<b>File &gt; Bounce &gt; Project or Section</b>: PCM, '+B('WAVE 24 bit 48 kHz')+', Normalize '+R('Off')+', 모드 '+B('실시간 (Realtime)')+' '+Gr('(바운스하며 소리가 흘러 Loudness Meter 가 곡 전체를 잼)')+(opt.bin?'. 헤드폰판(바이노럴 켬)부터':''),
+      '바운스가 끝나면 Loudness Meter 의 '+B('Integrated')+' 숫자를 적어 둠 '+Gr('('+mixLo+' ~ '+mixHi+' LUFS 면 정상)')+(opt.bin?'. 스피커판은 바이노럴 뮤트하고 한 번 더 바운스 (모드 '+B('오프라인')+' 이어도 됨, 빠름)':'')])
       +'<details><summary>필요할 때만: 리전 바운스 후 대치 <small class="g">(CPU 가 무겁거나 트랙을 오디오로 굳힐 때. 셋팅에는 필요 없음)</small></summary>'+stp(['굳힐 트랙의 리전을 고름 '+Gr('(전부면 Command+A)')+' → '+B('Control+B')+' 로 '+B('리전 바운스 후 대치')+' 창',
         '이름 '+B('그대로')+', 대상 '+B('새로운 트랙')+', '+B('하나의 파일'),
         '소스 '+B('음소거')+' '+Gr('(MIDI 가 꺼진 채 남아 나중에 고칠 수 있음. 두기는 소리가 두 번, 삭제는 MIDI 가 없어짐)'),
@@ -9883,14 +9985,20 @@ window.__guideHTML=function(opt){
         '노멀라이즈 '+R('끔')+' → '+B('확인'),
         '새로 생긴 오디오 트랙의 오디오 FX 칸을 봄. 원래 트랙 플러그인이 따라와 켜져 있으면 이미 소리에 담긴 효과가 한 번 더 걸리니 끔. 센드는 그대로 둠'])+'</details>'); nextN++;
     /* 5 마스터링 */
-    h.push('<h2>'+nextN+'. 마스터링 <small>바운스한 파일을 새 프로젝트(48 kHz) 오디오 트랙에</small></h2>'+stp(['라이브러리 '+B('Y')+' 사용자 패치에서 '+B('SO 마스터링'),
-      'Loudness Meter Reset → Start → 끝까지. Integrated 가 '+B(lufs+' LUFS')+' 가 되게 Adaptive Limiter '+B('Gain')+' 을 올림 '+Gr('('+(lufs-4)+' 이면 +4 dB)'),
-      'REDUCTION 미터가 가장 깊을 때 '+B('-'+(opt.grMax||2)+' dB')+' 까지만. 더 깊으면 Gain 을 내리고 '+B((lufs-1)+' LUFS')+' 에서 멈춤',
-      'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')+'. 배포는 유통사 기준(44.1 kHz 16 bit 만 받는 곳은 그때 Dither 켬)'])); nextN++;
+    h.push('<h2>'+nextN+'. 마스터링 <small>바운스한 파일을 새 프로젝트(48 kHz) 오디오 트랙에</small></h2>'+stp(['새 프로젝트 오디오 트랙에 바운스한 WAV 를 1마디 맨 앞에 → 그 트랙 고르고 라이브러리 '+B('Y')+' 사용자 패치에서 '+B('SO 마스터링'),
+      'Adaptive Limiter '+B('Gain')+' = '+B(String(lufs))+' 빼기 적어 둔 Integrated '+Gr('(예: 적어 둔 값이 '+(lufs-5)+' LUFS 면 +5 dB)'),
+      '같은 가장 큰 자리 '+(loudWav||'')+' 를 사이클로 재생하며 Limiter 의 '+B('REDUCTION')+' 이 가장 깊을 때 '+B('-'+(opt.grMax||2)+' dB')+' 까지만. 더 깊으면 Gain 을 그만큼 내림',
+      Gr('(확인하고 싶을 때만) 맨 앞에서 Loudness Meter Reset 하고 끝까지 재생해 Integrated 가 ')+B(lufs+' LUFS')+Gr(' 근처인지'),
+      'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')+'. 배포는 유통사 기준(44.1 kHz 16 bit 만 받는 곳은 그때 Dither 켬)'])
+      +'<details><summary>참고: Mastering Assistant 로 하기 <small class="g">(SO 마스터링 대신. 곡 전체를 분석해 줘서 끝까지 듣지 않아도 됨)</small></summary>'+stp(['새 프로젝트(48 kHz) 오디오 트랙에 바운스한 WAV 를 1마디 맨 앞에. 그 트랙에는 플러그인을 넣지 않음',
+        B('X')+' 믹서 '+B('Stereo Out')+' 맨 아래 '+B('Mastering')+' 칸을 누르면 Mastering Assistant 가 들어가며 곡 전체를 분석 '+Gr('(분석이 끝날 때까지 기다림)'),
+        'Character '+B('Transparent')+', Auto EQ '+B('30 %')+', Excite '+R('끄기')+', Width '+R('돌리지 않기')+(opt.bin?' '+Gr('(넓히면 바이노럴이 깨짐)'):''),
+        '오른쪽 '+B('Loudness')+' 손잡이를 돌려 LUFS 표시의 '+B('I')+' 가 '+B(String(lufs))+', '+B('True Peak')+' 가 '+B('-1.0')+' 아래가 되게',
+        'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')])+'</details>'); nextN++;
     /* 6 곡 지도 */
     if(pts.length) h.push('<h2>'+nextN+'. 곡 지도</h2><div class="tl">'+pts.map(function(p){ return '<div><b>'+mmss(p.sec)+'</b>'+p.bar.bar+'마디'+(p.bar.on?'':' '+p.bar.beat+'박')+'<br>'+esc(p.label)+'</div>'; }).join('')+'</div>');
     if(opt.sheet) h.push('<p class="g" style="font-size:13px;margin:14px 0 0">앱이 MIDI 에 넣은 것과 자세한 설명은 같이 받은 txt 설명서에 있습니다.</p>');
-    h.push('<script>(function(){var cb=document.getElementById("onceDone"),d=document.getElementById("once"),K="so-guide:amb5-patches-done";if(!cb||!d)return;var v=false;try{v=localStorage.getItem(K)==="1"}catch(e){}var set=function(x){cb.checked=x;if(x)d.removeAttribute("open");else d.setAttribute("open","")};set(v);cb.addEventListener("change",function(){try{localStorage.setItem(K,cb.checked?"1":"0")}catch(e){}set(cb.checked)})})();<\/script>');
+    h.push('<script>(function(){var cb=document.getElementById("onceDone"),d=document.getElementById("once"),K="so-guide:amb5-patches-done";if(!cb||!d)return;var v=false;try{v=localStorage.getItem(K)==="1"}catch(e){}var set=function(x){cb.checked=x;if(x)d.removeAttribute("open");else d.setAttribute("open","")};set(v);cb.addEventListener("change",function(){try{localStorage.setItem(K,cb.checked?"1":"0")}catch(e){}set(cb.checked)});document.querySelectorAll("a.pl").forEach(function(l){l.addEventListener("click",function(ev){var id=l.getAttribute("href").slice(1),r=document.getElementById(id);if(!r)return;ev.preventDefault();d.setAttribute("open","");r.scrollIntoView({block:"center"});r.classList.add("hl");setTimeout(function(){r.classList.remove("hl")},2200)})})})();<\/script>');
   } else {
   if((opt.prep||[]).length) h.push('<h2>1. 준비</h2>'+ck(opt.prep));
   const sn=(opt.prep||[]).length?1:0; const N=function(k){ return (k+sn)+'. '; };
@@ -18850,7 +18958,7 @@ window.__cosmosFx=function(o, at){
   const line=function(P,ix,fmt){ let out=AT(P[0][0])+' '+fmt(P[0][ix]); for(let k=1;k<P.length;k++){ out+=(P[k][ix]===P[k-1][ix])?', '+AT(P[k][0])+' 까지 그대로':' → '+AT(P[k][0])+' '+fmt(P[k][ix]); } return out; };
   const fdb=function(v){ return v==null?'-∞':B(v+' dB'); }, fhz=function(v){ return B(hz(v)); };
   const many=W.length>1, top=Math.max.apply(null,W.map(function(P){ return Math.max.apply(null,P.map(function(x){ return x[2]; })); }));
-  return {title:o.title||'우주로 열리는 효과 (Cosmos 버스)', why:o.why||'',
+  return {W:W, title:o.title||'우주로 열리는 효과 (Cosmos 버스)', why:o.why||'',
     steps:['새 Aux 하나: 아무 트랙 센드 빈 칸 → '+B('Bus')+' → 믹서에 생긴 Aux 이름을 '+B('Cosmos'),
       'Cosmos 오디오 FX 위에서 아래로 세 개: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+', 나머지 기본) → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B((o.decay||12)+' s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+', 나머지 기본) → '+B('Channel EQ')+' (첫째 띠 Low Cut 켬 '+B('400 Hz')+' '+B('24 dB/Oct')+', 여덟째 띠 High Cut 켬 '+B('1000 Hz')+' '+B('24 dB/Oct')+', 가운데 여섯 띠는 0 dB 그대로)'+Gr(' (EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐. Timing Vocals 는 패드처럼 이어지는 소리용, Drums 나 Speech 면 이어지는 소리가 울렁일 수 있음)'),
       '센드 Cosmos 를 걸 트랙: '+o.sends.map(function(x){ return B(x); }).join(', ')+'. 처음 값은 '+R('맨 아래(-∞)')+(o.sendNote?' '+o.sendNote:'')+(o.nosend?' '+Gr('('+o.nosend+' 은 걸지 않음)'):''),
@@ -19078,7 +19186,7 @@ const altShow=function(a){ a=String(a); const sn=/\(스냅샷 ([^)]+)\)/.exec(a)
   return a.indexOf('/')>=0?a.split('/').pop():a; };
 const mmss=function(s){ s=Math.round(s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 
-const CSS='.oncek{display:block;margin:4px 0 8px;font-weight:600}details.once>summary{color:var(--sub);font-size:13px;cursor:pointer}h4{font-size:15px;margin:14px 0 4px}.dif,.dif .b,.dif .g{color:var(--red);font-weight:600}'+':root{--ink:#1d1f23;--sub:#6b7078;--line:#e3e5e8;--red:#c62828;--blue:#1e5bb8;--soft:#f6f7f9}*{box-sizing:border-box}'
+const CSS='a.pl{text-decoration:none}tr.hl td{background:#fff4c2}.oncek{display:block;margin:4px 0 8px;font-weight:600}details.once>summary{color:var(--sub);font-size:13px;cursor:pointer}h4{font-size:15px;margin:14px 0 4px}.dif,.dif .b,.dif .g{color:var(--red);font-weight:600}'+':root{--ink:#1d1f23;--sub:#6b7078;--line:#e3e5e8;--red:#c62828;--blue:#1e5bb8;--soft:#f6f7f9}*{box-sizing:border-box}'
  +'body{margin:0;background:#fff;color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}main{max-width:1000px;margin:0 auto;padding:28px 16px 60px}'
  +'h1{font-size:22px;margin:0 0 4px}.meta{color:var(--sub);font-size:13.5px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 6px}.chip{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px}'
  +'.legend{font-size:13px;color:var(--sub);margin:10px 0 0}.r{color:var(--red);font-weight:600}.b{color:var(--blue);font-weight:600}.g{color:var(--sub)}'
@@ -19098,6 +19206,32 @@ const JS='(function(){var key="guide:"+document.title+":"+location.pathname;var 
  +'document.querySelectorAll("input[type=checkbox]:not(#onceDone)").forEach(function(cb,i){var row=cb.closest("tr")||cb.closest("li");var set=function(){if(row)row.classList.toggle("done",cb.checked)};cb.checked=!!st[i];set();cb.addEventListener("change",function(){st[i]=cb.checked;set();try{localStorage.setItem(key,JSON.stringify(st))}catch(e){}})});'
  +'document.querySelectorAll(".tabs button").forEach(function(b){b.addEventListener("click",function(){var p=b.parentNode.parentNode;p.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x===b)});p.querySelectorAll(".tab").forEach(function(t){t.classList.toggle("on",t.id===b.dataset.t)})})})})();';
 
+/* ★ 2026-10-20 형: 가장 큰 자리를 MIDI 로 바로 찾아 분 초로(Stereo Out 피크, 리미터 REDUCTION 보는 자리).
+   0.25초마다 트랙 합: (Gain 이름값) x (CC7 페이더, 로직 40 log 곡선) x (CC11) x 음 세기. 치는 악기(띵샤 종 편종, 핸드팬, 양금 피아노)는 친 뒤 줄어드는 꼬리로,
+   패드 드론은 울리는 동안 그대로. 자연음(녹음 파일 크기를 모름)과 바이노럴은 뺌. 가장 큰 순간 peak 와 그 앞뒤 10초 창 */
+function loudPeak(u8, M, st0){ try{ const d=u8, rd32=function(p){ return ((d[p]<<24)|(d[p+1]<<16)|(d[p+2]<<8)|d[p+3])>>>0; };
+  const ntr=(d[10]<<8)|d[11]; let p=8+rd32(4); const dec=new TextDecoder('utf-8'); const TR=[];
+  for(let k=0;k<ntr && p<d.length;k++){ const len=rd32(p+4); let q=p+8; const end=q+len; p=end; let t=0, rs=0, nm=''; const N=[], C7=[], C11=[], open={};
+    const vlq=function(){ let v=0,b; do{ b=d[q++]; v=(v<<7)|(b&0x7f); }while(b&0x80); return v; };
+    while(q<end){ t+=vlq(); let st=d[q];
+      if(st===0xFF){ const ty=d[q+1]; q+=2; const l=vlq(); if(ty===0x03&&!nm) nm=dec.decode(d.subarray(q,q+l)); q+=l; continue; }
+      if(st===0xF0||st===0xF7){ q++; const l=vlq(); q+=l; continue; }
+      if(st&0x80){ rs=st; q++; } const h=rs&0xF0, a=d[q], b=(h===0xC0||h===0xD0)?0:d[q+1]; q+=(h===0xC0||h===0xD0)?1:2;
+      if((rs&15)===9) continue;
+      if(h===0x90&&b>0){ (open[a]=open[a]||[]).push([t,b]); }
+      else if((h===0x80||(h===0x90&&b===0)) && open[a] && open[a].length){ const o=open[a].shift(); N.push([M.secOf(o[0])-st0, M.secOf(t)-st0, o[1], a]); }
+      else if(h===0xB0&&a===7) C7.push([M.secOf(t)-st0,b]); else if(h===0xB0&&a===11) C11.push([M.secOf(t)-st0,b]); }
+    if(!N.length || /Nature|Binaural|Conductor|자연음|바이노럴/i.test(nm)) continue;
+    const tau=/Tingsha|Bell|Pyeonjong|Chimes|띵샤/i.test(nm)?3:/Handpan|Pan Drums|Hang/i.test(nm)?1.2:/Yanggeum|Piano|양금|피아노/i.test(nm)?1.5:0;
+    const ks=/Yanggeum/i.test(nm)?[36,38,40]:[];   /* 양금 키스위치 음은 소리가 아님 */
+    const g=/\[Gain\s*([-+]?\d+(?:\.\d+)?)\s*dB\]/i.exec(nm); TR.push({N:N.filter(function(n){ return ks.indexOf(n[3])<0; }), C7:C7, C11:C11, tau:tau, g:g?Math.pow(10,parseFloat(g[1])/10):1}); }
+  const at=function(A,t,def){ let v=def; for(let i=0;i<A.length;i++){ if(A[i][0]<=t) v=A[i][1]; else break; } return v; };
+  const endS=Math.max.apply(null,TR.map(function(T){ return Math.max.apply(null,T.N.map(function(n){ return n[1]; })); }));
+  let best=-1, bt=0; for(let s=0;s<=endS;s+=0.25){ let e=0;
+    TR.forEach(function(T){ let a=0; T.N.forEach(function(n){ if(T.tau){ if(n[0]<=s && s<n[0]+4*T.tau) a+=Math.pow(n[2]/127,2)*Math.exp(-2*(s-n[0])/T.tau); } else if(n[0]<=s && s<n[1]) a+=Math.pow(n[2]/127,2); });
+      if(a) e+=a*T.g*Math.pow(at(T.C7,s,90)/90,4)*Math.pow(at(T.C11,s,127)/127,4); });
+    if(e>best){ best=e; bt=s; } }
+  if(best<=0) return null; const a=Math.max(0,Math.floor(bt-4)); return {peak:bt, a:a, z:a+10}; }catch(e){ window.__loudErr=String(e&&e.stack||e); return null; } }
 window.__guideHTML=function(opt){
   opt=opt||{}; const M=parseMidi(opt.midi); const TB=window.__STAGE_TABLE||[], sp=(window.__STAGE_INFO&&window.__STAGE_INFO.space)||'band';
   const SPC=(window.__STAGE_SPACES&&window.__STAGE_SPACES[sp])||{room:'Room', decay:1.2, pre:[24,14,6]}, GS=Object.assign({},GSPACE[sp]||{},opt.spaceOv||{}), airy=!!AIRY[sp];   /* ★ 2026-10-19 opt.spaceOv{decay,pre}: 곡 음색별 잔향 */
@@ -19193,14 +19327,15 @@ window.__guideHTML=function(opt){
   if(opt.book){ /* ★ 2026-10-20 형: 호흡 앰비언트 패치 방식. 순서 0 프로젝트 설정, 1 처음 한 번(버스 셋, 공통 패치, 음색 패치, 마스터, 다 만들면 접힘), 2 곡마다, 3 선택 우주 효과, 4 크기와 바운스, 5 마스터링, 6 곡 지도 */
     const K=opt.book, NM=K.names, curN=NM[K.cur];
     const pn=function(tk, r){ return 'SO '+(tk?NM[tk]:'공통')+' '+r.n+' '+r.ko; };
+    const pid=function(name){ return 'p-'+String(name).replace(/\s+/g,'-'); };
     const dif=function(x){ return '<span class="dif">'+x+'</span>'; };
     const sendTxt=function(r, base){ const d=function(k,x){ return (base && base[k]!==r[k])?dif(x):x; };
-      return 'Bus 1 Space '+d('space',B(r.space+' dB'))+'<br>'+(r.air!=null?d('air','Bus 2 Air '+B(r.air+' dB')):d('air',Gr('Bus 2 Air 비움')))+'<br>'+(r.cos?d('cos','Bus 3 Cosmos '+B('-∞')):d('cos',Gr('Bus 3 비움'))); };
+      return 'Bus 1 Space '+d('space',B(r.space+' dB'))+'<br>'+(r.air!=null?d('air','Bus 2 Air '+B(r.air+' dB')):d('air',Gr('Bus 2 Air 비움')))+'<br>'+(r.cos?d('cos','Bus 3 Cosmos '+B(K.cosDb+' dB')):d('cos',Gr('Bus 3 비움'))); };
     const eqCell=function(r, base){ return r.eq.map(function(e){ const be=base?base.eq.find(function(x){ return x.b===e.b; }):null; const t=eqTxt(e); return (base && JSON.stringify(be)!==JSON.stringify(e))?dif(t):t; }).join('<br>')
       +(base?base.eq.filter(function(x){ return !r.eq.some(function(e){ return e.b===x.b; }); }).map(function(x){ return '<br>'+dif(bd(x.b)+' '+R('끄기')); }).join(''):''); };
     const cell=function(v, bv, base){ return (base && bv!==v)?dif(v):v; };
     const rowsOf=function(list, tk, base){ return list.map(function(r,i){ const b=base?base[i]:null;
-      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B(esc(pn(tk,r)))+'<br>'+Gr(esc(r.role))+'</td><td>'+cell(B(esc(r.inst)),b&&B(esc(b.inst)),b)+(r.set?'<br>'+r.set:'')+'</td><td>'+(r.gain!=null?cell(B(r.gain+' dB'),b&&b.gain!=null?B(b.gain+' dB'):null,b):Gr('0 dB'))+'</td><td>'+eqCell(r,b)+'</td><td>Spread '+cell(B(r.spread.toFixed(2)),b&&B(b.spread.toFixed(2)),b)+'</td><td>'+sendTxt(r,b)+'</td></tr>'; }).join(''); };
+      return '<tr id="'+esc(pid(pn(tk,r)))+'"><td class="c"><input type="checkbox"></td><td class="t">'+B(esc(pn(tk,r)))+'<br>'+Gr(esc(r.role))+'</td><td>'+cell(B(esc(r.inst)),b&&B(esc(b.inst)),b)+(r.set?'<br>'+r.set:'')+'</td><td>'+(r.gain!=null?cell(B(r.gain+' dB'),b&&b.gain!=null?B(b.gain+' dB'):null,b):Gr('0 dB'))+'</td><td>'+eqCell(r,b)+'</td><td>Spread '+cell(B(r.spread.toFixed(2)),b&&B(b.spread.toFixed(2)),b)+'</td><td>'+sendTxt(r,b)+'</td></tr>'; }).join(''); };
     const head='<tr><th></th><th>저장 이름<br>(트랙)</th><th>악기와 설정</th><th>1 Gain</th><th>2 Channel EQ</th><th>3 Direction Mixer</th><th>센드</th></tr>';
     /* 1 처음 한 번 */
     h.push('<h2>1. 처음 한 번: 패치 만들기 <small>모든 호흡 앰비언트 공통, 5분 10분 같음</small></h2>');
@@ -19214,42 +19349,63 @@ window.__guideHTML=function(opt){
       +K.order.map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Air')+'</td><td>Bus 2</td><td>'+B('ChromaVerb')+': Room '+B('Airy')+', Predelay '+B('40 ms')+', Decay '+B('8 s')+', Dry '+B('0 %')+', Wet '+B('100 %')+', Damping EQ 오른쪽 끝 점 '+B('100 %')+'. DETAILS 탭 Output EQ '+B('켬')+': 첫째 '+B('400 Hz')+', 다섯째 '+B('10 kHz +4 dB')+', 여섯째 '+R('끄기')+'</td></tr>'
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Cosmos')+'<br>'+Gr('우주 효과용')+'</td><td>Bus 3</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B('12 s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('400 Hz, 24 dB/Oct')+', '+bd(8)+' High Cut '+B('1000 Hz, 24 dB/Oct')+')<br>'+Gr('EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐')+'</td></tr></table></div>');
-    h.push('<h3>나. 트랙 패치 만드는 법 <small class="g">트랙 하나마다 이 순서, 아래 표대로</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
+    h.push('<h3>나. 트랙마다 값 넣기 <small class="g">아래 표 한 줄이 패치 하나. 그 트랙에 이 순서로 값을 다 넣은 뒤 다 에서 저장</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
       '<b>악기</b>: 이름이 Synthesizer/, Strings/ 로 시작하면 '+B('Y')+' 라이브러리에서 그 이름을 누름. Kontakt, DecentSampler, Quick Sampler 는 채널 스트립 악기 칸에서 고르고 악기까지 불러 둠 '+Gr('(불러 둔 악기와 설정이 패치에 같이 저장되어 다음부터 바로 열림)')+'. 표의 설정까지',
       '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
       '<b>오디오 FX</b> 그 아래 빈칸에 위에서부터 '+B('Gain')+' → '+B('Channel EQ')+' → '+B('Direction Mixer')+' 를 넣고 표의 값. Direction Mixer 는 Input '+B('LR')+', Direction '+B('0')+' 그대로 두고 Spread 만',
-      '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos) 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠, Cosmos '+B('-∞')+' 는 손잡이를 맨 아래로',
-      '<b>저장</b>: 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 열고 맨 아래 '+B('저장...')+' → 표의 저장 이름 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김 '+Gr('(다음 곡부터는 트랙 고르고 이 이름 한 번 누르면 악기, 플러그인, 센드가 한꺼번에)')])
+      '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos) 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠 '+Gr('(Cosmos 는 Bus 3 Aux 가 없으면 소리가 안 나서 우주 효과를 안 쓰는 곡에서는 그냥 꺼진 셈)')])
       +'<details><summary>Channel EQ 보는 법</summary><figure><img src="'+EQIMG+'" alt="Channel EQ"></figure><div class="box"><div>밴드는 왼쪽부터 '+bd(1)+'~'+bd(8)+'. 흐린 밴드는 그림을 눌러 켭니다.</div><div>밴드 아래 숫자 세 줄: 위부터 '+B('주파수 Hz')+', '+B('크기 dB')+', '+B('폭 Q')+'. 숫자를 위아래로 끌거나 더블클릭해서 입력.</div><div>'+bd(1)+' Low Cut 은 기울기 '+B('12 dB/Oct')+' 그대로(표에 따로 적은 것만 바꿈).</div></div></details>');
-    h.push('<h3>다. 공통 패치 다섯 <small class="g">음색과 상관없이 같음</small></h3><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
-    h.push('<h3>라. 음색 패치 <small class="g">음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름: '+esc(NM[K.order[0]])+' 패치를 불러와 빨강 칸만 고치고 새 이름으로 저장</small></h3>');
-    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>'+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
-    h.push('<h3>마. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
+    h.push('<h4>공통 다섯 <small class="g">음색과 상관없이 같음</small></h4><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
+    h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
+    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
+    h.push('<h3>다. 패치로 저장 <small class="g">표 한 줄의 값을 다 넣은 트랙마다</small></h3>'+stp(['값을 다 넣은 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 엶',
+      '라이브러리 맨 아래 '+B('저장...')+' → 그 줄의 저장 이름(예: '+B('SO '+esc(NM[K.order[0]])+' 02 호흡 패드')+') 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김. 표 줄 왼쪽 칸에 체크',
+      '음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)'),
+      '다음 곡부터는 트랙을 고르고 이 이름을 한 번 누르면 악기, 플러그인, 센드가 한꺼번에 들어옴']));
+    h.push('<h3>라. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
       '마스터링용: 빈 프로젝트(48 kHz) 오디오 트랙 하나에 '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('25 Hz')+' 만) → '+B('Adaptive Limiter')+' (Out Ceiling '+B('-1.0 dB')+', True Peak Detection '+R('ON')+') → '+B('Loudness Meter')+' → '+B('Y')+' 라이브러리 <b>저장...</b> → '+B('SO 마스터링')]));
     h.push('</details>');
     /* 2 곡마다 */
     const trRows=tracks.map(function(t){ if(t.bin) return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+R('패치 없음')+'. '+t.set+(t.gain?'<br>Gain '+B(t.gain):'')+'<br>'+R('플러그인과 Send 넣지 않기')+'</td></tr>';
-      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+B(esc(t.info.patchName||'(표에 없음)'))+(/^Quick Sampler/.test(t.patch)?'<br>그다음 녹음 파일('+B(esc(K.nat))+', '+B(esc(K.dur)+' 넘게')+')을 '+B('Original')+' 칸에 끌어 놓기. '+R('MIDI 리전은 지우지 않기'):'')+'</td></tr>'; }).join('');
+      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+(t.info.patchName?'<a class="pl" href="#'+esc(pid(t.info.patchName))+'">'+B(esc(t.info.patchName))+'</a> '+Gr('(값 보기)'):B('(표에 없음)'))+(/^Quick Sampler/.test(t.patch)?'<br>그다음 녹음 파일('+B(esc(K.nat))+', '+B(esc(K.dur)+' 넘게')+')을 '+B('Original')+' 칸에 끌어 놓기. '+R('MIDI 리전은 지우지 않기'):'')+'</td></tr>'; }).join('');
+    const per0='<p class="g" style="font-size:13px;margin:0 0 6px">패치 안의 악기, 플러그인, 센드 값은 1번 처음 한 번 표에 있습니다. 아래 패치 이름을 누르면 그 줄로 갑니다.</p>';
     const per=['<b>버스</b>: '+B('X')+' 믹서에서 첫 트랙 Sends 첫 빈칸 '+B('Bus 1')+', 둘째 '+B('Bus 2')+', 셋째 '+B('Bus 3')+' → Aux 셋이 생김 '+Gr('(우주 효과를 안 쓰면 Bus 3 은 건너뜀)'),
       'Aux 맨 위 <b>설정</b> 단추 → Bus 1 Aux '+B('SO '+curN+' Space')+', Bus 2 Aux '+B('SO 공통 Air')+', Bus 3 Aux '+B('SO 공통 Cosmos'),
       '<b>트랙마다 패치</b>: '+B('Y')+' 로 라이브러리를 연 채 트랙을 하나씩 고르고 <b>사용자 패치</b> 에서 아래 이름을 누름 '+Gr('(키보드 ↓ 로 다음 트랙. 여러 트랙을 한꺼번에 고르면 같은 패치가 다 들어가니 하나씩)')
         +'<div class="wrap"><table><tr><th></th><th>트랙</th><th>누를 패치</th></tr>'+trRows+'</table></div>'];
     if(K.binWav) per.push('<b>바이노럴</b>: 메뉴 <b>트랙</b> → <b>새로운 오디오 트랙</b> (Stereo) → '+B(esc(K.binWav))+' 를 '+B('1마디 맨 앞')+'에 끌어 놓기. '+R('플러그인과 Send 넣지 않기')+', 페이더 '+B('0 dB')+' 그대로 '+Gr('(거의 안 들리고 분위기로만 깔리게 만든 크기)'));
     per.push(B('Stereo Out')+' 맨 위 <b>설정</b> 단추 → '+B('SO 마스터'));
-    h.push('<h2>2. 곡마다 <small>이 곡은 '+esc(curN)+' 패치</small></h2>'+ck(per));
+    h.push('<h2>2. 곡마다 <small>이 곡은 '+esc(curN)+' 패치</small></h2>'+per0+ck(per));
     /* 3 선택 우주 효과 */
     let nextN=3;
     if(opt.optFx){ try{ const stF=st0;
       const snapBar=function(tk){ let from=0; for(let i=0;i<M.sigs.length;i++){ const S=M.sigs[i], nx=(i+1<M.sigs.length)?M.sigs[i+1].t:Infinity, L=M.ppq*4/S.d*S.n; if(tk<nx){ const k=Math.round((tk-from)/L); return Math.min(from+k*L, nx); } from=nx; } return tk; };
+      const bar=function(sec){ const b=M.barOf(snapBar(M.tickOf(stF+sec))); return B(b.bar+'마디')+' '+Gr('('+mmss(sec)+')'); };
       const at=function(sec, snap){ let tk=M.tickOf(stF+sec); if(snap){ tk=snapBar(tk); sec=M.secOf(tk)-stF; } const b=M.barOf(tk); return B(mmss(sec))+' '+Gr('('+b.bar+'마디'+(b.on?'':' '+b.beat+'박')+')'); };
       const O=opt.optFx(at, {mk:[], end:0, endMk:null, tracks:[]});
-      if(O && O.steps && O.steps.length>3){ const st=[B('Bus 3')+' Aux 에 '+B('SO 공통 Cosmos')+' 가 들어 있는지 확인 '+Gr('(2번에서 불러옴. 패치에 Cosmos 센드가 '+K.cosSends.join(', ')+' 에 -∞ 로 들어 있음)')].concat(O.steps.slice(3).map(function(x){ return String(x).replace('믹싱 ④ 의 Loudness Meter','4번 크기 맞추기의 Loudness Meter'); }));
-        h.push('<h2>3. 선택: 우주 효과 <small>하면 이 순서로, 안 해도 됨</small></h2>'+(O.why?'<p class="g" style="font-size:13px;margin:6px 0">'+O.why+'</p>':'')+stp(st)); nextN=4; } }catch(e){ window.__guideErr=String(e&&e.stack||e); } }
+      if(O && O.W && O.W.length){
+        /* ★ 2026-10-20 형: 트랙 넷의 센드를 하나하나 그리던 것 → 센드는 패치에 고정(-4 dB), 여닫이는 Cosmos 트랙 하나의 볼륨(과 EQ High Cut)만 */
+        const fd=function(v){ return v==null?B('맨 아래(-∞)'):B((v-K.cosDb>0?'+':'')+(Math.round((v-K.cosDb)*10)/10)+' dB'); };
+        const lineOf=function(P, ix, fmt){ let out=bar(P[0][0])+' '+fmt(P[0][ix]); for(let k=1;k<P.length;k++){ out+=(P[k][ix]===P[k-1][ix])?', '+bar(P[k][0])+' 까지 그대로':' → '+bar(P[k][0])+' '+fmt(P[k][ix]); } return out; };
+        const hzT=function(x){ return B(x>=1000?(Math.round(x/100)/10)+' kHz':x+' Hz'); };
+        const st=[B('X')+' 믹서에서 '+B('Cosmos')+' Aux 줄 이름 위를 '+B('Control')+' 누른 채 클릭 → '+B('트랙 생성')+' '+Gr('(트랙 영역 맨 아래에 Cosmos 트랙이 생김. 2번에서 Bus 3 에 SO 공통 Cosmos 를 불러온 그 Aux)'),
+          'Cosmos 트랙을 고르고 '+B('A')+' (오토메이션 보기) → 트랙 이름 아래 메뉴에서 '+B('볼륨')+' → 선 위를 클릭하면 점이 생김. 점을 좌우로 끌면 자리, 위아래로 끌면 크기. 마디 자를 보며 아래 자리에 점을 찍음 '+Gr('(트랙 넷을 고를 필요 없음. 이 트랙 하나만)')
+            +'<br>'+O.W.map(function(P){ return lineOf(P,1,fd); }).join('<br>'),
+          Gr('(하면 더 \'화\' 열림, 안 해도 됨)')+' 같은 트랙 오토메이션 메뉴 → '+B('Channel EQ')+' → '+B('High Cut Frequency')+' '+Gr('(8번 밴드 주파수)')+' 에 같은 자리로'
+            +'<br>'+O.W.map(function(P){ return lineOf(P,2,hzT); }).join('<br>'),
+          '크기는 4번을 이 효과를 켠 채로 하면 됨 '+Gr('(실시간 바운스가 효과까지 같이 잼. 열린 구간이 1~2 LU 커짐)'),
+          Gr('오토메이션은 패치에 안 들어가고 이 프로젝트에만 저장됨. 곡마다 길이와 마디가 달라 곡마다 이 표의 자리에 찍음')];
+        h.push('<h2>3. 선택: 우주 효과 <small>하면 이 순서로, 안 해도 됨 (안 하면 2번에서 Bus 3 을 만들지 않음)</small></h2>'+(O.why?'<p class="g" style="font-size:13px;margin:6px 0">'+O.why+'</p>':'')+stp(st)); nextN=4; } }catch(e){ window.__guideErr=String(e&&e.stack||e); } }
     /* 4 크기와 바운스 */
-    let loudBar=''; if(opt.loud){ const a=M.barOf(M.tickOf(st0+opt.loud[0])).bar, z=M.barOf(M.tickOf(st0+opt.loud[1])).bar-1; loudBar=a+' ~ '+z+'마디'; }
-    h.push('<h2>'+nextN+'. 크기 맞추기와 바운스</h2>'+stp([(loudBar?'가장 큰 구간 '+B(loudBar)+' 재생. ':'가장 큰 구간 재생. ')+'Stereo Out 미터 위 피크 숫자가 '+B('-6 dB')+' 근처가 되게 Stereo Out '+B('Gain')+' 조절',
-      '곡 맨 앞에서 Loudness Meter <b>Reset</b> → <b>Start</b> → 끝까지 재생. <b>Integrated</b> '+B(mixLo+' ~ '+mixHi+' LUFS')+' 면 정상',
-      '<b>File &gt; Bounce &gt; Project or Section</b>: PCM, '+B('WAVE 24 bit 48 kHz')+', Normalize '+R('Off')+(opt.bin?'. 헤드폰판(바이노럴 켬), 스피커판(바이노럴 뮤트)':'')])
+    const LP=loudPeak(opt.midi, M, st0); let loudTxt='';
+    if(LP){ const ba=M.barOf(M.tickOf(st0+LP.a)).bar, bz=M.barOf(M.tickOf(st0+LP.z)).bar; loudTxt=B(ba+' ~ '+bz+'마디')+' '+Gr('(로직 시간 '+mmss(LP.a+st0)+' ~ '+mmss(LP.z+st0)+', 곡 지도로는 '+mmss(LP.a)+' ~ '+mmss(LP.z)+', 가장 큰 순간 곡 '+mmss(LP.peak)+')'); }
+    else if(opt.loud){ loudTxt=B(mmss(opt.loud[0])+' ~ '+mmss(opt.loud[1])); }
+    const loudWav=LP?B(mmss(LP.a+st0)+' ~ '+mmss(LP.z+st0))+' '+Gr('(WAV 처음부터 잰 시각. 1마디 맨 앞에 놓았으면 로직 시간 표시와 같음)'):loudTxt;
+    h.push('<h2>'+nextN+'. 크기 맞추기와 바운스 <small>재생은 가장 큰 자리 10초와 실시간 바운스 한 번</small></h2>'+stp([
+      '가장 큰 자리 '+(loudTxt||'')+' 를 사이클(C)로 걸고 재생 '+Gr('(앱이 MIDI 로 찾은 자리)')+'. Stereo Out 미터 위 피크 숫자가 '+B('-6 dB')+' 근처가 되게 Stereo Out '+B('Gain')+' 조절 '+Gr('(이미 -6 ~ -3 dB 사이면 그대로)'),
+      '사이클 끄고 재생 위치를 맨 앞으로 → Stereo Out 의 Loudness Meter '+B('Reset'),
+      '<b>File &gt; Bounce &gt; Project or Section</b>: PCM, '+B('WAVE 24 bit 48 kHz')+', Normalize '+R('Off')+', 모드 '+B('실시간 (Realtime)')+' '+Gr('(바운스하며 소리가 흘러 Loudness Meter 가 곡 전체를 잼)')+(opt.bin?'. 헤드폰판(바이노럴 켬)부터':''),
+      '바운스가 끝나면 Loudness Meter 의 '+B('Integrated')+' 숫자를 적어 둠 '+Gr('('+mixLo+' ~ '+mixHi+' LUFS 면 정상)')+(opt.bin?'. 스피커판은 바이노럴 뮤트하고 한 번 더 바운스 (모드 '+B('오프라인')+' 이어도 됨, 빠름)':'')])
       +'<details><summary>필요할 때만: 리전 바운스 후 대치 <small class="g">(CPU 가 무겁거나 트랙을 오디오로 굳힐 때. 셋팅에는 필요 없음)</small></summary>'+stp(['굳힐 트랙의 리전을 고름 '+Gr('(전부면 Command+A)')+' → '+B('Control+B')+' 로 '+B('리전 바운스 후 대치')+' 창',
         '이름 '+B('그대로')+', 대상 '+B('새로운 트랙')+', '+B('하나의 파일'),
         '소스 '+B('음소거')+' '+Gr('(MIDI 가 꺼진 채 남아 나중에 고칠 수 있음. 두기는 소리가 두 번, 삭제는 MIDI 가 없어짐)'),
@@ -19259,14 +19415,20 @@ window.__guideHTML=function(opt){
         '노멀라이즈 '+R('끔')+' → '+B('확인'),
         '새로 생긴 오디오 트랙의 오디오 FX 칸을 봄. 원래 트랙 플러그인이 따라와 켜져 있으면 이미 소리에 담긴 효과가 한 번 더 걸리니 끔. 센드는 그대로 둠'])+'</details>'); nextN++;
     /* 5 마스터링 */
-    h.push('<h2>'+nextN+'. 마스터링 <small>바운스한 파일을 새 프로젝트(48 kHz) 오디오 트랙에</small></h2>'+stp(['라이브러리 '+B('Y')+' 사용자 패치에서 '+B('SO 마스터링'),
-      'Loudness Meter Reset → Start → 끝까지. Integrated 가 '+B(lufs+' LUFS')+' 가 되게 Adaptive Limiter '+B('Gain')+' 을 올림 '+Gr('('+(lufs-4)+' 이면 +4 dB)'),
-      'REDUCTION 미터가 가장 깊을 때 '+B('-'+(opt.grMax||2)+' dB')+' 까지만. 더 깊으면 Gain 을 내리고 '+B((lufs-1)+' LUFS')+' 에서 멈춤',
-      'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')+'. 배포는 유통사 기준(44.1 kHz 16 bit 만 받는 곳은 그때 Dither 켬)'])); nextN++;
+    h.push('<h2>'+nextN+'. 마스터링 <small>바운스한 파일을 새 프로젝트(48 kHz) 오디오 트랙에</small></h2>'+stp(['새 프로젝트 오디오 트랙에 바운스한 WAV 를 1마디 맨 앞에 → 그 트랙 고르고 라이브러리 '+B('Y')+' 사용자 패치에서 '+B('SO 마스터링'),
+      'Adaptive Limiter '+B('Gain')+' = '+B(String(lufs))+' 빼기 적어 둔 Integrated '+Gr('(예: 적어 둔 값이 '+(lufs-5)+' LUFS 면 +5 dB)'),
+      '같은 가장 큰 자리 '+(loudWav||'')+' 를 사이클로 재생하며 Limiter 의 '+B('REDUCTION')+' 이 가장 깊을 때 '+B('-'+(opt.grMax||2)+' dB')+' 까지만. 더 깊으면 Gain 을 그만큼 내림',
+      Gr('(확인하고 싶을 때만) 맨 앞에서 Loudness Meter Reset 하고 끝까지 재생해 Integrated 가 ')+B(lufs+' LUFS')+Gr(' 근처인지'),
+      'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')+'. 배포는 유통사 기준(44.1 kHz 16 bit 만 받는 곳은 그때 Dither 켬)'])
+      +'<details><summary>참고: Mastering Assistant 로 하기 <small class="g">(SO 마스터링 대신. 곡 전체를 분석해 줘서 끝까지 듣지 않아도 됨)</small></summary>'+stp(['새 프로젝트(48 kHz) 오디오 트랙에 바운스한 WAV 를 1마디 맨 앞에. 그 트랙에는 플러그인을 넣지 않음',
+        B('X')+' 믹서 '+B('Stereo Out')+' 맨 아래 '+B('Mastering')+' 칸을 누르면 Mastering Assistant 가 들어가며 곡 전체를 분석 '+Gr('(분석이 끝날 때까지 기다림)'),
+        'Character '+B('Transparent')+', Auto EQ '+B('30 %')+', Excite '+R('끄기')+', Width '+R('돌리지 않기')+(opt.bin?' '+Gr('(넓히면 바이노럴이 깨짐)'):''),
+        '오른쪽 '+B('Loudness')+' 손잡이를 돌려 LUFS 표시의 '+B('I')+' 가 '+B(String(lufs))+', '+B('True Peak')+' 가 '+B('-1.0')+' 아래가 되게',
+        'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')])+'</details>'); nextN++;
     /* 6 곡 지도 */
     if(pts.length) h.push('<h2>'+nextN+'. 곡 지도</h2><div class="tl">'+pts.map(function(p){ return '<div><b>'+mmss(p.sec)+'</b>'+p.bar.bar+'마디'+(p.bar.on?'':' '+p.bar.beat+'박')+'<br>'+esc(p.label)+'</div>'; }).join('')+'</div>');
     if(opt.sheet) h.push('<p class="g" style="font-size:13px;margin:14px 0 0">앱이 MIDI 에 넣은 것과 자세한 설명은 같이 받은 txt 설명서에 있습니다.</p>');
-    h.push('<script>(function(){var cb=document.getElementById("onceDone"),d=document.getElementById("once"),K="so-guide:amb5-patches-done";if(!cb||!d)return;var v=false;try{v=localStorage.getItem(K)==="1"}catch(e){}var set=function(x){cb.checked=x;if(x)d.removeAttribute("open");else d.setAttribute("open","")};set(v);cb.addEventListener("change",function(){try{localStorage.setItem(K,cb.checked?"1":"0")}catch(e){}set(cb.checked)})})();<\/script>');
+    h.push('<script>(function(){var cb=document.getElementById("onceDone"),d=document.getElementById("once"),K="so-guide:amb5-patches-done";if(!cb||!d)return;var v=false;try{v=localStorage.getItem(K)==="1"}catch(e){}var set=function(x){cb.checked=x;if(x)d.removeAttribute("open");else d.setAttribute("open","")};set(v);cb.addEventListener("change",function(){try{localStorage.setItem(K,cb.checked?"1":"0")}catch(e){}set(cb.checked)});document.querySelectorAll("a.pl").forEach(function(l){l.addEventListener("click",function(ev){var id=l.getAttribute("href").slice(1),r=document.getElementById(id);if(!r)return;ev.preventDefault();d.setAttribute("open","");r.scrollIntoView({block:"center"});r.classList.add("hl");setTimeout(function(){r.classList.remove("hl")},2200)})})})();<\/script>');
   } else {
   if((opt.prep||[]).length) h.push('<h2>1. 준비</h2>'+ck(opt.prep));
   const sn=(opt.prep||[]).length?1:0; const N=function(k){ return (k+sn)+'. '; };
@@ -30372,7 +30534,7 @@ window.__cosmosFx=function(o, at){
   const line=function(P,ix,fmt){ let out=AT(P[0][0])+' '+fmt(P[0][ix]); for(let k=1;k<P.length;k++){ out+=(P[k][ix]===P[k-1][ix])?', '+AT(P[k][0])+' 까지 그대로':' → '+AT(P[k][0])+' '+fmt(P[k][ix]); } return out; };
   const fdb=function(v){ return v==null?'-∞':B(v+' dB'); }, fhz=function(v){ return B(hz(v)); };
   const many=W.length>1, top=Math.max.apply(null,W.map(function(P){ return Math.max.apply(null,P.map(function(x){ return x[2]; })); }));
-  return {title:o.title||'우주로 열리는 효과 (Cosmos 버스)', why:o.why||'',
+  return {W:W, title:o.title||'우주로 열리는 효과 (Cosmos 버스)', why:o.why||'',
     steps:['새 Aux 하나: 아무 트랙 센드 빈 칸 → '+B('Bus')+' → 믹서에 생긴 Aux 이름을 '+B('Cosmos'),
       'Cosmos 오디오 FX 위에서 아래로 세 개: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+', 나머지 기본) → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B((o.decay||12)+' s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+', 나머지 기본) → '+B('Channel EQ')+' (첫째 띠 Low Cut 켬 '+B('400 Hz')+' '+B('24 dB/Oct')+', 여덟째 띠 High Cut 켬 '+B('1000 Hz')+' '+B('24 dB/Oct')+', 가운데 여섯 띠는 0 dB 그대로)'+Gr(' (EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐. Timing Vocals 는 패드처럼 이어지는 소리용, Drums 나 Speech 면 이어지는 소리가 울렁일 수 있음)'),
       '센드 Cosmos 를 걸 트랙: '+o.sends.map(function(x){ return B(x); }).join(', ')+'. 처음 값은 '+R('맨 아래(-∞)')+(o.sendNote?' '+o.sendNote:'')+(o.nosend?' '+Gr('('+o.nosend+' 은 걸지 않음)'):''),
@@ -30600,7 +30762,7 @@ const altShow=function(a){ a=String(a); const sn=/\(스냅샷 ([^)]+)\)/.exec(a)
   return a.indexOf('/')>=0?a.split('/').pop():a; };
 const mmss=function(s){ s=Math.round(s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 
-const CSS='.oncek{display:block;margin:4px 0 8px;font-weight:600}details.once>summary{color:var(--sub);font-size:13px;cursor:pointer}h4{font-size:15px;margin:14px 0 4px}.dif,.dif .b,.dif .g{color:var(--red);font-weight:600}'+':root{--ink:#1d1f23;--sub:#6b7078;--line:#e3e5e8;--red:#c62828;--blue:#1e5bb8;--soft:#f6f7f9}*{box-sizing:border-box}'
+const CSS='a.pl{text-decoration:none}tr.hl td{background:#fff4c2}.oncek{display:block;margin:4px 0 8px;font-weight:600}details.once>summary{color:var(--sub);font-size:13px;cursor:pointer}h4{font-size:15px;margin:14px 0 4px}.dif,.dif .b,.dif .g{color:var(--red);font-weight:600}'+':root{--ink:#1d1f23;--sub:#6b7078;--line:#e3e5e8;--red:#c62828;--blue:#1e5bb8;--soft:#f6f7f9}*{box-sizing:border-box}'
  +'body{margin:0;background:#fff;color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}main{max-width:1000px;margin:0 auto;padding:28px 16px 60px}'
  +'h1{font-size:22px;margin:0 0 4px}.meta{color:var(--sub);font-size:13.5px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 6px}.chip{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px}'
  +'.legend{font-size:13px;color:var(--sub);margin:10px 0 0}.r{color:var(--red);font-weight:600}.b{color:var(--blue);font-weight:600}.g{color:var(--sub)}'
@@ -30620,6 +30782,32 @@ const JS='(function(){var key="guide:"+document.title+":"+location.pathname;var 
  +'document.querySelectorAll("input[type=checkbox]:not(#onceDone)").forEach(function(cb,i){var row=cb.closest("tr")||cb.closest("li");var set=function(){if(row)row.classList.toggle("done",cb.checked)};cb.checked=!!st[i];set();cb.addEventListener("change",function(){st[i]=cb.checked;set();try{localStorage.setItem(key,JSON.stringify(st))}catch(e){}})});'
  +'document.querySelectorAll(".tabs button").forEach(function(b){b.addEventListener("click",function(){var p=b.parentNode.parentNode;p.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x===b)});p.querySelectorAll(".tab").forEach(function(t){t.classList.toggle("on",t.id===b.dataset.t)})})})})();';
 
+/* ★ 2026-10-20 형: 가장 큰 자리를 MIDI 로 바로 찾아 분 초로(Stereo Out 피크, 리미터 REDUCTION 보는 자리).
+   0.25초마다 트랙 합: (Gain 이름값) x (CC7 페이더, 로직 40 log 곡선) x (CC11) x 음 세기. 치는 악기(띵샤 종 편종, 핸드팬, 양금 피아노)는 친 뒤 줄어드는 꼬리로,
+   패드 드론은 울리는 동안 그대로. 자연음(녹음 파일 크기를 모름)과 바이노럴은 뺌. 가장 큰 순간 peak 와 그 앞뒤 10초 창 */
+function loudPeak(u8, M, st0){ try{ const d=u8, rd32=function(p){ return ((d[p]<<24)|(d[p+1]<<16)|(d[p+2]<<8)|d[p+3])>>>0; };
+  const ntr=(d[10]<<8)|d[11]; let p=8+rd32(4); const dec=new TextDecoder('utf-8'); const TR=[];
+  for(let k=0;k<ntr && p<d.length;k++){ const len=rd32(p+4); let q=p+8; const end=q+len; p=end; let t=0, rs=0, nm=''; const N=[], C7=[], C11=[], open={};
+    const vlq=function(){ let v=0,b; do{ b=d[q++]; v=(v<<7)|(b&0x7f); }while(b&0x80); return v; };
+    while(q<end){ t+=vlq(); let st=d[q];
+      if(st===0xFF){ const ty=d[q+1]; q+=2; const l=vlq(); if(ty===0x03&&!nm) nm=dec.decode(d.subarray(q,q+l)); q+=l; continue; }
+      if(st===0xF0||st===0xF7){ q++; const l=vlq(); q+=l; continue; }
+      if(st&0x80){ rs=st; q++; } const h=rs&0xF0, a=d[q], b=(h===0xC0||h===0xD0)?0:d[q+1]; q+=(h===0xC0||h===0xD0)?1:2;
+      if((rs&15)===9) continue;
+      if(h===0x90&&b>0){ (open[a]=open[a]||[]).push([t,b]); }
+      else if((h===0x80||(h===0x90&&b===0)) && open[a] && open[a].length){ const o=open[a].shift(); N.push([M.secOf(o[0])-st0, M.secOf(t)-st0, o[1], a]); }
+      else if(h===0xB0&&a===7) C7.push([M.secOf(t)-st0,b]); else if(h===0xB0&&a===11) C11.push([M.secOf(t)-st0,b]); }
+    if(!N.length || /Nature|Binaural|Conductor|자연음|바이노럴/i.test(nm)) continue;
+    const tau=/Tingsha|Bell|Pyeonjong|Chimes|띵샤/i.test(nm)?3:/Handpan|Pan Drums|Hang/i.test(nm)?1.2:/Yanggeum|Piano|양금|피아노/i.test(nm)?1.5:0;
+    const ks=/Yanggeum/i.test(nm)?[36,38,40]:[];   /* 양금 키스위치 음은 소리가 아님 */
+    const g=/\[Gain\s*([-+]?\d+(?:\.\d+)?)\s*dB\]/i.exec(nm); TR.push({N:N.filter(function(n){ return ks.indexOf(n[3])<0; }), C7:C7, C11:C11, tau:tau, g:g?Math.pow(10,parseFloat(g[1])/10):1}); }
+  const at=function(A,t,def){ let v=def; for(let i=0;i<A.length;i++){ if(A[i][0]<=t) v=A[i][1]; else break; } return v; };
+  const endS=Math.max.apply(null,TR.map(function(T){ return Math.max.apply(null,T.N.map(function(n){ return n[1]; })); }));
+  let best=-1, bt=0; for(let s=0;s<=endS;s+=0.25){ let e=0;
+    TR.forEach(function(T){ let a=0; T.N.forEach(function(n){ if(T.tau){ if(n[0]<=s && s<n[0]+4*T.tau) a+=Math.pow(n[2]/127,2)*Math.exp(-2*(s-n[0])/T.tau); } else if(n[0]<=s && s<n[1]) a+=Math.pow(n[2]/127,2); });
+      if(a) e+=a*T.g*Math.pow(at(T.C7,s,90)/90,4)*Math.pow(at(T.C11,s,127)/127,4); });
+    if(e>best){ best=e; bt=s; } }
+  if(best<=0) return null; const a=Math.max(0,Math.floor(bt-4)); return {peak:bt, a:a, z:a+10}; }catch(e){ window.__loudErr=String(e&&e.stack||e); return null; } }
 window.__guideHTML=function(opt){
   opt=opt||{}; const M=parseMidi(opt.midi); const TB=window.__STAGE_TABLE||[], sp=(window.__STAGE_INFO&&window.__STAGE_INFO.space)||'band';
   const SPC=(window.__STAGE_SPACES&&window.__STAGE_SPACES[sp])||{room:'Room', decay:1.2, pre:[24,14,6]}, GS=Object.assign({},GSPACE[sp]||{},opt.spaceOv||{}), airy=!!AIRY[sp];   /* ★ 2026-10-19 opt.spaceOv{decay,pre}: 곡 음색별 잔향 */
@@ -30715,14 +30903,15 @@ window.__guideHTML=function(opt){
   if(opt.book){ /* ★ 2026-10-20 형: 호흡 앰비언트 패치 방식. 순서 0 프로젝트 설정, 1 처음 한 번(버스 셋, 공통 패치, 음색 패치, 마스터, 다 만들면 접힘), 2 곡마다, 3 선택 우주 효과, 4 크기와 바운스, 5 마스터링, 6 곡 지도 */
     const K=opt.book, NM=K.names, curN=NM[K.cur];
     const pn=function(tk, r){ return 'SO '+(tk?NM[tk]:'공통')+' '+r.n+' '+r.ko; };
+    const pid=function(name){ return 'p-'+String(name).replace(/\s+/g,'-'); };
     const dif=function(x){ return '<span class="dif">'+x+'</span>'; };
     const sendTxt=function(r, base){ const d=function(k,x){ return (base && base[k]!==r[k])?dif(x):x; };
-      return 'Bus 1 Space '+d('space',B(r.space+' dB'))+'<br>'+(r.air!=null?d('air','Bus 2 Air '+B(r.air+' dB')):d('air',Gr('Bus 2 Air 비움')))+'<br>'+(r.cos?d('cos','Bus 3 Cosmos '+B('-∞')):d('cos',Gr('Bus 3 비움'))); };
+      return 'Bus 1 Space '+d('space',B(r.space+' dB'))+'<br>'+(r.air!=null?d('air','Bus 2 Air '+B(r.air+' dB')):d('air',Gr('Bus 2 Air 비움')))+'<br>'+(r.cos?d('cos','Bus 3 Cosmos '+B(K.cosDb+' dB')):d('cos',Gr('Bus 3 비움'))); };
     const eqCell=function(r, base){ return r.eq.map(function(e){ const be=base?base.eq.find(function(x){ return x.b===e.b; }):null; const t=eqTxt(e); return (base && JSON.stringify(be)!==JSON.stringify(e))?dif(t):t; }).join('<br>')
       +(base?base.eq.filter(function(x){ return !r.eq.some(function(e){ return e.b===x.b; }); }).map(function(x){ return '<br>'+dif(bd(x.b)+' '+R('끄기')); }).join(''):''); };
     const cell=function(v, bv, base){ return (base && bv!==v)?dif(v):v; };
     const rowsOf=function(list, tk, base){ return list.map(function(r,i){ const b=base?base[i]:null;
-      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B(esc(pn(tk,r)))+'<br>'+Gr(esc(r.role))+'</td><td>'+cell(B(esc(r.inst)),b&&B(esc(b.inst)),b)+(r.set?'<br>'+r.set:'')+'</td><td>'+(r.gain!=null?cell(B(r.gain+' dB'),b&&b.gain!=null?B(b.gain+' dB'):null,b):Gr('0 dB'))+'</td><td>'+eqCell(r,b)+'</td><td>Spread '+cell(B(r.spread.toFixed(2)),b&&B(b.spread.toFixed(2)),b)+'</td><td>'+sendTxt(r,b)+'</td></tr>'; }).join(''); };
+      return '<tr id="'+esc(pid(pn(tk,r)))+'"><td class="c"><input type="checkbox"></td><td class="t">'+B(esc(pn(tk,r)))+'<br>'+Gr(esc(r.role))+'</td><td>'+cell(B(esc(r.inst)),b&&B(esc(b.inst)),b)+(r.set?'<br>'+r.set:'')+'</td><td>'+(r.gain!=null?cell(B(r.gain+' dB'),b&&b.gain!=null?B(b.gain+' dB'):null,b):Gr('0 dB'))+'</td><td>'+eqCell(r,b)+'</td><td>Spread '+cell(B(r.spread.toFixed(2)),b&&B(b.spread.toFixed(2)),b)+'</td><td>'+sendTxt(r,b)+'</td></tr>'; }).join(''); };
     const head='<tr><th></th><th>저장 이름<br>(트랙)</th><th>악기와 설정</th><th>1 Gain</th><th>2 Channel EQ</th><th>3 Direction Mixer</th><th>센드</th></tr>';
     /* 1 처음 한 번 */
     h.push('<h2>1. 처음 한 번: 패치 만들기 <small>모든 호흡 앰비언트 공통, 5분 10분 같음</small></h2>');
@@ -30736,42 +30925,63 @@ window.__guideHTML=function(opt){
       +K.order.map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Air')+'</td><td>Bus 2</td><td>'+B('ChromaVerb')+': Room '+B('Airy')+', Predelay '+B('40 ms')+', Decay '+B('8 s')+', Dry '+B('0 %')+', Wet '+B('100 %')+', Damping EQ 오른쪽 끝 점 '+B('100 %')+'. DETAILS 탭 Output EQ '+B('켬')+': 첫째 '+B('400 Hz')+', 다섯째 '+B('10 kHz +4 dB')+', 여섯째 '+R('끄기')+'</td></tr>'
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Cosmos')+'<br>'+Gr('우주 효과용')+'</td><td>Bus 3</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B('12 s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('400 Hz, 24 dB/Oct')+', '+bd(8)+' High Cut '+B('1000 Hz, 24 dB/Oct')+')<br>'+Gr('EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐')+'</td></tr></table></div>');
-    h.push('<h3>나. 트랙 패치 만드는 법 <small class="g">트랙 하나마다 이 순서, 아래 표대로</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
+    h.push('<h3>나. 트랙마다 값 넣기 <small class="g">아래 표 한 줄이 패치 하나. 그 트랙에 이 순서로 값을 다 넣은 뒤 다 에서 저장</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
       '<b>악기</b>: 이름이 Synthesizer/, Strings/ 로 시작하면 '+B('Y')+' 라이브러리에서 그 이름을 누름. Kontakt, DecentSampler, Quick Sampler 는 채널 스트립 악기 칸에서 고르고 악기까지 불러 둠 '+Gr('(불러 둔 악기와 설정이 패치에 같이 저장되어 다음부터 바로 열림)')+'. 표의 설정까지',
       '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
       '<b>오디오 FX</b> 그 아래 빈칸에 위에서부터 '+B('Gain')+' → '+B('Channel EQ')+' → '+B('Direction Mixer')+' 를 넣고 표의 값. Direction Mixer 는 Input '+B('LR')+', Direction '+B('0')+' 그대로 두고 Spread 만',
-      '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos) 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠, Cosmos '+B('-∞')+' 는 손잡이를 맨 아래로',
-      '<b>저장</b>: 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 열고 맨 아래 '+B('저장...')+' → 표의 저장 이름 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김 '+Gr('(다음 곡부터는 트랙 고르고 이 이름 한 번 누르면 악기, 플러그인, 센드가 한꺼번에)')])
+      '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos) 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠 '+Gr('(Cosmos 는 Bus 3 Aux 가 없으면 소리가 안 나서 우주 효과를 안 쓰는 곡에서는 그냥 꺼진 셈)')])
       +'<details><summary>Channel EQ 보는 법</summary><figure><img src="'+EQIMG+'" alt="Channel EQ"></figure><div class="box"><div>밴드는 왼쪽부터 '+bd(1)+'~'+bd(8)+'. 흐린 밴드는 그림을 눌러 켭니다.</div><div>밴드 아래 숫자 세 줄: 위부터 '+B('주파수 Hz')+', '+B('크기 dB')+', '+B('폭 Q')+'. 숫자를 위아래로 끌거나 더블클릭해서 입력.</div><div>'+bd(1)+' Low Cut 은 기울기 '+B('12 dB/Oct')+' 그대로(표에 따로 적은 것만 바꿈).</div></div></details>');
-    h.push('<h3>다. 공통 패치 다섯 <small class="g">음색과 상관없이 같음</small></h3><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
-    h.push('<h3>라. 음색 패치 <small class="g">음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름: '+esc(NM[K.order[0]])+' 패치를 불러와 빨강 칸만 고치고 새 이름으로 저장</small></h3>');
-    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>'+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
-    h.push('<h3>마. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
+    h.push('<h4>공통 다섯 <small class="g">음색과 상관없이 같음</small></h4><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
+    h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
+    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
+    h.push('<h3>다. 패치로 저장 <small class="g">표 한 줄의 값을 다 넣은 트랙마다</small></h3>'+stp(['값을 다 넣은 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 엶',
+      '라이브러리 맨 아래 '+B('저장...')+' → 그 줄의 저장 이름(예: '+B('SO '+esc(NM[K.order[0]])+' 02 호흡 패드')+') 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김. 표 줄 왼쪽 칸에 체크',
+      '음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)'),
+      '다음 곡부터는 트랙을 고르고 이 이름을 한 번 누르면 악기, 플러그인, 센드가 한꺼번에 들어옴']));
+    h.push('<h3>라. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
       '마스터링용: 빈 프로젝트(48 kHz) 오디오 트랙 하나에 '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('25 Hz')+' 만) → '+B('Adaptive Limiter')+' (Out Ceiling '+B('-1.0 dB')+', True Peak Detection '+R('ON')+') → '+B('Loudness Meter')+' → '+B('Y')+' 라이브러리 <b>저장...</b> → '+B('SO 마스터링')]));
     h.push('</details>');
     /* 2 곡마다 */
     const trRows=tracks.map(function(t){ if(t.bin) return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+R('패치 없음')+'. '+t.set+(t.gain?'<br>Gain '+B(t.gain):'')+'<br>'+R('플러그인과 Send 넣지 않기')+'</td></tr>';
-      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+B(esc(t.info.patchName||'(표에 없음)'))+(/^Quick Sampler/.test(t.patch)?'<br>그다음 녹음 파일('+B(esc(K.nat))+', '+B(esc(K.dur)+' 넘게')+')을 '+B('Original')+' 칸에 끌어 놓기. '+R('MIDI 리전은 지우지 않기'):'')+'</td></tr>'; }).join('');
+      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+(t.info.patchName?'<a class="pl" href="#'+esc(pid(t.info.patchName))+'">'+B(esc(t.info.patchName))+'</a> '+Gr('(값 보기)'):B('(표에 없음)'))+(/^Quick Sampler/.test(t.patch)?'<br>그다음 녹음 파일('+B(esc(K.nat))+', '+B(esc(K.dur)+' 넘게')+')을 '+B('Original')+' 칸에 끌어 놓기. '+R('MIDI 리전은 지우지 않기'):'')+'</td></tr>'; }).join('');
+    const per0='<p class="g" style="font-size:13px;margin:0 0 6px">패치 안의 악기, 플러그인, 센드 값은 1번 처음 한 번 표에 있습니다. 아래 패치 이름을 누르면 그 줄로 갑니다.</p>';
     const per=['<b>버스</b>: '+B('X')+' 믹서에서 첫 트랙 Sends 첫 빈칸 '+B('Bus 1')+', 둘째 '+B('Bus 2')+', 셋째 '+B('Bus 3')+' → Aux 셋이 생김 '+Gr('(우주 효과를 안 쓰면 Bus 3 은 건너뜀)'),
       'Aux 맨 위 <b>설정</b> 단추 → Bus 1 Aux '+B('SO '+curN+' Space')+', Bus 2 Aux '+B('SO 공통 Air')+', Bus 3 Aux '+B('SO 공통 Cosmos'),
       '<b>트랙마다 패치</b>: '+B('Y')+' 로 라이브러리를 연 채 트랙을 하나씩 고르고 <b>사용자 패치</b> 에서 아래 이름을 누름 '+Gr('(키보드 ↓ 로 다음 트랙. 여러 트랙을 한꺼번에 고르면 같은 패치가 다 들어가니 하나씩)')
         +'<div class="wrap"><table><tr><th></th><th>트랙</th><th>누를 패치</th></tr>'+trRows+'</table></div>'];
     if(K.binWav) per.push('<b>바이노럴</b>: 메뉴 <b>트랙</b> → <b>새로운 오디오 트랙</b> (Stereo) → '+B(esc(K.binWav))+' 를 '+B('1마디 맨 앞')+'에 끌어 놓기. '+R('플러그인과 Send 넣지 않기')+', 페이더 '+B('0 dB')+' 그대로 '+Gr('(거의 안 들리고 분위기로만 깔리게 만든 크기)'));
     per.push(B('Stereo Out')+' 맨 위 <b>설정</b> 단추 → '+B('SO 마스터'));
-    h.push('<h2>2. 곡마다 <small>이 곡은 '+esc(curN)+' 패치</small></h2>'+ck(per));
+    h.push('<h2>2. 곡마다 <small>이 곡은 '+esc(curN)+' 패치</small></h2>'+per0+ck(per));
     /* 3 선택 우주 효과 */
     let nextN=3;
     if(opt.optFx){ try{ const stF=st0;
       const snapBar=function(tk){ let from=0; for(let i=0;i<M.sigs.length;i++){ const S=M.sigs[i], nx=(i+1<M.sigs.length)?M.sigs[i+1].t:Infinity, L=M.ppq*4/S.d*S.n; if(tk<nx){ const k=Math.round((tk-from)/L); return Math.min(from+k*L, nx); } from=nx; } return tk; };
+      const bar=function(sec){ const b=M.barOf(snapBar(M.tickOf(stF+sec))); return B(b.bar+'마디')+' '+Gr('('+mmss(sec)+')'); };
       const at=function(sec, snap){ let tk=M.tickOf(stF+sec); if(snap){ tk=snapBar(tk); sec=M.secOf(tk)-stF; } const b=M.barOf(tk); return B(mmss(sec))+' '+Gr('('+b.bar+'마디'+(b.on?'':' '+b.beat+'박')+')'); };
       const O=opt.optFx(at, {mk:[], end:0, endMk:null, tracks:[]});
-      if(O && O.steps && O.steps.length>3){ const st=[B('Bus 3')+' Aux 에 '+B('SO 공통 Cosmos')+' 가 들어 있는지 확인 '+Gr('(2번에서 불러옴. 패치에 Cosmos 센드가 '+K.cosSends.join(', ')+' 에 -∞ 로 들어 있음)')].concat(O.steps.slice(3).map(function(x){ return String(x).replace('믹싱 ④ 의 Loudness Meter','4번 크기 맞추기의 Loudness Meter'); }));
-        h.push('<h2>3. 선택: 우주 효과 <small>하면 이 순서로, 안 해도 됨</small></h2>'+(O.why?'<p class="g" style="font-size:13px;margin:6px 0">'+O.why+'</p>':'')+stp(st)); nextN=4; } }catch(e){ window.__guideErr=String(e&&e.stack||e); } }
+      if(O && O.W && O.W.length){
+        /* ★ 2026-10-20 형: 트랙 넷의 센드를 하나하나 그리던 것 → 센드는 패치에 고정(-4 dB), 여닫이는 Cosmos 트랙 하나의 볼륨(과 EQ High Cut)만 */
+        const fd=function(v){ return v==null?B('맨 아래(-∞)'):B((v-K.cosDb>0?'+':'')+(Math.round((v-K.cosDb)*10)/10)+' dB'); };
+        const lineOf=function(P, ix, fmt){ let out=bar(P[0][0])+' '+fmt(P[0][ix]); for(let k=1;k<P.length;k++){ out+=(P[k][ix]===P[k-1][ix])?', '+bar(P[k][0])+' 까지 그대로':' → '+bar(P[k][0])+' '+fmt(P[k][ix]); } return out; };
+        const hzT=function(x){ return B(x>=1000?(Math.round(x/100)/10)+' kHz':x+' Hz'); };
+        const st=[B('X')+' 믹서에서 '+B('Cosmos')+' Aux 줄 이름 위를 '+B('Control')+' 누른 채 클릭 → '+B('트랙 생성')+' '+Gr('(트랙 영역 맨 아래에 Cosmos 트랙이 생김. 2번에서 Bus 3 에 SO 공통 Cosmos 를 불러온 그 Aux)'),
+          'Cosmos 트랙을 고르고 '+B('A')+' (오토메이션 보기) → 트랙 이름 아래 메뉴에서 '+B('볼륨')+' → 선 위를 클릭하면 점이 생김. 점을 좌우로 끌면 자리, 위아래로 끌면 크기. 마디 자를 보며 아래 자리에 점을 찍음 '+Gr('(트랙 넷을 고를 필요 없음. 이 트랙 하나만)')
+            +'<br>'+O.W.map(function(P){ return lineOf(P,1,fd); }).join('<br>'),
+          Gr('(하면 더 \'화\' 열림, 안 해도 됨)')+' 같은 트랙 오토메이션 메뉴 → '+B('Channel EQ')+' → '+B('High Cut Frequency')+' '+Gr('(8번 밴드 주파수)')+' 에 같은 자리로'
+            +'<br>'+O.W.map(function(P){ return lineOf(P,2,hzT); }).join('<br>'),
+          '크기는 4번을 이 효과를 켠 채로 하면 됨 '+Gr('(실시간 바운스가 효과까지 같이 잼. 열린 구간이 1~2 LU 커짐)'),
+          Gr('오토메이션은 패치에 안 들어가고 이 프로젝트에만 저장됨. 곡마다 길이와 마디가 달라 곡마다 이 표의 자리에 찍음')];
+        h.push('<h2>3. 선택: 우주 효과 <small>하면 이 순서로, 안 해도 됨 (안 하면 2번에서 Bus 3 을 만들지 않음)</small></h2>'+(O.why?'<p class="g" style="font-size:13px;margin:6px 0">'+O.why+'</p>':'')+stp(st)); nextN=4; } }catch(e){ window.__guideErr=String(e&&e.stack||e); } }
     /* 4 크기와 바운스 */
-    let loudBar=''; if(opt.loud){ const a=M.barOf(M.tickOf(st0+opt.loud[0])).bar, z=M.barOf(M.tickOf(st0+opt.loud[1])).bar-1; loudBar=a+' ~ '+z+'마디'; }
-    h.push('<h2>'+nextN+'. 크기 맞추기와 바운스</h2>'+stp([(loudBar?'가장 큰 구간 '+B(loudBar)+' 재생. ':'가장 큰 구간 재생. ')+'Stereo Out 미터 위 피크 숫자가 '+B('-6 dB')+' 근처가 되게 Stereo Out '+B('Gain')+' 조절',
-      '곡 맨 앞에서 Loudness Meter <b>Reset</b> → <b>Start</b> → 끝까지 재생. <b>Integrated</b> '+B(mixLo+' ~ '+mixHi+' LUFS')+' 면 정상',
-      '<b>File &gt; Bounce &gt; Project or Section</b>: PCM, '+B('WAVE 24 bit 48 kHz')+', Normalize '+R('Off')+(opt.bin?'. 헤드폰판(바이노럴 켬), 스피커판(바이노럴 뮤트)':'')])
+    const LP=loudPeak(opt.midi, M, st0); let loudTxt='';
+    if(LP){ const ba=M.barOf(M.tickOf(st0+LP.a)).bar, bz=M.barOf(M.tickOf(st0+LP.z)).bar; loudTxt=B(ba+' ~ '+bz+'마디')+' '+Gr('(로직 시간 '+mmss(LP.a+st0)+' ~ '+mmss(LP.z+st0)+', 곡 지도로는 '+mmss(LP.a)+' ~ '+mmss(LP.z)+', 가장 큰 순간 곡 '+mmss(LP.peak)+')'); }
+    else if(opt.loud){ loudTxt=B(mmss(opt.loud[0])+' ~ '+mmss(opt.loud[1])); }
+    const loudWav=LP?B(mmss(LP.a+st0)+' ~ '+mmss(LP.z+st0))+' '+Gr('(WAV 처음부터 잰 시각. 1마디 맨 앞에 놓았으면 로직 시간 표시와 같음)'):loudTxt;
+    h.push('<h2>'+nextN+'. 크기 맞추기와 바운스 <small>재생은 가장 큰 자리 10초와 실시간 바운스 한 번</small></h2>'+stp([
+      '가장 큰 자리 '+(loudTxt||'')+' 를 사이클(C)로 걸고 재생 '+Gr('(앱이 MIDI 로 찾은 자리)')+'. Stereo Out 미터 위 피크 숫자가 '+B('-6 dB')+' 근처가 되게 Stereo Out '+B('Gain')+' 조절 '+Gr('(이미 -6 ~ -3 dB 사이면 그대로)'),
+      '사이클 끄고 재생 위치를 맨 앞으로 → Stereo Out 의 Loudness Meter '+B('Reset'),
+      '<b>File &gt; Bounce &gt; Project or Section</b>: PCM, '+B('WAVE 24 bit 48 kHz')+', Normalize '+R('Off')+', 모드 '+B('실시간 (Realtime)')+' '+Gr('(바운스하며 소리가 흘러 Loudness Meter 가 곡 전체를 잼)')+(opt.bin?'. 헤드폰판(바이노럴 켬)부터':''),
+      '바운스가 끝나면 Loudness Meter 의 '+B('Integrated')+' 숫자를 적어 둠 '+Gr('('+mixLo+' ~ '+mixHi+' LUFS 면 정상)')+(opt.bin?'. 스피커판은 바이노럴 뮤트하고 한 번 더 바운스 (모드 '+B('오프라인')+' 이어도 됨, 빠름)':'')])
       +'<details><summary>필요할 때만: 리전 바운스 후 대치 <small class="g">(CPU 가 무겁거나 트랙을 오디오로 굳힐 때. 셋팅에는 필요 없음)</small></summary>'+stp(['굳힐 트랙의 리전을 고름 '+Gr('(전부면 Command+A)')+' → '+B('Control+B')+' 로 '+B('리전 바운스 후 대치')+' 창',
         '이름 '+B('그대로')+', 대상 '+B('새로운 트랙')+', '+B('하나의 파일'),
         '소스 '+B('음소거')+' '+Gr('(MIDI 가 꺼진 채 남아 나중에 고칠 수 있음. 두기는 소리가 두 번, 삭제는 MIDI 가 없어짐)'),
@@ -30781,14 +30991,20 @@ window.__guideHTML=function(opt){
         '노멀라이즈 '+R('끔')+' → '+B('확인'),
         '새로 생긴 오디오 트랙의 오디오 FX 칸을 봄. 원래 트랙 플러그인이 따라와 켜져 있으면 이미 소리에 담긴 효과가 한 번 더 걸리니 끔. 센드는 그대로 둠'])+'</details>'); nextN++;
     /* 5 마스터링 */
-    h.push('<h2>'+nextN+'. 마스터링 <small>바운스한 파일을 새 프로젝트(48 kHz) 오디오 트랙에</small></h2>'+stp(['라이브러리 '+B('Y')+' 사용자 패치에서 '+B('SO 마스터링'),
-      'Loudness Meter Reset → Start → 끝까지. Integrated 가 '+B(lufs+' LUFS')+' 가 되게 Adaptive Limiter '+B('Gain')+' 을 올림 '+Gr('('+(lufs-4)+' 이면 +4 dB)'),
-      'REDUCTION 미터가 가장 깊을 때 '+B('-'+(opt.grMax||2)+' dB')+' 까지만. 더 깊으면 Gain 을 내리고 '+B((lufs-1)+' LUFS')+' 에서 멈춤',
-      'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')+'. 배포는 유통사 기준(44.1 kHz 16 bit 만 받는 곳은 그때 Dither 켬)'])); nextN++;
+    h.push('<h2>'+nextN+'. 마스터링 <small>바운스한 파일을 새 프로젝트(48 kHz) 오디오 트랙에</small></h2>'+stp(['새 프로젝트 오디오 트랙에 바운스한 WAV 를 1마디 맨 앞에 → 그 트랙 고르고 라이브러리 '+B('Y')+' 사용자 패치에서 '+B('SO 마스터링'),
+      'Adaptive Limiter '+B('Gain')+' = '+B(String(lufs))+' 빼기 적어 둔 Integrated '+Gr('(예: 적어 둔 값이 '+(lufs-5)+' LUFS 면 +5 dB)'),
+      '같은 가장 큰 자리 '+(loudWav||'')+' 를 사이클로 재생하며 Limiter 의 '+B('REDUCTION')+' 이 가장 깊을 때 '+B('-'+(opt.grMax||2)+' dB')+' 까지만. 더 깊으면 Gain 을 그만큼 내림',
+      Gr('(확인하고 싶을 때만) 맨 앞에서 Loudness Meter Reset 하고 끝까지 재생해 Integrated 가 ')+B(lufs+' LUFS')+Gr(' 근처인지'),
+      'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')+'. 배포는 유통사 기준(44.1 kHz 16 bit 만 받는 곳은 그때 Dither 켬)'])
+      +'<details><summary>참고: Mastering Assistant 로 하기 <small class="g">(SO 마스터링 대신. 곡 전체를 분석해 줘서 끝까지 듣지 않아도 됨)</small></summary>'+stp(['새 프로젝트(48 kHz) 오디오 트랙에 바운스한 WAV 를 1마디 맨 앞에. 그 트랙에는 플러그인을 넣지 않음',
+        B('X')+' 믹서 '+B('Stereo Out')+' 맨 아래 '+B('Mastering')+' 칸을 누르면 Mastering Assistant 가 들어가며 곡 전체를 분석 '+Gr('(분석이 끝날 때까지 기다림)'),
+        'Character '+B('Transparent')+', Auto EQ '+B('30 %')+', Excite '+R('끄기')+', Width '+R('돌리지 않기')+(opt.bin?' '+Gr('(넓히면 바이노럴이 깨짐)'):''),
+        '오른쪽 '+B('Loudness')+' 손잡이를 돌려 LUFS 표시의 '+B('I')+' 가 '+B(String(lufs))+', '+B('True Peak')+' 가 '+B('-1.0')+' 아래가 되게',
+        'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')])+'</details>'); nextN++;
     /* 6 곡 지도 */
     if(pts.length) h.push('<h2>'+nextN+'. 곡 지도</h2><div class="tl">'+pts.map(function(p){ return '<div><b>'+mmss(p.sec)+'</b>'+p.bar.bar+'마디'+(p.bar.on?'':' '+p.bar.beat+'박')+'<br>'+esc(p.label)+'</div>'; }).join('')+'</div>');
     if(opt.sheet) h.push('<p class="g" style="font-size:13px;margin:14px 0 0">앱이 MIDI 에 넣은 것과 자세한 설명은 같이 받은 txt 설명서에 있습니다.</p>');
-    h.push('<script>(function(){var cb=document.getElementById("onceDone"),d=document.getElementById("once"),K="so-guide:amb5-patches-done";if(!cb||!d)return;var v=false;try{v=localStorage.getItem(K)==="1"}catch(e){}var set=function(x){cb.checked=x;if(x)d.removeAttribute("open");else d.setAttribute("open","")};set(v);cb.addEventListener("change",function(){try{localStorage.setItem(K,cb.checked?"1":"0")}catch(e){}set(cb.checked)})})();<\/script>');
+    h.push('<script>(function(){var cb=document.getElementById("onceDone"),d=document.getElementById("once"),K="so-guide:amb5-patches-done";if(!cb||!d)return;var v=false;try{v=localStorage.getItem(K)==="1"}catch(e){}var set=function(x){cb.checked=x;if(x)d.removeAttribute("open");else d.setAttribute("open","")};set(v);cb.addEventListener("change",function(){try{localStorage.setItem(K,cb.checked?"1":"0")}catch(e){}set(cb.checked)});document.querySelectorAll("a.pl").forEach(function(l){l.addEventListener("click",function(ev){var id=l.getAttribute("href").slice(1),r=document.getElementById(id);if(!r)return;ev.preventDefault();d.setAttribute("open","");r.scrollIntoView({block:"center"});r.classList.add("hl");setTimeout(function(){r.classList.remove("hl")},2200)})})})();<\/script>');
   } else {
   if((opt.prep||[]).length) h.push('<h2>1. 준비</h2>'+ck(opt.prep));
   const sn=(opt.prep||[]).length?1:0; const N=function(k){ return (k+sn)+'. '; };
@@ -57573,7 +57789,7 @@ window.__cosmosFx=function(o, at){
   const line=function(P,ix,fmt){ let out=AT(P[0][0])+' '+fmt(P[0][ix]); for(let k=1;k<P.length;k++){ out+=(P[k][ix]===P[k-1][ix])?', '+AT(P[k][0])+' 까지 그대로':' → '+AT(P[k][0])+' '+fmt(P[k][ix]); } return out; };
   const fdb=function(v){ return v==null?'-∞':B(v+' dB'); }, fhz=function(v){ return B(hz(v)); };
   const many=W.length>1, top=Math.max.apply(null,W.map(function(P){ return Math.max.apply(null,P.map(function(x){ return x[2]; })); }));
-  return {title:o.title||'우주로 열리는 효과 (Cosmos 버스)', why:o.why||'',
+  return {W:W, title:o.title||'우주로 열리는 효과 (Cosmos 버스)', why:o.why||'',
     steps:['새 Aux 하나: 아무 트랙 센드 빈 칸 → '+B('Bus')+' → 믹서에 생긴 Aux 이름을 '+B('Cosmos'),
       'Cosmos 오디오 FX 위에서 아래로 세 개: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+', 나머지 기본) → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B((o.decay||12)+' s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+', 나머지 기본) → '+B('Channel EQ')+' (첫째 띠 Low Cut 켬 '+B('400 Hz')+' '+B('24 dB/Oct')+', 여덟째 띠 High Cut 켬 '+B('1000 Hz')+' '+B('24 dB/Oct')+', 가운데 여섯 띠는 0 dB 그대로)'+Gr(' (EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐. Timing Vocals 는 패드처럼 이어지는 소리용, Drums 나 Speech 면 이어지는 소리가 울렁일 수 있음)'),
       '센드 Cosmos 를 걸 트랙: '+o.sends.map(function(x){ return B(x); }).join(', ')+'. 처음 값은 '+R('맨 아래(-∞)')+(o.sendNote?' '+o.sendNote:'')+(o.nosend?' '+Gr('('+o.nosend+' 은 걸지 않음)'):''),
@@ -57801,7 +58017,7 @@ const altShow=function(a){ a=String(a); const sn=/\(스냅샷 ([^)]+)\)/.exec(a)
   return a.indexOf('/')>=0?a.split('/').pop():a; };
 const mmss=function(s){ s=Math.round(s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 
-const CSS='.oncek{display:block;margin:4px 0 8px;font-weight:600}details.once>summary{color:var(--sub);font-size:13px;cursor:pointer}h4{font-size:15px;margin:14px 0 4px}.dif,.dif .b,.dif .g{color:var(--red);font-weight:600}'+':root{--ink:#1d1f23;--sub:#6b7078;--line:#e3e5e8;--red:#c62828;--blue:#1e5bb8;--soft:#f6f7f9}*{box-sizing:border-box}'
+const CSS='a.pl{text-decoration:none}tr.hl td{background:#fff4c2}.oncek{display:block;margin:4px 0 8px;font-weight:600}details.once>summary{color:var(--sub);font-size:13px;cursor:pointer}h4{font-size:15px;margin:14px 0 4px}.dif,.dif .b,.dif .g{color:var(--red);font-weight:600}'+':root{--ink:#1d1f23;--sub:#6b7078;--line:#e3e5e8;--red:#c62828;--blue:#1e5bb8;--soft:#f6f7f9}*{box-sizing:border-box}'
  +'body{margin:0;background:#fff;color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}main{max-width:1000px;margin:0 auto;padding:28px 16px 60px}'
  +'h1{font-size:22px;margin:0 0 4px}.meta{color:var(--sub);font-size:13.5px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 6px}.chip{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px}'
  +'.legend{font-size:13px;color:var(--sub);margin:10px 0 0}.r{color:var(--red);font-weight:600}.b{color:var(--blue);font-weight:600}.g{color:var(--sub)}'
@@ -57821,6 +58037,32 @@ const JS='(function(){var key="guide:"+document.title+":"+location.pathname;var 
  +'document.querySelectorAll("input[type=checkbox]:not(#onceDone)").forEach(function(cb,i){var row=cb.closest("tr")||cb.closest("li");var set=function(){if(row)row.classList.toggle("done",cb.checked)};cb.checked=!!st[i];set();cb.addEventListener("change",function(){st[i]=cb.checked;set();try{localStorage.setItem(key,JSON.stringify(st))}catch(e){}})});'
  +'document.querySelectorAll(".tabs button").forEach(function(b){b.addEventListener("click",function(){var p=b.parentNode.parentNode;p.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x===b)});p.querySelectorAll(".tab").forEach(function(t){t.classList.toggle("on",t.id===b.dataset.t)})})})})();';
 
+/* ★ 2026-10-20 형: 가장 큰 자리를 MIDI 로 바로 찾아 분 초로(Stereo Out 피크, 리미터 REDUCTION 보는 자리).
+   0.25초마다 트랙 합: (Gain 이름값) x (CC7 페이더, 로직 40 log 곡선) x (CC11) x 음 세기. 치는 악기(띵샤 종 편종, 핸드팬, 양금 피아노)는 친 뒤 줄어드는 꼬리로,
+   패드 드론은 울리는 동안 그대로. 자연음(녹음 파일 크기를 모름)과 바이노럴은 뺌. 가장 큰 순간 peak 와 그 앞뒤 10초 창 */
+function loudPeak(u8, M, st0){ try{ const d=u8, rd32=function(p){ return ((d[p]<<24)|(d[p+1]<<16)|(d[p+2]<<8)|d[p+3])>>>0; };
+  const ntr=(d[10]<<8)|d[11]; let p=8+rd32(4); const dec=new TextDecoder('utf-8'); const TR=[];
+  for(let k=0;k<ntr && p<d.length;k++){ const len=rd32(p+4); let q=p+8; const end=q+len; p=end; let t=0, rs=0, nm=''; const N=[], C7=[], C11=[], open={};
+    const vlq=function(){ let v=0,b; do{ b=d[q++]; v=(v<<7)|(b&0x7f); }while(b&0x80); return v; };
+    while(q<end){ t+=vlq(); let st=d[q];
+      if(st===0xFF){ const ty=d[q+1]; q+=2; const l=vlq(); if(ty===0x03&&!nm) nm=dec.decode(d.subarray(q,q+l)); q+=l; continue; }
+      if(st===0xF0||st===0xF7){ q++; const l=vlq(); q+=l; continue; }
+      if(st&0x80){ rs=st; q++; } const h=rs&0xF0, a=d[q], b=(h===0xC0||h===0xD0)?0:d[q+1]; q+=(h===0xC0||h===0xD0)?1:2;
+      if((rs&15)===9) continue;
+      if(h===0x90&&b>0){ (open[a]=open[a]||[]).push([t,b]); }
+      else if((h===0x80||(h===0x90&&b===0)) && open[a] && open[a].length){ const o=open[a].shift(); N.push([M.secOf(o[0])-st0, M.secOf(t)-st0, o[1], a]); }
+      else if(h===0xB0&&a===7) C7.push([M.secOf(t)-st0,b]); else if(h===0xB0&&a===11) C11.push([M.secOf(t)-st0,b]); }
+    if(!N.length || /Nature|Binaural|Conductor|자연음|바이노럴/i.test(nm)) continue;
+    const tau=/Tingsha|Bell|Pyeonjong|Chimes|띵샤/i.test(nm)?3:/Handpan|Pan Drums|Hang/i.test(nm)?1.2:/Yanggeum|Piano|양금|피아노/i.test(nm)?1.5:0;
+    const ks=/Yanggeum/i.test(nm)?[36,38,40]:[];   /* 양금 키스위치 음은 소리가 아님 */
+    const g=/\[Gain\s*([-+]?\d+(?:\.\d+)?)\s*dB\]/i.exec(nm); TR.push({N:N.filter(function(n){ return ks.indexOf(n[3])<0; }), C7:C7, C11:C11, tau:tau, g:g?Math.pow(10,parseFloat(g[1])/10):1}); }
+  const at=function(A,t,def){ let v=def; for(let i=0;i<A.length;i++){ if(A[i][0]<=t) v=A[i][1]; else break; } return v; };
+  const endS=Math.max.apply(null,TR.map(function(T){ return Math.max.apply(null,T.N.map(function(n){ return n[1]; })); }));
+  let best=-1, bt=0; for(let s=0;s<=endS;s+=0.25){ let e=0;
+    TR.forEach(function(T){ let a=0; T.N.forEach(function(n){ if(T.tau){ if(n[0]<=s && s<n[0]+4*T.tau) a+=Math.pow(n[2]/127,2)*Math.exp(-2*(s-n[0])/T.tau); } else if(n[0]<=s && s<n[1]) a+=Math.pow(n[2]/127,2); });
+      if(a) e+=a*T.g*Math.pow(at(T.C7,s,90)/90,4)*Math.pow(at(T.C11,s,127)/127,4); });
+    if(e>best){ best=e; bt=s; } }
+  if(best<=0) return null; const a=Math.max(0,Math.floor(bt-4)); return {peak:bt, a:a, z:a+10}; }catch(e){ window.__loudErr=String(e&&e.stack||e); return null; } }
 window.__guideHTML=function(opt){
   opt=opt||{}; const M=parseMidi(opt.midi); const TB=window.__STAGE_TABLE||[], sp=(window.__STAGE_INFO&&window.__STAGE_INFO.space)||'band';
   const SPC=(window.__STAGE_SPACES&&window.__STAGE_SPACES[sp])||{room:'Room', decay:1.2, pre:[24,14,6]}, GS=Object.assign({},GSPACE[sp]||{},opt.spaceOv||{}), airy=!!AIRY[sp];   /* ★ 2026-10-19 opt.spaceOv{decay,pre}: 곡 음색별 잔향 */
@@ -57916,14 +58158,15 @@ window.__guideHTML=function(opt){
   if(opt.book){ /* ★ 2026-10-20 형: 호흡 앰비언트 패치 방식. 순서 0 프로젝트 설정, 1 처음 한 번(버스 셋, 공통 패치, 음색 패치, 마스터, 다 만들면 접힘), 2 곡마다, 3 선택 우주 효과, 4 크기와 바운스, 5 마스터링, 6 곡 지도 */
     const K=opt.book, NM=K.names, curN=NM[K.cur];
     const pn=function(tk, r){ return 'SO '+(tk?NM[tk]:'공통')+' '+r.n+' '+r.ko; };
+    const pid=function(name){ return 'p-'+String(name).replace(/\s+/g,'-'); };
     const dif=function(x){ return '<span class="dif">'+x+'</span>'; };
     const sendTxt=function(r, base){ const d=function(k,x){ return (base && base[k]!==r[k])?dif(x):x; };
-      return 'Bus 1 Space '+d('space',B(r.space+' dB'))+'<br>'+(r.air!=null?d('air','Bus 2 Air '+B(r.air+' dB')):d('air',Gr('Bus 2 Air 비움')))+'<br>'+(r.cos?d('cos','Bus 3 Cosmos '+B('-∞')):d('cos',Gr('Bus 3 비움'))); };
+      return 'Bus 1 Space '+d('space',B(r.space+' dB'))+'<br>'+(r.air!=null?d('air','Bus 2 Air '+B(r.air+' dB')):d('air',Gr('Bus 2 Air 비움')))+'<br>'+(r.cos?d('cos','Bus 3 Cosmos '+B(K.cosDb+' dB')):d('cos',Gr('Bus 3 비움'))); };
     const eqCell=function(r, base){ return r.eq.map(function(e){ const be=base?base.eq.find(function(x){ return x.b===e.b; }):null; const t=eqTxt(e); return (base && JSON.stringify(be)!==JSON.stringify(e))?dif(t):t; }).join('<br>')
       +(base?base.eq.filter(function(x){ return !r.eq.some(function(e){ return e.b===x.b; }); }).map(function(x){ return '<br>'+dif(bd(x.b)+' '+R('끄기')); }).join(''):''); };
     const cell=function(v, bv, base){ return (base && bv!==v)?dif(v):v; };
     const rowsOf=function(list, tk, base){ return list.map(function(r,i){ const b=base?base[i]:null;
-      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B(esc(pn(tk,r)))+'<br>'+Gr(esc(r.role))+'</td><td>'+cell(B(esc(r.inst)),b&&B(esc(b.inst)),b)+(r.set?'<br>'+r.set:'')+'</td><td>'+(r.gain!=null?cell(B(r.gain+' dB'),b&&b.gain!=null?B(b.gain+' dB'):null,b):Gr('0 dB'))+'</td><td>'+eqCell(r,b)+'</td><td>Spread '+cell(B(r.spread.toFixed(2)),b&&B(b.spread.toFixed(2)),b)+'</td><td>'+sendTxt(r,b)+'</td></tr>'; }).join(''); };
+      return '<tr id="'+esc(pid(pn(tk,r)))+'"><td class="c"><input type="checkbox"></td><td class="t">'+B(esc(pn(tk,r)))+'<br>'+Gr(esc(r.role))+'</td><td>'+cell(B(esc(r.inst)),b&&B(esc(b.inst)),b)+(r.set?'<br>'+r.set:'')+'</td><td>'+(r.gain!=null?cell(B(r.gain+' dB'),b&&b.gain!=null?B(b.gain+' dB'):null,b):Gr('0 dB'))+'</td><td>'+eqCell(r,b)+'</td><td>Spread '+cell(B(r.spread.toFixed(2)),b&&B(b.spread.toFixed(2)),b)+'</td><td>'+sendTxt(r,b)+'</td></tr>'; }).join(''); };
     const head='<tr><th></th><th>저장 이름<br>(트랙)</th><th>악기와 설정</th><th>1 Gain</th><th>2 Channel EQ</th><th>3 Direction Mixer</th><th>센드</th></tr>';
     /* 1 처음 한 번 */
     h.push('<h2>1. 처음 한 번: 패치 만들기 <small>모든 호흡 앰비언트 공통, 5분 10분 같음</small></h2>');
@@ -57937,42 +58180,63 @@ window.__guideHTML=function(opt){
       +K.order.map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Air')+'</td><td>Bus 2</td><td>'+B('ChromaVerb')+': Room '+B('Airy')+', Predelay '+B('40 ms')+', Decay '+B('8 s')+', Dry '+B('0 %')+', Wet '+B('100 %')+', Damping EQ 오른쪽 끝 점 '+B('100 %')+'. DETAILS 탭 Output EQ '+B('켬')+': 첫째 '+B('400 Hz')+', 다섯째 '+B('10 kHz +4 dB')+', 여섯째 '+R('끄기')+'</td></tr>'
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Cosmos')+'<br>'+Gr('우주 효과용')+'</td><td>Bus 3</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B('12 s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('400 Hz, 24 dB/Oct')+', '+bd(8)+' High Cut '+B('1000 Hz, 24 dB/Oct')+')<br>'+Gr('EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐')+'</td></tr></table></div>');
-    h.push('<h3>나. 트랙 패치 만드는 법 <small class="g">트랙 하나마다 이 순서, 아래 표대로</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
+    h.push('<h3>나. 트랙마다 값 넣기 <small class="g">아래 표 한 줄이 패치 하나. 그 트랙에 이 순서로 값을 다 넣은 뒤 다 에서 저장</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
       '<b>악기</b>: 이름이 Synthesizer/, Strings/ 로 시작하면 '+B('Y')+' 라이브러리에서 그 이름을 누름. Kontakt, DecentSampler, Quick Sampler 는 채널 스트립 악기 칸에서 고르고 악기까지 불러 둠 '+Gr('(불러 둔 악기와 설정이 패치에 같이 저장되어 다음부터 바로 열림)')+'. 표의 설정까지',
       '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
       '<b>오디오 FX</b> 그 아래 빈칸에 위에서부터 '+B('Gain')+' → '+B('Channel EQ')+' → '+B('Direction Mixer')+' 를 넣고 표의 값. Direction Mixer 는 Input '+B('LR')+', Direction '+B('0')+' 그대로 두고 Spread 만',
-      '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos) 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠, Cosmos '+B('-∞')+' 는 손잡이를 맨 아래로',
-      '<b>저장</b>: 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 열고 맨 아래 '+B('저장...')+' → 표의 저장 이름 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김 '+Gr('(다음 곡부터는 트랙 고르고 이 이름 한 번 누르면 악기, 플러그인, 센드가 한꺼번에)')])
+      '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos) 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠 '+Gr('(Cosmos 는 Bus 3 Aux 가 없으면 소리가 안 나서 우주 효과를 안 쓰는 곡에서는 그냥 꺼진 셈)')])
       +'<details><summary>Channel EQ 보는 법</summary><figure><img src="'+EQIMG+'" alt="Channel EQ"></figure><div class="box"><div>밴드는 왼쪽부터 '+bd(1)+'~'+bd(8)+'. 흐린 밴드는 그림을 눌러 켭니다.</div><div>밴드 아래 숫자 세 줄: 위부터 '+B('주파수 Hz')+', '+B('크기 dB')+', '+B('폭 Q')+'. 숫자를 위아래로 끌거나 더블클릭해서 입력.</div><div>'+bd(1)+' Low Cut 은 기울기 '+B('12 dB/Oct')+' 그대로(표에 따로 적은 것만 바꿈).</div></div></details>');
-    h.push('<h3>다. 공통 패치 다섯 <small class="g">음색과 상관없이 같음</small></h3><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
-    h.push('<h3>라. 음색 패치 <small class="g">음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름: '+esc(NM[K.order[0]])+' 패치를 불러와 빨강 칸만 고치고 새 이름으로 저장</small></h3>');
-    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>'+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
-    h.push('<h3>마. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
+    h.push('<h4>공통 다섯 <small class="g">음색과 상관없이 같음</small></h4><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
+    h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
+    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
+    h.push('<h3>다. 패치로 저장 <small class="g">표 한 줄의 값을 다 넣은 트랙마다</small></h3>'+stp(['값을 다 넣은 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 엶',
+      '라이브러리 맨 아래 '+B('저장...')+' → 그 줄의 저장 이름(예: '+B('SO '+esc(NM[K.order[0]])+' 02 호흡 패드')+') 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김. 표 줄 왼쪽 칸에 체크',
+      '음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)'),
+      '다음 곡부터는 트랙을 고르고 이 이름을 한 번 누르면 악기, 플러그인, 센드가 한꺼번에 들어옴']));
+    h.push('<h3>라. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
       '마스터링용: 빈 프로젝트(48 kHz) 오디오 트랙 하나에 '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('25 Hz')+' 만) → '+B('Adaptive Limiter')+' (Out Ceiling '+B('-1.0 dB')+', True Peak Detection '+R('ON')+') → '+B('Loudness Meter')+' → '+B('Y')+' 라이브러리 <b>저장...</b> → '+B('SO 마스터링')]));
     h.push('</details>');
     /* 2 곡마다 */
     const trRows=tracks.map(function(t){ if(t.bin) return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+R('패치 없음')+'. '+t.set+(t.gain?'<br>Gain '+B(t.gain):'')+'<br>'+R('플러그인과 Send 넣지 않기')+'</td></tr>';
-      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+B(esc(t.info.patchName||'(표에 없음)'))+(/^Quick Sampler/.test(t.patch)?'<br>그다음 녹음 파일('+B(esc(K.nat))+', '+B(esc(K.dur)+' 넘게')+')을 '+B('Original')+' 칸에 끌어 놓기. '+R('MIDI 리전은 지우지 않기'):'')+'</td></tr>'; }).join('');
+      return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+esc(lab(t))+'<br>'+Gr(esc(t.tail))+'</td><td>'+(t.info.patchName?'<a class="pl" href="#'+esc(pid(t.info.patchName))+'">'+B(esc(t.info.patchName))+'</a> '+Gr('(값 보기)'):B('(표에 없음)'))+(/^Quick Sampler/.test(t.patch)?'<br>그다음 녹음 파일('+B(esc(K.nat))+', '+B(esc(K.dur)+' 넘게')+')을 '+B('Original')+' 칸에 끌어 놓기. '+R('MIDI 리전은 지우지 않기'):'')+'</td></tr>'; }).join('');
+    const per0='<p class="g" style="font-size:13px;margin:0 0 6px">패치 안의 악기, 플러그인, 센드 값은 1번 처음 한 번 표에 있습니다. 아래 패치 이름을 누르면 그 줄로 갑니다.</p>';
     const per=['<b>버스</b>: '+B('X')+' 믹서에서 첫 트랙 Sends 첫 빈칸 '+B('Bus 1')+', 둘째 '+B('Bus 2')+', 셋째 '+B('Bus 3')+' → Aux 셋이 생김 '+Gr('(우주 효과를 안 쓰면 Bus 3 은 건너뜀)'),
       'Aux 맨 위 <b>설정</b> 단추 → Bus 1 Aux '+B('SO '+curN+' Space')+', Bus 2 Aux '+B('SO 공통 Air')+', Bus 3 Aux '+B('SO 공통 Cosmos'),
       '<b>트랙마다 패치</b>: '+B('Y')+' 로 라이브러리를 연 채 트랙을 하나씩 고르고 <b>사용자 패치</b> 에서 아래 이름을 누름 '+Gr('(키보드 ↓ 로 다음 트랙. 여러 트랙을 한꺼번에 고르면 같은 패치가 다 들어가니 하나씩)')
         +'<div class="wrap"><table><tr><th></th><th>트랙</th><th>누를 패치</th></tr>'+trRows+'</table></div>'];
     if(K.binWav) per.push('<b>바이노럴</b>: 메뉴 <b>트랙</b> → <b>새로운 오디오 트랙</b> (Stereo) → '+B(esc(K.binWav))+' 를 '+B('1마디 맨 앞')+'에 끌어 놓기. '+R('플러그인과 Send 넣지 않기')+', 페이더 '+B('0 dB')+' 그대로 '+Gr('(거의 안 들리고 분위기로만 깔리게 만든 크기)'));
     per.push(B('Stereo Out')+' 맨 위 <b>설정</b> 단추 → '+B('SO 마스터'));
-    h.push('<h2>2. 곡마다 <small>이 곡은 '+esc(curN)+' 패치</small></h2>'+ck(per));
+    h.push('<h2>2. 곡마다 <small>이 곡은 '+esc(curN)+' 패치</small></h2>'+per0+ck(per));
     /* 3 선택 우주 효과 */
     let nextN=3;
     if(opt.optFx){ try{ const stF=st0;
       const snapBar=function(tk){ let from=0; for(let i=0;i<M.sigs.length;i++){ const S=M.sigs[i], nx=(i+1<M.sigs.length)?M.sigs[i+1].t:Infinity, L=M.ppq*4/S.d*S.n; if(tk<nx){ const k=Math.round((tk-from)/L); return Math.min(from+k*L, nx); } from=nx; } return tk; };
+      const bar=function(sec){ const b=M.barOf(snapBar(M.tickOf(stF+sec))); return B(b.bar+'마디')+' '+Gr('('+mmss(sec)+')'); };
       const at=function(sec, snap){ let tk=M.tickOf(stF+sec); if(snap){ tk=snapBar(tk); sec=M.secOf(tk)-stF; } const b=M.barOf(tk); return B(mmss(sec))+' '+Gr('('+b.bar+'마디'+(b.on?'':' '+b.beat+'박')+')'); };
       const O=opt.optFx(at, {mk:[], end:0, endMk:null, tracks:[]});
-      if(O && O.steps && O.steps.length>3){ const st=[B('Bus 3')+' Aux 에 '+B('SO 공통 Cosmos')+' 가 들어 있는지 확인 '+Gr('(2번에서 불러옴. 패치에 Cosmos 센드가 '+K.cosSends.join(', ')+' 에 -∞ 로 들어 있음)')].concat(O.steps.slice(3).map(function(x){ return String(x).replace('믹싱 ④ 의 Loudness Meter','4번 크기 맞추기의 Loudness Meter'); }));
-        h.push('<h2>3. 선택: 우주 효과 <small>하면 이 순서로, 안 해도 됨</small></h2>'+(O.why?'<p class="g" style="font-size:13px;margin:6px 0">'+O.why+'</p>':'')+stp(st)); nextN=4; } }catch(e){ window.__guideErr=String(e&&e.stack||e); } }
+      if(O && O.W && O.W.length){
+        /* ★ 2026-10-20 형: 트랙 넷의 센드를 하나하나 그리던 것 → 센드는 패치에 고정(-4 dB), 여닫이는 Cosmos 트랙 하나의 볼륨(과 EQ High Cut)만 */
+        const fd=function(v){ return v==null?B('맨 아래(-∞)'):B((v-K.cosDb>0?'+':'')+(Math.round((v-K.cosDb)*10)/10)+' dB'); };
+        const lineOf=function(P, ix, fmt){ let out=bar(P[0][0])+' '+fmt(P[0][ix]); for(let k=1;k<P.length;k++){ out+=(P[k][ix]===P[k-1][ix])?', '+bar(P[k][0])+' 까지 그대로':' → '+bar(P[k][0])+' '+fmt(P[k][ix]); } return out; };
+        const hzT=function(x){ return B(x>=1000?(Math.round(x/100)/10)+' kHz':x+' Hz'); };
+        const st=[B('X')+' 믹서에서 '+B('Cosmos')+' Aux 줄 이름 위를 '+B('Control')+' 누른 채 클릭 → '+B('트랙 생성')+' '+Gr('(트랙 영역 맨 아래에 Cosmos 트랙이 생김. 2번에서 Bus 3 에 SO 공통 Cosmos 를 불러온 그 Aux)'),
+          'Cosmos 트랙을 고르고 '+B('A')+' (오토메이션 보기) → 트랙 이름 아래 메뉴에서 '+B('볼륨')+' → 선 위를 클릭하면 점이 생김. 점을 좌우로 끌면 자리, 위아래로 끌면 크기. 마디 자를 보며 아래 자리에 점을 찍음 '+Gr('(트랙 넷을 고를 필요 없음. 이 트랙 하나만)')
+            +'<br>'+O.W.map(function(P){ return lineOf(P,1,fd); }).join('<br>'),
+          Gr('(하면 더 \'화\' 열림, 안 해도 됨)')+' 같은 트랙 오토메이션 메뉴 → '+B('Channel EQ')+' → '+B('High Cut Frequency')+' '+Gr('(8번 밴드 주파수)')+' 에 같은 자리로'
+            +'<br>'+O.W.map(function(P){ return lineOf(P,2,hzT); }).join('<br>'),
+          '크기는 4번을 이 효과를 켠 채로 하면 됨 '+Gr('(실시간 바운스가 효과까지 같이 잼. 열린 구간이 1~2 LU 커짐)'),
+          Gr('오토메이션은 패치에 안 들어가고 이 프로젝트에만 저장됨. 곡마다 길이와 마디가 달라 곡마다 이 표의 자리에 찍음')];
+        h.push('<h2>3. 선택: 우주 효과 <small>하면 이 순서로, 안 해도 됨 (안 하면 2번에서 Bus 3 을 만들지 않음)</small></h2>'+(O.why?'<p class="g" style="font-size:13px;margin:6px 0">'+O.why+'</p>':'')+stp(st)); nextN=4; } }catch(e){ window.__guideErr=String(e&&e.stack||e); } }
     /* 4 크기와 바운스 */
-    let loudBar=''; if(opt.loud){ const a=M.barOf(M.tickOf(st0+opt.loud[0])).bar, z=M.barOf(M.tickOf(st0+opt.loud[1])).bar-1; loudBar=a+' ~ '+z+'마디'; }
-    h.push('<h2>'+nextN+'. 크기 맞추기와 바운스</h2>'+stp([(loudBar?'가장 큰 구간 '+B(loudBar)+' 재생. ':'가장 큰 구간 재생. ')+'Stereo Out 미터 위 피크 숫자가 '+B('-6 dB')+' 근처가 되게 Stereo Out '+B('Gain')+' 조절',
-      '곡 맨 앞에서 Loudness Meter <b>Reset</b> → <b>Start</b> → 끝까지 재생. <b>Integrated</b> '+B(mixLo+' ~ '+mixHi+' LUFS')+' 면 정상',
-      '<b>File &gt; Bounce &gt; Project or Section</b>: PCM, '+B('WAVE 24 bit 48 kHz')+', Normalize '+R('Off')+(opt.bin?'. 헤드폰판(바이노럴 켬), 스피커판(바이노럴 뮤트)':'')])
+    const LP=loudPeak(opt.midi, M, st0); let loudTxt='';
+    if(LP){ const ba=M.barOf(M.tickOf(st0+LP.a)).bar, bz=M.barOf(M.tickOf(st0+LP.z)).bar; loudTxt=B(ba+' ~ '+bz+'마디')+' '+Gr('(로직 시간 '+mmss(LP.a+st0)+' ~ '+mmss(LP.z+st0)+', 곡 지도로는 '+mmss(LP.a)+' ~ '+mmss(LP.z)+', 가장 큰 순간 곡 '+mmss(LP.peak)+')'); }
+    else if(opt.loud){ loudTxt=B(mmss(opt.loud[0])+' ~ '+mmss(opt.loud[1])); }
+    const loudWav=LP?B(mmss(LP.a+st0)+' ~ '+mmss(LP.z+st0))+' '+Gr('(WAV 처음부터 잰 시각. 1마디 맨 앞에 놓았으면 로직 시간 표시와 같음)'):loudTxt;
+    h.push('<h2>'+nextN+'. 크기 맞추기와 바운스 <small>재생은 가장 큰 자리 10초와 실시간 바운스 한 번</small></h2>'+stp([
+      '가장 큰 자리 '+(loudTxt||'')+' 를 사이클(C)로 걸고 재생 '+Gr('(앱이 MIDI 로 찾은 자리)')+'. Stereo Out 미터 위 피크 숫자가 '+B('-6 dB')+' 근처가 되게 Stereo Out '+B('Gain')+' 조절 '+Gr('(이미 -6 ~ -3 dB 사이면 그대로)'),
+      '사이클 끄고 재생 위치를 맨 앞으로 → Stereo Out 의 Loudness Meter '+B('Reset'),
+      '<b>File &gt; Bounce &gt; Project or Section</b>: PCM, '+B('WAVE 24 bit 48 kHz')+', Normalize '+R('Off')+', 모드 '+B('실시간 (Realtime)')+' '+Gr('(바운스하며 소리가 흘러 Loudness Meter 가 곡 전체를 잼)')+(opt.bin?'. 헤드폰판(바이노럴 켬)부터':''),
+      '바운스가 끝나면 Loudness Meter 의 '+B('Integrated')+' 숫자를 적어 둠 '+Gr('('+mixLo+' ~ '+mixHi+' LUFS 면 정상)')+(opt.bin?'. 스피커판은 바이노럴 뮤트하고 한 번 더 바운스 (모드 '+B('오프라인')+' 이어도 됨, 빠름)':'')])
       +'<details><summary>필요할 때만: 리전 바운스 후 대치 <small class="g">(CPU 가 무겁거나 트랙을 오디오로 굳힐 때. 셋팅에는 필요 없음)</small></summary>'+stp(['굳힐 트랙의 리전을 고름 '+Gr('(전부면 Command+A)')+' → '+B('Control+B')+' 로 '+B('리전 바운스 후 대치')+' 창',
         '이름 '+B('그대로')+', 대상 '+B('새로운 트랙')+', '+B('하나의 파일'),
         '소스 '+B('음소거')+' '+Gr('(MIDI 가 꺼진 채 남아 나중에 고칠 수 있음. 두기는 소리가 두 번, 삭제는 MIDI 가 없어짐)'),
@@ -57982,14 +58246,20 @@ window.__guideHTML=function(opt){
         '노멀라이즈 '+R('끔')+' → '+B('확인'),
         '새로 생긴 오디오 트랙의 오디오 FX 칸을 봄. 원래 트랙 플러그인이 따라와 켜져 있으면 이미 소리에 담긴 효과가 한 번 더 걸리니 끔. 센드는 그대로 둠'])+'</details>'); nextN++;
     /* 5 마스터링 */
-    h.push('<h2>'+nextN+'. 마스터링 <small>바운스한 파일을 새 프로젝트(48 kHz) 오디오 트랙에</small></h2>'+stp(['라이브러리 '+B('Y')+' 사용자 패치에서 '+B('SO 마스터링'),
-      'Loudness Meter Reset → Start → 끝까지. Integrated 가 '+B(lufs+' LUFS')+' 가 되게 Adaptive Limiter '+B('Gain')+' 을 올림 '+Gr('('+(lufs-4)+' 이면 +4 dB)'),
-      'REDUCTION 미터가 가장 깊을 때 '+B('-'+(opt.grMax||2)+' dB')+' 까지만. 더 깊으면 Gain 을 내리고 '+B((lufs-1)+' LUFS')+' 에서 멈춤',
-      'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')+'. 배포는 유통사 기준(44.1 kHz 16 bit 만 받는 곳은 그때 Dither 켬)'])); nextN++;
+    h.push('<h2>'+nextN+'. 마스터링 <small>바운스한 파일을 새 프로젝트(48 kHz) 오디오 트랙에</small></h2>'+stp(['새 프로젝트 오디오 트랙에 바운스한 WAV 를 1마디 맨 앞에 → 그 트랙 고르고 라이브러리 '+B('Y')+' 사용자 패치에서 '+B('SO 마스터링'),
+      'Adaptive Limiter '+B('Gain')+' = '+B(String(lufs))+' 빼기 적어 둔 Integrated '+Gr('(예: 적어 둔 값이 '+(lufs-5)+' LUFS 면 +5 dB)'),
+      '같은 가장 큰 자리 '+(loudWav||'')+' 를 사이클로 재생하며 Limiter 의 '+B('REDUCTION')+' 이 가장 깊을 때 '+B('-'+(opt.grMax||2)+' dB')+' 까지만. 더 깊으면 Gain 을 그만큼 내림',
+      Gr('(확인하고 싶을 때만) 맨 앞에서 Loudness Meter Reset 하고 끝까지 재생해 Integrated 가 ')+B(lufs+' LUFS')+Gr(' 근처인지'),
+      'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')+'. 배포는 유통사 기준(44.1 kHz 16 bit 만 받는 곳은 그때 Dither 켬)'])
+      +'<details><summary>참고: Mastering Assistant 로 하기 <small class="g">(SO 마스터링 대신. 곡 전체를 분석해 줘서 끝까지 듣지 않아도 됨)</small></summary>'+stp(['새 프로젝트(48 kHz) 오디오 트랙에 바운스한 WAV 를 1마디 맨 앞에. 그 트랙에는 플러그인을 넣지 않음',
+        B('X')+' 믹서 '+B('Stereo Out')+' 맨 아래 '+B('Mastering')+' 칸을 누르면 Mastering Assistant 가 들어가며 곡 전체를 분석 '+Gr('(분석이 끝날 때까지 기다림)'),
+        'Character '+B('Transparent')+', Auto EQ '+B('30 %')+', Excite '+R('끄기')+', Width '+R('돌리지 않기')+(opt.bin?' '+Gr('(넓히면 바이노럴이 깨짐)'):''),
+        '오른쪽 '+B('Loudness')+' 손잡이를 돌려 LUFS 표시의 '+B('I')+' 가 '+B(String(lufs))+', '+B('True Peak')+' 가 '+B('-1.0')+' 아래가 되게',
+        'Bounce: 보관 '+B('WAVE 48 kHz 24 bit')])+'</details>'); nextN++;
     /* 6 곡 지도 */
     if(pts.length) h.push('<h2>'+nextN+'. 곡 지도</h2><div class="tl">'+pts.map(function(p){ return '<div><b>'+mmss(p.sec)+'</b>'+p.bar.bar+'마디'+(p.bar.on?'':' '+p.bar.beat+'박')+'<br>'+esc(p.label)+'</div>'; }).join('')+'</div>');
     if(opt.sheet) h.push('<p class="g" style="font-size:13px;margin:14px 0 0">앱이 MIDI 에 넣은 것과 자세한 설명은 같이 받은 txt 설명서에 있습니다.</p>');
-    h.push('<script>(function(){var cb=document.getElementById("onceDone"),d=document.getElementById("once"),K="so-guide:amb5-patches-done";if(!cb||!d)return;var v=false;try{v=localStorage.getItem(K)==="1"}catch(e){}var set=function(x){cb.checked=x;if(x)d.removeAttribute("open");else d.setAttribute("open","")};set(v);cb.addEventListener("change",function(){try{localStorage.setItem(K,cb.checked?"1":"0")}catch(e){}set(cb.checked)})})();<\/script>');
+    h.push('<script>(function(){var cb=document.getElementById("onceDone"),d=document.getElementById("once"),K="so-guide:amb5-patches-done";if(!cb||!d)return;var v=false;try{v=localStorage.getItem(K)==="1"}catch(e){}var set=function(x){cb.checked=x;if(x)d.removeAttribute("open");else d.setAttribute("open","")};set(v);cb.addEventListener("change",function(){try{localStorage.setItem(K,cb.checked?"1":"0")}catch(e){}set(cb.checked)});document.querySelectorAll("a.pl").forEach(function(l){l.addEventListener("click",function(ev){var id=l.getAttribute("href").slice(1),r=document.getElementById(id);if(!r)return;ev.preventDefault();d.setAttribute("open","");r.scrollIntoView({block:"center"});r.classList.add("hl");setTimeout(function(){r.classList.remove("hl")},2200)})})})();<\/script>');
   } else {
   if((opt.prep||[]).length) h.push('<h2>1. 준비</h2>'+ck(opt.prep));
   const sn=(opt.prep||[]).length?1:0; const N=function(k){ return (k+sn)+'. '; };
@@ -62221,9 +62491,9 @@ function buildAmb5Sheet(prog){
   if(piece.cat && piece.cat.key!=='free') L.push('바탕   : '+AMB5_BASE);
   if(piece.cat && piece.cat.key!=='free' && (AMB5_CHAR[piece.cat.ch||piece.cat.key]||{}).txt) L.push('성격   : '+AMB5_CHAR[piece.cat.ch||piece.cat.key].txt);
   { const TN=amb5Tone(), k=state.amb5Tone||'deep'; L.push('음색   : '+TN.name+'. '+({deep:'숨 쉬는 드론 '+midiNameP(piece.drRoot)+', 패드 C3~D5 자리. 낮고 두터운 바닥.',
-      mid:'숨 쉬는 드론 '+midiNameP(piece.drRoot)+'(한 옥타브 위), 바닥 드론도 한 옥타브 위, 패드 G3~G5 자리(맨 아래 음을 올려 탁함을 걷음). 믹스: 패드 드론 로우컷 100Hz.',
-      light:'숨 쉬는 드론 '+midiNameP(piece.drRoot)+'(두 옥타브 위, 음원 Studio Violas), 바닥 드론 한 옥타브 위, 패드 C4~C6 자리, 양금과 피아노 선율 위 끝 +3반음. 믹스: 패드 드론 로우컷 150Hz, 패드 하이 셸프 10kHz +4dB, Air 센드 -7dB, 잔향 Decay 3.5초.',
-      bright:'숨 쉬는 드론 '+midiNameP(piece.drRoot)+'(두 옥타브 위, 음원 Studio Violins 1), 바닥 드론 한 옥타브 위, 패드 G4~G6 자리(맑은 패드 Floating in the Ether), 양금과 피아노 선율 아래 위 +5반음, 띵샤는 맑은 종(Shimmering Star Chimes) 한 옥타브 위. 믹스: 패드 드론 로우컷 200Hz, 패드 3kHz +2dB, 하이 셸프 10kHz +6dB, Air 센드 -4dB, 잔향 Decay 3초 프리딜레이 30ms.'})[k]); }
+      mid:'숨 쉬는 드론 '+midiNameP(piece.drRoot)+'(한 옥타브 위), 바닥 드론도 한 옥타브 위, 패드 G3~G5 자리(맨 아래 음을 올려 탁함을 걷음).',
+      light:'숨 쉬는 드론 '+midiNameP(piece.drRoot)+'(두 옥타브 위, 음원 Studio Violas), 바닥 드론 한 옥타브 위, 패드 C4~C6 자리, 양금과 피아노 선율 위 끝 +3반음.',
+      bright:'숨 쉬는 드론 '+midiNameP(piece.drRoot)+'(두 옥타브 위, 음원 Studio Violins 1), 바닥 드론 한 옥타브 위, 패드 G4~G6 자리(맑은 패드 Floating in the Ether), 양금과 피아노 선율 아래 위 +5반음, 띵샤는 맑은 종(Shimmering Star Chimes) 한 옥타브 위.'})[k]); }
   if(B.tech==='hum'){ const hn=midiNameP(48+piece.tonic).replace(/-?\d+$/,''); L.push('         허밍 음: 드론 으뜸음 '+hn+' (남성 '+hn+'3, 여성 '+hn+'4 안팎). 이 음으로 허밍하면 드론과 하나로 울립니다.'); }
   if(piece.sched.sighS>0) L.push('한숨   : 맨 앞 '+piece.sched.sighS+'초('+piece.sched.sg.filter(Boolean).length+'번)만 생리적 한숨. 코로 짧게 두 번 이어 들이쉬고 입으로 길게 내쉽니다. 패드도 짧게 두 번 부풉니다.');
   if(piece.sched.flatFrom!=null) L.push('안내   : 앞 '+_amm(piece.sched.flatFrom)+' 까지만 숨을 따라 부풀고, '+_amm(piece.sched.flatFrom)+' 띵샤 뒤로는 고른 소리로 소음만 덮습니다(집중은 각성을 내리지 않게).');
@@ -62290,7 +62560,9 @@ function buildAmb5Sheet(prog){
     if(r[0]==='drone') L.push('   음원 설정 : 아티큘레이션은 긴 음(Sustain, Long). 레가토는 끄기(으뜸음과 5도가 함께 울려야 함). 비브라토 조절이 있는 음원이면 낮게.');
     L.push('   하는 일   : '+r[1]);
     { const _vm=Math.max.apply(null,rows.map(function(q){ return AMB5_MIX[q[0]].vol; })); const _g=Math.round(2*40*Math.log10(X.vol/_vm))/2; L.push('   게인 팬   : '+(r[0]==='floor'?'Gain 플러그인 없음(크기 약 '+AMB5_FLOOR_DB+'dB 는 페이더 CC7 한 값으로 파일에), 페이더는 그대로 두세요. ':r[0]==='nature'?'Gain 플러그인 없음(크기 약 '+AMB5_NATURE_DB+'dB 는 숨 볼륨 곡선 안에), 페이더는 숨이 씀. ':'')+((r[0]==='floor'||r[0]==='nature')?'':(r[0]==='pad'||r[0]==='drone')?'Gain 플러그인 없음(크기 '+String(_g)+'dB 는 숨 볼륨 곡선 안에), 페이더는 숨이 씀. ':'Gain 플러그인 '+(_g<=-0.5?String(_g)+'dB':'0dB (가장 큰 트랙)')+' (트랙 이름 끝 [Gain] 과 같음), '+((amb5FlowPlan(piece.T) && ['hp','yg','pn','pm'].indexOf(r[0])>=0)?'페이더는 흐름 곡선(CC7)이 씀. ':'페이더는 0dB 에서 자유. '))+(r[0]==='cue'?(B.tech==='right'?'팬은 CC10 오른쪽(112)':'팬은 음마다 CC10 으로 왼쪽(16) 오른쪽(112)')+', 로직 팬 노브는 건드리지 마세요':'팬 '+pan+(AMB5_PANMOVE[r[0]]?' 중심, 좌우 '+AMB5_PANMOVE[r[0]].a+' 만큼 '+AMB5_PANMOVE[r[0]].p+'초에 한 번 천천히 (CC10 곡선)':' (CC10)'))); }
-    L.push('   리버브    : 로직 Sends 에서 센드 약 '+Math.round(X.rev/127*55)+'%. 파일 안 CC91('+X.rev+')은 GM 음원용 참고값이라 로직 센드에는 걸리지 않습니다.');
+    { const _rl=(AMB5_REC[r[0]]||{}).role, _tk=state.amb5Tone||'deep', _bk=AMB5_BOOK.common.concat(AMB5_BOOK.tones[_tk].rows).find(function(q){ return q.role===_rl; });   /* ★ 2026-10-20 패치 한 벌과 같은 값 */
+      if(_bk) L.push('   센드      : 패치 '+amb5PatchName(AMB5_BOOK.common.indexOf(_bk)>=0?null:_tk,_bk)+' 에 들어 있음. Space(Bus 1) '+_bk.space+'dB'+(_bk.air!=null?', Air(Bus 2) '+_bk.air+'dB':', Air 없음')+(_bk.cos?', Cosmos(Bus 3) '+AMB5_COS_SEND+'dB':'')+'. 파일 안 CC91('+X.rev+')은 GM 음원용 참고값이라 로직 센드에는 걸리지 않습니다.');
+      else if(!/^bin/.test(r[0])) L.push('   리버브    : 로직 Sends 에서 센드 약 '+Math.round(X.rev/127*55)+'%. 파일 안 CC91('+X.rev+')은 GM 음원용 참고값이라 로직 센드에는 걸리지 않습니다.'); }
     if(r[0]==='pad' && state.amb5Bright==='breath'){ const D=amb5DynR(); L.push('   셈여림    : 모듈레이션 휠(CC1) '+D[0]+'↔'+D[1]+' 을 숨 따라 그렸습니다. 현과 합창 음원은 휠이 셈여림이라 들숨 끝에 활이 더 깊어져 소리 결이 밝아지고, 날숨 끝은 여린 결로 돌아옵니다(크기는 CC11). 휠이 비브라토에 걸린 음원이면 위 상자에서 셈여림을 끄세요.'); }
     if(r[0]==='drone'){ const V=amb5Vol7('drone'); L.push('   볼륨      : 페이더(CC7)가 '+V.lo+'↔'+V.hi+' 로 숨 따라 움직입니다(들숨 끝 '+V.hi+' 이 약 '+V.db+'dB). 바닥이라 패드보다 얕게. 드론 크기도 이 곡선 안에 있어 Gain 플러그인은 넣지 않습니다.'); }
     if(r[0]==='drone') L.push('   셈여림    : 모듈레이션 휠(CC1) 28↔42, 낮은 현은 여리게(pp~p) 숨 따라 조금만.');
@@ -62309,15 +62581,16 @@ function buildAmb5Sheet(prog){
   L.push('   팬 노브: 파일 곡선대로 혼자 움직이니 손으로 돌리지 마세요. 자리를 바꾸고 싶으면 그 트랙 리전의 CC10 을 지우고 노브로 두면 됩니다.');
   L.push('   왜 이렇게: 헤드폰에서는 가운데가 바닥 소리로 차 있어 포인트를 크게 올리면 시끄러워집니다. 자리를 옆으로 비켜 주면 작게 두어도 귀가 바로 찾습니다. 끝까지(100%) 벌리지 않는 것은 한쪽 귀만 울리면 오래 들을 때 피곤해서입니다.');
   L.push('   크기: 포인트 악기는 전보다 2dB 작게(이름 끝 [Gain] 이 그 값). 띵샤 신호는 '+(piece.five?'네':'두')+' 번만 또렷하게.');
-  L.push('   존재감: 포인트 악기는 리버브를 줄여 가깝게(마른 소리일수록 작아도 또렷). 양금 피아노는 EQ 로 2~4kHz 를 +1~2dB 살짝(어택이 귀에 걸리게), 5kHz 위는 그대로 두거나 Low Pass 9kHz.');
-  L.push('   패드 드론: ChromaVerb Airy 또는 FX - Bloomy 8~12초 Mix 35%. 드론은 리버브를 적게, 120Hz 아래는 모노.');
-  L.push('   핸드팬: Tape Delay 점4분 피드백 30% 로우컷 300Hz, 리버브 30%(가깝게).');
-  L.push('   띵샤 신호: 가장 큰 트랙(0dB), 오른쪽 R13, 리버브 센드 넉넉히(약 48%). 한 번 울리고 길게 사라지게. 로우컷은 '+({deep:'30Hz 정도만(C2~G2 낮은 울림)',mid:'60Hz(C3~G3)',light:'120Hz(C4~G4)',bright:'200Hz(C5~G5)'})[state.amb5Tone||'deep']+'.');
+  { const tk=state.amb5Tone||'deep', E=function(eq){ return eq.map(function(e){ return e.b===1?'로우컷 '+e.hz+'Hz'+(e.slope&&e.slope!==12?'('+e.slope+'dB/Oct)':''):(e.b+'번 '+(e.hz>=1000?(e.hz/1000)+'kHz':e.hz+'Hz')+' '+(e.db>0?'+':'')+e.db+'dB'); }).join(', '); };
+    L.push('   트랙 값(형 2026-10-20 패치 한 벌): 악기, Gain, EQ, Spread, 센드는 제작 가이드 html 1번 표 그대로, 이 곡은 '+AMB5_TONE[tk].name+' 패치. 리버브는 버스 Space(Bus 1) Air(Bus 2) 로만.');
+    AMB5_BOOK.tones[tk].rows.concat(AMB5_BOOK.common).sort(function(a,b){ return a.n<b.n?-1:1; }).forEach(function(r){ L.push('     '+amb5PatchName(AMB5_BOOK.common.indexOf(r)>=0?null:tk, r)+': '+(r.gain!=null?'Gain '+r.gain+'dB, ':'')+E(r.eq)+', Spread '+r.spread.toFixed(2)+', Space '+r.space+'dB'+(r.air!=null?', Air '+r.air+'dB':'')+(r.cos?', Cosmos '+AMB5_COS_SEND+'dB':'')); }); }
+  L.push('   핸드팬: Kontakt 스냅샷 Hang Mk 1 - Filter Delay 에 든 딜레이 그대로(따로 Tape Delay 없음).');
+  L.push('   띵샤 신호: 가장 큰 트랙(0dB), 오른쪽 R13. 한 번 울리고 길게 사라지게.');
   if(amb5BinWant(piece)){ const BN=amb5BinInfo(piece); L.push('   바이노럴: 반송음 '+BN.f0.toFixed(1)+'Hz. 분위기로만 아주 작게 깔리므로 패드와 드론 EQ 에서 따로 비워 두지 않습니다(형 2026-10-20). 바이노럴 트랙은 리버브 센드, 스테레오 효과, Direction Mixer 를 걸지 마세요(소리가 반대쪽 귀로 새면 비트가 깨짐). 마스터에 스테레오 넓히기나 모노 합치기도 금지.'); }
 
   L.push('   마스터: 믹스 단계에서는 리미터 없이(아래 게인과 마스터링). 마스터링에서 -18 ~ -16 LUFS, 리미터는 살짝만(호흡 스웰이 눌리지 않게).');
   try{ (window.__gainGuide?window.__gainGuide('-18 ~ -16 LUFS (명상, 웰니스, 앰비언트는 여유 있게)'):[]).forEach(function(x){ L.push(x); }); }catch(e){}
-  try{ (window.__stageGuide?window.__stageGuide({replaces:'이 설명서 앞쪽의 리버브 버스(Bus 1, Bus 2)를 이미 만들었다면 Bus 1 을 Stage Mid, Bus 2 를 Stage Far 로 이름만 바꿔 쓰고 Stage Near 하나만 더 만듭니다. 그 버스들의 Room Type 과 Decay 는 위 값으로 맞춥니다.'}):[]).forEach(function(x){ L.push(x); }); }catch(e){}   /* 무대와 공간 */
+  /* ★ 2026-10-20 호흡 앰비언트는 무대와 공간(Stage 버스 셋) 대신 패치 한 벌의 Space Air Cosmos 버스. 글이 서로 달라 뺌 */
   { const W=amb5CosmosWin(piece); if(W){ L.push(''); L.push('선택   : 우주로 열리는 효과(Cosmos 버스). '+window.__cosmosTxt(W)+'. 처음 1분과 끝 1분에 고역이 화 열리고 한 옥타브 위 긴 울림, 숨이 깊어지는 가운데는 닫힘. 안 해도 됩니다. 순서와 값은 제작 가이드 HTML 믹싱의 \'선택\' 칸.'); } }   /* ★ 2026-10-19 형: 처음 1분 끝 1분 */
   return L.join('\n');
 }
@@ -62435,6 +62708,7 @@ const AMB5_BOOK={
       {n:'04', role:'Floor Drone', ko:'바닥 드론', inst:'Synthesizer/Pad/Meditation Drone', eq:[{b:1,hz:80},{b:7,hz:10000,db:3}], spread:1.3, space:-6, air:-4, cos:true},
       {n:'10', role:'Tingsha signal', ko:'띵샤 신호', inst:'Synthesizer/Bell/Shimmering Star Chimes', eq:[{b:1,hz:150},{b:7,hz:8000,db:-3}], spread:0.5, space:-6, air:-4, cos:true}]}}};
 const AMB5_TONE_ORDER=['deep','mid','light','bright'];
+const AMB5_COS_SEND=-4;   /* ★ 2026-10-20 형: Cosmos 센드는 패치에 -4 dB 로 고정, 여닫이는 Cosmos 트랙 하나의 볼륨 오토메이션(트랙 넷을 그리지 않게) */
 function amb5PatchName(toneKey, r){ return 'SO '+(toneKey?AMB5_TONE[toneKey].name:'공통')+' '+r.n+' '+r.ko; }
 function amb5BookOpt(tone, FM, o){
   const setOf=function(r){ const s=[]; if(r.qs) s.push('Mode '+FM.B('Classic')+', Root Key '+FM.B('C3')+' '+FM.G('(녹음 파일은 곡마다 넣음)'));
@@ -62445,7 +62719,7 @@ function amb5BookOpt(tone, FM, o){
   const mk=function(r){ return Object.assign({},r,{set:setOf(r)}); };
   return {cur:tone, names:AMB5_TONE_ORDER.reduce(function(a,k){ a[k]=AMB5_TONE[k].name; return a; },{}), order:AMB5_TONE_ORDER,
     common:AMB5_BOOK.common.map(mk), tones:AMB5_TONE_ORDER.reduce(function(a,k){ a[k]={space:AMB5_BOOK.tones[k].space, rows:AMB5_BOOK.tones[k].rows.map(mk)}; return a; },{}),
-    nat:o.nat, dur:o.dur, binWav:o.binWav, binMidi:o.binMidi, cosSends:['호흡 패드','바닥 드론','양금','띵샤 신호']}; }
+    cosDb:AMB5_COS_SEND, nat:o.nat, dur:o.dur, binWav:o.binWav, binMidi:o.binMidi, cosSends:['호흡 패드','바닥 드론','양금','띵샤 신호']}; }
 function amb5GuideHTML(data){
   if(!window.__guideHTML) return null;
   const piece=generatePiece('amb5'); if(!piece||!piece.amb5) return null;
