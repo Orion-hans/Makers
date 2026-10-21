@@ -31456,7 +31456,7 @@ window.__stageGuide=function(opt){ try{ opt=opt||{};
       Lx.push('▸ 트랙 '+(n++)+'. '+R.ko+'  ('+R.role+')'); Lx.push('   추천 음원 : '+R.name); if(R.alt&&R.alt.length) Lx.push('   다른 후보 : '+R.alt.join(', ')); if(R.why) Lx.push('   고른 이유 : '+R.why); });
     Lx.push('');
     Lx.push('■ 패치 (제작 가이드 html 1번 표와 같은 값, 명상 앱 호흡 앰비언트와 같은 패치)');
-    BOOK.tones[pc.tone].rows.concat(book.common).sort(function(a,b){ return a.n<b.n?-1:1; }).forEach(function(r){ const E=r.eq.map(function(e){ return e.b===1?'로우컷 '+e.hz+'Hz':e.b===8?'하이컷 '+(e.hz>=1000?(e.hz/1000)+'kHz':e.hz+'Hz'):(e.b+'번 '+(e.hz>=1000?(e.hz/1000)+'kHz':e.hz+'Hz')+' '+(e.db>0?'+':'')+e.db+'dB'); }).join(', ');
+    book.tones[pc.tone].rows.concat(book.common).sort(function(a,b){ return a.n<b.n?-1:1; }).forEach(function(r){ const E=r.eq.map(function(e){ return e.b===1?'로우컷 '+e.hz+'Hz':e.b===8?'하이컷 '+(e.hz>=1000?(e.hz/1000)+'kHz':e.hz+'Hz'):(e.b+'번 '+(e.hz>=1000?(e.hz/1000)+'kHz':e.hz+'Hz')+' '+(e.db>0?'+':'')+e.db+'dB'); }).join(', ');
       Lx.push('   '+patchName(book.common.indexOf(r)>=0?null:pc.tone, r)+': '+(r.gain!=null?'Gain '+r.gain+'dB, ':'')+E+', Spread '+r.spread.toFixed(2)+', Space '+r.space+'dB'+(r.air!=null?', Air '+r.air+'dB':'')+(r.cos?', Cosmos '+COS_SEND+'dB':'')+(r.flip?', Flip '+FLIP_SEND+'dB(Pre Fader)':'')); });
     Lx.push('');
     Lx.push('■ 효과 (MIDI 에 들어 있음, 로직에서 할 일 없음)');
@@ -31486,7 +31486,7 @@ window.__stageGuide=function(opt){ try{ opt=opt||{};
       if(r.es2) s2.push('ES2 기본(Init)에서 오실레이터 1 만 '+FM.B('Sine')+', 2 와 3 끄기. 소리 엔벌로프(ENV 3) Attack '+FM.B('6 s')+', Release '+FM.B('10 s')+', Glide '+FM.B('0')+', Chorus 끄기 '+FM.G('(배음이 하나씩 천천히 켜지고 꺼지게)'));
       return s2.join('<br>'); };
     const mk=function(r){ return Object.assign({},r,{set:setOf(r)}); };
-    const K={cur:tone, names:TONE_ORDER.reduce(function(a,k){ a[k]=TONE[k].name; return a; },{}), order:TONE_ORDER, common:book.common.map(mk), tones:TONE_ORDER.reduce(function(a,k){ a[k]={space:BOOK.tones[k].space, rows:BOOK.tones[k].rows.map(mk)}; return a; },{}),
+    const K={cur:tone, names:TONE_ORDER.reduce(function(a,k){ a[k]=TONE[k].name; return a; },{}), order:TONE_ORDER, common:book.common.map(mk), tones:TONE_ORDER.reduce(function(a,k){ a[k]={space:BOOK.tones[k].space, rows:book.tones[k].rows.map(mk)};   /* ★ 2026-10-21 Flip 센드(02 10)가 있는 패치 책 사본(명상 앱 표와 같게) */ return a; },{}),
       cosDb:COS_SEND, flipDb:FLIP_SEND, midiFx:x.midiFx||null, flip:(x.flips&&x.flips.length)?{win:x.flips[0], wins:x.flips, lvl:x.flipLvl||0, dip:x.dip||FLIP_DIP, sends:x.flipSends||['숨 패드','양금 자리 선율','피아노','싱잉볼','띵샤 신호']}:x.flip?{win:x.flip, dip:FLIP_DIP, sends:x.flipSends||['숨 패드','양금 자리 선율(양금 생황 칼림바 첼레스타)','피아노','싱잉볼','띵샤 신호']}:null,
       scope:x.scope||'명상 앱 호흡 앰비언트와 같은 패치(한 번 만들면 두 앱 다), 길이 상관없음', ptList:x.ptList||null, freeze:x.freeze||null, echo:x.echo||null, echoBus:false,
       nat:x.nat||'바다나 숲', dur:x.dur||'', binWav:null, binMidi:false, cosSends:x.cosSends||['숨 패드','바닥 드론','양금 자리 선율','싱잉볼','별빛 종','띵샤 신호']};
@@ -31579,11 +31579,11 @@ window.__stageGuide=function(opt){ try{ opt=opt||{};
   const css='#wambPanel{margin:10px 0 14px;padding:14px 16px;border:1px solid var(--celadon,#9bb);border-radius:12px;background:var(--card,#fff);font-size:14px;line-height:1.6}#wambPanel .wr{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}#wambPanel .wl{min-width:92px;opacity:.75;font-size:13px}#wambPanel .wc{padding:5px 11px;border-radius:16px;border:1px solid var(--line,#ccd);background:transparent;cursor:pointer;font-size:13px;color:inherit}#wambPanel .wc.on{background:var(--accent,#55D6B0);border-color:var(--accent,#55D6B0);color:#fff}#wambPanel .wb{padding:8px 14px;border-radius:10px;border:1px solid var(--line,#ccd);cursor:pointer;font-size:14px;background:transparent;color:inherit}#wambPanel .wb.go{background:var(--accent,#55D6B0);color:#fff;border-color:var(--accent,#55D6B0)}#wambInfo{opacity:.8;font-size:13px;margin-top:8px}body.wamb-on .song-area,body.wamb-on #instFold{display:none!important}';
   function chips(id,list,cur,fn){ return '<div class="wr"><span class="wl">'+id+'</span>'+list.map(function(x){ return '<button type="button" class="wc'+(String(x[0])===String(cur)?' on':'')+'" data-f="'+fn+'" data-v="'+x[0]+'">'+x[1]+'</button>'; }).join('')+'</div>'; }
   function render(){ const P=document.getElementById('wambPanel'); if(!P) return;
-    if(ST.use==='yoga'){ P.innerHTML=chips('세부 장르',[['cosmos','우주'],['handpan','핸드팬'],['drone','드론']],ST.sub,'sub')+chips('용도',[['listen','감상'],['exhibit','전시 루프'],['yoga','동경요가 70분']],ST.use,'use')+'<div id="wambYoga"></div>'; yogaInto(document.getElementById('wambYoga')); return; }
+    if(ST.use==='yoga'){ P.innerHTML='<b>웰니스 앰비언트</b>'+chips('용도',[['listen','감상'],['exhibit','전시 루프'],['yoga','동경요가 70분']],ST.use,'use')+'<div id="wambYoga"></div>'; yogaInto(document.getElementById('wambYoga')); return; }
     const toneL=TONE_ORDER.map(function(k){ return [k, TONE[k].name+(k===SUB[ST.sub].tone?' (기본)':'')]; });
     const keyL=[['rnd','랜덤']].concat(NN.map(function(n,i){ return [i,KN[i]]; }));
-    P.innerHTML='<b>웰니스 앰비언트</b> <span style="opacity:.7;font-size:13px">명상 앱 호흡 앰비언트와 같은 패치 책, 팬 움직임, 가운데 흐름, 우주 효과, 뒤집힌 세계</span>'
-      +chips('세부 장르',[['cosmos','우주'],['handpan','핸드팬'],['drone','드론']],ST.sub,'sub')
+    /* ★ 2026-10-21 형: 장르 칩(드론 우주 핸드팬 앰비언트)과 판의 세부 장르 칩이 같은 것을 두 번 고름 → 판에서는 뺌, 지금 장르 이름만 보임 */
+    P.innerHTML='<b>'+({cosmos:'우주 앰비언트',handpan:'핸드팬 앰비언트',drone:'드론 앰비언트'})[ST.sub]+'</b> <span style="opacity:.7;font-size:13px">명상 앱 호흡 앰비언트와 같은 패치 책, 팬 움직임, 가운데 흐름, 우주 효과, 뒤집힌 세계 (세부 장르는 위 장르 칩에서)</span>'
       +chips('용도',[['listen','감상'],['exhibit','전시 루프'],['yoga','동경요가 70분']],ST.use,'use')
       +chips('길이',MINS[ST.use].map(function(m){ return [m,m+'분']; }),ST.min,'min')
       +chips('음색',toneL,ST.tone||SUB[ST.sub].tone,'tone')
