@@ -31576,15 +31576,15 @@ window.__stageGuide=function(opt){ try{ opt=opt||{};
     parts.forEach(function(x,i){ const role=(/\|\s*([A-Za-z ]+?)(\s*\[|$)/.exec(x.nm)||[])[1]||('track'+i); setTimeout(function(){ save(x.u8, 'Points_'+nm+'_'+(i+1)+'_'+role.trim().replace(/\s+/g,'')+'.mid', 'audio/midi'); }, i*350); }); }
   window.__WAMB={guideKit:guideKit, MIX:MIX, PANMOVE:PANMOVE, TONE:TONE, BOOK:BOOK, compose:compose, build:function(o){ if(o) Object.assign(ST,o); if(!ST.seed) ST.seed=((Math.random()*1e9)|0)||1; return build(); }, last:function(){ return LAST; }, st:ST, download:download, points:points, book:book, plan:plan, splitTracks:splitTracks};
 
-  const css='#wambPanel{margin:10px 0 14px;padding:14px 16px;border:1px solid var(--celadon,#9bb);border-radius:12px;background:var(--card,#fff);font-size:14px;line-height:1.6}#wambPanel .wr{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}#wambPanel .wl{min-width:92px;opacity:.75;font-size:13px}#wambPanel .wc{padding:5px 11px;border-radius:16px;border:1px solid var(--line,#ccd);background:transparent;cursor:pointer;font-size:13px;color:inherit}#wambPanel .wc.on{background:var(--accent,#55D6B0);border-color:var(--accent,#55D6B0);color:#fff}#wambPanel .wb{padding:8px 14px;border-radius:10px;border:1px solid var(--line,#ccd);cursor:pointer;font-size:14px;background:transparent;color:inherit}#wambPanel .wb.go{background:var(--accent,#55D6B0);color:#fff;border-color:var(--accent,#55D6B0)}#wambInfo{opacity:.8;font-size:13px;margin-top:8px}body.wamb-on .song-area,body.wamb-on #instFold{display:none!important}';
+  const css='#wambPanel{margin:10px 0 14px;padding:14px 16px;border:1px solid var(--celadon,#9bb);border-radius:12px;background:var(--card,#fff);font-size:14px;line-height:1.6}#wambPanel .wr{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}#wambPanel .wl{min-width:92px;opacity:.75;font-size:13px}#wambPanel .wc{padding:5px 11px;border-radius:16px;border:1px solid var(--line,#ccd);background:transparent;cursor:pointer;font-size:13px;color:inherit}#wambPanel .wc.on{background:var(--accent,#55D6B0);border-color:var(--accent,#55D6B0);color:#fff}#wambPanel .wb{padding:8px 14px;border-radius:10px;border:1px solid var(--line,#ccd);cursor:pointer;font-size:14px;background:transparent;color:inherit}#wambPanel .wb.go{background:var(--accent,#55D6B0);color:#fff;border-color:var(--accent,#55D6B0)}#wambInfo{opacity:.8;font-size:13px;margin-top:8px}body.wamb-on .song-area,body.wamb-on #instFold{display:none!important}#gchipRow.wamb-yoga .gchip.on[data-g]{background:var(--card);color:var(--ink);border-color:var(--line)}#gchipRow.wamb-yoga #yogaChip{background:var(--celadon-deep);color:#fff;border-color:var(--celadon-deep)}';
   function chips(id,list,cur,fn){ return '<div class="wr"><span class="wl">'+id+'</span>'+list.map(function(x){ return '<button type="button" class="wc'+(String(x[0])===String(cur)?' on':'')+'" data-f="'+fn+'" data-v="'+x[0]+'">'+x[1]+'</button>'; }).join('')+'</div>'; }
   function render(){ const P=document.getElementById('wambPanel'); if(!P) return;
-    if(ST.use==='yoga'){ P.innerHTML='<b>웰니스 앰비언트</b>'+chips('용도',[['listen','감상'],['exhibit','전시 루프'],['yoga','동경요가 70분']],ST.use,'use')+'<div id="wambYoga"></div>'; yogaInto(document.getElementById('wambYoga')); return; }
+    if(ST.yoga){ P.innerHTML='<b>동경요가 70분</b>'+'<div id="wambYoga"></div>'; yogaInto(document.getElementById('wambYoga')); return; }
     const toneL=TONE_ORDER.map(function(k){ return [k, TONE[k].name+(k===SUB[ST.sub].tone?' (기본)':'')]; });
     const keyL=[['rnd','랜덤']].concat(NN.map(function(n,i){ return [i,KN[i]]; }));
     /* ★ 2026-10-21 형: 장르 칩(드론 우주 핸드팬 앰비언트)과 판의 세부 장르 칩이 같은 것을 두 번 고름 → 판에서는 뺌, 지금 장르 이름만 보임 */
-    P.innerHTML='<b>'+({cosmos:'우주 앰비언트',handpan:'핸드팬 앰비언트',drone:'드론 앰비언트'})[ST.sub]+'</b> <span style="opacity:.7;font-size:13px">명상 앱 호흡 앰비언트와 같은 패치 책, 팬 움직임, 가운데 흐름, 우주 효과, 뒤집힌 세계 (세부 장르는 위 장르 칩에서)</span>'
-      +chips('용도',[['listen','감상'],['exhibit','전시 루프'],['yoga','동경요가 70분']],ST.use,'use')
+    P.innerHTML='<b>'+({cosmos:'우주 앰비언트',handpan:'핸드팬 앰비언트',drone:'드론 앰비언트'})[ST.sub]+'</b> <span style="opacity:.7;font-size:13px">명상 앱 호흡 앰비언트와 같은 패치 책, 팬 움직임, 가운데 흐름, 우주 효과, 뒤집힌 세계</span>'
+      +chips('용도',[['listen','감상'],['exhibit','전시 루프']],ST.use,'use')
       +chips('길이',MINS[ST.use].map(function(m){ return [m,m+'분']; }),ST.min,'min')
       +chips('음색',toneL,ST.tone||SUB[ST.sub].tone,'tone')
       +chips('조',keyL,ST.key==null?'rnd':ST.key,'key')
@@ -31606,7 +31606,7 @@ window.__stageGuide=function(opt){ try{ opt=opt||{};
     if(!window.__YOGA.last()) window.__YOGA.make(); info(); }
   const GMAP={ambdrone:'drone', cosmos:'cosmos', handpan:'handpan'};
   function hideOld(on){ document.querySelectorAll('.song-area, #instFold').forEach(function(el){ if(on){ if(el.dataset.wambHid!=='1'){ el.dataset.wambHid='1'; el.dataset.wambDisp=el.style.display||''; el.style.display='none'; } } else if(el.dataset.wambHid==='1'){ el.style.display=el.dataset.wambDisp||''; el.dataset.wambHid=''; } }); }   /* 옛 방식(곡 만들기, 악기 세부)은 숨김 */
-  let userAct=0;
+  let userAct=0, yogaGo=false;
   function sync(){ const row=document.getElementById('gchipRow'); if(!row) return; const on=row.querySelector('.gchip.on'); const g=on&&on.getAttribute('data-g');
     let P=document.getElementById('wambPanel');
     const want=!!(g && GMAP[g] && Date.now()-userAct<4000) || (P && P.style.display!=='none' && g && GMAP[g]);
@@ -31614,18 +31614,20 @@ window.__stageGuide=function(opt){ try{ opt=opt||{};
     if(!P){ P=document.createElement('div'); P.id='wambPanel'; const sa=document.querySelector('.song-area'); (sa&&sa.parentNode?sa.parentNode:document.body).insertBefore(P, sa||null);
       P.addEventListener('click', function(e){ const b=e.target.closest&&e.target.closest('.wc'); if(!b) return; e.stopPropagation(); const f=b.getAttribute('data-f'), v=b.getAttribute('data-v'); stopPreview();
         if(f==='sub'){ ST.sub=v; ST.tone=null; const btn=document.querySelector('#gchipRow .gchip[data-g="'+({drone:'ambdrone',cosmos:'cosmos',handpan:'handpan'})[v]+'"]'); if(btn){ userAct=Date.now(); btn.click(); } }
-        else if(f==='use'){ ST.use=v; if(v!=='yoga' && MINS[v].indexOf(ST.min)<0) ST.min=MINS[v][Math.min(1,MINS[v].length-1)]; }
+        else if(f==='use'){ ST.use=v; if(MINS[v].indexOf(ST.min)<0) ST.min=MINS[v][Math.min(1,MINS[v].length-1)]; }
         else if(f==='min') ST.min=+v; else if(f==='tone') ST.tone=v; else if(f==='key') ST.key=(v==='rnd')?null:+v; else if(f==='lead'){ ST.lead=v; render(); return; } else if(f==='mid') ST.mid=+v; else if(f==='flip') ST.flip=(v==='1');
-        ST.pt=0; if(ST.use!=='yoga') build(); render(); }); }
+        ST.pt=0; if(!ST.yoga) build(); render(); }); }
     P.style.display=''; hideOld(true); const s2=GMAP[g]; if(ST.sub!==s2){ ST.sub=s2; ST.tone=null; LAST=null; }
-    if(ST.use!=='yoga' && (!LAST || LAST.pc.o.sub!==ST.sub)){ if(!ST.seed) ST.seed=((Math.random()*1e9)|0)||1; build(); } render(); }
+    /* ★ 2026-10-21 형: 위 세부 장르 줄이 위. 동경요가 칩을 고르면 그 칩만 켜진 것처럼 보이고(속은 핸드팬 장르 길), 장르 이름도 동경요가 */
+    row.classList.toggle('wamb-yoga', !!ST.yoga); const gs=document.getElementById('genreSum'); if(gs && ST.yoga && !/동경요가/.test(gs.textContent)) gs.textContent=gs.textContent.replace(/[^·]*$/,' 동경요가 70분');
+    if(!ST.yoga && (!LAST || LAST.pc.o.sub!==ST.sub)){ if(!ST.seed) ST.seed=((Math.random()*1e9)|0)||1; build(); } render(); }
   const boot=function(){ const row=document.getElementById('gchipRow'); if(!row){ setTimeout(boot,500); return; }
     if(!document.getElementById('wambCss')){ const st=document.createElement('style'); st.id='wambCss'; st.textContent=css; document.head.appendChild(st); }
-    row.addEventListener('click', function(e){ const b=e.target.closest&&e.target.closest('.gchip'); if(b && GMAP[b.getAttribute('data-g')]) userAct=Date.now(); }, true);
+    row.addEventListener('click', function(e){ const b=e.target.closest&&e.target.closest('.gchip'); if(b && b.getAttribute('data-g') && !yogaGo && ST.yoga){ ST.yoga=false; row.classList.remove('wamb-yoga'); setTimeout(function(){ userAct=Date.now(); sync(); },50); } if(b && GMAP[b.getAttribute('data-g')]) userAct=Date.now(); }, true);
     const gd=document.getElementById('genres'); if(gd) gd.addEventListener('change', function(){ userAct=Date.now(); }, true);
     try{ new MutationObserver(function(){ setTimeout(sync,0); }).observe(row,{childList:true, subtree:true, attributes:true, attributeFilter:['class']}); }catch(e){}
     /* 동경요가 칩은 이 판의 용도로 */
-    window.__wambYoga=function(){ const btn=document.querySelector('#gchipRow .gchip[data-g="handpan"]'); ST.use='yoga'; userAct=Date.now(); if(btn) btn.click(); else sync(); };
+    window.__wambYoga=function(){ const btn=document.querySelector('#gchipRow .gchip[data-g="handpan"]'); ST.yoga=true; userAct=Date.now(); yogaGo=true; try{ if(btn && !btn.classList.contains('on')) btn.click(); }finally{ yogaGo=false; } sync(); };
     sync(); };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else setTimeout(boot,0);
 })();
