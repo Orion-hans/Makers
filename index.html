@@ -29847,7 +29847,7 @@ window.__openApply=function(u8, ctx){ try{
       {n:'04', role:'Floor Drone', ko:'바닥 드론', inst:'Synthesizer/Pad/Meditation Drone', eq:[{b:1,hz:80},{b:7,hz:10000,db:3}], spread:1.3, space:-6, air:-4, cos:true},
       {n:'10', role:'Tingsha signal', ko:'띵샤 신호', inst:'Synthesizer/Bell/Shimmering Star Chimes', eq:[{b:1,hz:150},{b:7,hz:8000,db:-3}], spread:0.5, space:-6, air:-4, cos:true}]}}};
   const TONE_ORDER=['deep','mid','light','bright'];
-  const NN=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'], KN=['C','C#','D','E♭','E','F','F#','G','A♭','A','B♭','B'];
+  const NN=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'], KN0=['C','C#','D','E♭','E','F','F#','G','A♭','A','B♭','B'], KNF=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B']; let KN=KN0;   /* ★ 2026-10-22 프로그램 배경은 ♭ 조 시리즈라 D♭ G♭ 로 적음 */
   const mulberry=function(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
   const hashS=function(s){ let h=7; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))%2147483647; return h||7; };
   const mod=function(x){ return ((x%12)+12)%12; };
@@ -29883,7 +29883,19 @@ window.__openApply=function(u8, ctx){ try{
     /* ★ 2026-10-21 형: MIDI 로 최대한. 버스 오토메이션 대신 트랙(우주 울림, 뒤집힌 울림, 핸드팬 메아리) */
     cosl:{vol:50,pan:64,rev:110,ch:12,prog:94}, flipl:{vol:56,pan:64,rev:90,ch:13,prog:89}, hpe:{vol:84,pan:100,rev:80,ch:2,prog:114},
     /* ★ 2026-10-21 형: 드론 앰비언트 양금 자리에 가야금(25현) 거문고 */
-    gy:{vol:56,pan:104,rev:84,ch:14,prog:107}, gm:{vol:62,pan:104,rev:76,ch:15,prog:107}};
+    gy:{vol:56,pan:104,rev:84,ch:14,prog:107}, gm:{vol:62,pan:104,rev:76,ch:15,prog:107},
+    /* ★ 2026-10-22 형: 프로그램 배경 도입음(낮은 울림 = 팀파니, 아래 울림 = 서브 베이스) */
+    hit:{vol:84,pan:64,rev:70,ch:3,prog:47}, sub:{vol:70,pan:64,rev:20,ch:4,prog:38}};
+  /* ★ 2026-10-22 형: 용도 이름. 프로그램 배경(app) = 사운드오아시스 웰니스 콘텐츠 재생 프로그램의 대기 화면 루프. 시리즈(1~4편)가 조 템포 숨 열림닫힘 시각 닫힌 자리 화음을 같이 씀 */
+  const USEN={listen:'감상', exhibit:'전시 루프', app:'프로그램 배경'};
+  const isLoop=function(o){ return o.use==='exhibit' || o.use==='app'; };
+  const APP_CYC=150, APP_CLOSE=6;   /* 고리 하나 2분 30초, 닫힌 자리는 열린 자리보다 6dB 작게 */
+  /* 소리 로고(으뜸에서 반음 수, 5음 안). 도입음에서 크게, 편마다 닫힌 자리에서 아주 작게 */
+  const LOGOS=[[7,12,14,19],[0,7,14,16],[4,7,12,19],[7,14,12,19],[0,4,7,14],[9,7,12,16]];
+  const LOGON=['5 1 2 5 (오름)','1 5 2 3 (4도 5도)','3 5 1 5 (펼침)','5 2 1 5 (돌아 오름)','1 3 5 2 (화음)','6 5 1 3 (내려 오름)'];
+  function series(sseed){ const R=mulberry(hashS('wser|'+sseed)); const pk=function(a){ return a[Math.floor(R()*a.length)]; };
+    const li=Math.floor(R()*LOGOS.length);
+    return {seed:sseed, bpm:pk([51.2,54.4,57.6]), tonic:pk([10,3,8,1,6]), logo:LOGOS[li], logoName:LOGON[li]}; }   /* 템포는 2분 30초 = 32 34 36마디(짝수, 숨 = 두 마디). 조는 ♭ 조(국악기 선율도 편하게) */
   const VMAX=Math.max.apply(null,['pad','drone','hp','yg','pn','ting'].map(function(k){ return MIX[k].vol; }));
   const gainOf=function(k){ const g=Math.round(2*40*Math.log10(MIX[k].vol/VMAX))/2; return g<=-0.5?g:null; };
   const PANMOVE={pm:{a:6,p:89,ph:Math.PI/3}, hp:{a:12,p:53,ph:0}, tak:{a:12,p:53,ph:0}, yg:{a:12,p:67,ph:Math.PI/2}, sg:{a:12,p:67,ph:Math.PI/2}, kl:{a:12,p:67,ph:Math.PI/2}, ce:{a:12,p:67,ph:Math.PI/2}, pn:{a:10,p:79,ph:Math.PI}, nature:{a:8,p:97,ph:0}, bowl:{a:6,p:113,ph:Math.PI/4}, phase:{a:14,p:131,ph:Math.PI/6}, rev:{a:10,p:71,ph:Math.PI/2}, hpe:{a:14,p:53,ph:Math.PI}, gy:{a:12,p:67,ph:Math.PI/2}, gm:{a:12,p:67,ph:Math.PI/2}};
@@ -29905,7 +29917,8 @@ window.__openApply=function(u8, ctx){ try{
     {n:'25', role:'Handpan Echo', ko:'핸드팬 메아리', inst:'Kontakt > Pan Drums', from06:true, gain:null, eq:[{b:1,hz:100},{b:8,hz:4000}], spread:1.2, space:-12, air:null, cos:false, flip:false, key:'hpe'},
     {n:'26', role:'Gayageum', ko:'가야금', inst:'DecentSampler > Gayageum(25strings)', ds:'Gayageum(25strings)', gain:null, eq:[{b:1,hz:100},{b:7,hz:8000,db:-2}], spread:0.6, space:-12, air:null, cos:true, flip:false, key:'gy'},
     {n:'27', role:'Geomungo', ko:'거문고', inst:'DecentSampler > Geomungo', ds:'Geomungo', gain:null, eq:[{b:1,hz:50},{b:7,hz:6000,db:-3}], spread:0.5, space:-14, air:null, cos:false, flip:true, key:'gm'},
-    {n:'17', role:'Bass', ko:'베이스', inst:'Synthesizer/Bass/Deep Sub Bass', gain:null, eq:[{b:1,hz:30},{b:7,hz:3000,db:-6}], spread:0, space:-30, air:null, cos:false, flip:false, key:null}];
+    {n:'17', role:'Bass', ko:'베이스', inst:'Synthesizer/Bass/Deep Sub Bass', gain:null, eq:[{b:1,hz:30},{b:7,hz:3000,db:-6}], spread:0, space:-30, air:null, cos:false, flip:false, key:'sub'},
+    {n:'28', role:'Low Hit', ko:'낮은 울림', inst:'Orchestral/Percussion/Timpani', gain:null, eq:[{b:1,hz:35},{b:3,hz:120,db:2,q:1},{b:7,hz:5000,db:-3}], spread:0.3, space:-10, air:null, cos:false, flip:false, key:'hit'}];
   const XREC={npad:{name:'Sample Alchemy', alt:['Synthesizer/Soundscape/Breathable Atmosphere'], role:'Nature Pad', ko:'자연음 패드', why:'형이 녹음한 자연음을 Sample Alchemy 그래뉼러로 악기처럼. 앱이 화음음을 줘서 물과 바람이 화음이 됨'},
     otone:{name:'ES2', alt:['Retro Synth (사인파 하나)'], role:'Overtone Drone', ko:'배음 드론', why:'으뜸음의 배음(2 3 4 5 6 8배음)을 사인파로 하나씩 아주 천천히 켜고 끔. 같은 음인데 색이 바뀜'},
     chime:{name:'Synthesizer/Bell/Mellow Chimes', alt:['Synthesizer/Bell/Sweet Luck Chime','Synthesizer/Soundscape/Well Rested Chimes'], role:'Wind Chimes', ko:'풍경', why:'5음 작은 종이 바람 곡선 따라 흔들림(바람이 세면 몰려 울리고 잦아들면 하나씩). 종마다 자리가 정해져 있음'},
@@ -29918,10 +29931,12 @@ window.__openApply=function(u8, ctx){ try{
     hpe:{name:'Kontakt > Pan Drums', alt:[], role:'Handpan Echo', ko:'핸드팬 메아리', why:'핸드팬과 같은 악기. 쉼 앞 음이 박 자리에서 반대쪽으로 되울리며 사라짐(딜레이 버스 없이 MIDI 음)'},
     gy:{name:'DecentSampler > Gayageum(25strings)', alt:['Sampler > Strings/GaYaGeum (25-string) - DEMO_simple'], role:'Gayageum', ko:'가야금', why:'양금 대신(하나만 켜기). 25현, 현대적인 연주: 맑게 뜯는 Basic 위주, 첫 음 앞 싸랭, 꼭대기 긴 음 Tremolo, 추성 퇴성 농현은 가끔만'},
     gm:{name:'DecentSampler > Geomungo', alt:['Sampler > Strings/GeoMunGo - DEMO_simple'], role:'Geomungo', ko:'거문고', why:'양금 대신(하나만 켜기). 현대적인 연주: 첫 음 대점(술대로 세게), 가운데(조임)는 음 사이 화려한 잔가락(자출), 싸랭 추성 퇴성은 가끔만'},
-    tak:{name:'Kontakt > Pan Drums II/Hang Mk.1 (Slap)', alt:[], role:'Handpan Tak', ko:'핸드팬 탁', why:'같은 핸드팬의 탁 슬랩 고스트(손바닥과 손끝 타악 소리). 핸드팬과 같은 자리에서 같이 움직임'}};
+    tak:{name:'Kontakt > Pan Drums II/Hang Mk.1 (Slap)', alt:[], role:'Handpan Tak', ko:'핸드팬 탁', why:'같은 핸드팬의 탁 슬랩 고스트(손바닥과 손끝 타악 소리). 핸드팬과 같은 자리에서 같이 움직임'},
+    hit:{name:'Orchestral/Percussion/Timpani', alt:['Kontakt > True Strike 1 의 큰북(Gran Cassa) 계열','World/Percussion/Indonesian Gamelan Gongs'], role:'Low Hit', ko:'낮은 울림', why:'도입음의 뜨 든. 팀파니 한 번(두 번 울림은 5도 다음 으뜸). 아래 서브 베이스와 겹쳐 몸으로 느껴지는 낮은 울림'},
+    sub:{name:'Synthesizer/Bass/Deep Sub Bass', alt:['ES2 (사인파 하나, Glide 0)'], role:'Bass', ko:'아래 울림', why:'도입음의 낮은 울림 밑에 사인파 같은 서브 한 음(3초 안팎). 휴대폰 스피커에서는 안 들려도 이어폰과 큰 스피커에서 바닥이 됨'}};
   /* 패치 책 한 벌: 명상 앱 공통 05~13 + 플레이 14~17, 음색 줄은 그대로 */
   const book=(function(){ if(!BOOK) return null; const B=JSON.parse(JSON.stringify(BOOK));
-    const G={'06':'hp','07':'yg','08':'pn','09':'pm','11':'sg','12':'kl','13':'ce','14':'bowl','15':'spark','16':'tak','18':'npad','19':'otone','20':'chime','21':'phase','22':'rev','23':'cosl','24':'flipl','25':'hpe','26':'gy','27':'gm'};
+    const G={'06':'hp','07':'yg','08':'pn','09':'pm','11':'sg','12':'kl','13':'ce','14':'bowl','15':'spark','16':'tak','17':'sub','18':'npad','19':'otone','20':'chime','21':'phase','22':'rev','23':'cosl','24':'flipl','25':'hpe','26':'gy','27':'gm','28':'hit'};
     B.common=B.common.concat(XROWS.map(function(r){ const c=Object.assign({},r); delete c.key; return c; })).sort(function(a,z){ return a.n<z.n?-1:1; });
     B.common.forEach(function(r){ if(G[r.n]) r.gain=gainOf(G[r.n]); if(r.flip==null) r.flip=['07','11','12','13'].indexOf(r.n)>=0; });
     Object.keys(B.tones).forEach(function(k){ B.tones[k].rows.forEach(function(r){ r.flip=['02','10'].indexOf(r.n)>=0; }); });
@@ -29938,16 +29953,17 @@ window.__openApply=function(u8, ctx){ try{
       if(pick<0){ out.push([a,e]); break; } out.push([a,pick]); a=pick; } return out; }
 
   /* ───── 곡 짜기 ───── o: {sub, use('listen'|'exhibit'), min, tone, key(0~11|null), seed, pt, flip(bool), mid(dB)} */
-  function plan(o){ const S=SUB[o.sub], L=o.min*60, R=mulberry(hashS('wplan|'+o.seed)); const base=S.bpm*(0.95+R()*0.1);
+  function plan(o){ const S=SUB[o.sub], L=o.min*60, R=mulberry(hashS('wplan|'+o.seed)); const base=(o.use==='app' && o.sbpm)?o.sbpm:S.bpm*(0.95+R()*0.1);
     let pts, kind, bounds=[];
-    if(o.use==='exhibit'){ const K=Math.max(2,Math.round(L/300)); pts=[]; for(let i=0;i<=K;i++) pts.push(L*i/K); kind='loop'; bounds=pts.slice(1,-1); }
+    if(o.use==='app'){ const K=Math.max(1,Math.round(L/APP_CYC)); pts=[]; for(let i=0;i<=K;i++) pts.push(L*i/K); kind='loop'; bounds=pts.slice(1,-1); }   /* ★ 2026-10-22 프로그램 배경: 2분 30초 고리마다 마디줄, 템포는 시리즈 하나로 고정(편끼리 숨이 맞음) */
+    else if(o.use==='exhibit'){ const K=Math.max(2,Math.round(L/300)); pts=[]; for(let i=0;i<=K;i++) pts.push(L*i/K); kind='loop'; bounds=pts.slice(1,-1); }
     else if(L<240){ pts=[0,L]; kind='short'; }
     else if(L<=660){ pts=[0,60,L-60,L]; kind='one'; }
     else { const K=Math.max(2,Math.round((L-120)/420)); pts=[0,60]; for(let i=1;i<K;i++){ const x=Math.round(60+(L-120)*i/K); pts.push(x); bounds.push(x); } pts.push(L-60,L); kind='multi'; }   /* 마디줄에 맞추는 자리: 1:00, 편 경계, 끝 1분 전, 끝 (0:10 과 끝 10초 전은 표지만, 짧은 구간을 마디에 끼우면 템포가 튐) */
     const pieces=[0].concat(bounds).concat([L]);
     const pieceOf=function(t){ let p=0; for(let i=0;i<bounds.length;i++) if(t>=bounds[i]) p=i+1; return p; };
     const K=pieces.length-1, MV=[]; for(let i=0;i<K;i++) MV.push(K<2?1:(1-0.07*Math.pow(Math.sin(Math.PI*(i+0.5)/K),2)+(R()-0.5)*0.03));
-    const shape=function(t){ if(kind==='loop') return 1+0.02*Math.sin(2*Math.PI*t/300);
+    const shape=function(t){ if(o.use==='app') return 1; if(kind==='loop') return 1+0.02*Math.sin(2*Math.PI*t/300);
       const x=t/L; let f;
       if(kind==='multi'){ const p=pieceOf(t), a=pieces[p], b=pieces[p+1], u=(t-a)/Math.max(1,b-a);
         const C=pieces.slice(0,-1).map(function(x,i){ return (x+pieces[i+1])/2; }); let mv=MV[0]; if(t>=C[C.length-1]) mv=MV[MV.length-1]; else for(let i=0;i+1<C.length;i++){ if(t>=C[i] && t<C[i+1]){ mv=MV[i]+(MV[i+1]-MV[i])*sm((t-C[i])/(C[i+1]-C[i])); break; } }   /* 편 빠르기는 편 가운데 사이에서 서서히 */
@@ -29965,10 +29981,11 @@ window.__openApply=function(u8, ctx){ try{
     return {L:L, kind:kind, pts:pts, segs:segs, bounds:bounds, pieces:pieces, pieceOf:pieceOf, K:K, bars:bars, barSec:barSec, base:base}; }
 
   function compose(o){
-    const S=SUB[o.sub], PLN=plan(o), L=PLN.L, R0=mulberry(hashS('wamb|'+o.sub+'|'+o.seed)); { const MO=moments(PLN,o); PLN.cos=MO.cos; PLN.flips=MO.flips; PLN.breaks=MO.breaks; PLN.freeze=MO.freeze; }
+    const S=SUB[o.sub], PLN=plan(o), L=PLN.L, R0=mulberry(hashS('wamb|'+o.sub+'|'+o.seed)); { const MO=moments(PLN,o); PLN.cos=MO.cos; PLN.flips=MO.flips; PLN.breaks=MO.breaks; PLN.freeze=MO.freeze; PLN.hubs=MO.hubs||null; }
     const pick0=function(a){ return a[Math.floor(R0()*a.length)]; };
-    const palK=pick0(S.pals), P=PAL[palK];
-    const tonic=(o.key!=null)?o.key:pick0((o.sub==='drone')?[10,3,8,1,6,10,3,8]:[0,2,3,4,5,7,8,9]);   /* ★ 2026-10-21 형: 드론은 양금 가야금 거문고 생황(국악기)이 주 선율이라 국악기가 편한 ♭ 조(B♭ E♭ A♭ D♭ G♭, 조표 ♭ 둘~여섯). 다른 세부장르는 그대로 */
+    const palK=(o.use==='app')?pick0(S.pals.filter(function(k){ return k!=='ocean'; }).concat(S.pals.indexOf('space')<0?[]:['space'])):pick0(S.pals); let P=PAL[palK];   /* ★ 프로그램 배경: 시리즈가 섞여도 같은 5음(장조 쪽)만. 바다(도리안)는 뺌, 우주는 우주 쌓기를 조금 더 */
+    if(o.use==='app'){ const P2=Object.assign({},P); P2.ch=Object.assign({},P.ch); P2.ch[P.end]=[0,[0,7,14,16]]; P=P2; }   /* 닫힌 자리 화음은 색과 상관없이 한 가지 짜임(1 5 9 3, 열린 쌓기). 그래야 편끼리, 도입음 끝과 1편 처음이 같은 음 */
+    const tonic=(o.key!=null)?o.key:(o.use==='app' && o.stonic!=null)?o.stonic:pick0((o.sub==='drone')?[10,3,8,1,6,10,3,8]:[0,2,3,4,5,7,8,9]);   /* ★ 2026-10-21 형: 드론은 양금 가야금 거문고 생황(국악기)이 주 선율이라 국악기가 편한 ♭ 조(B♭ E♭ A♭ D♭ G♭, 조표 ♭ 둘~여섯). 다른 세부장르는 그대로 */
     const tone=o.tone||S.tone, TN=TONE[tone];
     const bars=PLN.bars, NBAR=bars.length, barSec=PLN.barSec;
     /* 숨 = 두 마디 (들숨 40%, 날숨 60%) */
@@ -29986,6 +30003,7 @@ window.__openApply=function(u8, ctx){ try{
         barKey.push(key); } }
     /* ★ 2026-10-21 형: 멈춘 시간(우주, 감상 4분 넘게). 곡 가운데 한 번 24초, 그동안 화음 하나에 머물고 선율과 포인트는 비움. 로직에서 Space 버스 ChromaVerb Freeze 를 켰다 끔 */
     if(PLN.freeze){ const fz=PLN.freeze[0]; let bf=0; for(let b=0;b<NBAR;b++) if(barSec[b]<=fz+1e-6) bf=b; for(let b=bf;b<NBAR && barSec[b]<fz+24;b++) barKey[b]=barKey[bf]; }   /* 멈춘 시간: 화음 하나에 머묾(자리는 moments 가 궤도 유영 가운데에) */
+    if(o.use==='app' && PLN.hubs){ for(let b=0;b<NBAR;b++){ const t=barSec[b]; if(PLN.hubs.some(function(h){ return t>=h[0]-1e-6 && t<h[1]-1e-6; })) barKey[b]=P.end; } }   /* ★ 닫힌 자리는 늘 으뜸 화음(시리즈 모든 편이 같은 음) */
     if(PLN.kind==='loop'){ /* 루프: 마지막 화음이 처음 화음으로 이어지게 끝 두 숨은 첫 화음의 앞 화음(딸림 쪽)이 아니라 첫 화음 그대로 */ const k0=barKey[0]; for(let b=Math.max(0,NBAR-4);b<NBAR;b++) barKey[b]=k0; }
     const slots=[]; for(let b=0;b<NBAR;b++){ const key=barKey[b]; const L0=slots[slots.length-1]; if(L0 && L0.key===key && b%2===0 && L0.end===b){ L0.end=b+1; continue; } if(L0 && L0.key===key && L0.end===b){ L0.end=b+1; continue; } slots.push({key:key, b:b, end:b+1}); }
     slots.forEach(function(s){ s.t=barSec[s.b]; s.dur=barSec[s.end]-s.t; s.b0=Math.floor(s.b/2); s.ch=P.ch[s.key]; s.name=s.key; });
@@ -30000,7 +30018,7 @@ window.__openApply=function(u8, ctx){ try{
     const clipToSlot=function(t,d){ const nx=slots.find(function(sl){ return sl.t>t+1e-6; }); return nx?Math.min(d, nx.t-t-0.02):d; };
     let rng=mulberry(hashS('wpt|'+o.sub+'|'+o.seed+'|'+(o.pt||0)));
     const hum=function(s){ return (rng()-0.5)*2*s; };
-    const CH=Object.assign({}, S.CH, {lo:S.CH.lo+(TN.lo||0), hi:S.CH.hi+(TN.hi||0)}); if(o.use==='exhibit') CH.rAdd+=1;
+    const CH=Object.assign({}, S.CH, {lo:S.CH.lo+(TN.lo||0), hi:S.CH.hi+(TN.hi||0)}); if(isLoop(o)) CH.rAdd+=1;
     const YO=CH.lo-62, T=L, C=SC.d[Math.min(2,N-1)]||8;
     /* ① 숨 패드: 음색 자리에 화음, 같은 음은 이어 붙임 */
     const P0=TN.pad[0], P1=TN.pad[1];
@@ -30185,7 +30203,7 @@ window.__openApply=function(u8, ctx){ try{
       if(!hit(h.midi)) continue; const cp=chordPcs(h.t), c=hpSet.filter(function(n){ return cp.has(mod(n)) && !hit(n); }); if(c.length) h.midi=nearestIn(c,h.midi); else handpan.splice(i,1); }
     /* ⑦ 띵샤(감상만), 싱잉볼(드론), 별빛 종(우주) */
     const tingNote=(function(){ let n=36+mod(tonic-36); if(n>43) n-=12; n+=(TN.ting||0); if(tone==='mid' && n<48) n+=12; return n; })();
-    const ting=[]; if(o.use!=='exhibit'){ const put=function(t,what){ ting.push({t:t, midi:tingNote, vel:what==='stay'||what==='intro'?70:64, decay:6, what:what}); };
+    const ting=[]; if(o.use==='listen'){ const put=function(t,what){ ting.push({t:t, midi:tingNote, vel:what==='stay'||what==='intro'?70:64, decay:6, what:what}); };
       if(PLN.kind==='short'){ put(10,'intro'); put(L-20,'fade'); }
       else { put(10,'intro'); put(60,'stay'); PLN.bounds.forEach(function(x){ put(x,'bridge'); }); put(L-60,'settle'); put(L-10,'fade'); } }
     const bowl=[]; if(o.use==='exhibit') PLN.flips.forEach(function(W){ bowl.push({t:W[0], midi:fold(tonic,48,59), vel:74, dur:16}); bowl.push({t:W[2], midi:fold(tonic+7,48,62), vel:60, dur:14}); });
@@ -30201,7 +30219,7 @@ window.__openApply=function(u8, ctx){ try{
         let keep=c.notes.slice(); while(keep.length>3){ let worst=null, wh=0; keep.forEach(function(n){ if(core.has(mod(n))) return; const h=hits(n); if(h>wh){ wh=h; worst=n; } }); if(worst==null) break; keep=keep.filter(function(n){ return n!==worst; }); }
         c.notes=keep; }); }
     /* 남은 반음(패드 뼈대음이나 앞 화음 울림 0.8초)은 선율 쪽을 화음음으로 고치거나 뺌 */
-    { const padHit=function(t,e,x){ return chords.some(function(c){ if(!(c.t<e-0.05 && c.t+c.dur+0.8>t+0.05)) return false; return c.notes.some(function(n){ const d=Math.abs(n-x); return d<=13 && (d%12===1||d%12===11); }); }); };
+    { const PHM=(o.use==='app')?-0.1:0.05; const padHit=function(t,e,x){ return chords.some(function(c){ if(!(c.t<e-0.05 && c.t+c.dur+0.8>t+PHM)) return false; return c.notes.some(function(n){ const d=Math.abs(n-x); return d<=13 && (d%12===1||d%12===11); }); }); };
       const fixL=function(Lx,endOf,pool){ for(let i=Lx.length-1;i>=0;i--){ const n=Lx[i], e=endOf(n); if(!padHit(n.t,e,n.midi)) continue; if(n.orn){ Lx.splice(i,1); continue; } const cp=chordPcs(n.t), c=pool(n).filter(function(x){ return cp.has(mod(x)) && !padHit(n.t,e,x); }); if(c.length) n.midi=nearestIn(c,n.midi); else Lx.splice(i,1); } };
       const near=function(n){ const a=[]; for(let x=n.midi-5;x<=n.midi+5;x++) a.push(x); return a; };
       fixL(yg,function(n){ return n.t+(n.dur||0); },near); fixL(pm,function(n){ return n.t+(n.dur||0); },near); fixL(pn,function(n){ return n.t+(n.dur||0); },near); fixL(handpan,function(n){ return n.t+Math.min(3,n.decay||3); },function(){ return hpSet; }); }
@@ -30318,7 +30336,7 @@ window.__openApply=function(u8, ctx){ try{
     handpan.sort(function(a2,z){ return a2.t-z.t; }); tak.sort(function(a2,z){ return a2.t-z.t; });
     /* 별빛 종(우주): 높은 자리에서 드문드문, 우주 효과가 열린 동안 조금 더 자주 */
     if(PLN.freeze){ const Z=PLN.freeze; [yg,SG,KL,CE,GY,GM,pn,pm].forEach(function(Lx){ for(let i=Lx.length-1;i>=0;i--){ const n=Lx[i]; if(n.t>=Z[0]-0.3 && n.t<Z[1]) Lx.splice(i,1); } }); ting.push({t:Z[1], midi:tingNote, vel:62, decay:6, what:'freeze'}); ting.sort(function(a,z){ return a.t-z.t; }); }
-    if(o.use==='exhibit') pn.length=0;   /* 전시는 피아노 캐논 대신 엇갈리는 반복 */
+    if(isLoop(o)) pn.length=0;   /* 전시와 프로그램 배경은 피아노 캐논 대신 엇갈리는 반복 */
     /* ★ 2026-10-21 형: 앰비언트 소리 아이디어. 자연음 패드(드론), 배음 드론(우주), 풍경(드론), 엇갈리는 반복(전시), 거꾸로 오는 소리(핸드팬) */
     const melAll=[].concat(yg,pn,pm,GY,GM);
     const padClash=function(t,e,m){ return chords.some(function(c){ return c.t<e && c.t+c.dur+0.8>t && c.notes.some(function(x){ const d=Math.abs(x-m); return d<=13 && (d%12===1||d%12===11); }); }); };
@@ -30337,21 +30355,29 @@ window.__openApply=function(u8, ctx){ try{
       while(t<t1m-4){ const w=wind(t); ix=Math.max(0,Math.min(SET.length-1,ix+(R()<0.5?-1:1)*(R()<0.3?2:1))); const m=SET[ix];
         if(okPc(mod(m),chordPcs(t)) && !melClash(t,t+3.5,m) && !padClash(t,t+3.5,m)) chime.push({t:t, midi:m, vel:Math.round(22+50*w+(R()-0.5)*8), dur:3.5, pan:24+Math.round(ix*80/Math.max(1,SET.length-1))});
         t+=(0.5+R())/(0.08+1.4*w); } }
-    const phz=[]; if(o.use==='exhibit'){ const R=mulberry(hashS('wph|'+o.seed+'|'+(o.pt||0))); const pool=ALLP.filter(function(n){ return n>=60 && n<=79; });
+    const phz=[]; if(isLoop(o)){ const R=mulberry(hashS('wph|'+o.seed+'|'+(o.pt||0))); const pool=ALLP.filter(function(n){ return n>=60 && n<=79; });
       [17.3,23.1,29.7,37.9].forEach(function(len0,li){ const len=len0*(0.95+R()*0.1), nn=1+Math.floor(R()*2), pat=[]; for(let j=0;j<nn;j++) pat.push({off:R()*len*0.7, m:pool[Math.floor(R()*pool.length)], v:40+R()*14});
         for(let s0=li*3.1;s0<L-3;s0+=len){ pat.forEach(function(pp){ const t=s0+pp.off; if(t>=L-3) return; let m=pp.m; const cp=chordPcs(t); if(!okPc(mod(m),cp)){ const c=pool.filter(function(x){ return okPc(mod(x),cp); }); if(!c.length) return; m=nearestIn(c,m); }
           if(melClash(t,t+4,m) || padClash(t,t+4,m)) return; phz.push({t:t, midi:m, vel:Math.round(pp.v+(R()-0.5)*6), dur:4}); }); } }); phz.sort(function(a,z){ return a.t-z.t; }); }
     const revs=[]; if(o.sub==='handpan'){ const R=mulberry(hashS('wrv|'+o.seed)); for(let k2=1;k2<slots.length;k2++){ const sl=slots[k2], pv=slots[k2-1]; if(sl.t<t0m+4 || sl.t>t1m-4 || R()>0.6) continue;
         const nxt=corePcsOf(sl.ch), prv=pcsOfCh(pv.ch); const c=[]; for(let m=67;m<=84;m++){ const pc=mod(m); if(!nxt.has(pc)) continue; if([...prv].some(function(x){ const d=Math.abs(x-pc); return d===1||d===11; })) continue; if(padClash(sl.t-2.2,sl.t,m) || melClash(sl.t-2.3,sl.t+0.1,m) || [].concat(SG,KL,CE,phz).some(function(n){ const d=Math.abs(n.midi-m)%12; return n.t<sl.t+0.1 && n.t+n.dur>sl.t-2.3 && (d===1||d===11); }) || phz.some(function(n){ const d=Math.abs(n.midi-m)%12; return n.t<sl.t+0.1 && n.t+n.dur>sl.t-2.3 && (d===1||d===11); })) continue; c.push(m); }
         if(c.length) revs.push({t:sl.t-2.2, midi:c[Math.floor(R()*c.length)], vel:64, dur:2.18}); } }
-    const spark=[]; if(S.spark || o.use==='exhibit'){ const R=mulberry(hashS('wsp|'+o.seed+'|'+(o.pt||0))); const mel=[].concat(yg,pn,pm,GY,GM);
+    const spark=[]; if(S.spark || isLoop(o)){ const R=mulberry(hashS('wsp|'+o.seed+'|'+(o.pt||0))); const mel=[].concat(yg,pn,pm,GY,GM);
       const SP=[]; for(let n=76;n<=96;n++) if(scale.has(mod(n))) SP.push(n);
       const open=function(t){ return (PLN.cos||[]).some(function(w){ return t>=w[0] && t<=w[3]; }); };
       let t=PLN.kind==='loop'?2:12, side=0, last=null;
       while(t<(PLN.kind==='loop'?L-3:L-12)){ if(!S.spark && !open(t)){ const nx=PLN.cos.find(function(w){ return w[0]>t; }); if(!nx) break; t=nx[0]+0.5; continue; } const cp=chordPcs(t); const c=SP.filter(function(m){ if(!okPc(mod(m),cp) || m===last) return false; return !mel.some(function(n){ return n.t<t+2.5 && n.t+n.dur>t && Math.abs(n.midi-m)%12===1; }) && !chords.some(function(c){ return c.t<t+2.5 && c.t+c.dur+0.8>t && c.notes.some(function(x){ const d=Math.abs(x-m); return d<=13 && (d%12===1||d%12===11); }); }); });
         if(c.length){ const m=c[Math.floor(R()*c.length)]; spark.push({t:t, midi:m, vel:Math.round(28+R()*16), dur:2.5, side:side}); side^=1; last=m; }
-        t+=(open(t)?(o.use==='exhibit'?0.55:1.2):2.6)+R()*(open(t)?(o.use==='exhibit'?0.9:1.6):3.4); } }   /* 전시는 우주가 열린 동안 별빛이 쏟아짐 */
+        t+=(open(t)?(isLoop(o)?0.55:1.2):2.6)+R()*(open(t)?(isLoop(o)?0.9:1.6):3.4); } }   /* 전시는 우주가 열린 동안 별빛이 쏟아짐 */
     if(PLN.freeze){ for(let i=spark.length-1;i>=0;i--){ if(spark[i].t>=PLN.freeze[0]-0.3 && spark[i].t<PLN.freeze[1]) spark.splice(i,1); } }
+    /* ★ 2026-10-22 프로그램 배경: 닫힌 자리(고리 처음과 끝)는 선율과 포인트가 다 쉬고 드론과 으뜸 화음만(완전 닫힘). 고리 처음 닫힌 자리에 소리 로고가 별빛 종으로 아주 작게 */
+    if(o.use==='app' && PLN.hubs){ const inH=function(t){ return PLN.hubs.some(function(h){ return t>=h[0]-0.3 && t<h[1]; }); };
+      PLN.hubs.forEach(function(h){ restIn(h[0]-0.3,h[1]); });
+      [otone,npad].forEach(function(Lx){ for(let i=Lx.length-1;i>=0;i--){ const n=Lx[i]; if(inH(n.t)) { const h=PLN.hubs.find(function(q){ return n.t>=q[0]-0.3 && n.t<q[1]; }); if(h && n.t+n.dur>h[1]+6){ const e=n.t+n.dur; n.t=h[1]+0.5; n.dur=e-n.t; } else Lx.splice(i,1); } else { const h=PLN.hubs.find(function(q){ return n.t<q[0] && n.t+n.dur>q[0]; }); if(h) n.dur=Math.max(3,h[0]-n.t); } } });   /* 배음 드론 자연음 패드도 닫힌 자리에서는 쉼(루프 이음매에서 울리던 음이 없게) */
+      [handpan,tak,phz,chime,revs,spark].forEach(function(Lx){ for(let i=Lx.length-1;i>=0;i--){ const n=Lx[i]; if(inH(n.t)) Lx.splice(i,1); else if(n.dur!=null){ const h=PLN.hubs.find(function(q){ return n.t<q[0]-0.3 && n.t+n.dur>q[0]-0.3; }); if(h) n.dur=Math.max(0.3,h[0]-0.3-n.t); } } });
+      const LG=o.logo||LOGOS[0], lb=fold(tonic,67,78);
+      PLN.pieces.slice(0,-1).forEach(function(a){ const bt=beatAt(a+1); LG.forEach(function(iv,j){ const last=(j===LG.length-1); spark.push({t:a+3+j*bt*0.5, midi:Math.min(99,lb+iv), vel:last?44:38, dur:last?3.5:Math.max(0.6,bt*0.5+0.2), side:j%2, logo:true}); }); });
+      spark.sort(function(a2,z){ return a2.t-z.t; }); }
     /* ★ 2026-10-21 형: MIDI 로 최대한. 우주 효과(Cosmos 버스 오토메이션) → 우주 울림 트랙, 뒤집힌 세계(Flip 버스) → 뒤집힌 울림 트랙, 딜레이 꼬리(Echo 버스) → 핸드팬 메아리 트랙.
        음은 화음의 뼈대음만, 그 화음에 반음 이웃이 있는 음은 안 씀, 다른 선율 포인트와 반음이면(13반음 안) 그 음은 뺌. 여닫이는 writeMidi 의 CC11 */
     const others=[].concat(yg,SG,KL,CE,pn,pm,spark,phz,chime,revs,otone,npad,GY,GM);
@@ -30387,6 +30413,14 @@ window.__openApply=function(u8, ctx){ try{
     const W4=function(a,op,hold,cl){ const s=snap(a); return [s, s+op, s+op+hold, s+op+hold+cl]; };
     const cos=[], flips=[], breaks=[], kinds=[]; let k=0;
     const regs=[];
+    /* ★ 2026-10-22 프로그램 배경: 고리(2분 30초)마다 닫힘 15초 → 열림 35초 → 다 열림 50초 → 닫힘 35초 → 완전 닫힘 15초. 열고 닫는 자리는 숨 첫머리.
+       뒤집힌 세계를 켜면 두 번째 고리마다 닫힘 끝에서 한 번 더 가라앉았다(어둡게) 닫힌 자리로. 고리 시각이 템포와 함께 시리즈 모든 편에 같음 */
+    if(use==='app'){ const hubs=[];
+      for(let p=0;p<PLN.K;p++){ const a=PLN.pieces[p], b=PLN.pieces[p+1], D=b-a;
+        const s0=snap(a+0.1*D), s3=Math.min(snap(a+0.9*D), snap(s0+0.8*D)); const W=[s0, s0+0.2333*D, s0+0.5667*D, s3]; if(W[2]>W[3]-0.15*D) W[2]=W[3]-0.2333*D;
+        cos.push(W); hubs.push([a,W[0]],[W[3],b]);
+        if(flipOn && p%2===1){ let f0=snap(W[2]+0.55*(W[3]-W[2])); if(f0<=W[2]+2) f0=snap(W[2]+0.75*(W[3]-W[2])); if(f0>W[2]+2 && f0<W[3]) flips.push([f0, f0+4, Math.min(W[3]+0.03*D,b-6), Math.min(W[3]+0.07*D,b-2)]); } }
+      return {cos:cos, flips:flips, breaks:breaks, freeze:null, hubs:hubs}; }
     if(use==='exhibit'){ for(let p=0;p<PLN.K;p++) regs.push([PLN.pieces[p]+12, PLN.pieces[p+1]-12, p]); }
     else { if(L>=150) cos.push([6,26,46,60]);
       const fin=(flipOn && L>=240)?[L-94,L-86,L-68,L-56]:null; const a=(L<240)?64:72, b=fin?L-108:(L<240?L-64:L-72);
@@ -30435,10 +30469,13 @@ window.__openApply=function(u8, ctx){ try{
   const winW=function(W,t){ if(t<=W[0]||t>=W[3]) return 0; return t<W[1]?sm((t-W[0])/(W[1]-W[0])):t<=W[2]?1:1-sm((t-W[2])/(W[3]-W[2])); };
   /* 흐름(페이더 배수). 감상: 0:10 까지 들어오기, 1:00 부터 음악 -D 자연음 올라옴, 끝 1분 전 되돌아옴, 끝 10초 사라짐. 여러 편이면 편 가운데에서 음악이 조금 올라옴 */
   function flowPlan(PLN, use, D, flips){ const L=PLN.L; flips=flips||[]; if(use==='exhibit') return {loop:true, D:0, flips:flips, flip:flips[0]||null, dip:10};
+    if(use==='app') return {loop:true, app:true, D:0, flips:flips, flip:flips[0]||null, dip:8, closeW:PLN.cos||[], closeDb:APP_CLOSE};   /* ★ 프로그램 배경: 닫힌 자리는 음악이 6dB 작게(자연음은 그대로) */
     if(PLN.kind==='short') return {D:0, DN:0, fi:10, fo0:L-10, fo1:L, flips:flips, flip:flips[0]||null, dip:FLIP_DIP};
     return {D:D, DN:D?20+NAT_DB:0, a:60, b:80, c:L-60, d:L-40, fi:10, fo0:L-10, fo1:L, flips:flips, flip:flips[0]||null, dip:FLIP_DIP, PLN:PLN}; }
   function flowFac(F,t,nat,fl){ let db=0;
-    if(F.loop){ if(fl && F.flips && F.flips.length){ let w=0; F.flips.forEach(function(W){ w=Math.max(w,winW(W,t)); }); db-=(F.dip||FLIP_DIP)*w; } return Math.pow(10,db/40); }
+    if(F.loop){ if(fl && F.flips && F.flips.length){ let w=0; F.flips.forEach(function(W){ w=Math.max(w,winW(W,t)); }); db-=(F.dip||FLIP_DIP)*w; }
+      if(F.closeW && !nat){ let w=0; F.closeW.forEach(function(W){ w=Math.max(w,winW(W,t)); }); db-=F.closeDb*(1-w); }
+      return Math.pow(10,db/40); }
     if(F.D){ let w=0; if(t<=F.a||t>=F.d) w=0; else if(t<F.b) w=sm((t-F.a)/(F.b-F.a)); else if(t<=F.c) w=1; else w=1-sm((t-F.c)/(F.d-F.c));
       let arch=0; if(F.PLN && F.PLN.kind==='multi' && t>F.b && t<F.c){ const p=F.PLN.pieceOf(t), a=Math.max(F.b,F.PLN.pieces[p]), z=Math.min(F.c,F.PLN.pieces[p+1]); arch=Math.pow(Math.sin(Math.PI*Math.max(0,Math.min(1,(t-a)/Math.max(1,z-a)))),2); }
       db=nat?(-(F.DN||F.D)*(1-w)-4*arch):(-F.D*w*(1-0.5*arch)); }
@@ -30465,13 +30502,14 @@ window.__openApply=function(u8, ctx){ try{
     const tracks=[];
     /* 지휘 */
     { const ev=[]; ev.push({t:0,o:0,b:meta(0x03,'Conductor')}); ev.push({t:0,o:1,b:[0xFF,0x58,0x04,4,2,24,8]});
-      const SF={0:0,7:1,2:2,9:3,4:4,11:5,6:6,1:-5,8:-4,3:-3,10:-2,5:-1}; const maj=(pc.palK==='ocean')?mod(pc.tonic+10):pc.tonic; ev.push({t:0,o:2,b:[0xFF,0x59,0x02,((SF[maj]||0)+256)&255,0]});
+      const SF={0:0,7:1,2:2,9:3,4:4,11:5,6:6,1:-5,8:-4,3:-3,10:-2,5:-1}; const maj=(pc.palK==='ocean')?mod(pc.tonic+10):pc.tonic; const sf=(o.use==='app' && maj===6)?-6:(SF[maj]||0); ev.push({t:0,o:2,b:[0xFF,0x59,0x02,(sf+256)&255,0]});
       const us=function(b){ return Math.round(60e6/b); }; let lastUs=us(bars[0].bpm); ev.push({t:0,o:3,b:[0xFF,0x51,0x03,(lastUs>>16)&255,(lastUs>>8)&255,lastUs&255]});
       let want=0, got=0; bars.forEach(function(b,i){ let u=us(b.bpm); want+=240e6/b.bpm; got+=4*u; const segEnd=(i===NB-1)||bars[i+1].seg!==b.seg; if(segEnd){ u+=Math.round((want-got)/4); want=got=0; } if(u!==lastUs){ ev.push({t:PRE*BAR+i*BAR,o:3,b:[0xFF,0x51,0x03,(u>>16)&255,(u>>8)&255,u&255]}); lastUs=u; } });
-      const S=pc.S; ev.push({t:0,o:4,b:meta(0x01,'[웰니스 앰비언트] '+S.name+', '+({listen:'감상',exhibit:'전시 루프'})[o.use]+' '+o.min+'분, '+KN[pc.tonic]+' '+pc.P.name+', 음색 '+TONE[pc.tone].name+', '+Math.round(PLN.base)+' BPM 안팎, 4/4, 한 숨 = 두 마디')});
+      const S=pc.S; ev.push({t:0,o:4,b:meta(0x01,'[웰니스 앰비언트] '+S.name+', '+USEN[o.use]+(o.use==='app'?' 시리즈 '+(o.sseed%10000)+' '+o.part+'편':'')+' '+o.min+'분, '+KN[pc.tonic]+' '+pc.P.name+', 음색 '+TONE[pc.tone].name+', '+Math.round(PLN.base)+' BPM 안팎, 4/4, 한 숨 = 두 마디')});
       ev.push({t:0,o:5,b:meta(0x06,'여백 (두 마디)')});
       const mk=function(t,s){ ev.push({t:tk(t),o:6,b:meta(0x06,s)}); };
-      if(o.use==='exhibit'){ mk(0,'▶ 시작 루프'); PLN.bounds.forEach(function(x,i){ mk(x,'◎ 가운데 흐름: 편 '+(i+2)); }); }
+      if(o.use==='app'){ mk(0,'▶ 시작 루프 (닫힌 자리, 이음 자리 1)'); PLN.bounds.forEach(function(x,i){ mk(x,'◎ 이음 자리 '+(i+2)+' (닫힌 자리, 시리즈 모든 편이 같은 상태)'); }); PLN.cos.forEach(function(W){ mk(W[1],'◎ 다 열림'); mk(W[3],'◎ 완전 닫힘'); }); }
+      else if(o.use==='exhibit'){ mk(0,'▶ 시작 루프'); PLN.bounds.forEach(function(x,i){ mk(x,'◎ 가운데 흐름: 편 '+(i+2)); }); }
       else { mk(0,'▶ 시작 인트로'); mk(10,'◎ 띵샤 (첫 숨, 숨 스웰 시작)');
         if(PLN.kind==='short') mk(L-20,'◎ 띵샤 (끝 인사)');
         else { mk(60,o.mid?'◎ 띵샤 (음악 -'+o.mid+'dB 로 내려감, 자연음 올라옴)':'◎ 띵샤 (음악 본편)'); PLN.bounds.forEach(function(x,i){ mk(x,'◎ 띵샤 (편 '+(i+2)+')'); }); mk(L-60,o.mid?'◎ 띵샤 (음악 되돌아옴, 자연음 작아짐)':'◎ 띵샤 (음악 되돌아옴, 끝 우주)'); }
@@ -30503,12 +30541,13 @@ window.__openApply=function(u8, ctx){ try{
     const panMove=function(ev,ch,key){ for(let t=0;t<=L+TAIL+1e-6;t+=0.5) ev.push(cc(ch,tk(t),10,panAt(key,t))); };
     const pedal=function(ev,ch,Lx,rel){ const W=[]; Lx.forEach(function(n){ const Q=W[W.length-1]; if(Q && n.t<=Q[1]+0.5) Q[1]=Math.max(Q[1],n.t+n.dur); else W.push([n.t,n.t+n.dur]); });
       W.forEach(function(w){ ev.push(cc(ch,Math.max(0,tk(w[0])-24),64,100)); pc.slots.forEach(function(sl){ if(sl.t>w[0]+0.05 && sl.t<w[1]){ ev.push(cc(ch,tk(sl.t)-12,64,0)); ev.push(cc(ch,tk(sl.t)+24,64,100)); } }); ev.push(cc(ch,tk(w[1]+rel),64,0)); }); };
-    const loop=(o.use==='exhibit');
+    const loop=isLoop(o);
     /* 숨 패드 */
     { const ch=chOf('pad'), ev=head('pad','숨 패드. 두 마디 = 한 숨(들숨 40% 날숨 60%), CC11 스웰 36~100 과 CC7 이 숨 따라. 화음은 그 자리에서 바뀌고 같은 음은 이어 울림');
       const notes=[]; pc.chords.forEach(function(c){ c.notes.forEach(function(n){ const pv=notes.find(function(x){ return x.n===n && Math.abs(x.end-c.t)<1e-6; }); if(pv) pv.end=c.t+c.dur; else notes.push({n:n,s:c.t,end:c.t+c.dur}); }); });
       notes.forEach(function(x){ let e=x.end; if(e<L-1e-6){ const nx=notes.find(function(y){ return y.n===x.n && y.s>x.s; }); e=Math.min(e+0.8, nx?nx.s-0.05:e+0.8); } else e=L+TAIL; ev.push(on(ch,tk(x.s),x.n,68)); ev.push(off(ch,tk(e),x.n)); });
-      grid().forEach(function(t){ let v=36+64*Math.pow(pc.phase(t),1.2); if(o.use==='exhibit' || o.sub==='cosmos'){ let w=0; PLN.cos.forEach(function(W){ w=Math.max(w,winW(W,t)); }); v=v*(1-w)+(78+22*pc.phase(t))*w; } ev.push(cc(ch,tk(t),11,Math.round(v))); });   /* 전시: 우주가 열린 동안 숨 패드가 꽉 차게 피어남 */
+      grid().forEach(function(t){ let v=36+64*Math.pow(pc.phase(t),1.2); if(o.use==='app'){ let w=0; PLN.cos.forEach(function(W){ w=Math.max(w,winW(W,t)); }); v=(30+30*Math.pow(pc.phase(t),1.2))*(1-w)+(80+22*pc.phase(t))*w; }   /* ★ 프로그램 배경: 닫힌 자리는 숨 패드가 얕게, 열리면 꽉 차게 */
+        else if(o.use==='exhibit' || o.sub==='cosmos'){ let w=0; PLN.cos.forEach(function(W){ w=Math.max(w,winW(W,t)); }); v=v*(1-w)+(78+22*pc.phase(t))*w; } ev.push(cc(ch,tk(t),11,Math.round(v))); });   /* 전시: 우주가 열린 동안 숨 패드가 꽉 차게 피어남 */
       ev.forEach(function(e){ if(e.b[0]===(0xB0|ch) && e.b[1]===7 && e.t===0 && e.o===3) e.b[2]=VMAX; });
       const g=MIX.pad.vol/VMAX; flowCurve(ev,ch,'pad',90,Math.round(50*g),Math.round(90*g)); tracks.push(chunk(ev)); }
     /* 숨 쉬는 드론 */
@@ -30565,7 +30604,7 @@ window.__openApply=function(u8, ctx){ try{
       P.forEach(function(n){ ev.push(on(ch,tk(n.t),n.midi,n.vel)); ev.push(off(ch,tk(n.t+n.dur),n.midi)); }); ev.push(cc(ch,0,11,96)); pedal(ev,ch,P,0.6);
       panMove(ev,ch,'pm'); flowCurve(ev,ch,'pm',90); tracks.push(chunk(ev)); }
     /* 별빛 종 */
-    if(pc.ev.spark.length){ const ch=chOf('spark'), ev=head('spark','별빛 종. 높은 자리에서 드문드문, 음마다 왼쪽 오른쪽 번갈아(팬이 음마다 바뀜). 우주 효과가 열린 동안 조금 더 자주');
+    if(pc.ev.spark.length){ const ch=chOf('spark'), ev=head('spark','별빛 종. 높은 자리에서 드문드문, 음마다 왼쪽 오른쪽 번갈아(팬이 음마다 바뀜). 우주 효과가 열린 동안 조금 더 자주'+(o.use==='app'?'. 고리 처음 닫힌 자리마다 도입음의 소리 로고('+(o.logoName||'')+')가 아주 작게':''));
       for(let q=ev.length-1;q>=0;q--){ if(ev[q].b[0]===(0xB0|ch) && ev[q].b[1]===10) ev.splice(q,1); }
       pc.ev.spark.forEach(function(n){ ev.push(cc(ch,tk(n.t)-6,10,n.side?100:28)); ev.push(on(ch,tk(n.t),n.midi,n.vel)); ev.push(off(ch,tk(n.t+n.dur),n.midi)); });
       flowCurve(ev,ch,'spark',90); tracks.push(chunk(ev)); }
@@ -30592,7 +30631,7 @@ window.__openApply=function(u8, ctx){ try{
     if(pc.ev.cosl.length){ const ch=chOf('cosl'), ev=head('cosl','우주 울림. 우주 효과 자리('+PLN.cosL.map(function(W){ return amm(W[0])+'~'+amm(W[3]); }).join(', ')+')에서 화음 뼈대음이 한 옥타브 위로 열리고, 다 열린 동안 맨 위에 으뜸음 하나가 더 얹힘. CC11 이 여닫이(0 에서 127), 패치 안 ChromaVerb 12초 울림');
       pc.ev.cosl.forEach(function(n){ ev.push(on(ch,tk(n.t),n.midi,n.vel)); ev.push(off(ch,tk(n.t+n.dur),n.midi)); });
       let pv=-1; for(let t=0;t<=L+1e-6;t+=0.25){ const r=Math.round(127*Math.pow(winMax(PLN.cosL,t),0.8)); if(r!==pv){ ev.push(cc(ch,tk(t),11,r)); pv=r; } }
-      const lv=(o.use==='exhibit')?-1:-4; flowCurve(ev,ch,'cosl',Math.min(127,90*Math.pow(10,(lv+4)/40))); tracks.push(chunk(ev)); }
+      const lv=(o.use==='exhibit')?-1:(o.use==='app')?-2:-4; flowCurve(ev,ch,'cosl',Math.min(127,90*Math.pow(10,(lv+4)/40))); tracks.push(chunk(ev)); }
     if(pc.ev.flipl.length){ const ch=chOf('flipl'), FL=PLN.flips||[]; const ev=head('flipl','뒤집힌 울림. 뒤집힌 세계 자리('+FL.map(function(W){ return amm(W[0])+'~'+amm(W[3]); }).join(', ')+')에서 화음 뼈대음이 한 옥타브 아래로 가라앉고, CC11 이 마디마다 거꾸로 부풀었다 뚝 끊김(거꾸로 울림). 그동안 음악은 '+(F.dip||FLIP_DIP)+'dB 내려감');
       pc.ev.flipl.forEach(function(n){ ev.push(on(ch,tk(n.t),n.midi,n.vel)); ev.push(off(ch,tk(n.t+n.dur),n.midi)); });
       const barOf=function(t){ let lo=0, hi=NB-1; while(lo<hi){ const m=(lo+hi+1)>>1; if(barSec[m]<=t) lo=m; else hi=m-1; } return lo; };
@@ -30609,7 +30648,7 @@ window.__openApply=function(u8, ctx){ try{
     const hdr=[0x4D,0x54,0x68,0x64,0,0,0,6,0,1,(tracks.length>>8)&255,tracks.length&255,(PPQ>>8)&255,PPQ&255];
     let bytes=hdr.slice(); tracks.forEach(function(tr){ for(let i=0;i<tr.length;i++) bytes.push(tr[i]); });
     let u8=new Uint8Array(bytes);
-    try{ window.__STAGE_CTX={app:'medi', amb5:true, wamb:true, loop:o.use==='exhibit'}; if(window.__midiSafety) u8=window.__midiSafety(u8); }catch(e){ window.__wambErr=String(e&&e.stack||e); }
+    try{ window.__STAGE_CTX={app:'medi', amb5:true, wamb:true, loop:isLoop(o)}; if(window.__midiSafety) u8=window.__midiSafety(u8); }catch(e){ window.__wambErr=String(e&&e.stack||e); }
     return {u8:u8, F:F, preSec:PRE*240/bars[0].bpm, TAIL:TAIL}; }
 
   function recFor(key, pc){ const tk=pc.tone, TN=TONE[tk];
@@ -30623,16 +30662,26 @@ window.__openApply=function(u8, ctx){ try{
 
   /* ───── 셋업 시트(txt) ───── */
   function sheet(pc, W){ const o=pc.o, S=pc.S, PLN=pc.PLN, L=pc.L, F=W.F, Lx=[];
-    Lx.push('[웰니스 앰비언트] '+S.name+' '+({listen:'감상',exhibit:'전시 루프'})[o.use]+' '+o.min+'분 제작 가이드');
+    Lx.push('[웰니스 앰비언트] '+S.name+' '+USEN[o.use]+(o.use==='app'?' 시리즈 '+(o.sseed%10000)+' '+o.part+'편':'')+' '+o.min+'분 제작 가이드');
     Lx.push('');
     Lx.push('조성   : '+KN[pc.tonic]+' '+pc.P.name+'. 선율은 5음('+pc.P.pent.map(function(x){ return KN[mod(pc.tonic+x)]; }).join(' ')+')');
     Lx.push('성격   : '+S.txt);
-    Lx.push('템포   : '+Math.round(PLN.base)+' BPM 안팎, 4/4, 한 숨 = 두 마디(약 '+pc.SC.d[0].toFixed(1)+'초). 마디마다 템포가 조금씩 움직임(템포 트랙). 로직에서 템포를 바꾸지 마세요. 앞 두 마디는 편집 여백');
-    const tw=PLN.bars.map(function(b){ return b.bpm; }); Lx.push('         가장 느림 '+Math.min.apply(null,tw).toFixed(1)+', 가장 빠름 '+Math.max.apply(null,tw).toFixed(1)+' BPM');
+    if(o.use==='app') Lx.push('템포   : '+PLN.base.toFixed(1)+' BPM 고정(시리즈 모든 편과 도입음이 같음), 4/4, 한 숨 = 두 마디(약 '+pc.SC.d[0].toFixed(2)+'초). 2분 30초 고리 = '+Math.round(APP_CYC*PLN.base/240)+'마디. 앞 두 마디는 편집 여백');
+    else { Lx.push('템포   : '+Math.round(PLN.base)+' BPM 안팎, 4/4, 한 숨 = 두 마디(약 '+pc.SC.d[0].toFixed(1)+'초). 마디마다 템포가 조금씩 움직임(템포 트랙). 로직에서 템포를 바꾸지 마세요. 앞 두 마디는 편집 여백');
+    const tw=PLN.bars.map(function(b){ return b.bpm; }); Lx.push('         가장 느림 '+Math.min.apply(null,tw).toFixed(1)+', 가장 빠름 '+Math.max.apply(null,tw).toFixed(1)+' BPM'); }
     Lx.push('음색   : '+TONE[pc.tone].name+' (패치 책 음색 줄 SO '+TONE[pc.tone].name+' 02 03 04 10)');
     Lx.push('');
     Lx.push('■ 구조');
-    if(o.use==='exhibit'){ Lx.push('   전시 루프 '+o.min+'분. 처음과 끝이 같은 화음 같은 크기라 되풀이 재생하면 이음매가 안 들림. 들어오기 사라지기 없음, 띵샤 없음'); PLN.pieces.slice(0,-1).forEach(function(x,i){ Lx.push('   '+amm(x)+'  편 '+(i+1)+(i===0?' (루프 시작)':'')); }); Lx.push('   '+amm(L)+'  루프 끝 = 처음'); }
+    if(o.use==='app'){ Lx.push('   프로그램 배경 '+o.min+'분 루프. 2분 30초 고리 '+PLN.K+'개, 고리마다 우주가 열렸다가 완전히 닫힘. 루프 이음매(0:00 = '+amm(L)+')는 늘 완전히 닫힌 자리라 되풀이해도 안 들림. 띵샤 없음');
+      PLN.cos.forEach(function(W,i){ const a=PLN.pieces[i]; Lx.push('   '+amm(a)+'  고리 '+(i+1)+' 닫힌 자리 (드론과 으뜸 화음만, 소리 로고 아주 작게)'); Lx.push('   '+amm(W[0])+'  열림 시작'); Lx.push('   '+amm(W[1])+'  다 열림 (별빛 종 쏟아짐, 숨 패드 꽉 참)'); Lx.push('   '+amm(W[2])+'  닫힘 시작'); Lx.push('   '+amm(W[3])+'  완전 닫힘 (선율 쉼)'+((PLN.flips||[]).some(function(F2){ return F2[0]<W[3] && F2[3]>W[3]; })?', 그 앞뒤로 한 번 어둡게 가라앉음(뒤집힌 세계)':'')); });
+      Lx.push('   '+amm(L)+'  루프 끝 = 처음');
+      Lx.push(''); Lx.push('■ 시리즈 이음 (화면이 바뀌어도 이어지게)');
+      Lx.push('   시리즈 '+(o.sseed%10000)+' 의 모든 편(1~4편)이 같음: 조 '+KN[pc.tonic]+', 템포 '+PLN.base.toFixed(1)+' BPM 고정, 한 숨 '+pc.SC.d[0].toFixed(2)+'초, 고리 시각(이음 자리 '+PLN.pieces.slice(0,-1).map(amm).join(' ')+'), 닫힌 자리 화음('+pc.chords[0].notes.map(mname).join(' ')+' 의 음 이름), 드론 '+mname(pc.dr)+' '+mname(pc.dr+7)+', 소리 로고 '+(o.logoName||''));
+      Lx.push('   편마다 다른 것: 화음 진행, 선율(주제), 별빛 종 자리, 색(우주 쌓기 또는 장조). 세부 장르(우주 핸드팬 드론)를 편마다 바꿔도 이음은 그대로');
+      Lx.push('   이음 방법 1 (가장 매끄러움): 화면이 바뀌면 새 편을 지금 재생 시각 그대로 이어 틀고 3초 크로스페이드. 숨과 열림 닫힘이 끊기지 않음');
+      Lx.push('   이음 방법 2 (간단): 새 편을 처음(0:00, 닫힌 자리)부터 틀고 3~4초 크로스페이드. 같은 조 같은 5음이라 어느 자리에서 바뀌어도 부딪히지 않음');
+      Lx.push('   이음 방법 3 (정확): 다음 이음 자리('+PLN.pieces.slice(1,-1).map(amm).concat([amm(L)+'=0:00']).join(', ')+')까지 기다렸다가 그 자리에서 바꿈. 모든 편이 같은 닫힌 소리라 바뀐 줄 모름'); }
+    else if(o.use==='exhibit'){ Lx.push('   전시 루프 '+o.min+'분. 처음과 끝이 같은 화음 같은 크기라 되풀이 재생하면 이음매가 안 들림. 들어오기 사라지기 없음, 띵샤 없음'); PLN.pieces.slice(0,-1).forEach(function(x,i){ Lx.push('   '+amm(x)+'  편 '+(i+1)+(i===0?' (루프 시작)':'')); }); Lx.push('   '+amm(L)+'  루프 끝 = 처음'); }
     else { Lx.push('   0:00  인트로 (자연음 1초 만에 들어와 0:10 까지 서서히 작아짐, 음악 차오름)'); Lx.push('   0:10  첫 숨, 띵샤');
       if(PLN.kind!=='short'){ Lx.push(o.mid?'   1:00  음악 -'+o.mid+'dB 로 내려가고 자연음 올라옴, 띵샤':'   1:00  본편, 띵샤'); PLN.bounds.forEach(function(x,i){ Lx.push('   '+amm(x)+'  편 '+(i+2)+', 띵샤 (화음 진행이 바뀜, 편 가운데에서 음악이 조금 올라왔다 내려감)'); }); Lx.push('   '+amm(L-60)+'  되돌아옴, 띵샤'); }
       Lx.push('   '+amm(L-10)+'  사라짐'+(PLN.kind==='short'?'':', 띵샤')); Lx.push('   '+amm(L)+'  음 끝, 여운 '+Math.round(W.TAIL)+'초'); }
@@ -30648,19 +30697,20 @@ window.__openApply=function(u8, ctx){ try{
       Lx.push('   '+patchName(book.common.indexOf(r)>=0?null:pc.tone, r)+': '+(r.gain!=null?'Gain '+r.gain+'dB, ':'')+E+', Spread '+r.spread.toFixed(2)+', Space '+r.space+'dB'+(r.air!=null?', Air '+r.air+'dB':'')+(r.cos?', Cosmos '+COS_SEND+'dB':'')+(r.flip?', Flip '+FLIP_SEND+'dB(Pre Fader)':'')); });
     Lx.push('');
     Lx.push('■ 효과 (MIDI 에 들어 있음, 로직에서 할 일 없음)');
-    Lx.push('   구조   : '+FORM[o.sub]);
+    Lx.push('   구조   : '+(o.use==='app'?APPFORM:FORM[o.sub]));
     if((PLN.breaks||[]).length) Lx.push('   브레이크: '+PLN.breaks.map(function(B){ return amm(B[0])+'~'+amm(B[1])+(B[2]==='flip'?' 뒤집힘':' 우주'); }).join(', '));
     Lx.push('   우주 효과: 우주 울림 트랙이 '+PLN.cos.map(function(w){ return amm(w[0])+'~'+amm(w[3]); }).join(', ')+' 에 열림(화음이 한 옥타브 위로, CC11 여닫이)');
     F.flips.forEach(function(W,k){ Lx.push('   뒤집힌 세계'+(F.flips.length>1?' '+(k+1):'')+': 뒤집힌 울림 트랙이 '+amm(W[0])+' 부터 열려 '+amm(W[1])+'~'+amm(W[2])+' 머물고 '+amm(W[3])+' 에 닫힘. 그동안 MIDI 페이더가 음악을 '+(F.dip||FLIP_DIP)+'dB 더 내림'+(o.use==='exhibit'?', 선율은 쉬고 싱잉볼이 들어가고 돌아오는 자리에서 울림':'')); });
     if(PLN.freeze) Lx.push('   멈춘 시간: '+amm(PLN.freeze[0])+'~'+amm(PLN.freeze[1])+' 숨(CC11 CC7)이 그 자리에 멈추고 화음 하나에 머묾, 선율과 포인트는 비고 우주 울림이 화음을 붙듦. '+amm(PLN.freeze[1])+' 띵샤와 함께 풀려 3초에 걸쳐 다시 숨 쉼');
     if(pc.ev.hpe.length) Lx.push('   딜레이 꼬리: 핸드팬 메아리 트랙(한 박 넘게 쉬기 전 핸드팬 음이 점 8분, 점 4분 뒤 반대쪽에서 되울림). 칼림바 첼레스타는 악구 끝 음이 같은 트랙 안에서 두 번 되울림');
     Lx.push('   안 쓰려면 그 트랙 M. 크기는 그 트랙 Gain(1번 칸)으로(페이더는 MIDI 가 움직임). Bus 3 Cosmos, Bus 4 Flip Aux 가 생겨 있으면 M(뮤트)');
-    if(o.use==='exhibit'){ Lx.push(''); Lx.push('■ 전시 루프 바운스'); Lx.push('   1) 로직 사이클을 1마디(여백 뒤 첫 마디, 루프 시작)부터 "루프 끝" 마커까지. 2) 그 길이로 바운스(꼬리 없이)와, 끝을 12초 더 길게 한 바운스 둘. 3) 긴 쪽의 마지막 12초(꼬리)를 짧은 쪽 맨 앞에 겹쳐 놓고(믹스) 하나로. 그러면 되풀이할 때 울림이 끊기지 않음'); }
+    if(isLoop(o)){ Lx.push(''); Lx.push(o.use==='app'?'■ 프로그램 배경 바운스':'■ 전시 루프 바운스'); Lx.push('   1) 로직 사이클을 1마디(여백 뒤 첫 마디, 루프 시작)부터 "루프 끝" 마커까지. 2) 그 길이로 바운스(꼬리 없이)와, 끝을 12초 더 길게 한 바운스 둘. 3) 긴 쪽의 마지막 12초(꼬리)를 짧은 쪽 맨 앞에 겹쳐 놓고(믹스) 하나로. 그러면 되풀이할 때 울림이 끊기지 않음'); }
     Lx.push('');
     Lx.push('■ 마스터');
-    Lx.push('   -17 LUFS 안팎(웰니스), True Peak -1 dBTP. 전시 공간 재생은 -20 LUFS, True Peak -2 dBTP');
+    Lx.push(o.use==='app'?'   -20 LUFS 안팎(화면 뒤 배경, 시리즈 모든 편과 도입음을 같은 값으로), True Peak -1 dBTP. 앱에서 재생 크기를 따로 줄이지 않게 이 값으로 맞춤':'   -17 LUFS 안팎(웰니스), True Peak -1 dBTP. 전시 공간 재생은 -20 LUFS, True Peak -2 dBTP');
     return Lx.join('\n'); }
 
+  const APPFORM='열림 닫힘. 2분 30초 고리마다 우주가 35초에 걸쳐 열리고 50초 머문 뒤 35초에 걸쳐 닫혀 완전히 닫힌 자리(드론과 으뜸 화음, 소리 로고)로. 닫힌 자리는 음악이 6dB 작고 선율이 쉼';
   const FORM={cosmos:'궤도. 2분 30초~3분 30초마다 우주가 열려(이륙 20초, 유영 40~60초, 귀환 20초) 숨 패드가 꽉 차게 피어나고 별빛 종이 쏟아짐. 궤도 사이에 블랙홀(짧고 깊은 뒤집힌 세계). 가장 깊은 편 유영 가운데 멈춘 시간',
     handpan:'그루브와 브레이크. 2분 남짓마다 4~8마디 브레이크(핸드팬 탁 쉼, 메아리 꼬리만), 우주와 뒤집힌 세계가 번갈아 열리고 플램으로 그루브가 돌아옴',
     drone:'지층. 3분 30초 안팎마다 떠오름(우주 30초 열고 머물다 30초 닫음)과 가라앉음(뒤집힌 세계)이 번갈아. 선율은 쉬지 않고 이어 감'};
@@ -30688,25 +30738,141 @@ window.__openApply=function(u8, ctx){ try{
   function guide(pc, W, txtS){ if(!window.__guideHTML || !book) return null; const FM=window.__guideFmt; const o=pc.o, PLN=pc.PLN, L=pc.L, tone=pc.tone, F=W.F;
     const kit=guideKit(tone, {flips:F.flips, flipLvl:(o.use==='exhibit'?3:0), dip:F.dip, flipSends:['숨 패드','숨 쉬는 드론','양금 자리 선율(양금 생황 칼림바 첼레스타)','피아노 둘','싱잉볼','별빛 종'], nat:pc.S.nat, dur:o.min+'분',
       ptList:[['handpan','Handpan'],['tak','Handpan Tak'],['hpe','Handpan Echo'],['yg','Yanggeum'],['sg','Saenghwang'],['kl','Kalimba'],['ce','Celesta'],['gy','Gayageum'],['gm','Geomungo'],['pn','Piano canon'],['pm','Piano melody'],['spark','Star Bells'],['phase','Phase Loops'],['chime','Wind Chimes'],['rev','Reverse Swell'],['cosl','Cosmos Pad'],['flipl','Flip Pad']].filter(function(x){ return (pc.ev[x[0]]||[]).length; }).map(function(x){ return x[1]; }),
-      freeze:PLN.freeze, echo:null, midiFx:{cos:PLN.cos, flips:F.flips, dip:F.dip||FLIP_DIP, freeze:PLN.freeze, echo:pc.ev.hpe.length>0, kl:o.sub==='handpan', breaks:PLN.breaks||[], sub:o.sub, form:FORM[o.sub]}});
+      freeze:PLN.freeze, echo:null, midiFx:{cos:PLN.cos, flips:F.flips, dip:F.dip||FLIP_DIP, freeze:PLN.freeze, echo:pc.ev.hpe.length>0, kl:o.sub==='handpan', breaks:PLN.breaks||[], sub:o.sub, form:(o.use==='app'?APPFORM:FORM[o.sub])}});
     const K=kit.K, info=kit.info;
     ['pad','drone','floor','nature','hp','tak','hpe','yg','sg','kl','ce','gy','gm','pn','pm','spark','bowl','npad','otone','chime','phase','rev','cosl','flipl','ting'].forEach(function(k){ const R=recFor(k,pc); if(!R) return; const I=info[R.role]=info[R.role]||{}; I.ko=I.ko||R.ko; I.alt=(R.alt||[]).filter(function(a){ return !/^(Sampler \(|오디오 트랙)/.test(a); }); });
     if(info['Yanggeum']) info['Yanggeum'].lead=true;
     if(info['Low Drone'] && (tone==='light'||tone==='bright')) info['Low Drone'].ko='숨 쉬는 드론';
     const prep=['자연음 녹음 파일: '+FM.B(pc.S.nat)+', '+FM.B(o.min+'분 넘게')+' '+FM.G('(없으면 자연음 트랙은 비워 둠)')];
+    if(o.use==='app') prep.push('프로그램 배경 루프: 사이클을 루프 시작부터 '+FM.B('루프 끝')+' 마커까지. 바운스를 둘(꼬리 없이, 12초 더 길게) 받아 긴 쪽 마지막 12초를 짧은 쪽 맨 앞에 겹치면 되풀이할 때 울림이 안 끊김. 시리즈 '+FM.B(String(o.sseed%10000))+' 의 다른 편과 도입음도 같은 패치 같은 마스터로');
     if(o.use==='exhibit') prep.push('전시 루프: 사이클을 루프 시작부터 '+FM.B('루프 끝')+' 마커까지. 바운스를 둘(꼬리 없이, 12초 더 길게) 받아 긴 쪽 마지막 12초를 짧은 쪽 맨 앞에 겹치면 되풀이할 때 울림이 안 끊김');
-    const pts=[]; if(o.use==='exhibit'){ pts.push([0,'루프 시작']); PLN.bounds.forEach(function(x,i){ pts.push([x,'편 '+(i+2)]); }); pts.push([L,'음 끝'],[L,'끝','mk']); }
+    const pts=[]; if(o.use==='app'){ pts.push([0,'루프 시작 (닫힌 자리)']); PLN.cos.forEach(function(W,i){ pts.push([W[1],'다 열림']); pts.push([W[3],'완전 닫힘']); if(i+1<PLN.K) pts.push([PLN.pieces[i+1],'이음 자리 '+(i+2)]); }); pts.push([L,'음 끝'],[L,'끝','mk']); }
+    else if(o.use==='exhibit'){ pts.push([0,'루프 시작']); PLN.bounds.forEach(function(x,i){ pts.push([x,'편 '+(i+2)]); }); pts.push([L,'음 끝'],[L,'끝','mk']); }
     else { pts.push([0,'인트로'],[10,'첫 숨']); if(PLN.kind==='short') pts.push([L-20,'끝 띵샤']); else { pts.push([60,o.mid?'음악 내려감':'본편']); PLN.bounds.forEach(function(x,i){ pts.push([x,'편 '+(i+2)]); }); pts.push([L-60,'되돌아옴']); } pts.push([L-10,'사라짐'],[L,'음 끝'],[L,'끝','mk']); }
-    const chips=[KN[pc.tonic]+' '+pc.P.name, pc.S.name, ({listen:'감상',exhibit:'전시 루프'})[o.use], o.min+'분', Math.round(PLN.base)+' BPM 안팎', '음색 '+TONE[tone].name];
-    return window.__guideHTML({midi:W.u8, app:'play-wamb', title:'웰니스 앰비언트 '+pc.S.name+' '+o.min+'분 제작 가이드', sub:'Play Composer, 웰니스 앰비언트 ('+({listen:'감상',exhibit:'전시 루프'})[o.use]+')', genre:'wamb',
-      chips:chips, prep:prep, lufs:o.use==='exhibit'?-20:-17, info:info, book:K, points:pts, startSec:W.preSec, loud:(PLN.kind==='short'||o.use==='exhibit')?null:[10,60],
+    const chips=[KN[pc.tonic]+' '+pc.P.name, pc.S.name, USEN[o.use]].concat(o.use==='app'?['시리즈 '+(o.sseed%10000)+' '+o.part+'편']:[]).concat([o.min+'분', (o.use==='app'?PLN.base.toFixed(1)+' BPM 고정':Math.round(PLN.base)+' BPM 안팎'), '음색 '+TONE[tone].name]);
+    return window.__guideHTML({midi:W.u8, app:'play-wamb', title:'웰니스 앰비언트 '+pc.S.name+' '+(o.use==='app'?'프로그램 배경 '+o.part+'편 ':'')+o.min+'분 제작 가이드', sub:'Play Composer, 웰니스 앰비언트 ('+USEN[o.use]+')', genre:'wamb',
+      chips:chips, prep:prep, lufs:isLoop(o)?-20:-17, info:info, book:K, points:pts, startSec:W.preSec, loud:(PLN.kind==='short'||isLoop(o))?null:[10,60],
       spaceOv:(function(){ const MX=TONE[tone].mix||{}; const x={}; if(MX.decay) x.decay=MX.decay; if(MX.pre) x.pre=MX.pre; return x; })(),
-      optFx:function(at){ return window.__cosmosFx?window.__cosmosFx({title:'우주로 열리는 효과 (Cosmos 버스)', why:(o.use==='exhibit'?'편마다 번갈아, 한 편은 하늘로(이 효과: 45초에 걸쳐 고역이 화 열리며 한 옥타브 위 긴 울림이 퍼지고 75초 머문 뒤 닫힘, 그동안 별빛 종이 쏟아지고 숨 패드가 꽉 차게 피어남), 다음 편은 땅 아래로(뒤집힌 세계) 갑니다. 전시라 크게(-1 dB).':'처음 1분 안에 고역이 화 열리며 한 옥타브 위 긴 울림이 퍼지고, 끝 1분에 다시 열려 사라지는 소리와 함께 우주로 나갑니다.'+(PLN.cos.length>2?' 긴 곡은 가장 깊은 편 가운데에서 한 번 더 열립니다.':'')),
-        sends:['숨 패드','바닥 드론','양금 자리 선율','싱잉볼','별빛 종','띵샤 신호'], nosend:'핸드팬 피아노 자연음', win:PLN.cos, snap:false, lvl:PLN.cos.map(function(){ return [o.use==='exhibit'?-1:-4,18000]; })}, at):null; },
+      optFx:function(at){ return window.__cosmosFx?window.__cosmosFx({title:'우주로 열리는 효과 (Cosmos 버스)', why:(o.use==='app'?'고리(2분 30초)마다 35초에 걸쳐 고역이 열리며 한 옥타브 위 긴 울림이 퍼지고 50초 머문 뒤 35초에 걸쳐 닫혀 완전히 닫힌 자리로 돌아옵니다. 화면 뒤 배경이라 조금 크게(-2 dB).':o.use==='exhibit'?'편마다 번갈아, 한 편은 하늘로(이 효과: 45초에 걸쳐 고역이 화 열리며 한 옥타브 위 긴 울림이 퍼지고 75초 머문 뒤 닫힘, 그동안 별빛 종이 쏟아지고 숨 패드가 꽉 차게 피어남), 다음 편은 땅 아래로(뒤집힌 세계) 갑니다. 전시라 크게(-1 dB).':'처음 1분 안에 고역이 화 열리며 한 옥타브 위 긴 울림이 퍼지고, 끝 1분에 다시 열려 사라지는 소리와 함께 우주로 나갑니다.'+(PLN.cos.length>2?' 긴 곡은 가장 깊은 편 가운데에서 한 번 더 열립니다.':'')),
+        sends:['숨 패드','바닥 드론','양금 자리 선율','싱잉볼','별빛 종','띵샤 신호'], nosend:'핸드팬 피아노 자연음', win:PLN.cos, snap:false, lvl:PLN.cos.map(function(){ return [o.use==='exhibit'?-1:o.use==='app'?-2:-4,18000]; })}, at):null; },
       sheet:window.__L12?window.__L12(txtS):txtS, strip:/^■ (믹스|게인과 마스터링|무대와 공간)/, dropLine:/^\s*(게인 팬|리버브)\s*:/}); }
 
+  /* ───── ★ 2026-10-22 형: 도입음 (프로그램 배경 시리즈 머리, 넷플릭스 뜨 든 처럼) ─────
+     두 마디(시리즈 템포). 2박째에 큰 울림, 화음이 확 열렸다가 두 마디 끝에서 시리즈의 닫힌 자리(1편 0:00 과 같은 화음 드론 크기)로 내려앉음.
+     숨 열림 = 거꾸로 부푸는 소리로 들이쉬고 낮은 울림 한 번. 두 번 울림 = 5도 '뜨' 다음 으뜸 '든'. 별 열림 = 으뜸의 배음을 따라 반짝이며 올라가 부드럽게 착지.
+     셋 다 큰 울림 반 박 뒤에 소리 로고(별빛 종 네 음, 편마다 닫힌 자리에서 아주 작게 다시 울리는 그 음) */
+  const STINGN={breath:'숨 열림', twohit:'두 번 울림 (뜨 든)', stars:'별 열림'};
+  function stingCompose(pc1, kind){ const o=pc1.o, tonic=pc1.tonic, bpm=pc1.PLN.base, bt=60/bpm, LS=2*240/bpm, th=2*bt;
+    const E={rev:[],hit:[],sub:[],bowl:[],ting:[],spark:[],cosl:[]}; const hub=pc1.chords[0].notes.slice();
+    const LG=o.logo||LOGOS[0], lb=fold(tonic,67,78); const t1=(kind==='twohit')?th-0.5*bt:null;
+    const revN=[fold(tonic,72,83), fold(tonic+7,67,78)];
+    if(kind==='breath') revN.forEach(function(m,j){ E.rev.push({t:0.12+j*0.04, midi:m, vel:70-j*6, dur:th-0.14-j*0.04}); });
+    if(kind==='twohit') revN.forEach(function(m,j){ const a=Math.max(0.1,t1-1.5); E.rev.push({t:a+j*0.04, midi:m, vel:62-j*6, dur:t1-a-0.02-j*0.04}); });
+    const tp=fold(tonic,43,54), sb=fold(tonic,28,39);
+    if(kind==='twohit'){ E.hit.push({t:t1, midi:tp-5, vel:88, dur:0.9}); E.sub.push({t:t1, midi:fold(tonic-5,28,39), vel:78, dur:0.42}); }
+    if(kind!=='stars') E.hit.push({t:th, midi:tp, vel:kind==='twohit'?120:112, dur:3.2});
+    E.sub.push({t:th, midi:sb, vel:kind==='stars'?76:102, dur:3.2});
+    E.bowl.push({t:th+0.01, midi:fold(tonic,48,59), vel:kind==='stars'?70:80, dur:LS-th-0.05});
+    if(kind==='stars'){ const F0=fold(tonic,55,66), H=[12,16,19,24,28,31]; H.forEach(function(iv,k){ const u=Math.sqrt(k/H.length); E.spark.push({t:0.3+(th-0.42)*u, midi:Math.min(99,F0+iv), vel:40+k*3, dur:1.6, side:k%2}); });
+      E.ting.push({t:th, midi:pc1.tingNote, vel:58, dur:Math.min(6,LS-th-0.05)}); }
+    LG.forEach(function(iv,j){ const last=(j===LG.length-1); E.spark.push({t:th+0.5*bt+j*0.5*bt, midi:Math.min(99,lb+iv), vel:last?72:64-j*2, dur:last?Math.min(3.5,LS-(th+2*bt)-0.05):0.5*bt+0.25, side:(j+1)%2, logo:true}); });
+    const cp=[...new Set(hub.map(mod))]; const up=[]; cp.forEach(function(pc){ up.push(fold(pc,67,78)); up.push(fold(pc,79,90)); }); up.push(fold(tonic,84,95));
+    [...new Set(up)].sort(function(a,z){ return a-z; }).forEach(function(m){ E.cosl.push({t:th, midi:m, vel:60, dur:LS-th-0.05}); });
+    return {pc1:pc1, kind:kind, bpm:bpm, bt:bt, LS:LS, th:th, t1:t1, hub:hub, E:E, logoName:o.logoName||''}; }
+  function stingMidi(SG){ const pc1=SG.pc1, o=pc1.o, bpm=SG.bpm, LS=SG.LS, th=SG.th;
+    const tk=function(sec){ return PRE*BAR+Math.round(sec*bpm/60*PPQ); }, END=tk(LS);
+    const vlq=function(v){ v=Math.max(0,v|0); const o2=[v&0x7F]; v>>=7; while(v>0){ o2.unshift((v&0x7F)|0x80); v>>=7; } return o2; };
+    const txt=function(s){ return Array.from(new TextEncoder().encode(s)); }, meta=function(ty,s){ const b=txt(s); return [0xFF,ty].concat(vlq(b.length)).concat(b); };
+    const on=function(ch,t,n,v){ return {t:t,o:20,b:[0x90|ch,n&0x7F,Math.max(1,Math.min(127,v|0))]}; }, off=function(ch,t,n){ return {t:Math.min(END,t),o:10,b:[0x80|ch,n&0x7F,0]}; };
+    const cc=function(ch,t,c,v){ return {t:t,o:15,b:[0xB0|ch,c,Math.max(0,Math.min(127,Math.round(v)))]}; };
+    const chunk=function(evs){ evs=evs.filter(function(e){ return e.t<=END; }); evs.sort(function(a,z){ return (a.t-z.t)||(a.o-z.o); }); const out=[]; let last=0; evs.forEach(function(e){ out.push.apply(out, vlq(e.t-last)); last=e.t; out.push.apply(out, e.b); }); out.push(0,0xFF,0x2F,0);
+      return [0x4D,0x54,0x72,0x6B,(out.length>>>24)&255,(out.length>>>16)&255,(out.length>>>8)&255,out.length&255].concat(out); };
+    const tracks=[]; const SOK7={t:0,o:1,b:[0xFF,0x7F,0x04,0x53,0x4F,0x4B,0x37]};
+    { const ev=[]; ev.push({t:0,o:0,b:meta(0x03,'Conductor')}); ev.push({t:0,o:1,b:[0xFF,0x58,0x04,4,2,24,8]});
+      const SF={0:0,7:1,2:2,9:3,4:4,11:5,6:6,1:-5,8:-4,3:-3,10:-2,5:-1}; const sf=(pc1.tonic===6)?-6:(SF[pc1.tonic]||0); ev.push({t:0,o:2,b:[0xFF,0x59,0x02,(sf+256)&255,0]});
+      const u=Math.round(60e6/bpm); ev.push({t:0,o:3,b:[0xFF,0x51,0x03,(u>>16)&255,(u>>8)&255,u&255]});
+      ev.push({t:0,o:4,b:meta(0x01,'[웰니스 앰비언트] 프로그램 배경 도입음 '+STINGN[SG.kind]+', 시리즈 '+(o.sseed%10000)+', '+KN[pc1.tonic]+', '+bpm.toFixed(1)+' BPM, 4/4, 두 마디. 끝 = 1편 0:00')});
+      ev.push({t:0,o:5,b:meta(0x06,'여백 (두 마디)')}); const mk=function(t,s){ ev.push({t:tk(t),o:6,b:meta(0x06,s)}); };
+      mk(0,'▶ 도입음 시작'); if(SG.t1!=null) mk(SG.t1,'◎ 뜨'); mk(th,SG.kind==='twohit'?'◎ 든 (큰 울림, 화음 열림)':'◎ 큰 울림 (화음 열림)'); mk(th+0.5*SG.bt,'◎ 소리 로고'); mk(LS,'◎ 이음 (여기서 1편 0:00 시작)'); ev.push({t:END,o:9,b:meta(0x06,'끝')}); tracks.push(chunk(ev)); }
+    const CHS={pad:0, drone:1, floor:2, hit:3, sub:4, bowl:6, rev:5, cosl:12, spark:13, ting:7}; const rec=function(k){ return recFor(k,pc1); };
+    const head=function(key,memo,vol){ const R=rec(key), X=MIX[key], ch=CHS[key]; return [{t:0,o:0,b:meta(0x03,R.name+' | '+R.role)},{t:0,o:1,b:meta(0x01,memo)},{t:0,o:2,b:[0xC0|ch,X.prog]},{t:0,o:3,b:[0xB0|ch,7,vol!=null?vol:X.vol]},{t:0,o:4,b:[0xB0|ch,10,X.pan]},{t:0,o:5,b:[0xB0|ch,91,X.rev]}]; };
+    const ramp=function(ev,ch,c,a,z,va,vz,pw,step){ let pv=-1; for(let t=a;t<=z+1e-6;t+=(step||0.1)){ const x=Math.min(1,(t-a)/Math.max(0.01,z-a)); const r=Math.round(va+(vz-va)*(1-Math.pow(1-x,pw||1))); if(r!==pv){ ev.push(cc(ch,tk(t),c,r)); pv=r; } } };
+    const CLOSE=Math.pow(10,-APP_CLOSE/40);
+    { const ch=CHS.pad, ev=head('pad','숨 패드. 큰 울림에서 닫힌 자리 화음('+SG.hub.map(mname).join(' ')+')이 꽉 차게 피었다가 두 마디 끝에 1편 0:00 과 같은 크기로 내려앉음',VMAX);
+      const a=(SG.kind==='stars')?th-0.25:th; SG.hub.forEach(function(n){ ev.push(on(ch,tk(a),n,68)); ev.push(off(ch,END,n)); });
+      ev.push(cc(ch,0,11,0)); ramp(ev,ch,11,a,LS-1,112,30,2.2); ev.push(cc(ch,tk(LS-0.5),11,30));
+      const g=MIX.pad.vol/VMAX; ev.push(SOK7); ev.push(cc(ch,1,7,Math.round(90*g))); ramp(ev,ch,7,a,LS-1,Math.round(90*g),Math.round(50*g)*CLOSE,1.6,0.25); tracks.push(chunk(ev)); }
+    { const ch=CHS.drone, ev=head('drone','숨 쉬는 드론. 으뜸음과 5도('+mname(pc1.dr)+' '+mname(pc1.dr+7)+'). 큰 울림에서 들어와 1편 0:00 의 크기로',VMAX);
+      [pc1.dr,pc1.dr+7].forEach(function(n){ ev.push(on(ch,tk(th),n,64)); ev.push(off(ch,END,n)); });
+      ramp(ev,ch,11,th,LS-1,110,88,1.5,0.2); ramp(ev,ch,1,th,LS-1,42,28,1.5,0.2);
+      const g=Math.min(1,MIX.drone.vol/VMAX*(pc1.S.boost||1)); ev.push(SOK7); ev.push(cc(ch,1,7,Math.round(90*g))); ramp(ev,ch,7,th,LS-1,Math.round(90*g),Math.round(64*g)*CLOSE,1.6,0.25); tracks.push(chunk(ev)); }
+    { const ch=CHS.floor, ev=head('floor','바닥 드론. 큰 울림부터 1편과 같은 크기로 늘 깔림. '+pc1.floorNotes.map(mname).join(' '),VMAX);
+      pc1.floorNotes.forEach(function(n){ ev.push(on(ch,tk(th),n,52)); ev.push(off(ch,END,n)); }); ev.push(SOK7); ev.push(cc(ch,1,7,Math.round(90*Math.pow(10,FLOOR_DB/40)))); tracks.push(chunk(ev)); }
+    const plain=function(key,memo,Lx,extra){ if(!Lx.length) return; const ch=CHS[key], ev=head(key,memo); Lx.forEach(function(n){ ev.push(on(ch,tk(n.t),n.midi,n.vel)); ev.push(off(ch,tk(n.t+n.dur),n.midi)); }); if(extra) extra(ev,ch); ev.push(SOK7); ev.push(cc(ch,1,7,90)); tracks.push(chunk(ev)); };
+    plain('rev','거꾸로 오는 소리. 큰 울림'+(SG.kind==='twohit'?'(뜨)':'')+' 앞에서 닫힌 자리 화음음이 CC11 0 에서 110 으로 부풀어 그 자리에서 뚝 끊김(들이쉬는 숨)',SG.E.rev,function(ev,ch){ SG.E.rev.forEach(function(n){ for(let q=0;q<=22;q++){ const x=q/22; ev.push(cc(ch,tk(n.t+x*n.dur),11,Math.round(110*Math.pow(x,1.8)))); } }); });
+    plain('hit',SG.kind==='twohit'?'낮은 울림. 뜨(5도, 여리게) 다음 든(으뜸, 세게). 아래 울림(서브)과 같이':'낮은 울림. 큰 울림 한 번(으뜸). 아래 울림(서브)과 같이',SG.E.hit);
+    plain('sub','아래 울림. 낮은 울림 밑의 서브 한 음(사인파 같은 바닥)',SG.E.sub,function(ev,ch){ ev.push(cc(ch,0,11,110)); });
+    plain('bowl','싱잉볼. 큰 울림과 같이 으뜸음이 길게',SG.E.bowl);
+    plain('cosl','우주 울림. 큰 울림에서 닫힌 자리 화음음이 한 옥타브 위로 확 열렸다가 5초 남짓 닫힘(CC11), 패치 안 ChromaVerb 12초 울림이 이어 감',SG.E.cosl,function(ev,ch){ ev.push(cc(ch,0,11,0)); let pv=-1; for(let t=th;t<=LS;t+=0.1){ const x=(t-th); const r=Math.round(x<0.35?127*x/0.35:127*Math.pow(Math.max(0,1-(x-0.35)/5.2),1.6)); if(r!==pv){ ev.push(cc(ch,tk(t),11,r)); pv=r; } } });
+    { const Lx=SG.E.spark; if(Lx.length){ const ch=CHS.spark, ev=head('spark','별빛 종. '+(SG.kind==='stars'?'처음에 으뜸의 배음을 따라 빨라지며 올라가고, ':'')+'큰 울림 반 박 뒤 소리 로고 '+SG.logoName+'(편마다 닫힌 자리에서 아주 작게 다시 울리는 그 네 음)');
+      for(let q=ev.length-1;q>=0;q--){ if(ev[q].b[0]===(0xB0|ch) && ev[q].b[1]===10) ev.splice(q,1); }
+      Lx.forEach(function(n){ ev.push(cc(ch,Math.max(0,tk(n.t)-6),10,n.side?100:28)); ev.push(on(ch,tk(n.t),n.midi,n.vel)); ev.push(off(ch,tk(n.t+n.dur),n.midi)); }); ev.push(SOK7); ev.push(cc(ch,1,7,90)); tracks.push(chunk(ev)); } }
+    plain('ting','띵샤. 착지하는 자리에 한 번',SG.E.ting);
+    const hdr=[0x4D,0x54,0x68,0x64,0,0,0,6,0,1,(tracks.length>>8)&255,tracks.length&255,(PPQ>>8)&255,PPQ&255];
+    let bytes=hdr.slice(); tracks.forEach(function(tr){ for(let i=0;i<tr.length;i++) bytes.push(tr[i]); }); let u8=new Uint8Array(bytes);
+    try{ window.__STAGE_CTX={app:'medi', amb5:true, wamb:true, loop:false, sting:true}; if(window.__midiSafety) u8=window.__midiSafety(u8); }catch(e){ window.__wambErr=String(e&&e.stack||e); }
+    return {u8:u8, preSec:PRE*240/bpm}; }
+  function stingSheet(SG){ const pc1=SG.pc1, o=pc1.o, L=[]; const s2=function(x){ return x.toFixed(2)+'초'; };
+    L.push('[웰니스 앰비언트] 프로그램 배경 도입음 '+STINGN[SG.kind]+' (시리즈 '+(o.sseed%10000)+') 제작 가이드'); L.push('');
+    L.push('조     : '+KN[pc1.tonic]+' (시리즈와 같음)'); L.push('템포   : '+SG.bpm.toFixed(1)+' BPM 고정, 4/4, 두 마디 = '+s2(SG.LS)+'. 앞 두 마디는 편집 여백');
+    L.push('소리 로고: '+SG.logoName+'. 시리즈 모든 편의 닫힌 자리(고리 처음)에서 별빛 종으로 아주 작게 다시 울림'); L.push('');
+    L.push('■ 흐름'); L.push('   0.00초  시작'+(SG.kind==='breath'?' (거꾸로 부푸는 소리로 들이쉼)':SG.kind==='stars'?' (별빛 종이 배음을 따라 빨라지며 올라감)':''));
+    if(SG.t1!=null) L.push('   '+s2(SG.t1)+'  뜨 (5도, 여리게. 바로 앞에서 거꾸로 부푸는 소리)');
+    L.push('   '+s2(SG.th)+'  '+(SG.kind==='twohit'?'든':'큰 울림')+' (낮은 울림 '+(SG.kind==='stars'?'없이 아래 울림과 싱잉볼, 띵샤':'과 아래 울림, 싱잉볼')+'. 숨 패드 드론 바닥 드론이 들어오고 우주 울림이 한 옥타브 위로 확 열림)');
+    L.push('   '+s2(SG.th+0.5*SG.bt)+'  소리 로고 (별빛 종 네 음, 마지막 음은 길게)');
+    L.push('   '+s2(SG.th+1.2)+' ~ '+s2(SG.LS-1)+'  열린 소리가 천천히 닫히며 시리즈의 닫힌 자리로 내려앉음');
+    L.push('   '+s2(SG.LS)+'  이음. 숨 패드 드론 바닥 드론이 1편 0:00 과 같은 음 같은 크기'); L.push('');
+    L.push('■ 앱에서 잇는 법'); L.push('   1) 도입음을 틀고, '+s2(SG.LS)+' 에 1편(또는 고른 편) 0:00 을 겹쳐 시작. 도입음 꼬리(싱잉볼 우주 울림)가 그 위로 사라짐');
+    L.push('   2) 대기 화면에서는 그 편을 루프. 화면이 바뀌면 시리즈 다른 편으로(편 가이드의 시리즈 이음 참고)'); L.push('');
+    L.push('■ 트랙 (로직에서 File > Open, 1번은 Conductor)');
+    let n=2; ['pad','drone','floor','rev','hit','sub','bowl','cosl','spark','ting'].forEach(function(k){ if(['pad','drone','floor'].indexOf(k)<0 && !(SG.E[k]||[]).length) return; const R=recFor(k,pc1);
+      L.push('▸ 트랙 '+(n++)+'. '+R.ko+'  ('+R.role+')'); L.push('   추천 음원 : '+R.name); if(R.alt&&R.alt.length) L.push('   다른 후보 : '+R.alt.join(', ')); if(R.why) L.push('   고른 이유 : '+R.why); });
+    L.push(''); L.push('■ 패치'); L.push('   시리즈 편들과 같은 패치 책(음색 '+TONE[pc1.tone].name+'). 낮은 울림(공통 28)과 아래 울림(공통 17 베이스)만 이 도입음에서 더 씀');
+    L.push(''); L.push('■ 바운스와 마스터'); L.push('   여백 뒤 1마디(도입음 시작)부터 "이음" 마커까지 + 꼬리 8초를 한 파일로. 시리즈 편들과 같은 마스터 체인, -20 LUFS 근처(짧은 소리라 Short-term 기준), 큰 울림 True Peak -1 dBTP 안');
+    L.push('   도입음만 따로 키우지 않음(편으로 넘어갈 때 크기가 같아야 이어짐)');
+    return L.join('\n'); }
+  function stingGuide(SG, W, txtS){ if(!window.__guideHTML || !book) return null; const pc1=SG.pc1, o=pc1.o;
+    const kit=guideKit(pc1.tone, {nat:pc1.S.nat, dur:SG.LS.toFixed(1)+'초', ptList:['Reverse Swell','Low Hit','Bass','Singing Bowl','Cosmos Pad','Star Bells'], midiFx:{cos:[[SG.th,SG.th+0.35,SG.th+0.35,SG.th+5.5]], flips:[], dip:FLIP_DIP, freeze:null, echo:false, kl:false, breaks:[], sub:o.sub, form:'도입음 '+STINGN[SG.kind]}});
+    const info=kit.info; ['pad','drone','floor','rev','hit','sub','bowl','cosl','spark','ting'].forEach(function(k){ const R=recFor(k,pc1); if(!R) return; const I=info[R.role]=info[R.role]||{}; I.ko=I.ko||R.ko; I.alt=(R.alt||[]).filter(function(a){ return !/^(Sampler \(|오디오 트랙)/.test(a); }); });
+    const pts=[[0,'도입음 시작']]; if(SG.t1!=null) pts.push([SG.t1,'뜨']); pts.push([SG.th,SG.kind==='twohit'?'든':'큰 울림'],[SG.LS,'이음 = 1편 0:00'],[SG.LS,'끝','mk']);
+    return window.__guideHTML({midi:W.u8, app:'play-wamb', title:'프로그램 배경 도입음 '+STINGN[SG.kind]+' 제작 가이드', sub:'Play Composer, 웰니스 앰비언트 (프로그램 배경 도입음)', genre:'wamb',
+      chips:[KN[pc1.tonic], '시리즈 '+(o.sseed%10000), STINGN[SG.kind], SG.bpm.toFixed(1)+' BPM', SG.LS.toFixed(1)+'초', '음색 '+TONE[pc1.tone].name], prep:['1편과 같은 프로젝트 템플릿(같은 패치 책)에서 열면 바로 소리 남. 낮은 울림(공통 28)과 아래 울림(공통 17)만 처음 한 번 만듦'],
+      lufs:-20, info:info, book:kit.K, points:pts, startSec:W.preSec, loud:null, spaceOv:(function(){ const MX=TONE[pc1.tone].mix||{}; const x={}; if(MX.decay) x.decay=MX.decay; if(MX.pre) x.pre=MX.pre; return x; })(),
+      sheet:window.__L12?window.__L12(txtS):txtS, strip:/^■ (믹스|게인과 마스터링|무대와 공간)/, dropLine:/^\s*(게인 팬|리버브)\s*:/}); }
   /* ───── 미리듣기(간단한 합성): 패드 드론 바닥 자연음 핸드팬 고른 선율 피아노 띵샤 싱잉볼 별빛 ───── */
   let AC=null, PV=null;
+  /* ★ 2026-10-22 도입음 미리듣기(대략의 소리). 끝나면 고른 편을 0:00 부터 이어 들려줌 */
+  function previewSting(SG, pcNext, lead){ stopPreview(); if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume();
+    const ac=AC, master=ac.createGain(); master.gain.value=0.5; const comp=ac.createDynamicsCompressor(); master.connect(comp); comp.connect(ac.destination);
+    const rev=ac.createConvolver(); { const len=ac.sampleRate*4.5, b=ac.createBuffer(2,len,ac.sampleRate); for(let c=0;c<2;c++){ const d=b.getChannelData(c); for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.2); } rev.buffer=b; } const rg=ac.createGain(); rg.gain.value=0.45; rev.connect(rg); rg.connect(master);
+    const T0=ac.currentTime+0.15; const token={}; PV={stop:false, master:master, t0:T0, sting:token};
+    const hz=function(m){ return 440*Math.pow(2,(m-69)/12); };
+    const out=function(pan,send){ const g=ac.createGain(); const p=ac.createStereoPanner?ac.createStereoPanner():null; if(p){ p.pan.value=pan; g.connect(p); p.connect(master); const sd=ac.createGain(); sd.gain.value=send; p.connect(sd); sd.connect(rev); } else g.connect(master); return g; };
+    const osc=function(type,f,g,t,e){ const o2=ac.createOscillator(); o2.type=type; o2.frequency.value=f; o2.connect(g); o2.start(t); o2.stop(e); return o2; };
+    const E=SG.E, th=SG.th, LS=SG.LS;
+    E.rev.forEach(function(n){ const t=T0+n.t, g=out(0.1,0.6); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.09*n.vel/64,t+n.dur); g.gain.setValueAtTime(0.0001,t+n.dur+0.01); [1,2.01].forEach(function(h,i){ const gg=ac.createGain(); gg.gain.value=i?0.3:1; gg.connect(g); osc(i?'sine':'triangle',hz(n.midi)*h,gg,t,t+n.dur+0.05); }); });
+    E.hit.forEach(function(n){ const t=T0+n.t, g=out(0,0.25), v=0.5*n.vel/120; g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(v,t+0.008); g.gain.exponentialRampToValueAtTime(0.0001,t+n.dur);
+      const o2=ac.createOscillator(); o2.frequency.setValueAtTime(hz(n.midi)*2.2,t); o2.frequency.exponentialRampToValueAtTime(hz(n.midi),t+0.08); o2.connect(g); o2.start(t); o2.stop(t+n.dur+0.1);
+      try{ const len=Math.round(0.25*ac.sampleRate), bf=ac.createBuffer(1,len,ac.sampleRate), x=bf.getChannelData(0); for(let i=0;i<len;i++) x[i]=(Math.random()*2-1)*Math.pow(1-i/len,3); const src=ac.createBufferSource(); src.buffer=bf; const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; const ng=ac.createGain(); ng.gain.value=v*0.5; src.connect(lp); lp.connect(ng); ng.connect(g); src.start(t); }catch(e){} });
+    E.sub.forEach(function(n){ const t=T0+n.t, g=out(0,0), v=0.45*n.vel/110; g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(v,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+n.dur); osc('sine',hz(n.midi),g,t,t+n.dur+0.05); });
+    E.bowl.concat(E.ting).forEach(function(n){ const t=T0+n.t, g=out(0.15,0.5), v=0.08*n.vel/70; g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(v,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+n.dur+1.5); [[1,1],[1.003,0.8],[2.71,0.3],[5.1,0.1]].forEach(function(pp){ const gg=ac.createGain(); gg.gain.value=pp[1]; gg.connect(g); osc('sine',hz(n===E.ting[0]?Math.min(n.midi+24,100):n.midi)*pp[0],gg,t,t+n.dur+1.6); }); });
+    E.spark.forEach(function(n){ const t=T0+n.t, g=out(n.side?0.6:-0.6,0.6), v=0.05*n.vel/60; g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(v,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+Math.max(1.5,n.dur*1.3)); [[1,1],[3.1,0.2]].forEach(function(pp){ const gg=ac.createGain(); gg.gain.value=pp[1]; gg.connect(g); osc('sine',hz(n.midi)*pp[0],gg,t,t+Math.max(1.5,n.dur*1.3)+0.1); }); });
+    E.cosl.forEach(function(n){ const t=T0+n.t, g=out(0,0.9); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.022,t+0.35); g.gain.exponentialRampToValueAtTime(0.0001,t+5.5); osc('triangle',hz(n.midi),g,t,t+5.6); });
+    const a=(SG.kind==='stars')?th-0.25:th; SG.hub.forEach(function(m){ const t=T0+a, g=out(0,0.5); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.05,t+0.3); g.gain.exponentialRampToValueAtTime(0.016,T0+LS-0.5); g.gain.setValueAtTime(0.016,T0+LS-0.4); g.gain.linearRampToValueAtTime(0.0001,T0+LS+1.2);
+      const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.setValueAtTime(3200,t); lp.frequency.exponentialRampToValueAtTime(1500,T0+LS); lp.connect(g); [-6,6].forEach(function(dt){ const o2=ac.createOscillator(); o2.type='triangle'; o2.frequency.value=hz(m); o2.detune.value=dt; o2.connect(lp); o2.start(t); o2.stop(T0+LS+1.3); }); });
+    [SG.pc1.dr,SG.pc1.dr+7].forEach(function(m){ const t=T0+th, g=out(0,0.3); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.06,t+0.4); g.gain.linearRampToValueAtTime(0.045,T0+LS); g.gain.linearRampToValueAtTime(0.0001,T0+LS+1.2); osc('sine',hz(m),g,t,T0+LS+1.3); });
+    if(pcNext) setTimeout(function(){ if(PV && PV.sting===token){ const m0=PV.master; PV=null; m0.gain.setTargetAtTime(0,AC.currentTime+1.0,0.5); setTimeout(function(){ try{ m0.disconnect(); }catch(e){} },4000); preview(pcNext, lead, 0); } }, Math.max(0,(T0+LS-0.2-ac.currentTime)*1000));
+    else setTimeout(function(){ if(PV && PV.sting===token) stopPreview(); }, (LS+4)*1000); }
   function stopPreview(){ if(PV){ PV.stop=true; try{ PV.master.gain.cancelScheduledValues(0); PV.master.gain.setTargetAtTime(0,AC.currentTime,0.2); }catch(e){} const m=PV.master; setTimeout(function(){ try{ m.disconnect(); }catch(e){} },800); PV=null; } }
   function preview(pc, lead, from){ stopPreview(); if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume();
     const ac=AC, master=ac.createGain(); master.gain.value=0.5; const comp=ac.createDynamicsCompressor(); master.connect(comp); comp.connect(ac.destination);
@@ -30744,19 +30910,33 @@ window.__openApply=function(u8, ctx){ try{
     pump(); }
 
   /* ───── 화면 ───── */
-  const ST={sub:'cosmos', use:'listen', min:10, tone:null, key:null, lead:'yg', flip:true, mid:0, seed:0, pt:0};   /* ★ 2026-10-21 형: 가운데 음악 낮춤은 명상 앱 호흡 앰비언트에만. 여기는 늘 0 */
+  const ST={sub:'cosmos', use:'listen', min:10, tone:null, key:null, lead:'yg', flip:true, mid:0, seed:0, pt:0, part:1, sting:'twohit'};   /* ★ 2026-10-21 형: 가운데 음악 낮춤은 명상 앱 호흡 앰비언트에만. 여기는 늘 0 */
   let LAST=null;
-  const MINS={listen:[3,5,10,15,30,60], exhibit:[15,30,60]};
-  function opts(){ return {sub:ST.sub, use:ST.use, min:ST.min, tone:ST.tone||SUB[ST.sub].tone, key:ST.key, seed:ST.seed||1, pt:ST.pt, flip:ST.flip, mid:ST.mid}; }
-  function build(){ const o=opts(); let pc=compose(o);
+  const MINS={listen:[3,5,10,15,30,60], exhibit:[15,30,60], app:[5,10,15]};
+  const PARTS=4;
+  function opts(part){ const o={sub:ST.sub, use:ST.use, min:ST.min, tone:ST.tone||SUB[ST.sub].tone, key:ST.key, seed:ST.seed||1, pt:ST.pt, flip:ST.flip, mid:ST.mid};
+    if(ST.use==='app'){ const SR=series(ST.seed||1), pt2=part||ST.part||1; o.sseed=ST.seed||1; o.part=pt2; o.seed=hashS('wapp|'+(ST.seed||1)+'|'+pt2); o.sbpm=SR.bpm; o.stonic=SR.tonic; o.logo=SR.logo; o.logoName=SR.logoName; }   /* ★ 프로그램 배경: 시리즈 씨앗(ST.seed)과 편 번호로 곡 씨앗 */
+    return o; }
+  function build(){ KN=(ST.use==='app')?KNF:KN0; const o=opts(); let pc=compose(o);
     if(o.pt){ /* 포인트만 새로: 패드 화음은 처음 곡 그대로, 새 포인트를 패드에 맞춤 */ const base=compose(Object.assign({},o,{pt:0})); pc=compose(Object.assign({},o,{basePad:base.chords.map(function(c){ return c.notes; })})); }
     const W=writeMidi(pc); const t=sheet(pc,W); let g=null; try{ g=guide(pc,W,t); }catch(e){ window.__guideErr=String(e&&e.stack||e); }
-    LAST={pc:pc, W:W, txt:t, html:g&&g.html}; return LAST; }
+    LAST={pc:pc, W:W, txt:t, html:g&&g.html}; KN=KN0; return LAST; }
   function save(bytes,name,type){ const blob=new Blob([bytes],{type:type}), url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); },1500); }
-  function fname(){ const pc=LAST.pc, o=pc.o; return 'WellnessAmbient_'+o.sub+'_'+(o.use==='exhibit'?'loop':'listen')+'_'+o.min+'min_'+NN[pc.tonic]+'_'+TONE[pc.tone].name+'_'+String(o.seed%10000)+(o.pt?'_pt'+String(o.pt%10000):''); }
+  function fname(){ const pc=LAST.pc, o=pc.o; if(o.use==='app') return 'WellnessAmbient_app_S'+String(o.sseed%10000)+'_part'+o.part+'_'+o.sub+'_'+o.min+'min_'+NN[pc.tonic]+'_'+TONE[pc.tone].name+(o.pt?'_pt'+String(o.pt%10000):'');
+    return 'WellnessAmbient_'+o.sub+'_'+(o.use==='exhibit'?'loop':'listen')+'_'+o.min+'min_'+NN[pc.tonic]+'_'+TONE[pc.tone].name+'_'+String(o.seed%10000)+(o.pt?'_pt'+String(o.pt%10000):''); }
   function download(){ if(!LAST) build(); const nm=fname(); save(LAST.W.u8, nm+'.mid', 'audio/midi');
     if(LAST.html) setTimeout(function(){ save(LAST.html, nm+'_제작가이드.html', 'text/html;charset=utf-8'); }, 350);
     setTimeout(function(){ save((window.__noDashText||String)(window.__L12?window.__L12(LAST.txt):LAST.txt), nm+'_제작가이드.txt', 'text/plain;charset=utf-8'); }, 700); }
+  /* ★ 2026-10-22 도입음 만들기와 받기, 시리즈 한 번에 받기 */
+  let LASTS=null;
+  function stingBuild(kind){ KN=KNF; const o=opts(1); o.pt=0; const pc1=compose(o); const SG=stingCompose(pc1, kind||ST.sting||'twohit'); const W=stingMidi(SG); const t=stingSheet(SG); let g=null; try{ g=stingGuide(SG,W,t); }catch(e){ window.__guideErr=String(e&&e.stack||e); }
+    LASTS={SG:SG, W:W, txt:t, html:g&&g.html}; KN=KN0; return LASTS; }
+  function stingName(S2){ const o=S2.SG.pc1.o; return 'WellnessAmbient_app_S'+String(o.sseed%10000)+'_intro_'+S2.SG.kind+'_'+NN[S2.SG.pc1.tonic]+'_'+TONE[S2.SG.pc1.tone].name; }
+  function saveSet(L0, nm, at){ setTimeout(function(){ save(L0.W.u8, nm+'.mid', 'audio/midi'); }, at); if(L0.html) setTimeout(function(){ save(L0.html, nm+'_제작가이드.html', 'text/html;charset=utf-8'); }, at+350);
+    setTimeout(function(){ save((window.__noDashText||String)(window.__L12?window.__L12(L0.txt):L0.txt), nm+'_제작가이드.txt', 'text/plain;charset=utf-8'); }, at+700); }
+  function downloadSting(){ const S2=stingBuild(ST.sting); saveSet(S2, stingName(S2), 0); }
+  function downloadSeries(){ const keep=ST.part; const S2=stingBuild(ST.sting); saveSet(S2, stingName(S2), 0);
+    for(let p=1;p<=PARTS;p++){ ST.part=p; const L0=build(); saveSet(L0, fname(), p*1100); } ST.part=keep; build(); render(); }
   /* 포인트만 새로: 선율에 맞춰 고르는 트랙(핸드팬 탁 메아리, 양금 자리 넷, 피아노 둘, 별빛 종, 엇갈리는 반복, 풍경, 거꾸로 오는 소리, 우주 울림, 뒤집힌 울림)을 하나씩(지휘 트랙과 함께) */
   function splitTracks(u8, re){ const d=u8, rd32=function(p){ return ((d[p]<<24)|(d[p+1]<<16)|(d[p+2]<<8)|d[p+3])>>>0; }; const hl=rd32(4); let p=8+hl; const T=[]; const dec=new TextDecoder('utf-8');
     while(p+8<=d.length){ const len=rd32(p+4); const body=d.subarray(p+8,p+8+len); let nm=''; { let i=0; const vq=function(){ let v=0,c; do{ c=body[i++]; v=(v<<7)|(c&127); }while(c&128); return v; };
@@ -30767,30 +30947,36 @@ window.__openApply=function(u8, ctx){ try{
   function points(){ ST.pt=((Math.random()*2147483647)|0)||1; build(); render();
     const parts=splitTracks(LAST.W.u8, /\|\s*(Handpan|Handpan Tak|Handpan Echo|Yanggeum|Saenghwang|Kalimba|Celesta|Piano canon|Piano melody|Star Bells|Phase Loops|Wind Chimes|Reverse Swell|Cosmos Pad|Flip Pad|Gayageum|Geomungo)\b/); const nm=fname();
     parts.forEach(function(x,i){ const role=(/\|\s*([A-Za-z ]+?)(\s*\[|$)/.exec(x.nm)||[])[1]||('track'+i); setTimeout(function(){ save(x.u8, 'Points_'+nm+'_'+(i+1)+'_'+role.trim().replace(/\s+/g,'')+'.mid', 'audio/midi'); }, i*350); }); }
-  window.__WAMB={guideKit:guideKit, MIX:MIX, PANMOVE:PANMOVE, TONE:TONE, BOOK:BOOK, compose:compose, build:function(o){ if(o) Object.assign(ST,o); if(!ST.seed) ST.seed=((Math.random()*1e9)|0)||1; return build(); }, last:function(){ return LAST; }, st:ST, download:download, points:points, book:book, plan:plan, splitTracks:splitTracks};
+  window.__WAMB={sting:function(o){ if(o) Object.assign(ST,o); if(!ST.seed) ST.seed=((Math.random()*1e9)|0)||1; return stingBuild(ST.sting); }, series:series, downloadSting:downloadSting, downloadSeries:downloadSeries, guideKit:guideKit, MIX:MIX, PANMOVE:PANMOVE, TONE:TONE, BOOK:BOOK, compose:compose, build:function(o){ if(o) Object.assign(ST,o); if(!ST.seed) ST.seed=((Math.random()*1e9)|0)||1; return build(); }, last:function(){ return LAST; }, st:ST, download:download, points:points, book:book, plan:plan, splitTracks:splitTracks};
 
   const css='#wambPanel{margin:10px 0 14px;padding:14px 16px;border:1px solid var(--celadon,#9bb);border-radius:12px;background:var(--card,#fff);font-size:14px;line-height:1.6}#wambPanel .wr{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}#wambPanel .wl{min-width:92px;opacity:.75;font-size:13px}#wambPanel .wc{padding:5px 11px;border-radius:16px;border:1px solid var(--line,#ccd);background:transparent;cursor:pointer;font-size:13px;color:inherit}#wambPanel .wc.on{background:var(--accent,#55D6B0);border-color:var(--accent,#55D6B0);color:#fff}#wambPanel .wb{padding:8px 14px;border-radius:10px;border:1px solid var(--line,#ccd);cursor:pointer;font-size:14px;background:transparent;color:inherit}#wambPanel .wb.go{background:var(--accent,#55D6B0);color:#fff;border-color:var(--accent,#55D6B0)}#wambInfo{opacity:.8;font-size:13px;margin-top:8px}body.wamb-on .song-area,body.wamb-on #instFold{display:none!important}#gchipRow.wamb-yoga .gchip.on[data-g]{background:var(--card);color:var(--ink);border-color:var(--line)}#gchipRow.wamb-yoga #yogaChip{background:var(--celadon-deep);color:#fff;border-color:var(--celadon-deep)}';
   function chips(id,list,cur,fn){ return '<div class="wr"><span class="wl">'+id+'</span>'+list.map(function(x){ return '<button type="button" class="wc'+(String(x[0])===String(cur)?' on':'')+'" data-f="'+fn+'" data-v="'+x[0]+'">'+x[1]+'</button>'; }).join('')+'</div>'; }
   function render(){ const P=document.getElementById('wambPanel'); if(!P) return;
     if(ST.yoga){ P.innerHTML='<b>동경요가 70분</b>'+'<div id="wambYoga"></div>'; yogaInto(document.getElementById('wambYoga')); return; }
     const toneL=TONE_ORDER.map(function(k){ return [k, TONE[k].name+(k===SUB[ST.sub].tone?' (기본)':'')]; });
-    const keyL=[['rnd',(ST.sub==='drone')?'랜덤 (♭ 조)':'랜덤']].concat(NN.map(function(n,i){ return [i,KN[i]]; }));
+    const keyL=[['rnd',(ST.use==='app')?'시리즈가 정함 (♭ 조)':(ST.sub==='drone')?'랜덤 (♭ 조)':'랜덤']].concat(NN.map(function(n,i){ return [i,KN[i]]; }));
     /* ★ 2026-10-21 형: 장르 칩(드론 우주 핸드팬 앰비언트)과 판의 세부 장르 칩이 같은 것을 두 번 고름 → 판에서는 뺌, 지금 장르 이름만 보임 */
-    P.innerHTML='<b>'+({cosmos:'우주 앰비언트',handpan:'핸드팬 앰비언트',drone:'드론 앰비언트'})[ST.sub]+'</b> <span style="opacity:.7;font-size:13px">'+({cosmos:'궤도: 몇 분마다 우주가 크게 열리고, 그 사이에 블랙홀',handpan:'그루브와 브레이크: 2분 남짓마다 핸드팬이 쉬고 우주와 뒤집힌 세계가 번갈아',drone:'지층: 떠오름(우주)과 가라앉음(뒤집힌 세계)이 번갈아'})[ST.sub]+'</span>'
-      +chips('용도',[['listen','감상'],['exhibit','전시 루프']],ST.use,'use')
+    P.innerHTML='<b>'+({cosmos:'우주 앰비언트',handpan:'핸드팬 앰비언트',drone:'드론 앰비언트'})[ST.sub]+'</b> <span style="opacity:.7;font-size:13px">'+(ST.use==='app'?'열림 닫힘: 2분 30초마다 우주가 열렸다가 완전히 닫힘. 닫힌 자리에서 루프와 시리즈 편이 이어짐':({cosmos:'궤도: 몇 분마다 우주가 크게 열리고, 그 사이에 블랙홀',handpan:'그루브와 브레이크: 2분 남짓마다 핸드팬이 쉬고 우주와 뒤집힌 세계가 번갈아',drone:'지층: 떠오름(우주)과 가라앉음(뒤집힌 세계)이 번갈아'})[ST.sub])+'</span>'
+      +chips('용도',[['listen','감상'],['exhibit','전시 루프'],['app','프로그램 배경']],ST.use,'use')
       +chips('길이',MINS[ST.use].map(function(m){ return [m,m+'분']; }),ST.min,'min')
+      +(ST.use==='app'?chips('시리즈 편',[1,2,3,4].map(function(p){ return [p,p+'편']; }),ST.part,'part')+chips('도입음',[['breath','숨 열림'],['twohit','두 번 울림 (뜨 든)'],['stars','별 열림']],ST.sting,'sting'):'')
       +chips('음색',toneL,ST.tone||SUB[ST.sub].tone,'tone')
       +chips('조',keyL,ST.key==null?'rnd':ST.key,'key')
       +chips('미리듣기 선율',[['yg','양금'],['sg','생황'],['kl','칼림바'],['ce','첼레스타']].concat(ST.sub==='drone'?[['gy','가야금'],['gm','거문고']]:[]),(ST.sub!=='drone' && (ST.lead==='gy'||ST.lead==='gm'))?'yg':ST.lead,'lead')
       +chips('뒤집힌 세계',[[1,'켬'],[0,'끔']],ST.flip?1:0,'flip')
-      +'<div class="wr" style="margin-top:10px"><button type="button" class="wb" id="wambPlay">▶ 미리듣기</button><button type="button" class="wb" id="wambNew">🎲 새로 만들기</button><button type="button" class="wb" id="wambPts">🎵 포인트만 새로</button><button type="button" class="wb go" id="wambDl">MIDI, 가이드, txt 받기</button></div>'
+      +'<div class="wr" style="margin-top:10px"><button type="button" class="wb" id="wambPlay">▶ 미리듣기</button>'+(ST.use==='app'?'<button type="button" class="wb" id="wambStPlay">▶ 도입음 + '+ST.part+'편</button>':'')+'<button type="button" class="wb" id="wambNew">'+(ST.use==='app'?'🎲 새 시리즈':'🎲 새로 만들기')+'</button><button type="button" class="wb" id="wambPts">🎵 포인트만 새로</button><button type="button" class="wb go" id="wambDl">'+(ST.use==='app'?ST.part+'편 ':'')+'MIDI, 가이드, txt 받기</button></div>'
+      +(ST.use==='app'?'<div class="wr"><button type="button" class="wb" id="wambStDl">도입음 받기</button><button type="button" class="wb go" id="wambSerDl">시리즈 한 번에 받기 (도입음 + 1~4편)</button></div>':'')
       +'<div id="wambInfo"></div>';
     const pc=LAST&&LAST.pc; const inf=document.getElementById('wambInfo');
-    if(inf && pc){ const tw=pc.bars.map(function(b){ return b.bpm; }); inf.textContent='지금 곡: '+pc.S.name+', '+KN[pc.tonic]+' '+pc.P.name+', '+Math.min.apply(null,tw).toFixed(0)+'~'+Math.max.apply(null,tw).toFixed(0)+' BPM, 한 숨 '+pc.SC.d[0].toFixed(1)+'초, '+(pc.PLN.K>1?pc.PLN.K+'편, ':'')+'음색 '+TONE[pc.tone].name+'. 미리듣기는 대략의 소리(로직 패치로 들어야 진짜)'; }
+    if(inf && pc && pc.o.use==='app'){ inf.textContent='시리즈 '+(pc.o.sseed%10000)+': '+KN[pc.tonic]+', '+pc.PLN.base.toFixed(1)+' BPM 고정, 한 숨 '+pc.SC.d[0].toFixed(1)+'초, 2분 30초 고리 '+pc.PLN.K+'개(열림 닫힘), 소리 로고 '+(pc.o.logoName||'')+'. 지금 '+pc.o.part+'편: '+pc.P.name+', '+pc.S.name+', 음색 '+TONE[pc.tone].name+'. 시리즈 1~4편은 조 템포 고리 시각 닫힌 자리가 같아 화면이 바뀌어도 이어짐. 미리듣기는 대략의 소리'; }
+    else if(inf && pc){ const tw=pc.bars.map(function(b){ return b.bpm; }); inf.textContent='지금 곡: '+pc.S.name+', '+KN[pc.tonic]+' '+pc.P.name+', '+Math.min.apply(null,tw).toFixed(0)+'~'+Math.max.apply(null,tw).toFixed(0)+' BPM, 한 숨 '+pc.SC.d[0].toFixed(1)+'초, '+(pc.PLN.K>1?pc.PLN.K+'편, ':'')+'음색 '+TONE[pc.tone].name+'. 미리듣기는 대략의 소리(로직 패치로 들어야 진짜)'; }
     document.getElementById('wambPlay').onclick=function(){ if(PV){ stopPreview(); this.textContent='▶ 미리듣기'; return; } if(!LAST) build(); preview(LAST.pc, ST.lead, 0); this.textContent='⏹ 멈춤'; };
     document.getElementById('wambNew').onclick=function(){ stopPreview(); ST.seed=((Math.random()*1e9)|0)||1; ST.pt=0; build(); render(); };
     document.getElementById('wambPts').onclick=function(){ stopPreview(); points(); };
-    document.getElementById('wambDl').onclick=function(){ if(!LAST) build(); download(); }; }
+    document.getElementById('wambDl').onclick=function(){ if(!LAST) build(); download(); };
+    const sp=document.getElementById('wambStPlay'); if(sp) sp.onclick=function(){ if(PV){ stopPreview(); this.textContent='▶ 도입음 + '+ST.part+'편'; return; } if(!LAST) build(); const S2=stingBuild(ST.sting); previewSting(S2.SG, LAST.pc, ST.lead); this.textContent='⏹ 멈춤'; };
+    const sd=document.getElementById('wambStDl'); if(sd) sd.onclick=function(){ downloadSting(); };
+    const sr=document.getElementById('wambSerDl'); if(sr) sr.onclick=function(){ stopPreview(); downloadSeries(); }; }
   function yogaInto(el){ if(!el) return; if(!window.__YOGA){ el.textContent='동경요가 모듈이 없습니다'; return; }
     el.innerHTML='<div style="opacity:.75;margin:4px 0 10px">호흡명상 0:00 / 몸풀기 10:00 / 본동작 30:00 (30초마다 띵샤와 화음, 핸드팬 손 연주 꼴) / 사바사나 55:00 / 정리 65:00 ~ 70:00. 패치 책, 팬 움직임, 우주 효과, 뒤집힌 세계(64:26~65:04)가 이 엔진과 같습니다.</div><div id="yogaInfo2" style="margin-bottom:10px;opacity:.85"></div><button type="button" class="wb" id="yogaNew2">🎲 새로 만들기</button> <button type="button" class="wb go" id="yogaDl2">MIDI, 가이드, txt 받기</button>';
     const info=function(){ const L0=window.__YOGA.last(), B=L0&&L0.B; const e=document.getElementById('yogaInfo2'); if(e) e.textContent=B?('지금 곡: '+B.key+' '+B.palName+', 호흡명상 '+B.bpm1+' BPM'):''; };
@@ -30808,6 +30994,7 @@ window.__openApply=function(u8, ctx){ try{
       P.addEventListener('click', function(e){ const b=e.target.closest&&e.target.closest('.wc'); if(!b) return; e.stopPropagation(); const f=b.getAttribute('data-f'), v=b.getAttribute('data-v'); stopPreview();
         if(f==='sub'){ ST.sub=v; ST.tone=null; const btn=document.querySelector('#gchipRow .gchip[data-g="'+({drone:'ambdrone',cosmos:'cosmos',handpan:'handpan'})[v]+'"]'); if(btn){ userAct=Date.now(); btn.click(); } }
         else if(f==='use'){ ST.use=v; if(MINS[v].indexOf(ST.min)<0) ST.min=MINS[v][Math.min(1,MINS[v].length-1)]; }
+        else if(f==='part') ST.part=+v; else if(f==='sting'){ ST.sting=v; render(); return; }
         else if(f==='min') ST.min=+v; else if(f==='tone') ST.tone=v; else if(f==='key') ST.key=(v==='rnd')?null:+v; else if(f==='lead'){ ST.lead=v; render(); return; } else if(f==='mid') ST.mid=+v; else if(f==='flip') ST.flip=(v==='1');
         ST.pt=0; if(!ST.yoga) build(); render(); }); }
     P.style.display=''; hideOld(true); const s2=GMAP[g]; if(ST.sub!==s2){ ST.sub=s2; ST.tone=null; LAST=null; }
