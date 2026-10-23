@@ -3426,8 +3426,114 @@ window.__pbNong=function(a, b, P, seed){ const out=[]; if(!(b>a+0.08)) return ou
   out.push([b, 8192]); return out; };
 window.__pbRamp=function(a, b, v0, v1, ease){ const out=[]; if(!(b>a)) return [[a,v1]]; const n=Math.max(4,Math.round((b-a)/0.008));
   for(let k=0;k<=n;k++){ const u=k/n; const e=(ease==='out')?1-(1-u)*(1-u):(ease==='in')?u*u:u*u*(3-2*u); out.push([a+(b-a)*u, Math.max(0,Math.min(16383,Math.round(v0+(v1-v0)*e)))]); } return out; };
+/* ★ 2026-10-23 형: 설명서는 그 장르(그 곡)에 맞는 것만. 동경요가 패치 표처럼 모든 앱 장르 편성의 txt 설명서에서 이 곡에 없는 악기 이야기를 뺌.
+   곡 트랙 이름은 마지막으로 내보낸 MIDI(__midiTrackSort 가 적는 __LAST_TRK). 줄 단위 규칙:
+   보컬 가이드 절(보컬 없음), 저역 교통정리와 사이드체인(킥 드럼 없음), 리드 포켓(이 곡 선율 악기 줄만), 신스 만들기(Retro Synth ES2 Alchemy 로 만드는 트랙이 없으면 통째, 있으면 그 역할만),
+   밑청소 HPF 와 장르 계열별 손질(있는 악기, 이 장르 줄만), 음원 대체 목록(있는 역할만), 아티큘레이션 목록(금관 현 목관 합창 하프 가운데 있는 것만), 악기별 익스프레션(숨 악기 발현 로즈 팀파니 가운데 있는 것만) */
+window.__sheetFams=function(names){ const N=(names||[]).map(function(x){ return String(x||'').replace(/\s*\[(Gain|Track Delay)[^\]]*\]/g,''); }); const F={}; const any=function(rx){ return N.some(function(n){ return rx.test(n); }); };
+  const roleOf=function(n){ const k=n.indexOf(' | '); return k>=0?n.slice(k+3):n; }, patchOf=function(n){ const k=n.indexOf(' | '); return k>=0?n.slice(0,k):n; };
+  F.vocal=N.some(function(n){ return /Vocal|보컬|Choir|합창|Voice|Singer|Rap\b|랩/i.test(roleOf(n)) || (/Choir|Vocal|Voice/i.test(patchOf(n)) && !/^Synthesizer\//.test(patchOf(n))); });
+  F.choir=any(/Choir|합창|\bOoh\b|\bAah\b/i);
+  F.brass=any(/Trumpet|French Horn|\bHorns?\b|Trombone|Tuba|Brass|Flugel|Cornet|Euphonium|Tbn|Tpt/i);
+  F.strings=N.some(function(n){ const t=n.replace(/Strings\/(YangGeum|GaYaGeum|GeoMunGo|HaeGeum|AJaeng)[^|]*/gi,''); return /Violin|Viola|Cello|Contrabass|Double Bass|String Ensemble|Studio Strings|\bStrings\b|Sordino|Spiccato|Pizz|현악/i.test(t); });
+  F.woodwind=any(/Flute|Clarinet|Oboe|Bassoon|Woodwind|Piccolo|Recorder|Sax|Daegeum|DaeGeum|Deageum|Danso|DanSo|Piri|PiRi|Sogeum|SoGeum|Taepyeongso|\bHoon\b|Shakuhachi|Dizi|Whistle|Ocarina|Bansuri|Winds\b/i);
+  F.breath=F.woodwind || any(/Accordion|Bandoneon|Harmonica|Melodica|Sax/i);
+  F.harp=any(/\bHarp\b/i);
+  F.pluck=any(/Guitar|Gtr|Nylon|Steel String|Ukulele|Banjo|Mandolin|\bHarp\b|Gayageum|GaYaGeum|Geomungo|GeoMunGo|Koto|Kalimba|Sitar|\bOud\b|Bouzouki|Electric Mint|Picked Acoustic/i);
+  F.guitar=any(/Guitar|Gtr|Nylon|Steel String|Electric Mint|Picked Acoustic|Banjo|Ukulele|Mandolin/i);
+  F.rhodes=any(/Rhodes|Electric Piano|Wurl|Suitcase|\bEP\b|Vintage Electric/i);
+  F.timpani=any(/Timpani/i);
+  F.kick=any(/Kick/i); F.drums=F.kick || any(/Drum|Snare|Hi-?Hat|Drummer|\bKit\b|Studio Drummer|Breakbeat/i);
+  F.bass=N.some(function(n){ return /(^|[^A-Za-z])(Bass|Sub|808)([^A-Za-z]|$)/.test(n) && !/^(?=.*(Contrabass|Double Bass|Bass Drum|Basses|Bassoon|Bass Clarinet|Bass Flute|Bass Trombone))/i.test(n.replace(/(Sub|808)\b/g,'')) || /Deep Sub|Sub Bass|808/i.test(n); });
+  F.b808=any(/808/);
+  F.piano=N.some(function(n){ return /Piano|CSP|Grand\b|Steinway|Upright|Keys\b/i.test(n) && !/Electric Piano|Rhodes|Wurl/i.test(n); });
+  F.pad=any(/Pad\b|패드|Synthesizer\/Pad/i);
+  F.synth=any(/^Synthesizer\/|Retro Synth|ES2|Alchemy|Synth\b|신스/i);
+  const made=function(n){ return /Retro Synth|\bES2\b|만들 소리/i.test(n); };   /* 노브로 만드는 소리만(Alchemy 프리셋은 고르는 것) */
+  F.mkBass=N.some(function(n){ return made(n) && /Bass|Sub|808|베이스/i.test(n); });
+  F.mkLead=N.some(function(n){ return made(n) && /Lead|리드|Arp|아르프|Pluck|플럭/i.test(n); });
+  F.mkPad=N.some(function(n){ return made(n) && /Pad|패드/i.test(n); });
+  F.mkChord=N.some(function(n){ return made(n) && /Chord|코드|Stab|Keys/i.test(n); });
+  F.made=F.mkBass||F.mkLead||F.mkPad||F.mkChord;
+  F.fx=any(/\bFX\b|FX-|Riser|Impact|Sweep|Crash|Vinyl|\bRain\b|Noise|Uplift|Downlift/i);
+  F.shaker=any(/Shaker|Perc|Tamb|Conga|Bongo|Cajon/i);
+  /* 선율 악기 */
+  const lead=N.find(function(n){ return /^(Melody|Lead|Vocal|리드|선율|Solo)\b|\| *(Melody|Lead|Vocal|Solo|리드|선율)|\]\s*(Melody|Lead|Vocal)\b/i.test(n); });
+  F.lead=lead?(/Vocal|보컬|Voice|Choir/i.test(lead)?'vocal':/Flute|Clarinet|Oboe|Sax|Trumpet|Horn|Daegeum|DaeGeum|Danso|Piri|Whistle|Recorder|Winds|Brass/i.test(lead)?'wind':/Violin|Viola|Cello|Strings|Erhu|HaeGeum|Haegeum/i.test(lead)?'string':/Piano|CSP|Grand|Keys|Rhodes/i.test(lead)?'piano':/Synth|Lead|Retro|ES2|Alchemy|Pluck/i.test(lead)?'synth':''):'';
+  F.roles=N.map(function(n){ return roleOf(n).trim().split(/[\s,(]/)[0].toLowerCase(); });
+  return F; };
+window.__sheetTrim=function(txt){ try{ const s=String(txt==null?'':txt); if(s.split('\n').length<40) return s;   /* 설명서(긴 글)만. 트랙 이름 같은 짧은 글도 __L12 를 지나므로(비트 [FX-hit] 트랙 이름이 지워졌던 것) */ const names=window.__LAST_TRK; if(!names||names.length<2) return s; if(window.__LAST_TRK_T && Date.now()-window.__LAST_TRK_T>300000) return s;   /* 5분 넘게 지난 MIDI 면 다른 곡일 수 있어 그대로 */ const F=window.__sheetFams(names);
+  let L=s.split('\n'); const out=[]; const ind=function(x){ return (x.match(/^ */)||[''])[0].length; };
+  const isHead=function(x){ return /^\s*■|^\s*══|^\s*━━|^\s*──|^\s*┈┈/.test(x); };
+  let i=0;
+  /* 장르 계열(시트 앞쪽 글로) */
+  const top=L.slice(0,40).join('\n');
+  const GEN=[['가요, 발라드',/발라드|Ballad|가요|K-?Pop|팝 |Pop\b|Disney|디즈니|City ?Pop|시티팝|J-?Pop|Worship|워십|Gospel|가스펠|R&B|알앤비|Neo ?Soul|네오소울|Motown|모타운|UK ?Pop|Royal ?Road|Komuro|Marusa|animeost|Anime ?OST|billie/i],['EDM, 하우스',/EDM|하우스|House|Techno|테크노|Trance|트랜스|Big ?Room|빅룸|Disco|디스코|Ambient Techno|Dubstep/i],['트랩, 힙합',/트랩|Trap|힙합|Hip-?Hop|Boom ?Bap|붐뱁|Drill|드릴|Lo-?fi Hip|billie/i],['록',/록|Rock|Punk|펑크 록|Metal|메탈|Grunge|Anime ?Rock|애니 록|K-?Band|밴드 사운드/i],['재즈, 어쿠스틱',/재즈|Jazz|어쿠스틱|Acoustic|보사|Bossa|포크|Folk|컨트리|Country|Blues|블루스|Swing|스윙|Tango|탱고|Rumba|룸바|Gypsy|집시|Celtic|켈틱|Reggae|레게|Funk\b|펑크\b|Latin|라틴|balkan|Balkan|발칸/i],['로파이',/로파이|Lo-?fi|Chillhop/i],['오케스트라',/오케|Orchestra|시네마|Cinematic|Epic|에픽|웰니스 오케|Classic|클래식|사극|Saguk|Film|animeost|Anime ?OST/i],['레트로, 신스',/레트로|Retro|신스웨이브|Synthwave|Synth ?Pop|80년대|80s|Vaporwave/i]];
+  const genHit=GEN.filter(function(g){ return g[1].test(top); }).map(function(g){ return g[0]; });
+  const hpfItem={'킥':F.kick,'베이스':F.bass,'피아노':F.piano,'기타':F.guitar,'보컬':F.vocal,'신스 리드':F.synth,'패드':F.pad,'현':F.strings,'관':F.brass||F.woodwind,'드럼 오버헤드':F.drums,'FX':F.fx,'셰이커':F.shaker};
+  const famWord={'금관':F.brass,'현':F.strings,'목관':F.woodwind,'합창':F.choir,'하프':F.harp};
+  const keepFamItem=function(t){ const m=t.trim().match(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/); return !m || famWord[m[1]]; };
+  while(i<L.length){ const x=L[i];
+    /* 보컬 가이드 절 */
+    if(/^■ 🎤 보컬 가이드/.test(x) && !F.vocal){ i++; while(i<L.length && !/^\s*(■|══)/.test(L[i])) i++; continue; }
+    /* 저역 교통정리 */
+    if(/^\s*── 저역 교통정리/.test(x) && !((F.kick||F.drums) && (F.bass||F.b808))){ i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])) i++; continue; }
+    /* 사이드체인 줄 */
+    if(/^\s*── 사이드체인/.test(x) && !(F.kick||F.drums)){ i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i]) && ind(L[i])>ind(x)) i++; continue; }
+    /* 리드 포켓 */
+    if(/^\s*── 리드 포켓/.test(x) && !F.lead) F.lead='vocal';   /* 선율 트랙이 없는 반주 곡(밴드 비트)은 그 위에 얹을 노래가 리드 */
+    if(/^\s*── 리드 포켓/.test(x) && F.lead){ out.push(x); i++; const want={vocal:/^리드=보컬/,wind:/^리드=플루트/,piano:/^리드=피아노/,synth:/^리드=신스/,string:/^리드=현/}[F.lead];
+      while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const t=L[i].trim(); if(/^리드=/.test(t) && want && !want.test(t)){ i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 신스 만들기 */
+    if(/^\s*── 신스 만들기/.test(x)){ if(!F.made){ i++; while(i<L.length && !/^\s*※ 프리셋을 먼저/.test(L[i]) && !/^■/.test(L[i])) i++; if(i<L.length && /^\s*※ 프리셋을 먼저/.test(L[i])) i++; continue; }
+      out.push(x); i++; const okR={'베이스':F.mkBass,'리드':F.mkLead,'패드':F.mkPad,'코드':F.mkChord};
+      while(i<L.length && !/^■/.test(L[i]) && !/^\s*※ 프리셋을 먼저/.test(L[i])){ const m=L[i].match(/^\s*\[(베이스|리드|패드|코드)\]/); if(m && !okR[m[1]]){ i++; while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !/^\s*──/.test(L[i])) i++; while(i<L.length && L[i].trim()==='') i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 밑청소 HPF */
+    if(/^\s*── 밑청소 HPF/.test(x)){ out.push(x); i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const lead=L[i].match(/^\s*/)[0]; const items=L[i].trim().split(/,\s*/).filter(function(it){ const k=Object.keys(hpfItem).sort(function(a,z){ return z.length-a.length; }).find(function(w){ return it.indexOf(w)===0 || it.replace(/=.*/,'')===w; }); return !k || hpfItem[k]; }); if(items.length) out.push(lead+items.join(', ')); i++; } continue; }
+    /* 장르 계열별 손질 */
+    if(/^\s*── 장르 계열별 손질/.test(x) && genHit.length){ out.push(x); i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const t=L[i].trim(); const g=GEN.find(function(G){ return t.indexOf(G[0])===0; }); if(g && genHit.indexOf(g[0])<0){ i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 음원 대체 목록 */
+    if(/\[음원이 로직에 없으면\? 소리계열로 대체\]/.test(x)){ const k=x.indexOf(']')+1; const head=x.slice(0,k); const items=x.slice(k).split(' / ').map(function(t){ return t.trim(); }).filter(function(t){ const key=t.split('=')[0].trim().toLowerCase(); return !key || F.roles.some(function(r){ return r===key; }); }); if(items.length) out.push(head+' '+items.join(' / ')); i++; continue; }
+    /* 아티큘레이션 목록 */
+    if(/^\s*\[(노트 길이|벨로시티 상한|음역 보정|호흡)\]/.test(x)){ const blk=[x]; i++; let lastKept=true; let kept=0;
+      while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])){ let t=L[i]; const tr=t.trim();
+        if(/^→/.test(tr)){ if(lastKept) blk.push(t); i++; continue; }
+        if(/^- /.test(tr)){ const body=tr.slice(2); const lead=t.match(/^\s*/)[0]+'- ';
+          if(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/.test(body) && !/ \/ /.test(body)){ lastKept=keepFamItem(body); if(lastKept){ blk.push(t); kept++; } i++; continue; }
+          if(/ \/ /.test(body)){ let k0=true; const parts=body.split(' / ').filter(function(q){ if(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/.test(q.trim())) k0=keepFamItem(q); return k0; }); lastKept=parts.length>0; if(lastKept){ blk.push(lead+parts.join(' / ')); kept++; } i++; continue; }
+          const m=body.match(/^([^,]+),\s*(.*)$/); if(m && /(금관|현|목관|합창) /.test(m[2])){ const it=m[2].split(/,\s*(?=(?:금관|현|목관|합창|하프) )/).filter(function(q){ return keepFamItem(q); }); lastKept=it.length>0; if(lastKept){ blk.push(lead+m[1]+', '+it.join(', ')); kept++; } i++; continue; } }
+        blk.push(t); kept++; lastKept=true; i++; }
+      if(kept) Array.prototype.push.apply(out, blk); while(!kept && i<L.length && L[i].trim()===''){ i++; break; } continue; }
+    if(/^\s*\[음 들어오는 결\]/.test(x) && !(F.strings||F.woodwind||F.brass||F.choir||F.pad||F.synth)){ i++; while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])) i++; continue; }
+    /* 비트 FX 목록([FX-bed] [FX-hit]): 이 곡에 있는 FX 트랙 것만 */
+    if(/^\s*\[FX-(bed|hit)\]/.test(x)){ const FXK=[[/^바이닐/,/Vinyl/i],[/^히스|^테이프/,/Hiss|Tape/i],[/^비, 파도|^비,|^파도|^바람/,/Rain|Wave|Ocean|Wind|Nature/i],[/^필터스윕/,/Sweep/i],[/^임팩트|^부머/,/Impact|Boom/i],[/^라이저/,/Riser|Uplift/i],[/^서브드롭/,/Sub ?Drop|Drop/i],[/^리버스크래시/,/Reverse Crash|Reverse Cymbal/i],[/^싱잉볼|^벨/,/Bowl|Bell/i]];
+      const has=function(t){ const k=FXK.find(function(q){ return q[0].test(t); }); return !k || (names||[]).some(function(n){ return k[1].test(n); }); };
+      const blk=[x]; i++; let kept=0;
+      while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])){ const tr=L[i].trim(); if(/^- /.test(tr)){ if(has(tr.slice(2))){ blk.push(L[i]); kept++; } } else blk.push(L[i]); i++; }
+      if(kept) Array.prototype.push.apply(out, blk); continue; }
+    /* 연주 관습: 금관 팀파니 줄은 그 악기가 있을 때만, 빈 왈츠는 3/4 왈츠일 때만, 피카르디는 단조 곡일 때만 */
+    { const m=x.match(/^\s{1,4}(팀파니|금관|빈 왈츠|피카르디)\s*:/); if(m){ const ok=(m[1]==='팀파니')?F.timpani:(m[1]==='금관')?F.brass:(m[1]==='빈 왈츠')?/3\/4|왈츠|Waltz/i.test(top):/단조|minor|Aeolian|에올리안|Dorian|도리안|Phrygian|프리지안/i.test(top);
+        if(!ok){ i++; while(i<L.length && /^\s{8,}\S/.test(L[i]) && !/^\s{1,4}\S[^:]{0,8}:/.test(L[i])) i++; continue; } } }
+    /* 스웰: 표본 현 금관 목관 음원 이야기 */
+    if(/^\s*음원에서: 표본 현 금관 목관/.test(x) && !(F.strings||F.brass||F.woodwind)){ i++; continue; }
+    /* 용어 풀이: 이 설명서 다른 곳에 나오는 말만 */
+    if(/^\s*── 용어 풀이/.test(x)){ const rest=L.slice(0,i).concat(L.slice(i+1)).filter(function(q){ return !/^\s+\S.{0,30} = /.test(q); }).join('\n'); const blk=[x]; i++;
+      while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const m=L[i].match(/^\s*(.+?) = /); if(m){ const words=m[1].split(/[\s\/()（）,]+/).filter(function(w){ return w.length>=2 || /[‖\[\]]/.test(w); }); const used=!words.length || words.some(function(w){ return rest.indexOf(w)>=0; }); if(used) blk.push(L[i]); } else blk.push(L[i]); i++; }
+      if(blk.length>1) Array.prototype.push.apply(out, blk); continue; }
+    /* 비트 드럼 음원 고르기: 이 곡 드럼 음원 것만 */
+    { const m=x.match(/^\s*\[(전자 드럼|어쿠스틱)\]/); if(m){ const nm=(names||[]).join('|'); const ok=(m[1]==='전자 드럼')?/Drum Machine Designer|DMD/i.test(nm):/Studio Drummer|Drum Kit|Drummer/i.test(nm); if(!ok){ const d0=ind(x); i++; while(i<L.length && L[i].trim()!=='' && ind(L[i])>d0+2 && !/^\s*\[/.test(L[i])) i++; continue; } } }
+    /* 밴드 1단계: 만들 소리 안내는 만드는 트랙이 있을 때만 */
+    if(/「만들 소리」로 적힌/.test(x) && !F.made){ i++; continue; }
+    /* 악기별 익스프레션 */
+    if(/^■ 악기별 익스프레션/.test(x)){ const blk=[x]; i++; let cur=true, kept=0; const want={'숨 악기':F.breath,'발현 악기':F.pluck,'로즈':F.rhodes,'팀파니':F.timpani};
+      while(i<L.length && !/^\s*(■|══)/.test(L[i]) && L[i].trim()!==''){ const m=L[i].match(/^\s{1,4}(숨 악기|발현 악기|로즈|팀파니)\s*:/); if(m){ cur=!!want[m[1]]; if(cur) kept++; } if(cur) blk.push(L[i]); i++; }
+      if(kept) Array.prototype.push.apply(out, blk); else { while(i<L.length && L[i].trim()==='') i++; } continue; }
+    let y=x; if(!(F.kick||F.drums)) y=y.replace(/사이드체인\([^)]*\)[^,]*덕킹,?\s*/g,''); if(!F.vocal) y=y.replace(/선율\(보컬\)/g,'선율');
+    out.push(y); i++; }
+  return out.join('\n').replace(/\n[ \t]*\n([ \t]*\n)+/g,'\n\n'); }catch(e){ window.__sheetTrimErr=String(e&&e.stack||e); return String(txt); } };
+
 /* ★ 2026-10-21 셋업 시트(txt)의 악기 이름도 디센트로: 시트를 내보내는 __L12 에 이름 바꾸기를 덧붙임 */
-(function(){ const hook=function(){ try{ if(window.__L12 && !window.__L12.__ds){ const o=window.__L12; const f=function(s){ return window.__dsRename(o(s)); }; f.__ds=true; window.__L12=f; } }catch(e){} };
+(function(){ const hook=function(){ try{ if(window.__L12 && !window.__L12.__ds){ const o=window.__L12; const f=function(s){ const r=window.__dsRename(o(s)); return window.__sheetTrim?window.__sheetTrim(window.__noDashText?window.__noDashText(r):r):r; }; f.__ds=true;   /* ★ 2026-10-23 이 곡에 없는 악기 이야기 빼기 */ window.__L12=f; } }catch(e){} };
   hook(); if(typeof document!=='undefined'){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',hook); } setTimeout(hook,0); setTimeout(hook,1500); setTimeout(hook,4000); })();
 /* ★ 2026-10-23 형: 비슷한 트랙끼리 모아서 배열(모든 앱 모든 장르 편성). 위에서 아래로 타악 → 저역 → 건반 기타 하프 → 패드 → 국악기와 포인트 악기 → 종과 말렛 → 현 → 금관 → 목관 → 노래 → 신스 → 효과 → 가이드.
    이름 'Patch | Role' 에서 역할로 먼저 가르는 것(킥, 드럼, 타악, 베이스, 드론, 자연음 바탕, 효과, 가이드), 그다음 악기(패치)로, 그래도 모르면 역할 이름으로. 같은 무리 안에서는 앱이 쓴 순서 그대로.
@@ -3467,6 +3573,7 @@ window.__midiTrackSort=function(u8){ try{ const b=u8; if(!b||b.length<14||b[0]!=
   while(p+8<=b.length){ const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0; const isT=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); CH.push({t:isT, s:p, e:p+8+len}); p+=8+len; }
   const TR=CH.filter(function(c){ return c.t; }); if(TR.length<3) return u8;
   const nameOf=function(c){ const L=Math.min(c.e-3, c.s+8+6000); for(let q=c.s+8;q<L;q++){ if(b[q]===0xFF && b[q+1]===0x03){ let n=0,j=q+2; do{ n=(n<<7)|(b[j]&0x7f); }while(b[j++]&0x80); return dec.decode(b.subarray(j,j+n)); } } return ''; };
+  try{ window.__LAST_TRK=TR.slice(1).map(nameOf); window.__LAST_TRK_T=Date.now(); }catch(e){}   /* ★ 2026-10-23 형: 설명서를 이 곡 트랙에 맞게만(__sheetTrim 이 씀) */
   { const c0=TR[0]; const L=Math.min(c0.e-6, c0.s+8+20000); for(let q=c0.s+8;q<L;q++){ if(b[q]===0xFF&&b[q+1]===0x7F&&b[q+2]===4&&b[q+3]===0x53&&b[q+4]===0x4F&&b[q+5]===0x4B&&b[q+6]===0x4F) return u8; } }
   const rest=TR.slice(1).map(function(c,i){ return {c:c, i:i, r:window.__trackRank(nameOf(c))}; }); const srt=rest.slice().sort(function(a,z){ return (a.r-z.r)||(a.i-z.i); });
   if(srt.every(function(o,i){ return o.i===i; })) return u8;
@@ -4106,7 +4213,8 @@ window.__guideHTML=function(opt){
   h.push('<h2>0. 프로젝트 설정 <small>MIDI 를 열자마자</small></h2>'+ck(['<b>파일 &gt; 열기</b> 로 MIDI 열기 '+Gr('(영어 화면 File &gt; Open. 가져오기 말고 열기. 템포, 박자, 마커, 트랙 이름이 그대로 들어옴)'),'<b>파일 &gt; 프로젝트 설정 &gt; 오디오</b> '+Gr('(File &gt; Project Settings &gt; Audio)')+': Sample Rate '+B('48 kHz'),'<b>Logic Pro &gt; 설정 &gt; 녹음</b> '+Gr('(Logic Pro &gt; Settings &gt; Recording)')+': Recording File Type '+B('WAVE')+', Resolution '+B('24 bit')]));
   const room=GS.room||SPC.room, decay=GS.decay||SPC.decay, pre=GS.pre||(SPC.pre&&SPC.pre[1])||20, same=(room==='Smooth Space'&&decay===4.5&&pre===20);
   if(opt.book){ /* ★ 2026-10-20 형: 호흡 앰비언트 패치 방식. 순서 0 프로젝트 설정, 1 처음 한 번(버스 셋, 공통 패치, 음색 패치, 마스터, 다 만들면 접힘), 2 곡마다, 3 선택 우주 효과, 4 크기와 바운스, 5 마스터링, 6 곡 지도 */
-    const K=opt.book, NM=K.names, curN=NM[K.cur];
+    const K=Object.assign({}, opt.book); if(K.onlyUsed==null) K.onlyUsed=true;   /* ★ 2026-10-23 형: 모든 앱 장르 편성 설명서는 그 곡에 쓰는 패치만(동경요가처럼). 패치 책 전체가 필요하면 book.onlyUsed=false */
+    const NM=K.names, curN=NM[K.cur];
     const pn=function(tk, r){ return 'SO '+(tk?NM[tk]:'공통')+' '+r.n+' '+r.ko; };
     const pid=function(name){ return 'p-'+String(name).replace(/\s+/g,'-'); };
     const dif=function(x){ return '<span class="dif">'+x+'</span>'; };
@@ -4127,13 +4235,13 @@ window.__guideHTML=function(opt){
     if(NEWR.length) h.push('<div class="box"><div><b>호흡 앰비언트(명상 앱) 설명서로 이미 만들었으면</b> 버스 '+B('SO 중후 Space')+' 같은 Space 넷, '+B('SO 공통 Air')+', '+B('SO 공통 Cosmos')+', '+B('SO 공통 Flip')+', Stereo Out '+B('SO 마스터')+', '+B('SO 마스터링')+', 공통 05~13 과 음색 패치는 이름과 값이 같아 그대로 씁니다. 다시 만들지 않습니다.</div>'
       +(K.echoBus?'<div>버스 '+B('SO 공통 Echo')+' 는 '+R('새로')+' 만듭니다(가 표 맨 아래).</div>':'')
       +(NEED.length?'<div>이 곡에 더 만들 패치 '+R(NEED.length+'개')+': '+NEED.map(function(r){ return '<a class="pl" href="#'+esc(pid(pn(null,r)))+'">'+B(esc(pn(null,r)))+'</a>'; }).join(', ')+'. 아래 표에서 '+B('이 곡')+' 과 '+R('새 패치')+' 가 함께 붙은 줄입니다. 만드는 법은 나 다 와 같습니다.</div>':'<div>이 곡은 호흡 앰비언트 패치만으로 됩니다.</div>')
-      +'<div>'+R('새 패치')+' 가 붙은 다른 줄은 다른 웰니스 앰비언트 곡에서 쓰니 그 곡을 만들 때 만들어도 됩니다.</div></div>');
+      +(K.onlyUsed?'':'<div>'+R('새 패치')+' 가 붙은 다른 줄은 다른 웰니스 앰비언트 곡에서 쓰니 그 곡을 만들 때 만들어도 됩니다.</div>')+'</div>');
     h.push('<h3>가. 버스 '+(K.echoBus?'다섯':K.flipDb!=null?'넷':'셋')+'</h3>'+stp([B('X')+' 로 믹서를 열고 첫 트랙의 <b>Sends</b> 첫 빈칸 → '+B('Bus')+' → '+B('Bus 1')+'. 오른쪽에 Aux 가 생기면 이름을 더블클릭해 '+B('Space'),
       '같은 트랙 Sends 둘째 빈칸 → '+B('Bus 2')+' → 이름 '+B('Air')+', 셋째 빈칸 → '+B('Bus 3')+' → 이름 '+B('Cosmos')+(K.flipDb!=null?', 넷째 빈칸 → '+B('Bus 4')+' → 이름 '+B('Flip'):'')+(K.echoBus?', 다섯째 빈칸 → '+B('Bus 5')+' → 이름 '+B('Echo'):''),
       'Aux 마다 오디오 FX 첫 빈칸부터 아래 표의 플러그인과 값',
-      'Aux 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → 표의 저장 이름. Space 는 음색마다 하나씩 넷 '+Gr('(하나 만든 뒤 Decay 같은 값만 바꿔 다른 이름으로 저장)')])
+      'Aux 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → 표의 저장 이름.'+(K.onlyUsed?'':' Space 는 음색마다 하나씩 넷 '+Gr('(하나 만든 뒤 Decay 같은 값만 바꿔 다른 이름으로 저장)'))])
       +'<div class="wrap"><table><tr><th></th><th>저장 이름</th><th>버스</th><th>플러그인과 값</th></tr>'
-      +K.order.map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
+      +K.order.filter(function(k){ return !K.onlyUsed || k===K.cur; }).map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Air')+'</td><td>Bus 2</td><td>'+B('ChromaVerb')+': Room '+B('Airy')+', Predelay '+B('40 ms')+', Decay '+B('8 s')+', Dry '+B('0 %')+', Wet '+B('100 %')+', Damping EQ 오른쪽 끝 점 '+B('100 %')+'. DETAILS 탭 Output EQ '+B('켬')+': 첫째 '+B('400 Hz')+', 다섯째 '+B('10 kHz +4 dB')+', 여섯째 '+R('끄기')+'</td></tr>'
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Cosmos')+'<br>'+Gr('우주 효과용')+'</td><td>Bus 3</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B('12 s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('400 Hz, 24 dB/Oct')+', '+bd(8)+' High Cut '+B('1000 Hz, 24 dB/Oct')+')<br>'+Gr('EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐')+'</td></tr>'
       +(K.flipDb!=null?'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Flip')+'<br>'+Gr('뒤집힌 세계용')+'</td><td>Bus 4</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('-12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('Space Designer')+' (위 단추 '+B('Synthesized IR')+', '+B('Reverse')+' '+R('켬')+', Length '+B('3 s')+', Dry '+B('맨 아래(끔)')+', Wet '+B('0 dB')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('80 Hz')+', '+bd(8)+' High Cut '+B('2000 Hz, 24 dB/Oct')+')<br>'+Gr('Cosmos(한 옥타브 위, 하늘로 열림)의 반대: 한 옥타브 아래로 가라앉고 잔향이 거꾸로 부풀어 오름')+'</td></tr>':'')
@@ -4141,16 +4249,20 @@ window.__guideHTML=function(opt){
       +'</table></div>');
     h.push('<h3>나. 트랙마다 값 넣기 <small class="g">아래 표 한 줄이 패치 하나. 그 트랙에 이 순서로 값을 다 넣은 뒤 다 에서 저장</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
       '<b>악기</b>: 이름이 Synthesizer/, Strings/ 로 시작하면 '+B('Y')+' 라이브러리에서 그 이름을 누름. Kontakt, DecentSampler, Quick Sampler 는 채널 스트립 악기 칸에서 고르고 악기까지 불러 둠 '+Gr('(불러 둔 악기와 설정이 패치에 같이 저장되어 다음부터 바로 열림)')+'. 표의 설정까지',
-      '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
+      '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. 그 센드 때문에 믹서 오른쪽에 새로 생긴 Aux(리버브 딜레이가 든 것)는 믹서에서 그 Aux 를 눌러 고르고 '+B('Delete')+' 키로 지움 '+Gr('(남길 Aux 는 이름이 Space, Air, Cosmos, Flip'+(K.echoBus?', Echo':'')+' 인 것뿐. 센드를 지운 Aux 는 아무 소리도 안 받아 지워도 됨)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
       '<b>오디오 FX</b> 그 아래 빈칸에 위에서부터 '+B('Gain')+' → '+B('Channel EQ')+' → '+B('Direction Mixer')+' 를 넣고 표의 값. Direction Mixer 는 Input '+B('LR')+', Direction '+B('0')+' 그대로 두고 Spread 만',
       '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos)'+(K.flipDb!=null?', 넷째 칸 '+B('Bus 4')+'(Flip)':'')+' 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠 '+Gr('(Cosmos 는 Bus 3 Aux 가 없으면 소리가 안 나서 우주 효과를 안 쓰는 곡에서는 그냥 꺼진 셈)')+(K.flipDb!=null?'<br>Bus 4 에 '+B('Pre')+' 라 적힌 칸은 그 센드 칸의 버스 이름을 클릭하면 나오는 메뉴에서 '+B('Pre Fader')+' 고름 '+Gr('(한글 메뉴 프리 페이더. 뒤집힌 세계 동안 MIDI 가 페이더로 음악을 내려도 Flip 으로 가는 소리는 그대로 들어가게)'):'')])
       +'<details><summary>Channel EQ 보는 법</summary><figure><img src="'+EQIMG+'" alt="Channel EQ"></figure><div class="box"><div>밴드는 왼쪽부터 '+bd(1)+'~'+bd(8)+'. 흐린 밴드는 그림을 눌러 켭니다.</div><div>밴드 아래 숫자 세 줄: 위부터 '+B('주파수 Hz')+', '+B('크기 dB')+', '+B('폭 Q')+'. 숫자를 위아래로 끌거나 더블클릭해서 입력.</div><div>'+bd(1)+' Low Cut 은 기울기 '+B('12 dB/Oct')+' 그대로(표에 따로 적은 것만 바꿈).</div></div></details>');
-    h.push('<h4>공통 '+(['','하나','둘','셋','넷','다섯','여섯','일곱','여덟','아홉','열','열하나','열둘','열셋','열넷','열다섯','열여섯','열일곱','열여덟','열아홉','스물','스물하나','스물둘'][K.common.length]||K.common.length)+' <small class="g">음색과 상관없이 같음'+(K.common.some(function(r){ return /Saenghwang|Kalimba|Celesta/.test(r.role); })?(K.common.some(function(r){ return /Gayageum|Geomungo/.test(r.role); })?'. 11 12 13 26 27 은 양금 대신 쓸 선율(곡에서는 그 가운데 하나만 켬)':'. 11 12 13 은 양금 대신 쓸 선율(곡에서는 넷 가운데 하나만 켬)'):'')+'</small></h4><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
-    h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
-    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
+    /* ★ 2026-10-23 형: 동경요가 설명서에 그 곡에 없는 트랙의 패치(핸드팬 메아리 가야금 거문고 풍경 ...)까지 나와 헷갈림 → K.onlyUsed 면 이 곡이 쓰는 패치 줄만(공통, 음색, Space 버스) */
+    const COM=K.onlyUsed?K.common.filter(function(r){ return USED.has(pn(null,r)); }):K.common;
+    h.push('<h4>공통 '+(['','하나','둘','셋','넷','다섯','여섯','일곱','여덟','아홉','열','열하나','열둘','열셋','열넷','열다섯','열여섯','열일곱','열여덟','열아홉','스물','스물하나','스물둘'][COM.length]||COM.length)+' <small class="g">'+(K.onlyUsed?'이 곡에 쓰는 것만, ':'')+'음색과 상관없이 같음'+(!K.onlyUsed && K.common.some(function(r){ return /Saenghwang|Kalimba|Celesta/.test(r.role); })?(K.common.some(function(r){ return /Gayageum|Geomungo/.test(r.role); })?'. 11 12 13 26 27 은 양금 대신 쓸 선율(곡에서는 그 가운데 하나만 켬)':'. 11 12 13 은 양금 대신 쓸 선율(곡에서는 넷 가운데 하나만 켬)'):'')+'</small></h4><div class="wrap"><table>'+head+rowsOf(COM,null,null)+'</table></div>');
+    if(K.onlyUsed){ K.order.forEach(function(k){ const R0=K.tones[k].rows, B0=K.tones[K.order[0]].rows; const ix=R0.map(function(r,i){ return USED.has(pn(k,r))?i:-1; }).filter(function(i){ return i>=0; }); if(!ix.length) return;
+        h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+' <small class="g">이 곡에 쓰는 것만</small></h4><div class="wrap"><table>'+head+rowsOf(ix.map(function(i){ return R0[i]; }),k,(k===K.order[0])?null:ix.map(function(i){ return B0[i]; }))+'</table></div>'); }); }
+    else { h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
+    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); }); }
     h.push('<h3>다. 패치로 저장 <small class="g">표 한 줄의 값을 다 넣은 트랙마다</small></h3>'+stp(['값을 다 넣은 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 엶',
       '라이브러리 맨 아래 '+B('저장...')+' → 그 줄의 저장 이름(예: '+B('SO '+esc(NM[K.order[0]])+' 02 호흡 패드')+') 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김. 표 줄 왼쪽 칸에 체크',
-      '음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)'),
+      K.onlyUsed?'저장 이름은 표 줄 그대로 '+Gr('(다른 음색 줄이 섞여 있으면, 예를 들어 띵샤 신호처럼, 그 음색 이름으로)'):('음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)')),
       '다음 곡부터는 트랙을 고르고 이 이름을 한 번 누르면 악기, 플러그인, 센드가 한꺼번에 들어옴']));
     h.push('<h3>라. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
       '마스터링용: 빈 프로젝트(48 kHz) 오디오 트랙 하나에 '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('25 Hz')+' 만) → '+B('Adaptive Limiter')+' (Out Ceiling '+B('-1.0 dB')+', True Peak Detection '+R('ON')+') → '+B('Loudness Meter')+' → '+B('Y')+' 라이브러리 <b>저장...</b> → '+B('SO 마스터링')]));
@@ -9180,8 +9292,114 @@ window.__pbNong=function(a, b, P, seed){ const out=[]; if(!(b>a+0.08)) return ou
   out.push([b, 8192]); return out; };
 window.__pbRamp=function(a, b, v0, v1, ease){ const out=[]; if(!(b>a)) return [[a,v1]]; const n=Math.max(4,Math.round((b-a)/0.008));
   for(let k=0;k<=n;k++){ const u=k/n; const e=(ease==='out')?1-(1-u)*(1-u):(ease==='in')?u*u:u*u*(3-2*u); out.push([a+(b-a)*u, Math.max(0,Math.min(16383,Math.round(v0+(v1-v0)*e)))]); } return out; };
+/* ★ 2026-10-23 형: 설명서는 그 장르(그 곡)에 맞는 것만. 동경요가 패치 표처럼 모든 앱 장르 편성의 txt 설명서에서 이 곡에 없는 악기 이야기를 뺌.
+   곡 트랙 이름은 마지막으로 내보낸 MIDI(__midiTrackSort 가 적는 __LAST_TRK). 줄 단위 규칙:
+   보컬 가이드 절(보컬 없음), 저역 교통정리와 사이드체인(킥 드럼 없음), 리드 포켓(이 곡 선율 악기 줄만), 신스 만들기(Retro Synth ES2 Alchemy 로 만드는 트랙이 없으면 통째, 있으면 그 역할만),
+   밑청소 HPF 와 장르 계열별 손질(있는 악기, 이 장르 줄만), 음원 대체 목록(있는 역할만), 아티큘레이션 목록(금관 현 목관 합창 하프 가운데 있는 것만), 악기별 익스프레션(숨 악기 발현 로즈 팀파니 가운데 있는 것만) */
+window.__sheetFams=function(names){ const N=(names||[]).map(function(x){ return String(x||'').replace(/\s*\[(Gain|Track Delay)[^\]]*\]/g,''); }); const F={}; const any=function(rx){ return N.some(function(n){ return rx.test(n); }); };
+  const roleOf=function(n){ const k=n.indexOf(' | '); return k>=0?n.slice(k+3):n; }, patchOf=function(n){ const k=n.indexOf(' | '); return k>=0?n.slice(0,k):n; };
+  F.vocal=N.some(function(n){ return /Vocal|보컬|Choir|합창|Voice|Singer|Rap\b|랩/i.test(roleOf(n)) || (/Choir|Vocal|Voice/i.test(patchOf(n)) && !/^Synthesizer\//.test(patchOf(n))); });
+  F.choir=any(/Choir|합창|\bOoh\b|\bAah\b/i);
+  F.brass=any(/Trumpet|French Horn|\bHorns?\b|Trombone|Tuba|Brass|Flugel|Cornet|Euphonium|Tbn|Tpt/i);
+  F.strings=N.some(function(n){ const t=n.replace(/Strings\/(YangGeum|GaYaGeum|GeoMunGo|HaeGeum|AJaeng)[^|]*/gi,''); return /Violin|Viola|Cello|Contrabass|Double Bass|String Ensemble|Studio Strings|\bStrings\b|Sordino|Spiccato|Pizz|현악/i.test(t); });
+  F.woodwind=any(/Flute|Clarinet|Oboe|Bassoon|Woodwind|Piccolo|Recorder|Sax|Daegeum|DaeGeum|Deageum|Danso|DanSo|Piri|PiRi|Sogeum|SoGeum|Taepyeongso|\bHoon\b|Shakuhachi|Dizi|Whistle|Ocarina|Bansuri|Winds\b/i);
+  F.breath=F.woodwind || any(/Accordion|Bandoneon|Harmonica|Melodica|Sax/i);
+  F.harp=any(/\bHarp\b/i);
+  F.pluck=any(/Guitar|Gtr|Nylon|Steel String|Ukulele|Banjo|Mandolin|\bHarp\b|Gayageum|GaYaGeum|Geomungo|GeoMunGo|Koto|Kalimba|Sitar|\bOud\b|Bouzouki|Electric Mint|Picked Acoustic/i);
+  F.guitar=any(/Guitar|Gtr|Nylon|Steel String|Electric Mint|Picked Acoustic|Banjo|Ukulele|Mandolin/i);
+  F.rhodes=any(/Rhodes|Electric Piano|Wurl|Suitcase|\bEP\b|Vintage Electric/i);
+  F.timpani=any(/Timpani/i);
+  F.kick=any(/Kick/i); F.drums=F.kick || any(/Drum|Snare|Hi-?Hat|Drummer|\bKit\b|Studio Drummer|Breakbeat/i);
+  F.bass=N.some(function(n){ return /(^|[^A-Za-z])(Bass|Sub|808)([^A-Za-z]|$)/.test(n) && !/^(?=.*(Contrabass|Double Bass|Bass Drum|Basses|Bassoon|Bass Clarinet|Bass Flute|Bass Trombone))/i.test(n.replace(/(Sub|808)\b/g,'')) || /Deep Sub|Sub Bass|808/i.test(n); });
+  F.b808=any(/808/);
+  F.piano=N.some(function(n){ return /Piano|CSP|Grand\b|Steinway|Upright|Keys\b/i.test(n) && !/Electric Piano|Rhodes|Wurl/i.test(n); });
+  F.pad=any(/Pad\b|패드|Synthesizer\/Pad/i);
+  F.synth=any(/^Synthesizer\/|Retro Synth|ES2|Alchemy|Synth\b|신스/i);
+  const made=function(n){ return /Retro Synth|\bES2\b|만들 소리/i.test(n); };   /* 노브로 만드는 소리만(Alchemy 프리셋은 고르는 것) */
+  F.mkBass=N.some(function(n){ return made(n) && /Bass|Sub|808|베이스/i.test(n); });
+  F.mkLead=N.some(function(n){ return made(n) && /Lead|리드|Arp|아르프|Pluck|플럭/i.test(n); });
+  F.mkPad=N.some(function(n){ return made(n) && /Pad|패드/i.test(n); });
+  F.mkChord=N.some(function(n){ return made(n) && /Chord|코드|Stab|Keys/i.test(n); });
+  F.made=F.mkBass||F.mkLead||F.mkPad||F.mkChord;
+  F.fx=any(/\bFX\b|FX-|Riser|Impact|Sweep|Crash|Vinyl|\bRain\b|Noise|Uplift|Downlift/i);
+  F.shaker=any(/Shaker|Perc|Tamb|Conga|Bongo|Cajon/i);
+  /* 선율 악기 */
+  const lead=N.find(function(n){ return /^(Melody|Lead|Vocal|리드|선율|Solo)\b|\| *(Melody|Lead|Vocal|Solo|리드|선율)|\]\s*(Melody|Lead|Vocal)\b/i.test(n); });
+  F.lead=lead?(/Vocal|보컬|Voice|Choir/i.test(lead)?'vocal':/Flute|Clarinet|Oboe|Sax|Trumpet|Horn|Daegeum|DaeGeum|Danso|Piri|Whistle|Recorder|Winds|Brass/i.test(lead)?'wind':/Violin|Viola|Cello|Strings|Erhu|HaeGeum|Haegeum/i.test(lead)?'string':/Piano|CSP|Grand|Keys|Rhodes/i.test(lead)?'piano':/Synth|Lead|Retro|ES2|Alchemy|Pluck/i.test(lead)?'synth':''):'';
+  F.roles=N.map(function(n){ return roleOf(n).trim().split(/[\s,(]/)[0].toLowerCase(); });
+  return F; };
+window.__sheetTrim=function(txt){ try{ const s=String(txt==null?'':txt); if(s.split('\n').length<40) return s;   /* 설명서(긴 글)만. 트랙 이름 같은 짧은 글도 __L12 를 지나므로(비트 [FX-hit] 트랙 이름이 지워졌던 것) */ const names=window.__LAST_TRK; if(!names||names.length<2) return s; if(window.__LAST_TRK_T && Date.now()-window.__LAST_TRK_T>300000) return s;   /* 5분 넘게 지난 MIDI 면 다른 곡일 수 있어 그대로 */ const F=window.__sheetFams(names);
+  let L=s.split('\n'); const out=[]; const ind=function(x){ return (x.match(/^ */)||[''])[0].length; };
+  const isHead=function(x){ return /^\s*■|^\s*══|^\s*━━|^\s*──|^\s*┈┈/.test(x); };
+  let i=0;
+  /* 장르 계열(시트 앞쪽 글로) */
+  const top=L.slice(0,40).join('\n');
+  const GEN=[['가요, 발라드',/발라드|Ballad|가요|K-?Pop|팝 |Pop\b|Disney|디즈니|City ?Pop|시티팝|J-?Pop|Worship|워십|Gospel|가스펠|R&B|알앤비|Neo ?Soul|네오소울|Motown|모타운|UK ?Pop|Royal ?Road|Komuro|Marusa|animeost|Anime ?OST|billie/i],['EDM, 하우스',/EDM|하우스|House|Techno|테크노|Trance|트랜스|Big ?Room|빅룸|Disco|디스코|Ambient Techno|Dubstep/i],['트랩, 힙합',/트랩|Trap|힙합|Hip-?Hop|Boom ?Bap|붐뱁|Drill|드릴|Lo-?fi Hip|billie/i],['록',/록|Rock|Punk|펑크 록|Metal|메탈|Grunge|Anime ?Rock|애니 록|K-?Band|밴드 사운드/i],['재즈, 어쿠스틱',/재즈|Jazz|어쿠스틱|Acoustic|보사|Bossa|포크|Folk|컨트리|Country|Blues|블루스|Swing|스윙|Tango|탱고|Rumba|룸바|Gypsy|집시|Celtic|켈틱|Reggae|레게|Funk\b|펑크\b|Latin|라틴|balkan|Balkan|발칸/i],['로파이',/로파이|Lo-?fi|Chillhop/i],['오케스트라',/오케|Orchestra|시네마|Cinematic|Epic|에픽|웰니스 오케|Classic|클래식|사극|Saguk|Film|animeost|Anime ?OST/i],['레트로, 신스',/레트로|Retro|신스웨이브|Synthwave|Synth ?Pop|80년대|80s|Vaporwave/i]];
+  const genHit=GEN.filter(function(g){ return g[1].test(top); }).map(function(g){ return g[0]; });
+  const hpfItem={'킥':F.kick,'베이스':F.bass,'피아노':F.piano,'기타':F.guitar,'보컬':F.vocal,'신스 리드':F.synth,'패드':F.pad,'현':F.strings,'관':F.brass||F.woodwind,'드럼 오버헤드':F.drums,'FX':F.fx,'셰이커':F.shaker};
+  const famWord={'금관':F.brass,'현':F.strings,'목관':F.woodwind,'합창':F.choir,'하프':F.harp};
+  const keepFamItem=function(t){ const m=t.trim().match(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/); return !m || famWord[m[1]]; };
+  while(i<L.length){ const x=L[i];
+    /* 보컬 가이드 절 */
+    if(/^■ 🎤 보컬 가이드/.test(x) && !F.vocal){ i++; while(i<L.length && !/^\s*(■|══)/.test(L[i])) i++; continue; }
+    /* 저역 교통정리 */
+    if(/^\s*── 저역 교통정리/.test(x) && !((F.kick||F.drums) && (F.bass||F.b808))){ i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])) i++; continue; }
+    /* 사이드체인 줄 */
+    if(/^\s*── 사이드체인/.test(x) && !(F.kick||F.drums)){ i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i]) && ind(L[i])>ind(x)) i++; continue; }
+    /* 리드 포켓 */
+    if(/^\s*── 리드 포켓/.test(x) && !F.lead) F.lead='vocal';   /* 선율 트랙이 없는 반주 곡(밴드 비트)은 그 위에 얹을 노래가 리드 */
+    if(/^\s*── 리드 포켓/.test(x) && F.lead){ out.push(x); i++; const want={vocal:/^리드=보컬/,wind:/^리드=플루트/,piano:/^리드=피아노/,synth:/^리드=신스/,string:/^리드=현/}[F.lead];
+      while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const t=L[i].trim(); if(/^리드=/.test(t) && want && !want.test(t)){ i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 신스 만들기 */
+    if(/^\s*── 신스 만들기/.test(x)){ if(!F.made){ i++; while(i<L.length && !/^\s*※ 프리셋을 먼저/.test(L[i]) && !/^■/.test(L[i])) i++; if(i<L.length && /^\s*※ 프리셋을 먼저/.test(L[i])) i++; continue; }
+      out.push(x); i++; const okR={'베이스':F.mkBass,'리드':F.mkLead,'패드':F.mkPad,'코드':F.mkChord};
+      while(i<L.length && !/^■/.test(L[i]) && !/^\s*※ 프리셋을 먼저/.test(L[i])){ const m=L[i].match(/^\s*\[(베이스|리드|패드|코드)\]/); if(m && !okR[m[1]]){ i++; while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !/^\s*──/.test(L[i])) i++; while(i<L.length && L[i].trim()==='') i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 밑청소 HPF */
+    if(/^\s*── 밑청소 HPF/.test(x)){ out.push(x); i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const lead=L[i].match(/^\s*/)[0]; const items=L[i].trim().split(/,\s*/).filter(function(it){ const k=Object.keys(hpfItem).sort(function(a,z){ return z.length-a.length; }).find(function(w){ return it.indexOf(w)===0 || it.replace(/=.*/,'')===w; }); return !k || hpfItem[k]; }); if(items.length) out.push(lead+items.join(', ')); i++; } continue; }
+    /* 장르 계열별 손질 */
+    if(/^\s*── 장르 계열별 손질/.test(x) && genHit.length){ out.push(x); i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const t=L[i].trim(); const g=GEN.find(function(G){ return t.indexOf(G[0])===0; }); if(g && genHit.indexOf(g[0])<0){ i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 음원 대체 목록 */
+    if(/\[음원이 로직에 없으면\? 소리계열로 대체\]/.test(x)){ const k=x.indexOf(']')+1; const head=x.slice(0,k); const items=x.slice(k).split(' / ').map(function(t){ return t.trim(); }).filter(function(t){ const key=t.split('=')[0].trim().toLowerCase(); return !key || F.roles.some(function(r){ return r===key; }); }); if(items.length) out.push(head+' '+items.join(' / ')); i++; continue; }
+    /* 아티큘레이션 목록 */
+    if(/^\s*\[(노트 길이|벨로시티 상한|음역 보정|호흡)\]/.test(x)){ const blk=[x]; i++; let lastKept=true; let kept=0;
+      while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])){ let t=L[i]; const tr=t.trim();
+        if(/^→/.test(tr)){ if(lastKept) blk.push(t); i++; continue; }
+        if(/^- /.test(tr)){ const body=tr.slice(2); const lead=t.match(/^\s*/)[0]+'- ';
+          if(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/.test(body) && !/ \/ /.test(body)){ lastKept=keepFamItem(body); if(lastKept){ blk.push(t); kept++; } i++; continue; }
+          if(/ \/ /.test(body)){ let k0=true; const parts=body.split(' / ').filter(function(q){ if(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/.test(q.trim())) k0=keepFamItem(q); return k0; }); lastKept=parts.length>0; if(lastKept){ blk.push(lead+parts.join(' / ')); kept++; } i++; continue; }
+          const m=body.match(/^([^,]+),\s*(.*)$/); if(m && /(금관|현|목관|합창) /.test(m[2])){ const it=m[2].split(/,\s*(?=(?:금관|현|목관|합창|하프) )/).filter(function(q){ return keepFamItem(q); }); lastKept=it.length>0; if(lastKept){ blk.push(lead+m[1]+', '+it.join(', ')); kept++; } i++; continue; } }
+        blk.push(t); kept++; lastKept=true; i++; }
+      if(kept) Array.prototype.push.apply(out, blk); while(!kept && i<L.length && L[i].trim()===''){ i++; break; } continue; }
+    if(/^\s*\[음 들어오는 결\]/.test(x) && !(F.strings||F.woodwind||F.brass||F.choir||F.pad||F.synth)){ i++; while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])) i++; continue; }
+    /* 비트 FX 목록([FX-bed] [FX-hit]): 이 곡에 있는 FX 트랙 것만 */
+    if(/^\s*\[FX-(bed|hit)\]/.test(x)){ const FXK=[[/^바이닐/,/Vinyl/i],[/^히스|^테이프/,/Hiss|Tape/i],[/^비, 파도|^비,|^파도|^바람/,/Rain|Wave|Ocean|Wind|Nature/i],[/^필터스윕/,/Sweep/i],[/^임팩트|^부머/,/Impact|Boom/i],[/^라이저/,/Riser|Uplift/i],[/^서브드롭/,/Sub ?Drop|Drop/i],[/^리버스크래시/,/Reverse Crash|Reverse Cymbal/i],[/^싱잉볼|^벨/,/Bowl|Bell/i]];
+      const has=function(t){ const k=FXK.find(function(q){ return q[0].test(t); }); return !k || (names||[]).some(function(n){ return k[1].test(n); }); };
+      const blk=[x]; i++; let kept=0;
+      while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])){ const tr=L[i].trim(); if(/^- /.test(tr)){ if(has(tr.slice(2))){ blk.push(L[i]); kept++; } } else blk.push(L[i]); i++; }
+      if(kept) Array.prototype.push.apply(out, blk); continue; }
+    /* 연주 관습: 금관 팀파니 줄은 그 악기가 있을 때만, 빈 왈츠는 3/4 왈츠일 때만, 피카르디는 단조 곡일 때만 */
+    { const m=x.match(/^\s{1,4}(팀파니|금관|빈 왈츠|피카르디)\s*:/); if(m){ const ok=(m[1]==='팀파니')?F.timpani:(m[1]==='금관')?F.brass:(m[1]==='빈 왈츠')?/3\/4|왈츠|Waltz/i.test(top):/단조|minor|Aeolian|에올리안|Dorian|도리안|Phrygian|프리지안/i.test(top);
+        if(!ok){ i++; while(i<L.length && /^\s{8,}\S/.test(L[i]) && !/^\s{1,4}\S[^:]{0,8}:/.test(L[i])) i++; continue; } } }
+    /* 스웰: 표본 현 금관 목관 음원 이야기 */
+    if(/^\s*음원에서: 표본 현 금관 목관/.test(x) && !(F.strings||F.brass||F.woodwind)){ i++; continue; }
+    /* 용어 풀이: 이 설명서 다른 곳에 나오는 말만 */
+    if(/^\s*── 용어 풀이/.test(x)){ const rest=L.slice(0,i).concat(L.slice(i+1)).filter(function(q){ return !/^\s+\S.{0,30} = /.test(q); }).join('\n'); const blk=[x]; i++;
+      while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const m=L[i].match(/^\s*(.+?) = /); if(m){ const words=m[1].split(/[\s\/()（）,]+/).filter(function(w){ return w.length>=2 || /[‖\[\]]/.test(w); }); const used=!words.length || words.some(function(w){ return rest.indexOf(w)>=0; }); if(used) blk.push(L[i]); } else blk.push(L[i]); i++; }
+      if(blk.length>1) Array.prototype.push.apply(out, blk); continue; }
+    /* 비트 드럼 음원 고르기: 이 곡 드럼 음원 것만 */
+    { const m=x.match(/^\s*\[(전자 드럼|어쿠스틱)\]/); if(m){ const nm=(names||[]).join('|'); const ok=(m[1]==='전자 드럼')?/Drum Machine Designer|DMD/i.test(nm):/Studio Drummer|Drum Kit|Drummer/i.test(nm); if(!ok){ const d0=ind(x); i++; while(i<L.length && L[i].trim()!=='' && ind(L[i])>d0+2 && !/^\s*\[/.test(L[i])) i++; continue; } } }
+    /* 밴드 1단계: 만들 소리 안내는 만드는 트랙이 있을 때만 */
+    if(/「만들 소리」로 적힌/.test(x) && !F.made){ i++; continue; }
+    /* 악기별 익스프레션 */
+    if(/^■ 악기별 익스프레션/.test(x)){ const blk=[x]; i++; let cur=true, kept=0; const want={'숨 악기':F.breath,'발현 악기':F.pluck,'로즈':F.rhodes,'팀파니':F.timpani};
+      while(i<L.length && !/^\s*(■|══)/.test(L[i]) && L[i].trim()!==''){ const m=L[i].match(/^\s{1,4}(숨 악기|발현 악기|로즈|팀파니)\s*:/); if(m){ cur=!!want[m[1]]; if(cur) kept++; } if(cur) blk.push(L[i]); i++; }
+      if(kept) Array.prototype.push.apply(out, blk); else { while(i<L.length && L[i].trim()==='') i++; } continue; }
+    let y=x; if(!(F.kick||F.drums)) y=y.replace(/사이드체인\([^)]*\)[^,]*덕킹,?\s*/g,''); if(!F.vocal) y=y.replace(/선율\(보컬\)/g,'선율');
+    out.push(y); i++; }
+  return out.join('\n').replace(/\n[ \t]*\n([ \t]*\n)+/g,'\n\n'); }catch(e){ window.__sheetTrimErr=String(e&&e.stack||e); return String(txt); } };
+
 /* ★ 2026-10-21 셋업 시트(txt)의 악기 이름도 디센트로: 시트를 내보내는 __L12 에 이름 바꾸기를 덧붙임 */
-(function(){ const hook=function(){ try{ if(window.__L12 && !window.__L12.__ds){ const o=window.__L12; const f=function(s){ return window.__dsRename(o(s)); }; f.__ds=true; window.__L12=f; } }catch(e){} };
+(function(){ const hook=function(){ try{ if(window.__L12 && !window.__L12.__ds){ const o=window.__L12; const f=function(s){ const r=window.__dsRename(o(s)); return window.__sheetTrim?window.__sheetTrim(window.__noDashText?window.__noDashText(r):r):r; }; f.__ds=true;   /* ★ 2026-10-23 이 곡에 없는 악기 이야기 빼기 */ window.__L12=f; } }catch(e){} };
   hook(); if(typeof document!=='undefined'){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',hook); } setTimeout(hook,0); setTimeout(hook,1500); setTimeout(hook,4000); })();
 /* ★ 2026-10-23 형: 비슷한 트랙끼리 모아서 배열(모든 앱 모든 장르 편성). 위에서 아래로 타악 → 저역 → 건반 기타 하프 → 패드 → 국악기와 포인트 악기 → 종과 말렛 → 현 → 금관 → 목관 → 노래 → 신스 → 효과 → 가이드.
    이름 'Patch | Role' 에서 역할로 먼저 가르는 것(킥, 드럼, 타악, 베이스, 드론, 자연음 바탕, 효과, 가이드), 그다음 악기(패치)로, 그래도 모르면 역할 이름으로. 같은 무리 안에서는 앱이 쓴 순서 그대로.
@@ -9221,6 +9439,7 @@ window.__midiTrackSort=function(u8){ try{ const b=u8; if(!b||b.length<14||b[0]!=
   while(p+8<=b.length){ const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0; const isT=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); CH.push({t:isT, s:p, e:p+8+len}); p+=8+len; }
   const TR=CH.filter(function(c){ return c.t; }); if(TR.length<3) return u8;
   const nameOf=function(c){ const L=Math.min(c.e-3, c.s+8+6000); for(let q=c.s+8;q<L;q++){ if(b[q]===0xFF && b[q+1]===0x03){ let n=0,j=q+2; do{ n=(n<<7)|(b[j]&0x7f); }while(b[j++]&0x80); return dec.decode(b.subarray(j,j+n)); } } return ''; };
+  try{ window.__LAST_TRK=TR.slice(1).map(nameOf); window.__LAST_TRK_T=Date.now(); }catch(e){}   /* ★ 2026-10-23 형: 설명서를 이 곡 트랙에 맞게만(__sheetTrim 이 씀) */
   { const c0=TR[0]; const L=Math.min(c0.e-6, c0.s+8+20000); for(let q=c0.s+8;q<L;q++){ if(b[q]===0xFF&&b[q+1]===0x7F&&b[q+2]===4&&b[q+3]===0x53&&b[q+4]===0x4F&&b[q+5]===0x4B&&b[q+6]===0x4F) return u8; } }
   const rest=TR.slice(1).map(function(c,i){ return {c:c, i:i, r:window.__trackRank(nameOf(c))}; }); const srt=rest.slice().sort(function(a,z){ return (a.r-z.r)||(a.i-z.i); });
   if(srt.every(function(o,i){ return o.i===i; })) return u8;
@@ -9860,7 +10079,8 @@ window.__guideHTML=function(opt){
   h.push('<h2>0. 프로젝트 설정 <small>MIDI 를 열자마자</small></h2>'+ck(['<b>파일 &gt; 열기</b> 로 MIDI 열기 '+Gr('(영어 화면 File &gt; Open. 가져오기 말고 열기. 템포, 박자, 마커, 트랙 이름이 그대로 들어옴)'),'<b>파일 &gt; 프로젝트 설정 &gt; 오디오</b> '+Gr('(File &gt; Project Settings &gt; Audio)')+': Sample Rate '+B('48 kHz'),'<b>Logic Pro &gt; 설정 &gt; 녹음</b> '+Gr('(Logic Pro &gt; Settings &gt; Recording)')+': Recording File Type '+B('WAVE')+', Resolution '+B('24 bit')]));
   const room=GS.room||SPC.room, decay=GS.decay||SPC.decay, pre=GS.pre||(SPC.pre&&SPC.pre[1])||20, same=(room==='Smooth Space'&&decay===4.5&&pre===20);
   if(opt.book){ /* ★ 2026-10-20 형: 호흡 앰비언트 패치 방식. 순서 0 프로젝트 설정, 1 처음 한 번(버스 셋, 공통 패치, 음색 패치, 마스터, 다 만들면 접힘), 2 곡마다, 3 선택 우주 효과, 4 크기와 바운스, 5 마스터링, 6 곡 지도 */
-    const K=opt.book, NM=K.names, curN=NM[K.cur];
+    const K=Object.assign({}, opt.book); if(K.onlyUsed==null) K.onlyUsed=true;   /* ★ 2026-10-23 형: 모든 앱 장르 편성 설명서는 그 곡에 쓰는 패치만(동경요가처럼). 패치 책 전체가 필요하면 book.onlyUsed=false */
+    const NM=K.names, curN=NM[K.cur];
     const pn=function(tk, r){ return 'SO '+(tk?NM[tk]:'공통')+' '+r.n+' '+r.ko; };
     const pid=function(name){ return 'p-'+String(name).replace(/\s+/g,'-'); };
     const dif=function(x){ return '<span class="dif">'+x+'</span>'; };
@@ -9881,13 +10101,13 @@ window.__guideHTML=function(opt){
     if(NEWR.length) h.push('<div class="box"><div><b>호흡 앰비언트(명상 앱) 설명서로 이미 만들었으면</b> 버스 '+B('SO 중후 Space')+' 같은 Space 넷, '+B('SO 공통 Air')+', '+B('SO 공통 Cosmos')+', '+B('SO 공통 Flip')+', Stereo Out '+B('SO 마스터')+', '+B('SO 마스터링')+', 공통 05~13 과 음색 패치는 이름과 값이 같아 그대로 씁니다. 다시 만들지 않습니다.</div>'
       +(K.echoBus?'<div>버스 '+B('SO 공통 Echo')+' 는 '+R('새로')+' 만듭니다(가 표 맨 아래).</div>':'')
       +(NEED.length?'<div>이 곡에 더 만들 패치 '+R(NEED.length+'개')+': '+NEED.map(function(r){ return '<a class="pl" href="#'+esc(pid(pn(null,r)))+'">'+B(esc(pn(null,r)))+'</a>'; }).join(', ')+'. 아래 표에서 '+B('이 곡')+' 과 '+R('새 패치')+' 가 함께 붙은 줄입니다. 만드는 법은 나 다 와 같습니다.</div>':'<div>이 곡은 호흡 앰비언트 패치만으로 됩니다.</div>')
-      +'<div>'+R('새 패치')+' 가 붙은 다른 줄은 다른 웰니스 앰비언트 곡에서 쓰니 그 곡을 만들 때 만들어도 됩니다.</div></div>');
+      +(K.onlyUsed?'':'<div>'+R('새 패치')+' 가 붙은 다른 줄은 다른 웰니스 앰비언트 곡에서 쓰니 그 곡을 만들 때 만들어도 됩니다.</div>')+'</div>');
     h.push('<h3>가. 버스 '+(K.echoBus?'다섯':K.flipDb!=null?'넷':'셋')+'</h3>'+stp([B('X')+' 로 믹서를 열고 첫 트랙의 <b>Sends</b> 첫 빈칸 → '+B('Bus')+' → '+B('Bus 1')+'. 오른쪽에 Aux 가 생기면 이름을 더블클릭해 '+B('Space'),
       '같은 트랙 Sends 둘째 빈칸 → '+B('Bus 2')+' → 이름 '+B('Air')+', 셋째 빈칸 → '+B('Bus 3')+' → 이름 '+B('Cosmos')+(K.flipDb!=null?', 넷째 빈칸 → '+B('Bus 4')+' → 이름 '+B('Flip'):'')+(K.echoBus?', 다섯째 빈칸 → '+B('Bus 5')+' → 이름 '+B('Echo'):''),
       'Aux 마다 오디오 FX 첫 빈칸부터 아래 표의 플러그인과 값',
-      'Aux 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → 표의 저장 이름. Space 는 음색마다 하나씩 넷 '+Gr('(하나 만든 뒤 Decay 같은 값만 바꿔 다른 이름으로 저장)')])
+      'Aux 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → 표의 저장 이름.'+(K.onlyUsed?'':' Space 는 음색마다 하나씩 넷 '+Gr('(하나 만든 뒤 Decay 같은 값만 바꿔 다른 이름으로 저장)'))])
       +'<div class="wrap"><table><tr><th></th><th>저장 이름</th><th>버스</th><th>플러그인과 값</th></tr>'
-      +K.order.map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
+      +K.order.filter(function(k){ return !K.onlyUsed || k===K.cur; }).map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Air')+'</td><td>Bus 2</td><td>'+B('ChromaVerb')+': Room '+B('Airy')+', Predelay '+B('40 ms')+', Decay '+B('8 s')+', Dry '+B('0 %')+', Wet '+B('100 %')+', Damping EQ 오른쪽 끝 점 '+B('100 %')+'. DETAILS 탭 Output EQ '+B('켬')+': 첫째 '+B('400 Hz')+', 다섯째 '+B('10 kHz +4 dB')+', 여섯째 '+R('끄기')+'</td></tr>'
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Cosmos')+'<br>'+Gr('우주 효과용')+'</td><td>Bus 3</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B('12 s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('400 Hz, 24 dB/Oct')+', '+bd(8)+' High Cut '+B('1000 Hz, 24 dB/Oct')+')<br>'+Gr('EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐')+'</td></tr>'
       +(K.flipDb!=null?'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Flip')+'<br>'+Gr('뒤집힌 세계용')+'</td><td>Bus 4</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('-12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('Space Designer')+' (위 단추 '+B('Synthesized IR')+', '+B('Reverse')+' '+R('켬')+', Length '+B('3 s')+', Dry '+B('맨 아래(끔)')+', Wet '+B('0 dB')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('80 Hz')+', '+bd(8)+' High Cut '+B('2000 Hz, 24 dB/Oct')+')<br>'+Gr('Cosmos(한 옥타브 위, 하늘로 열림)의 반대: 한 옥타브 아래로 가라앉고 잔향이 거꾸로 부풀어 오름')+'</td></tr>':'')
@@ -9895,16 +10115,20 @@ window.__guideHTML=function(opt){
       +'</table></div>');
     h.push('<h3>나. 트랙마다 값 넣기 <small class="g">아래 표 한 줄이 패치 하나. 그 트랙에 이 순서로 값을 다 넣은 뒤 다 에서 저장</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
       '<b>악기</b>: 이름이 Synthesizer/, Strings/ 로 시작하면 '+B('Y')+' 라이브러리에서 그 이름을 누름. Kontakt, DecentSampler, Quick Sampler 는 채널 스트립 악기 칸에서 고르고 악기까지 불러 둠 '+Gr('(불러 둔 악기와 설정이 패치에 같이 저장되어 다음부터 바로 열림)')+'. 표의 설정까지',
-      '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
+      '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. 그 센드 때문에 믹서 오른쪽에 새로 생긴 Aux(리버브 딜레이가 든 것)는 믹서에서 그 Aux 를 눌러 고르고 '+B('Delete')+' 키로 지움 '+Gr('(남길 Aux 는 이름이 Space, Air, Cosmos, Flip'+(K.echoBus?', Echo':'')+' 인 것뿐. 센드를 지운 Aux 는 아무 소리도 안 받아 지워도 됨)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
       '<b>오디오 FX</b> 그 아래 빈칸에 위에서부터 '+B('Gain')+' → '+B('Channel EQ')+' → '+B('Direction Mixer')+' 를 넣고 표의 값. Direction Mixer 는 Input '+B('LR')+', Direction '+B('0')+' 그대로 두고 Spread 만',
       '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos)'+(K.flipDb!=null?', 넷째 칸 '+B('Bus 4')+'(Flip)':'')+' 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠 '+Gr('(Cosmos 는 Bus 3 Aux 가 없으면 소리가 안 나서 우주 효과를 안 쓰는 곡에서는 그냥 꺼진 셈)')+(K.flipDb!=null?'<br>Bus 4 에 '+B('Pre')+' 라 적힌 칸은 그 센드 칸의 버스 이름을 클릭하면 나오는 메뉴에서 '+B('Pre Fader')+' 고름 '+Gr('(한글 메뉴 프리 페이더. 뒤집힌 세계 동안 MIDI 가 페이더로 음악을 내려도 Flip 으로 가는 소리는 그대로 들어가게)'):'')])
       +'<details><summary>Channel EQ 보는 법</summary><figure><img src="'+EQIMG+'" alt="Channel EQ"></figure><div class="box"><div>밴드는 왼쪽부터 '+bd(1)+'~'+bd(8)+'. 흐린 밴드는 그림을 눌러 켭니다.</div><div>밴드 아래 숫자 세 줄: 위부터 '+B('주파수 Hz')+', '+B('크기 dB')+', '+B('폭 Q')+'. 숫자를 위아래로 끌거나 더블클릭해서 입력.</div><div>'+bd(1)+' Low Cut 은 기울기 '+B('12 dB/Oct')+' 그대로(표에 따로 적은 것만 바꿈).</div></div></details>');
-    h.push('<h4>공통 '+(['','하나','둘','셋','넷','다섯','여섯','일곱','여덟','아홉','열','열하나','열둘','열셋','열넷','열다섯','열여섯','열일곱','열여덟','열아홉','스물','스물하나','스물둘'][K.common.length]||K.common.length)+' <small class="g">음색과 상관없이 같음'+(K.common.some(function(r){ return /Saenghwang|Kalimba|Celesta/.test(r.role); })?(K.common.some(function(r){ return /Gayageum|Geomungo/.test(r.role); })?'. 11 12 13 26 27 은 양금 대신 쓸 선율(곡에서는 그 가운데 하나만 켬)':'. 11 12 13 은 양금 대신 쓸 선율(곡에서는 넷 가운데 하나만 켬)'):'')+'</small></h4><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
-    h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
-    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
+    /* ★ 2026-10-23 형: 동경요가 설명서에 그 곡에 없는 트랙의 패치(핸드팬 메아리 가야금 거문고 풍경 ...)까지 나와 헷갈림 → K.onlyUsed 면 이 곡이 쓰는 패치 줄만(공통, 음색, Space 버스) */
+    const COM=K.onlyUsed?K.common.filter(function(r){ return USED.has(pn(null,r)); }):K.common;
+    h.push('<h4>공통 '+(['','하나','둘','셋','넷','다섯','여섯','일곱','여덟','아홉','열','열하나','열둘','열셋','열넷','열다섯','열여섯','열일곱','열여덟','열아홉','스물','스물하나','스물둘'][COM.length]||COM.length)+' <small class="g">'+(K.onlyUsed?'이 곡에 쓰는 것만, ':'')+'음색과 상관없이 같음'+(!K.onlyUsed && K.common.some(function(r){ return /Saenghwang|Kalimba|Celesta/.test(r.role); })?(K.common.some(function(r){ return /Gayageum|Geomungo/.test(r.role); })?'. 11 12 13 26 27 은 양금 대신 쓸 선율(곡에서는 그 가운데 하나만 켬)':'. 11 12 13 은 양금 대신 쓸 선율(곡에서는 넷 가운데 하나만 켬)'):'')+'</small></h4><div class="wrap"><table>'+head+rowsOf(COM,null,null)+'</table></div>');
+    if(K.onlyUsed){ K.order.forEach(function(k){ const R0=K.tones[k].rows, B0=K.tones[K.order[0]].rows; const ix=R0.map(function(r,i){ return USED.has(pn(k,r))?i:-1; }).filter(function(i){ return i>=0; }); if(!ix.length) return;
+        h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+' <small class="g">이 곡에 쓰는 것만</small></h4><div class="wrap"><table>'+head+rowsOf(ix.map(function(i){ return R0[i]; }),k,(k===K.order[0])?null:ix.map(function(i){ return B0[i]; }))+'</table></div>'); }); }
+    else { h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
+    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); }); }
     h.push('<h3>다. 패치로 저장 <small class="g">표 한 줄의 값을 다 넣은 트랙마다</small></h3>'+stp(['값을 다 넣은 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 엶',
       '라이브러리 맨 아래 '+B('저장...')+' → 그 줄의 저장 이름(예: '+B('SO '+esc(NM[K.order[0]])+' 02 호흡 패드')+') 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김. 표 줄 왼쪽 칸에 체크',
-      '음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)'),
+      K.onlyUsed?'저장 이름은 표 줄 그대로 '+Gr('(다른 음색 줄이 섞여 있으면, 예를 들어 띵샤 신호처럼, 그 음색 이름으로)'):('음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)')),
       '다음 곡부터는 트랙을 고르고 이 이름을 한 번 누르면 악기, 플러그인, 센드가 한꺼번에 들어옴']));
     h.push('<h3>라. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
       '마스터링용: 빈 프로젝트(48 kHz) 오디오 트랙 하나에 '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('25 Hz')+' 만) → '+B('Adaptive Limiter')+' (Out Ceiling '+B('-1.0 dB')+', True Peak Detection '+R('ON')+') → '+B('Loudness Meter')+' → '+B('Y')+' 라이브러리 <b>저장...</b> → '+B('SO 마스터링')]));
@@ -15162,7 +15386,8 @@ function tempoTrack(){const PPQ=480,M=METERS[secMeter(state.sections[0])];
   MODEL.sections.forEach(s=>{if(s.bpm!==lastBpm){evs.push({tick:padT+Math.round(s.startQ*PPQ),type:'tempo',bpm:s.bpm});lastBpm=s.bpm;}});
   /* 구간별 박자 전환(FF 58)·전조(FF 59): 장구조 인터루드·리프트가 로직 타임라인에 정확히 반영 */
   /* ★ 2026-10-21 전체 검증: 조곡처럼 악장마다 장단이 다른 곡이 곡 전체 장단 하나로 조표를 찍어 Cm 악장이 C장조 조표, Gm 악장이 G장조 조표였음. 구간마다 그 조 으뜸 화음의 장단으로 */
-  const secMin=function(sec,sk){ let t=0,m=0; ((sec&&sec.grid)||[]).forEach(function(bar){ (bar||[]).forEach(function(sym){ if(!sym) return; const c=chordFromSym(sym); if(c&&c.pc===sk){ if(/^sus/.test(c.q)) return; t++; if(/^(min|dim)/.test(c.q)) m++; } }); }); return t?(m/t>=0.5):isMinor; };
+  const secMin=function(sec,sk){ let t=0,m=0,eb=0,en=0; ((sec&&sec.grid)||[]).forEach(function(bar){ (bar||[]).forEach(function(sym){ if(!sym) return; const c=chordFromSym(sym); if(!c) return; const dom=/^dom/.test(c.q); if(!dom){ c.piano.forEach(function(n){ const d=((n-sk)%12+12)%12; if(d===3||d===8) eb++; else if(d===4||d===9) en++; }); } if(c.pc===sk){ if(/^sus/.test(c.q)) return; if(dom){ return; } t++; if(/^(min|dim)/.test(c.q)) m++; } }); }); if(t) return m/t>=0.5; if(eb||en) return eb>en; return isMinor; };
+  /* ★ 2026-10-23 조표 검증: 으뜸음 위 딸림7(C7)은 버금딸림(Fm)으로 가는 부속 딸림화음이라 장조 증거가 아님. Cm 곡 프리코러스(Fm G G#sus4 C7)가 C장조 조표로 찍히던 것. 딸림7 계열은 빼고, 으뜸화음이 없으면 구간 화음의 ♭3·♭6 대 3·6 음으로 정함 */
   {const _s0=secMin(state.sections[0],secKey(state.sections[0])); if(_s0!==isMinor){ const k0=secKey(state.sections[0]); evs[1]={tick:0,type:'ks',sf:_s0?sfMaj((k0+3)%12):sfMaj(k0),mi:_s0?1:0}; } }
   {let lastMt=secMeter(state.sections[0]),lastKey=secKey(state.sections[0]),lastMin=secMin(state.sections[0],secKey(state.sections[0]));
    MODEL.sections.forEach((ms,i)=>{const sec=state.sections[i];if(!sec)return;
@@ -16225,7 +16450,7 @@ function downloadHtml(text,name){ const blob=new Blob([text],{type:'text/html;ch
 function bandGuideHTML(data, sheet){
   if(!window.__guideHTML||!data) return null; if(window.__L12) sheet=window.__L12(sheet);
   const L=sheet.split('\n'), cards=[]; let cur=null;
-  L.forEach(l=>{ const m=/^• \[(.+?)\]\s{2,}(.*)$/.exec(l); if(m){ cur={label:m[1].trim(), kind:m[2].trim()}; cards.push(cur); return; } if(!cur) return;
+  L.forEach(l=>{ const m=/^[•-] \[(.+?)\]\s{2,}(.*)$/.exec(l);   /* ★ 2026-10-24: __L12 가 굵은 점(•)을 '- ' 로 바꾸게 된 뒤 카드를 못 읽어 밴드 설명서 추천 악기가 다 비었음 */ if(m){ cur={label:m[1].trim(), kind:m[2].trim()}; cards.push(cur); return; } if(!cur) return;
     const r=/^\s*① 음원\s*:\s*(.+)$/.exec(l); if(r && !cur.rec) cur.rec=r[1].trim(); if(/^\s*$/.test(l)) cur=null; });
   const hd={}; L.slice(0,40).forEach(l=>{ const m=/^([^:■━•\[]{1,10}?)\s*:\s*(.+)$/.exec(l); if(m && !hd[m[1].trim()]) hd[m[1].trim()]=m[2].trim(); });
   const infoOf=t=>{ if(/\[가이드\] FX Cues/.test(t.name)) return {ko:'효과음 자리', rec:'샘플 (Quick Sampler)', recFree:true, set:'효과음 샘플을 '+window.__guideFmt.B('Quick Sampler')+' 에 넣기. 이 트랙 음은 넣을 자리와 길이'};   /* ★ 2026-10-18 감사 */
@@ -16984,10 +17209,12 @@ function logicGuide(){
   line('  · 구간마다 박자표를 다르게 두면 그 지점에 박자표 변경이 함께 기록됩니다(마디선 위에서만 바뀝니다).');
   line('');
   line('[전 트랙 공통 — 이미 MIDI에 기록된 것]');
-  line('  · 페달(CC64): 코드 셀마다 밟고 다음 코드 직전 뗌(레가토 페달) — 피아노·2nd 피아노 트랙');
-  line('      → 로직: 피아노 음원의 Sustain Pedal이 CC64를 받게 두면 그대로 재현(별도 설정 불필요)');
-  line('      · 스탭 컴핑(kpop·funk 피아노)·신스(komuro)는 페달 없음 — 짧게 끊어 치는 게 정석(인트로·아웃트로만 페달)');
-  line('      · 오케 현 베드(epic)는 페달 대신 CC11 보잉 다이내믹');
+  /* ★ 2026-10-23 형: 설명서는 이 스타일과 이 곡 트랙에 맞는 것만 */
+  const _F=(window.__sheetFams&&window.__LAST_TRK)?window.__sheetFams(window.__LAST_TRK):null, _has=function(k){ return !_F || !!_F[k]; };
+  if(['kpop','funk','komuro'].includes(state.style)) line('  · 페달(CC64): 이 스타일('+(state.style==='komuro'?'신스':'스탭 컴핑 피아노')+')은 페달 없이 짧게 끊어 칩니다, 인트로와 아웃트로만 페달');
+  else if(state.style==='epic') line('  · 페달(CC64) 대신 오케 현 베드가 CC11 보잉 다이내믹');
+  else { line('  · 페달(CC64): 코드 셀마다 밟고 다음 코드 직전 뗌(레가토 페달) — 피아노·2nd 피아노 트랙');
+  line('      → 로직: 피아노 음원의 Sustain Pedal이 CC64를 받게 두면 그대로 재현(별도 설정 불필요)'); }
   line('  · 익스프레션(CC11): 멜로디·리드·대선율·드론 롱톤 스웰');
   line('');
 
@@ -17081,14 +17308,14 @@ function logicGuide(){
   }
   if(['epic','animeost','disney','animerock'].includes(state.style)){
     line('━━━━ 오케 편성 연주법(반영됨) ━━━━');
-    line('· 저현(베이스): 박마다 끊지 않고 코드마다 롱톤 — 인트로·벌스는 마디 하나로 "웅~" 지속');
-    line('    → 로직: 어택 느린 레가토 패치, 컴프 Attack 40~60ms로 활 붙임 자연스럽게');
-    line('· 금관: 마디마다 엇박(2박 뒤 앤)에서 들어와 쭉 미는 롱 스탭 — 코드 바뀌기 직전에 끊어 협화 유지');
+    if(_has('strings')||(_F&&/Contrabass|Double Bass|Basses|Cello/i.test((window.__LAST_TRK||[]).join('|')))){ line('· 저현(베이스): 박마다 끊지 않고 코드마다 롱톤 — 인트로·벌스는 마디 하나로 "웅~" 지속');
+    line('    → 로직: 어택 느린 레가토 패치, 컴프 Attack 40~60ms로 활 붙임 자연스럽게'); }
+    if(_has('brass')){ line('· 금관: 마디마다 엇박(2박 뒤 앤)에서 들어와 쭉 미는 롱 스탭 — 코드 바뀌기 직전에 끊어 협화 유지');
     line('    → 로직: 스탭 패치가 아니라 서스테인/마르카토 패치 + CC11로 밀어붙이는 크레셴도');
-    line('    → 인트로는 금관 쉼(공간 확보), 벌스는 두 마디에 한 번, 코러스부터 매 마디');
-    line('· 그란카사·팀파니: 인트로는 두 마디에 한 번(팀파니 쉼) → 벌스 마디 첫박 → 코러스부터 촘촘하게');
-  line('· 타악 벨로시티 밸런스: 심벌 ×0.74(최대 104) · 그란카사 ×0.90 · 스네어 ×0.88 — 과열 없이 어울리게');
-    line('    → 구간 마지막 마디의 필(픽업)은 유지 — 밴드 진입 신호');
+    line('    → 인트로는 금관 쉼(공간 확보), 벌스는 두 마디에 한 번, 코러스부터 매 마디'); }
+    if(_has('timpani')||(_F&&/Gran Cassa/i.test((window.__LAST_TRK||[]).join('|')))) line('· 그란카사·팀파니: 인트로는 두 마디에 한 번(팀파니 쉼) → 벌스 마디 첫박 → 코러스부터 촘촘하게');
+  if(_has('drums')){ line('· 타악 벨로시티 밸런스: 심벌 ×0.74(최대 104) · 그란카사 ×0.90 · 스네어 ×0.88 — 과열 없이 어울리게');
+    line('    → 구간 마지막 마디의 필(픽업)은 유지 — 밴드 진입 신호'); }
     line('');
   }
   line('━━━━ 다이내믹 아치(전 장르 반영됨) ━━━━');
@@ -17102,6 +17329,7 @@ function logicGuide(){
   line('· 진행은 스타일 풀에서 시드로 선택(선언 조성과 충돌하는 진행은 자동 제외)');
   line('· 화성 색채: 구간 첫·마지막 코드는 그대로 두고 중간 코드에 7·add9·6·sus를 시드로 입힘(장르별 강도 다름)');
   line('');
+  if(_has('brass')||_has('strings')||_has('woodwind')||_has('choir')){
   line('━━━━ 관·현·합창 아티큘레이션(반영됨) ━━━━');
   line('· 음원이 주법을 스스로 고르도록 \'음 길이\'와 \'벨로시티\'에 신호를 넣어 두었습니다. 트럼펫·호른·현·목관·합창 음색이 실린 트랙이 대상입니다.');
   line('· 노트 길이(다음 음까지의 간격 대비): 금관 짧은음 40%·테누토 95%·레가토 105% / 현 38%·92%·108% / 목관 45%·93%·102% / 합창 60%·97%·104%');
@@ -17114,8 +17342,26 @@ function logicGuide(){
   line('· 재타건: 같은 음이 이어질 때는 떼어 둡니다 — 겹치면 노트오프가 충돌해 다시 치는 맛이 사라집니다. 레가토 물림은 음정이 바뀔 때만 걸립니다.');
   line('· 베이스가 튜바·저현일 때는 길이는 베이스 주법을 따르고 벨로시티 상한만 적용합니다.');
   line('⚠ 로직에서 리퀀타이즈나 Force Legato·Note Length 일괄 처리를 하면 이 신호가 지워집니다.');
-  line('');
-  line('━━━━ 베이스 주법(장르별 반영됨) ━━━━');
+  line(''); }
+  const _BST=state.style, _ORCH=['epic','animeost','disney','animerock'].includes(_BST);
+  /* 베이스 주법 표(앱 안 베이스 패스와 같은 값. 바꾸면 둘 다): 길이 ARTIC, 어프로치 APPR, 당겨치기 PUSH, 고스트 GHOST */
+  const _ART={tango:0.45,balkan:0.5,gypsy:0.55,rumba:0.75,jazz:0.8,kband:0.6,ukpop:0.65,funk:0.45,motown:0.5,poppunk:0.55,komuro:0.5,kpop:0.6,countrypop:0.6,country:0.6,celtic:0.65,ballad:0.97,jballad:0.97,worship:0.97,billie:0.9,saguk:0.98,gospel:0.8,neosoul:0.8,marusa:0.85,royalroad:0.85}[_BST];
+  const _APP={gospel:1,motown:1,country:1,countrypop:1,marusa:1,neosoul:1,royalroad:1,jballad:1,ukpop:1,celtic:1,kband:1}[_BST], _PUSH={kpop:1,citypop:1,funk:1,poppunk:1,motown:1,komuro:1,ukpop:1,billie:1,neosoul:1,kband:1}[_BST], _GH={funk:1,motown:1,neosoul:1,citypop:1,rnb:1,kpop:1,poppunk:1}[_BST];
+  if(!_ORCH && state.enabled.bass){
+  line('━━━━ 베이스 주법(이 스타일에 반영됨) ━━━━');
+  if(_ART!=null) line('· 아티큘레이션: 이 스타일은 '+(_ART>=0.95?'레가토(게이트 '+_ART+', 음이 서로 붙음)':_ART<=0.6?'스타카토(게이트 '+_ART+', 짧게 끊음)':'중간 길이(게이트 '+_ART+')'));
+  if(_ART!=null) line('    → 로직: 게이트가 MIDI 음 길이에 이미 반영됨. 베이스 음원의 릴리즈만 맞추면 그대로 재현');
+  line('· 익스프레션(CC11): 긴 음은 어택 직후 살짝 부풀었다 유지 → "둥~" 하고 울림. MIDI에 이미 기록됨');
+  line('    → 로직: 베이스 음원이 CC11(Expression)을 볼륨/필터에 받도록 두면 그대로 재현. 신스 베이스는 CC11→필터 컷오프에 연결하면 더 살아남');
+  if(_GH){ line('· 고스트 노트: 벨로시티 24~34, 길이 0.11박의 뮤트 저음');
+  line('    → 로직: 벨로시티 40 이하를 뮤트/데드노트 아티큘레이션으로 매핑하면 진짜 그루브가 남'); }
+  if(['ballad','jballad','worship','saguk'].includes(_BST)){ line('· 레가토 연결: 다음 음과 살짝 겹치게 기록 → 샘플 라이브러리의 레가토/글라이드가 물림');
+  line('    (같은 음끼리는 절대 겹치지 않게 자동 정리 — 노트오프 충돌 방지)'); }
+  if(_APP) line('· 어프로치: 2마디 프레이즈 끝 8분에 다음 코드 근음으로 반음 접근');
+  if(_PUSH) line('· 앤티시페이션(푸시): 다음 코드 근음을 8분 먼저 당겨 침');
+  if(_APP||_PUSH) line('    → 음 개수를 늘리지 않고 기존 자리를 바꿔 넣음(밀도 유지, 느낌만 변화)');
+  line(''); }
+  if(false){
   line('· 아티큘레이션: 발라드·워십·사극은 레가토(게이트 0.97, 음이 서로 붙음) / 펑크·모타운·팝펑크·코무로는 스타카토(0.34~0.55)');
   line('    → 로직: 게이트가 MIDI 음 길이에 이미 반영됨. 베이스 음원의 릴리즈만 맞추면 그대로 재현');
   line('· 익스프레션(CC11): 긴 음은 어택 직후 살짝 부풀었다 유지 → "둥~" 하고 울림. MIDI에 이미 기록됨');
@@ -17128,7 +17374,7 @@ function logicGuide(){
   line('· 어프로치: 2마디 프레이즈 끝 8분에 다음 코드 근음으로 반음 접근(가스펠·모타운·컨트리·네오소울)');
   line('· 앤티시페이션(푸시): 다음 코드 근음을 8분 먼저 당겨 침(K팝·시티팝·펑크·팝펑크·빌리)');
   line('    → 둘 다 음 개수를 늘리지 않고 기존 자리를 바꿔 넣음(밀도 유지, 느낌만 변화)');
-  line('');
+  line(''); }   /* 예전 모든 스타일 나열(이제 위 이 스타일 것만) */
   line('━━━━ MIDI에 담긴 것 ━━━━');
   line('음표·보이싱·조표·박자·템포·구간마커·트랙이름·페달(CC64)·익스프레션(CC11)·FX메모(트랙 텍스트).');
   if(['animeost','disney'].includes(state.style))line('시네마틱 스파클: 브레이크(피아노 홀로)·빌드업(팀파니 가속 롤+스트링+멜로디 상승)·폭발(그란카사 더블+심벌 다중+팀파니 강타)·폭발후 드럼 유지 — 전부 해당 트랙에 노트로 반영됨.');
@@ -18815,8 +19061,114 @@ window.__pbNong=function(a, b, P, seed){ const out=[]; if(!(b>a+0.08)) return ou
   out.push([b, 8192]); return out; };
 window.__pbRamp=function(a, b, v0, v1, ease){ const out=[]; if(!(b>a)) return [[a,v1]]; const n=Math.max(4,Math.round((b-a)/0.008));
   for(let k=0;k<=n;k++){ const u=k/n; const e=(ease==='out')?1-(1-u)*(1-u):(ease==='in')?u*u:u*u*(3-2*u); out.push([a+(b-a)*u, Math.max(0,Math.min(16383,Math.round(v0+(v1-v0)*e)))]); } return out; };
+/* ★ 2026-10-23 형: 설명서는 그 장르(그 곡)에 맞는 것만. 동경요가 패치 표처럼 모든 앱 장르 편성의 txt 설명서에서 이 곡에 없는 악기 이야기를 뺌.
+   곡 트랙 이름은 마지막으로 내보낸 MIDI(__midiTrackSort 가 적는 __LAST_TRK). 줄 단위 규칙:
+   보컬 가이드 절(보컬 없음), 저역 교통정리와 사이드체인(킥 드럼 없음), 리드 포켓(이 곡 선율 악기 줄만), 신스 만들기(Retro Synth ES2 Alchemy 로 만드는 트랙이 없으면 통째, 있으면 그 역할만),
+   밑청소 HPF 와 장르 계열별 손질(있는 악기, 이 장르 줄만), 음원 대체 목록(있는 역할만), 아티큘레이션 목록(금관 현 목관 합창 하프 가운데 있는 것만), 악기별 익스프레션(숨 악기 발현 로즈 팀파니 가운데 있는 것만) */
+window.__sheetFams=function(names){ const N=(names||[]).map(function(x){ return String(x||'').replace(/\s*\[(Gain|Track Delay)[^\]]*\]/g,''); }); const F={}; const any=function(rx){ return N.some(function(n){ return rx.test(n); }); };
+  const roleOf=function(n){ const k=n.indexOf(' | '); return k>=0?n.slice(k+3):n; }, patchOf=function(n){ const k=n.indexOf(' | '); return k>=0?n.slice(0,k):n; };
+  F.vocal=N.some(function(n){ return /Vocal|보컬|Choir|합창|Voice|Singer|Rap\b|랩/i.test(roleOf(n)) || (/Choir|Vocal|Voice/i.test(patchOf(n)) && !/^Synthesizer\//.test(patchOf(n))); });
+  F.choir=any(/Choir|합창|\bOoh\b|\bAah\b/i);
+  F.brass=any(/Trumpet|French Horn|\bHorns?\b|Trombone|Tuba|Brass|Flugel|Cornet|Euphonium|Tbn|Tpt/i);
+  F.strings=N.some(function(n){ const t=n.replace(/Strings\/(YangGeum|GaYaGeum|GeoMunGo|HaeGeum|AJaeng)[^|]*/gi,''); return /Violin|Viola|Cello|Contrabass|Double Bass|String Ensemble|Studio Strings|\bStrings\b|Sordino|Spiccato|Pizz|현악/i.test(t); });
+  F.woodwind=any(/Flute|Clarinet|Oboe|Bassoon|Woodwind|Piccolo|Recorder|Sax|Daegeum|DaeGeum|Deageum|Danso|DanSo|Piri|PiRi|Sogeum|SoGeum|Taepyeongso|\bHoon\b|Shakuhachi|Dizi|Whistle|Ocarina|Bansuri|Winds\b/i);
+  F.breath=F.woodwind || any(/Accordion|Bandoneon|Harmonica|Melodica|Sax/i);
+  F.harp=any(/\bHarp\b/i);
+  F.pluck=any(/Guitar|Gtr|Nylon|Steel String|Ukulele|Banjo|Mandolin|\bHarp\b|Gayageum|GaYaGeum|Geomungo|GeoMunGo|Koto|Kalimba|Sitar|\bOud\b|Bouzouki|Electric Mint|Picked Acoustic/i);
+  F.guitar=any(/Guitar|Gtr|Nylon|Steel String|Electric Mint|Picked Acoustic|Banjo|Ukulele|Mandolin/i);
+  F.rhodes=any(/Rhodes|Electric Piano|Wurl|Suitcase|\bEP\b|Vintage Electric/i);
+  F.timpani=any(/Timpani/i);
+  F.kick=any(/Kick/i); F.drums=F.kick || any(/Drum|Snare|Hi-?Hat|Drummer|\bKit\b|Studio Drummer|Breakbeat/i);
+  F.bass=N.some(function(n){ return /(^|[^A-Za-z])(Bass|Sub|808)([^A-Za-z]|$)/.test(n) && !/^(?=.*(Contrabass|Double Bass|Bass Drum|Basses|Bassoon|Bass Clarinet|Bass Flute|Bass Trombone))/i.test(n.replace(/(Sub|808)\b/g,'')) || /Deep Sub|Sub Bass|808/i.test(n); });
+  F.b808=any(/808/);
+  F.piano=N.some(function(n){ return /Piano|CSP|Grand\b|Steinway|Upright|Keys\b/i.test(n) && !/Electric Piano|Rhodes|Wurl/i.test(n); });
+  F.pad=any(/Pad\b|패드|Synthesizer\/Pad/i);
+  F.synth=any(/^Synthesizer\/|Retro Synth|ES2|Alchemy|Synth\b|신스/i);
+  const made=function(n){ return /Retro Synth|\bES2\b|만들 소리/i.test(n); };   /* 노브로 만드는 소리만(Alchemy 프리셋은 고르는 것) */
+  F.mkBass=N.some(function(n){ return made(n) && /Bass|Sub|808|베이스/i.test(n); });
+  F.mkLead=N.some(function(n){ return made(n) && /Lead|리드|Arp|아르프|Pluck|플럭/i.test(n); });
+  F.mkPad=N.some(function(n){ return made(n) && /Pad|패드/i.test(n); });
+  F.mkChord=N.some(function(n){ return made(n) && /Chord|코드|Stab|Keys/i.test(n); });
+  F.made=F.mkBass||F.mkLead||F.mkPad||F.mkChord;
+  F.fx=any(/\bFX\b|FX-|Riser|Impact|Sweep|Crash|Vinyl|\bRain\b|Noise|Uplift|Downlift/i);
+  F.shaker=any(/Shaker|Perc|Tamb|Conga|Bongo|Cajon/i);
+  /* 선율 악기 */
+  const lead=N.find(function(n){ return /^(Melody|Lead|Vocal|리드|선율|Solo)\b|\| *(Melody|Lead|Vocal|Solo|리드|선율)|\]\s*(Melody|Lead|Vocal)\b/i.test(n); });
+  F.lead=lead?(/Vocal|보컬|Voice|Choir/i.test(lead)?'vocal':/Flute|Clarinet|Oboe|Sax|Trumpet|Horn|Daegeum|DaeGeum|Danso|Piri|Whistle|Recorder|Winds|Brass/i.test(lead)?'wind':/Violin|Viola|Cello|Strings|Erhu|HaeGeum|Haegeum/i.test(lead)?'string':/Piano|CSP|Grand|Keys|Rhodes/i.test(lead)?'piano':/Synth|Lead|Retro|ES2|Alchemy|Pluck/i.test(lead)?'synth':''):'';
+  F.roles=N.map(function(n){ return roleOf(n).trim().split(/[\s,(]/)[0].toLowerCase(); });
+  return F; };
+window.__sheetTrim=function(txt){ try{ const s=String(txt==null?'':txt); if(s.split('\n').length<40) return s;   /* 설명서(긴 글)만. 트랙 이름 같은 짧은 글도 __L12 를 지나므로(비트 [FX-hit] 트랙 이름이 지워졌던 것) */ const names=window.__LAST_TRK; if(!names||names.length<2) return s; if(window.__LAST_TRK_T && Date.now()-window.__LAST_TRK_T>300000) return s;   /* 5분 넘게 지난 MIDI 면 다른 곡일 수 있어 그대로 */ const F=window.__sheetFams(names);
+  let L=s.split('\n'); const out=[]; const ind=function(x){ return (x.match(/^ */)||[''])[0].length; };
+  const isHead=function(x){ return /^\s*■|^\s*══|^\s*━━|^\s*──|^\s*┈┈/.test(x); };
+  let i=0;
+  /* 장르 계열(시트 앞쪽 글로) */
+  const top=L.slice(0,40).join('\n');
+  const GEN=[['가요, 발라드',/발라드|Ballad|가요|K-?Pop|팝 |Pop\b|Disney|디즈니|City ?Pop|시티팝|J-?Pop|Worship|워십|Gospel|가스펠|R&B|알앤비|Neo ?Soul|네오소울|Motown|모타운|UK ?Pop|Royal ?Road|Komuro|Marusa|animeost|Anime ?OST|billie/i],['EDM, 하우스',/EDM|하우스|House|Techno|테크노|Trance|트랜스|Big ?Room|빅룸|Disco|디스코|Ambient Techno|Dubstep/i],['트랩, 힙합',/트랩|Trap|힙합|Hip-?Hop|Boom ?Bap|붐뱁|Drill|드릴|Lo-?fi Hip|billie/i],['록',/록|Rock|Punk|펑크 록|Metal|메탈|Grunge|Anime ?Rock|애니 록|K-?Band|밴드 사운드/i],['재즈, 어쿠스틱',/재즈|Jazz|어쿠스틱|Acoustic|보사|Bossa|포크|Folk|컨트리|Country|Blues|블루스|Swing|스윙|Tango|탱고|Rumba|룸바|Gypsy|집시|Celtic|켈틱|Reggae|레게|Funk\b|펑크\b|Latin|라틴|balkan|Balkan|발칸/i],['로파이',/로파이|Lo-?fi|Chillhop/i],['오케스트라',/오케|Orchestra|시네마|Cinematic|Epic|에픽|웰니스 오케|Classic|클래식|사극|Saguk|Film|animeost|Anime ?OST/i],['레트로, 신스',/레트로|Retro|신스웨이브|Synthwave|Synth ?Pop|80년대|80s|Vaporwave/i]];
+  const genHit=GEN.filter(function(g){ return g[1].test(top); }).map(function(g){ return g[0]; });
+  const hpfItem={'킥':F.kick,'베이스':F.bass,'피아노':F.piano,'기타':F.guitar,'보컬':F.vocal,'신스 리드':F.synth,'패드':F.pad,'현':F.strings,'관':F.brass||F.woodwind,'드럼 오버헤드':F.drums,'FX':F.fx,'셰이커':F.shaker};
+  const famWord={'금관':F.brass,'현':F.strings,'목관':F.woodwind,'합창':F.choir,'하프':F.harp};
+  const keepFamItem=function(t){ const m=t.trim().match(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/); return !m || famWord[m[1]]; };
+  while(i<L.length){ const x=L[i];
+    /* 보컬 가이드 절 */
+    if(/^■ 🎤 보컬 가이드/.test(x) && !F.vocal){ i++; while(i<L.length && !/^\s*(■|══)/.test(L[i])) i++; continue; }
+    /* 저역 교통정리 */
+    if(/^\s*── 저역 교통정리/.test(x) && !((F.kick||F.drums) && (F.bass||F.b808))){ i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])) i++; continue; }
+    /* 사이드체인 줄 */
+    if(/^\s*── 사이드체인/.test(x) && !(F.kick||F.drums)){ i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i]) && ind(L[i])>ind(x)) i++; continue; }
+    /* 리드 포켓 */
+    if(/^\s*── 리드 포켓/.test(x) && !F.lead) F.lead='vocal';   /* 선율 트랙이 없는 반주 곡(밴드 비트)은 그 위에 얹을 노래가 리드 */
+    if(/^\s*── 리드 포켓/.test(x) && F.lead){ out.push(x); i++; const want={vocal:/^리드=보컬/,wind:/^리드=플루트/,piano:/^리드=피아노/,synth:/^리드=신스/,string:/^리드=현/}[F.lead];
+      while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const t=L[i].trim(); if(/^리드=/.test(t) && want && !want.test(t)){ i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 신스 만들기 */
+    if(/^\s*── 신스 만들기/.test(x)){ if(!F.made){ i++; while(i<L.length && !/^\s*※ 프리셋을 먼저/.test(L[i]) && !/^■/.test(L[i])) i++; if(i<L.length && /^\s*※ 프리셋을 먼저/.test(L[i])) i++; continue; }
+      out.push(x); i++; const okR={'베이스':F.mkBass,'리드':F.mkLead,'패드':F.mkPad,'코드':F.mkChord};
+      while(i<L.length && !/^■/.test(L[i]) && !/^\s*※ 프리셋을 먼저/.test(L[i])){ const m=L[i].match(/^\s*\[(베이스|리드|패드|코드)\]/); if(m && !okR[m[1]]){ i++; while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !/^\s*──/.test(L[i])) i++; while(i<L.length && L[i].trim()==='') i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 밑청소 HPF */
+    if(/^\s*── 밑청소 HPF/.test(x)){ out.push(x); i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const lead=L[i].match(/^\s*/)[0]; const items=L[i].trim().split(/,\s*/).filter(function(it){ const k=Object.keys(hpfItem).sort(function(a,z){ return z.length-a.length; }).find(function(w){ return it.indexOf(w)===0 || it.replace(/=.*/,'')===w; }); return !k || hpfItem[k]; }); if(items.length) out.push(lead+items.join(', ')); i++; } continue; }
+    /* 장르 계열별 손질 */
+    if(/^\s*── 장르 계열별 손질/.test(x) && genHit.length){ out.push(x); i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const t=L[i].trim(); const g=GEN.find(function(G){ return t.indexOf(G[0])===0; }); if(g && genHit.indexOf(g[0])<0){ i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 음원 대체 목록 */
+    if(/\[음원이 로직에 없으면\? 소리계열로 대체\]/.test(x)){ const k=x.indexOf(']')+1; const head=x.slice(0,k); const items=x.slice(k).split(' / ').map(function(t){ return t.trim(); }).filter(function(t){ const key=t.split('=')[0].trim().toLowerCase(); return !key || F.roles.some(function(r){ return r===key; }); }); if(items.length) out.push(head+' '+items.join(' / ')); i++; continue; }
+    /* 아티큘레이션 목록 */
+    if(/^\s*\[(노트 길이|벨로시티 상한|음역 보정|호흡)\]/.test(x)){ const blk=[x]; i++; let lastKept=true; let kept=0;
+      while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])){ let t=L[i]; const tr=t.trim();
+        if(/^→/.test(tr)){ if(lastKept) blk.push(t); i++; continue; }
+        if(/^- /.test(tr)){ const body=tr.slice(2); const lead=t.match(/^\s*/)[0]+'- ';
+          if(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/.test(body) && !/ \/ /.test(body)){ lastKept=keepFamItem(body); if(lastKept){ blk.push(t); kept++; } i++; continue; }
+          if(/ \/ /.test(body)){ let k0=true; const parts=body.split(' / ').filter(function(q){ if(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/.test(q.trim())) k0=keepFamItem(q); return k0; }); lastKept=parts.length>0; if(lastKept){ blk.push(lead+parts.join(' / ')); kept++; } i++; continue; }
+          const m=body.match(/^([^,]+),\s*(.*)$/); if(m && /(금관|현|목관|합창) /.test(m[2])){ const it=m[2].split(/,\s*(?=(?:금관|현|목관|합창|하프) )/).filter(function(q){ return keepFamItem(q); }); lastKept=it.length>0; if(lastKept){ blk.push(lead+m[1]+', '+it.join(', ')); kept++; } i++; continue; } }
+        blk.push(t); kept++; lastKept=true; i++; }
+      if(kept) Array.prototype.push.apply(out, blk); while(!kept && i<L.length && L[i].trim()===''){ i++; break; } continue; }
+    if(/^\s*\[음 들어오는 결\]/.test(x) && !(F.strings||F.woodwind||F.brass||F.choir||F.pad||F.synth)){ i++; while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])) i++; continue; }
+    /* 비트 FX 목록([FX-bed] [FX-hit]): 이 곡에 있는 FX 트랙 것만 */
+    if(/^\s*\[FX-(bed|hit)\]/.test(x)){ const FXK=[[/^바이닐/,/Vinyl/i],[/^히스|^테이프/,/Hiss|Tape/i],[/^비, 파도|^비,|^파도|^바람/,/Rain|Wave|Ocean|Wind|Nature/i],[/^필터스윕/,/Sweep/i],[/^임팩트|^부머/,/Impact|Boom/i],[/^라이저/,/Riser|Uplift/i],[/^서브드롭/,/Sub ?Drop|Drop/i],[/^리버스크래시/,/Reverse Crash|Reverse Cymbal/i],[/^싱잉볼|^벨/,/Bowl|Bell/i]];
+      const has=function(t){ const k=FXK.find(function(q){ return q[0].test(t); }); return !k || (names||[]).some(function(n){ return k[1].test(n); }); };
+      const blk=[x]; i++; let kept=0;
+      while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])){ const tr=L[i].trim(); if(/^- /.test(tr)){ if(has(tr.slice(2))){ blk.push(L[i]); kept++; } } else blk.push(L[i]); i++; }
+      if(kept) Array.prototype.push.apply(out, blk); continue; }
+    /* 연주 관습: 금관 팀파니 줄은 그 악기가 있을 때만, 빈 왈츠는 3/4 왈츠일 때만, 피카르디는 단조 곡일 때만 */
+    { const m=x.match(/^\s{1,4}(팀파니|금관|빈 왈츠|피카르디)\s*:/); if(m){ const ok=(m[1]==='팀파니')?F.timpani:(m[1]==='금관')?F.brass:(m[1]==='빈 왈츠')?/3\/4|왈츠|Waltz/i.test(top):/단조|minor|Aeolian|에올리안|Dorian|도리안|Phrygian|프리지안/i.test(top);
+        if(!ok){ i++; while(i<L.length && /^\s{8,}\S/.test(L[i]) && !/^\s{1,4}\S[^:]{0,8}:/.test(L[i])) i++; continue; } } }
+    /* 스웰: 표본 현 금관 목관 음원 이야기 */
+    if(/^\s*음원에서: 표본 현 금관 목관/.test(x) && !(F.strings||F.brass||F.woodwind)){ i++; continue; }
+    /* 용어 풀이: 이 설명서 다른 곳에 나오는 말만 */
+    if(/^\s*── 용어 풀이/.test(x)){ const rest=L.slice(0,i).concat(L.slice(i+1)).filter(function(q){ return !/^\s+\S.{0,30} = /.test(q); }).join('\n'); const blk=[x]; i++;
+      while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const m=L[i].match(/^\s*(.+?) = /); if(m){ const words=m[1].split(/[\s\/()（）,]+/).filter(function(w){ return w.length>=2 || /[‖\[\]]/.test(w); }); const used=!words.length || words.some(function(w){ return rest.indexOf(w)>=0; }); if(used) blk.push(L[i]); } else blk.push(L[i]); i++; }
+      if(blk.length>1) Array.prototype.push.apply(out, blk); continue; }
+    /* 비트 드럼 음원 고르기: 이 곡 드럼 음원 것만 */
+    { const m=x.match(/^\s*\[(전자 드럼|어쿠스틱)\]/); if(m){ const nm=(names||[]).join('|'); const ok=(m[1]==='전자 드럼')?/Drum Machine Designer|DMD/i.test(nm):/Studio Drummer|Drum Kit|Drummer/i.test(nm); if(!ok){ const d0=ind(x); i++; while(i<L.length && L[i].trim()!=='' && ind(L[i])>d0+2 && !/^\s*\[/.test(L[i])) i++; continue; } } }
+    /* 밴드 1단계: 만들 소리 안내는 만드는 트랙이 있을 때만 */
+    if(/「만들 소리」로 적힌/.test(x) && !F.made){ i++; continue; }
+    /* 악기별 익스프레션 */
+    if(/^■ 악기별 익스프레션/.test(x)){ const blk=[x]; i++; let cur=true, kept=0; const want={'숨 악기':F.breath,'발현 악기':F.pluck,'로즈':F.rhodes,'팀파니':F.timpani};
+      while(i<L.length && !/^\s*(■|══)/.test(L[i]) && L[i].trim()!==''){ const m=L[i].match(/^\s{1,4}(숨 악기|발현 악기|로즈|팀파니)\s*:/); if(m){ cur=!!want[m[1]]; if(cur) kept++; } if(cur) blk.push(L[i]); i++; }
+      if(kept) Array.prototype.push.apply(out, blk); else { while(i<L.length && L[i].trim()==='') i++; } continue; }
+    let y=x; if(!(F.kick||F.drums)) y=y.replace(/사이드체인\([^)]*\)[^,]*덕킹,?\s*/g,''); if(!F.vocal) y=y.replace(/선율\(보컬\)/g,'선율');
+    out.push(y); i++; }
+  return out.join('\n').replace(/\n[ \t]*\n([ \t]*\n)+/g,'\n\n'); }catch(e){ window.__sheetTrimErr=String(e&&e.stack||e); return String(txt); } };
+
 /* ★ 2026-10-21 셋업 시트(txt)의 악기 이름도 디센트로: 시트를 내보내는 __L12 에 이름 바꾸기를 덧붙임 */
-(function(){ const hook=function(){ try{ if(window.__L12 && !window.__L12.__ds){ const o=window.__L12; const f=function(s){ return window.__dsRename(o(s)); }; f.__ds=true; window.__L12=f; } }catch(e){} };
+(function(){ const hook=function(){ try{ if(window.__L12 && !window.__L12.__ds){ const o=window.__L12; const f=function(s){ const r=window.__dsRename(o(s)); return window.__sheetTrim?window.__sheetTrim(window.__noDashText?window.__noDashText(r):r):r; }; f.__ds=true;   /* ★ 2026-10-23 이 곡에 없는 악기 이야기 빼기 */ window.__L12=f; } }catch(e){} };
   hook(); if(typeof document!=='undefined'){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',hook); } setTimeout(hook,0); setTimeout(hook,1500); setTimeout(hook,4000); })();
 /* ★ 2026-10-23 형: 비슷한 트랙끼리 모아서 배열(모든 앱 모든 장르 편성). 위에서 아래로 타악 → 저역 → 건반 기타 하프 → 패드 → 국악기와 포인트 악기 → 종과 말렛 → 현 → 금관 → 목관 → 노래 → 신스 → 효과 → 가이드.
    이름 'Patch | Role' 에서 역할로 먼저 가르는 것(킥, 드럼, 타악, 베이스, 드론, 자연음 바탕, 효과, 가이드), 그다음 악기(패치)로, 그래도 모르면 역할 이름으로. 같은 무리 안에서는 앱이 쓴 순서 그대로.
@@ -18856,6 +19208,7 @@ window.__midiTrackSort=function(u8){ try{ const b=u8; if(!b||b.length<14||b[0]!=
   while(p+8<=b.length){ const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0; const isT=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); CH.push({t:isT, s:p, e:p+8+len}); p+=8+len; }
   const TR=CH.filter(function(c){ return c.t; }); if(TR.length<3) return u8;
   const nameOf=function(c){ const L=Math.min(c.e-3, c.s+8+6000); for(let q=c.s+8;q<L;q++){ if(b[q]===0xFF && b[q+1]===0x03){ let n=0,j=q+2; do{ n=(n<<7)|(b[j]&0x7f); }while(b[j++]&0x80); return dec.decode(b.subarray(j,j+n)); } } return ''; };
+  try{ window.__LAST_TRK=TR.slice(1).map(nameOf); window.__LAST_TRK_T=Date.now(); }catch(e){}   /* ★ 2026-10-23 형: 설명서를 이 곡 트랙에 맞게만(__sheetTrim 이 씀) */
   { const c0=TR[0]; const L=Math.min(c0.e-6, c0.s+8+20000); for(let q=c0.s+8;q<L;q++){ if(b[q]===0xFF&&b[q+1]===0x7F&&b[q+2]===4&&b[q+3]===0x53&&b[q+4]===0x4F&&b[q+5]===0x4B&&b[q+6]===0x4F) return u8; } }
   const rest=TR.slice(1).map(function(c,i){ return {c:c, i:i, r:window.__trackRank(nameOf(c))}; }); const srt=rest.slice().sort(function(a,z){ return (a.r-z.r)||(a.i-z.i); });
   if(srt.every(function(o,i){ return o.i===i; })) return u8;
@@ -19495,7 +19848,8 @@ window.__guideHTML=function(opt){
   h.push('<h2>0. 프로젝트 설정 <small>MIDI 를 열자마자</small></h2>'+ck(['<b>파일 &gt; 열기</b> 로 MIDI 열기 '+Gr('(영어 화면 File &gt; Open. 가져오기 말고 열기. 템포, 박자, 마커, 트랙 이름이 그대로 들어옴)'),'<b>파일 &gt; 프로젝트 설정 &gt; 오디오</b> '+Gr('(File &gt; Project Settings &gt; Audio)')+': Sample Rate '+B('48 kHz'),'<b>Logic Pro &gt; 설정 &gt; 녹음</b> '+Gr('(Logic Pro &gt; Settings &gt; Recording)')+': Recording File Type '+B('WAVE')+', Resolution '+B('24 bit')]));
   const room=GS.room||SPC.room, decay=GS.decay||SPC.decay, pre=GS.pre||(SPC.pre&&SPC.pre[1])||20, same=(room==='Smooth Space'&&decay===4.5&&pre===20);
   if(opt.book){ /* ★ 2026-10-20 형: 호흡 앰비언트 패치 방식. 순서 0 프로젝트 설정, 1 처음 한 번(버스 셋, 공통 패치, 음색 패치, 마스터, 다 만들면 접힘), 2 곡마다, 3 선택 우주 효과, 4 크기와 바운스, 5 마스터링, 6 곡 지도 */
-    const K=opt.book, NM=K.names, curN=NM[K.cur];
+    const K=Object.assign({}, opt.book); if(K.onlyUsed==null) K.onlyUsed=true;   /* ★ 2026-10-23 형: 모든 앱 장르 편성 설명서는 그 곡에 쓰는 패치만(동경요가처럼). 패치 책 전체가 필요하면 book.onlyUsed=false */
+    const NM=K.names, curN=NM[K.cur];
     const pn=function(tk, r){ return 'SO '+(tk?NM[tk]:'공통')+' '+r.n+' '+r.ko; };
     const pid=function(name){ return 'p-'+String(name).replace(/\s+/g,'-'); };
     const dif=function(x){ return '<span class="dif">'+x+'</span>'; };
@@ -19516,13 +19870,13 @@ window.__guideHTML=function(opt){
     if(NEWR.length) h.push('<div class="box"><div><b>호흡 앰비언트(명상 앱) 설명서로 이미 만들었으면</b> 버스 '+B('SO 중후 Space')+' 같은 Space 넷, '+B('SO 공통 Air')+', '+B('SO 공통 Cosmos')+', '+B('SO 공통 Flip')+', Stereo Out '+B('SO 마스터')+', '+B('SO 마스터링')+', 공통 05~13 과 음색 패치는 이름과 값이 같아 그대로 씁니다. 다시 만들지 않습니다.</div>'
       +(K.echoBus?'<div>버스 '+B('SO 공통 Echo')+' 는 '+R('새로')+' 만듭니다(가 표 맨 아래).</div>':'')
       +(NEED.length?'<div>이 곡에 더 만들 패치 '+R(NEED.length+'개')+': '+NEED.map(function(r){ return '<a class="pl" href="#'+esc(pid(pn(null,r)))+'">'+B(esc(pn(null,r)))+'</a>'; }).join(', ')+'. 아래 표에서 '+B('이 곡')+' 과 '+R('새 패치')+' 가 함께 붙은 줄입니다. 만드는 법은 나 다 와 같습니다.</div>':'<div>이 곡은 호흡 앰비언트 패치만으로 됩니다.</div>')
-      +'<div>'+R('새 패치')+' 가 붙은 다른 줄은 다른 웰니스 앰비언트 곡에서 쓰니 그 곡을 만들 때 만들어도 됩니다.</div></div>');
+      +(K.onlyUsed?'':'<div>'+R('새 패치')+' 가 붙은 다른 줄은 다른 웰니스 앰비언트 곡에서 쓰니 그 곡을 만들 때 만들어도 됩니다.</div>')+'</div>');
     h.push('<h3>가. 버스 '+(K.echoBus?'다섯':K.flipDb!=null?'넷':'셋')+'</h3>'+stp([B('X')+' 로 믹서를 열고 첫 트랙의 <b>Sends</b> 첫 빈칸 → '+B('Bus')+' → '+B('Bus 1')+'. 오른쪽에 Aux 가 생기면 이름을 더블클릭해 '+B('Space'),
       '같은 트랙 Sends 둘째 빈칸 → '+B('Bus 2')+' → 이름 '+B('Air')+', 셋째 빈칸 → '+B('Bus 3')+' → 이름 '+B('Cosmos')+(K.flipDb!=null?', 넷째 빈칸 → '+B('Bus 4')+' → 이름 '+B('Flip'):'')+(K.echoBus?', 다섯째 빈칸 → '+B('Bus 5')+' → 이름 '+B('Echo'):''),
       'Aux 마다 오디오 FX 첫 빈칸부터 아래 표의 플러그인과 값',
-      'Aux 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → 표의 저장 이름. Space 는 음색마다 하나씩 넷 '+Gr('(하나 만든 뒤 Decay 같은 값만 바꿔 다른 이름으로 저장)')])
+      'Aux 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → 표의 저장 이름.'+(K.onlyUsed?'':' Space 는 음색마다 하나씩 넷 '+Gr('(하나 만든 뒤 Decay 같은 값만 바꿔 다른 이름으로 저장)'))])
       +'<div class="wrap"><table><tr><th></th><th>저장 이름</th><th>버스</th><th>플러그인과 값</th></tr>'
-      +K.order.map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
+      +K.order.filter(function(k){ return !K.onlyUsed || k===K.cur; }).map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Air')+'</td><td>Bus 2</td><td>'+B('ChromaVerb')+': Room '+B('Airy')+', Predelay '+B('40 ms')+', Decay '+B('8 s')+', Dry '+B('0 %')+', Wet '+B('100 %')+', Damping EQ 오른쪽 끝 점 '+B('100 %')+'. DETAILS 탭 Output EQ '+B('켬')+': 첫째 '+B('400 Hz')+', 다섯째 '+B('10 kHz +4 dB')+', 여섯째 '+R('끄기')+'</td></tr>'
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Cosmos')+'<br>'+Gr('우주 효과용')+'</td><td>Bus 3</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B('12 s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('400 Hz, 24 dB/Oct')+', '+bd(8)+' High Cut '+B('1000 Hz, 24 dB/Oct')+')<br>'+Gr('EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐')+'</td></tr>'
       +(K.flipDb!=null?'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Flip')+'<br>'+Gr('뒤집힌 세계용')+'</td><td>Bus 4</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('-12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('Space Designer')+' (위 단추 '+B('Synthesized IR')+', '+B('Reverse')+' '+R('켬')+', Length '+B('3 s')+', Dry '+B('맨 아래(끔)')+', Wet '+B('0 dB')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('80 Hz')+', '+bd(8)+' High Cut '+B('2000 Hz, 24 dB/Oct')+')<br>'+Gr('Cosmos(한 옥타브 위, 하늘로 열림)의 반대: 한 옥타브 아래로 가라앉고 잔향이 거꾸로 부풀어 오름')+'</td></tr>':'')
@@ -19530,16 +19884,20 @@ window.__guideHTML=function(opt){
       +'</table></div>');
     h.push('<h3>나. 트랙마다 값 넣기 <small class="g">아래 표 한 줄이 패치 하나. 그 트랙에 이 순서로 값을 다 넣은 뒤 다 에서 저장</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
       '<b>악기</b>: 이름이 Synthesizer/, Strings/ 로 시작하면 '+B('Y')+' 라이브러리에서 그 이름을 누름. Kontakt, DecentSampler, Quick Sampler 는 채널 스트립 악기 칸에서 고르고 악기까지 불러 둠 '+Gr('(불러 둔 악기와 설정이 패치에 같이 저장되어 다음부터 바로 열림)')+'. 표의 설정까지',
-      '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
+      '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. 그 센드 때문에 믹서 오른쪽에 새로 생긴 Aux(리버브 딜레이가 든 것)는 믹서에서 그 Aux 를 눌러 고르고 '+B('Delete')+' 키로 지움 '+Gr('(남길 Aux 는 이름이 Space, Air, Cosmos, Flip'+(K.echoBus?', Echo':'')+' 인 것뿐. 센드를 지운 Aux 는 아무 소리도 안 받아 지워도 됨)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
       '<b>오디오 FX</b> 그 아래 빈칸에 위에서부터 '+B('Gain')+' → '+B('Channel EQ')+' → '+B('Direction Mixer')+' 를 넣고 표의 값. Direction Mixer 는 Input '+B('LR')+', Direction '+B('0')+' 그대로 두고 Spread 만',
       '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos)'+(K.flipDb!=null?', 넷째 칸 '+B('Bus 4')+'(Flip)':'')+' 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠 '+Gr('(Cosmos 는 Bus 3 Aux 가 없으면 소리가 안 나서 우주 효과를 안 쓰는 곡에서는 그냥 꺼진 셈)')+(K.flipDb!=null?'<br>Bus 4 에 '+B('Pre')+' 라 적힌 칸은 그 센드 칸의 버스 이름을 클릭하면 나오는 메뉴에서 '+B('Pre Fader')+' 고름 '+Gr('(한글 메뉴 프리 페이더. 뒤집힌 세계 동안 MIDI 가 페이더로 음악을 내려도 Flip 으로 가는 소리는 그대로 들어가게)'):'')])
       +'<details><summary>Channel EQ 보는 법</summary><figure><img src="'+EQIMG+'" alt="Channel EQ"></figure><div class="box"><div>밴드는 왼쪽부터 '+bd(1)+'~'+bd(8)+'. 흐린 밴드는 그림을 눌러 켭니다.</div><div>밴드 아래 숫자 세 줄: 위부터 '+B('주파수 Hz')+', '+B('크기 dB')+', '+B('폭 Q')+'. 숫자를 위아래로 끌거나 더블클릭해서 입력.</div><div>'+bd(1)+' Low Cut 은 기울기 '+B('12 dB/Oct')+' 그대로(표에 따로 적은 것만 바꿈).</div></div></details>');
-    h.push('<h4>공통 '+(['','하나','둘','셋','넷','다섯','여섯','일곱','여덟','아홉','열','열하나','열둘','열셋','열넷','열다섯','열여섯','열일곱','열여덟','열아홉','스물','스물하나','스물둘'][K.common.length]||K.common.length)+' <small class="g">음색과 상관없이 같음'+(K.common.some(function(r){ return /Saenghwang|Kalimba|Celesta/.test(r.role); })?(K.common.some(function(r){ return /Gayageum|Geomungo/.test(r.role); })?'. 11 12 13 26 27 은 양금 대신 쓸 선율(곡에서는 그 가운데 하나만 켬)':'. 11 12 13 은 양금 대신 쓸 선율(곡에서는 넷 가운데 하나만 켬)'):'')+'</small></h4><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
-    h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
-    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
+    /* ★ 2026-10-23 형: 동경요가 설명서에 그 곡에 없는 트랙의 패치(핸드팬 메아리 가야금 거문고 풍경 ...)까지 나와 헷갈림 → K.onlyUsed 면 이 곡이 쓰는 패치 줄만(공통, 음색, Space 버스) */
+    const COM=K.onlyUsed?K.common.filter(function(r){ return USED.has(pn(null,r)); }):K.common;
+    h.push('<h4>공통 '+(['','하나','둘','셋','넷','다섯','여섯','일곱','여덟','아홉','열','열하나','열둘','열셋','열넷','열다섯','열여섯','열일곱','열여덟','열아홉','스물','스물하나','스물둘'][COM.length]||COM.length)+' <small class="g">'+(K.onlyUsed?'이 곡에 쓰는 것만, ':'')+'음색과 상관없이 같음'+(!K.onlyUsed && K.common.some(function(r){ return /Saenghwang|Kalimba|Celesta/.test(r.role); })?(K.common.some(function(r){ return /Gayageum|Geomungo/.test(r.role); })?'. 11 12 13 26 27 은 양금 대신 쓸 선율(곡에서는 그 가운데 하나만 켬)':'. 11 12 13 은 양금 대신 쓸 선율(곡에서는 넷 가운데 하나만 켬)'):'')+'</small></h4><div class="wrap"><table>'+head+rowsOf(COM,null,null)+'</table></div>');
+    if(K.onlyUsed){ K.order.forEach(function(k){ const R0=K.tones[k].rows, B0=K.tones[K.order[0]].rows; const ix=R0.map(function(r,i){ return USED.has(pn(k,r))?i:-1; }).filter(function(i){ return i>=0; }); if(!ix.length) return;
+        h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+' <small class="g">이 곡에 쓰는 것만</small></h4><div class="wrap"><table>'+head+rowsOf(ix.map(function(i){ return R0[i]; }),k,(k===K.order[0])?null:ix.map(function(i){ return B0[i]; }))+'</table></div>'); }); }
+    else { h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
+    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); }); }
     h.push('<h3>다. 패치로 저장 <small class="g">표 한 줄의 값을 다 넣은 트랙마다</small></h3>'+stp(['값을 다 넣은 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 엶',
       '라이브러리 맨 아래 '+B('저장...')+' → 그 줄의 저장 이름(예: '+B('SO '+esc(NM[K.order[0]])+' 02 호흡 패드')+') 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김. 표 줄 왼쪽 칸에 체크',
-      '음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)'),
+      K.onlyUsed?'저장 이름은 표 줄 그대로 '+Gr('(다른 음색 줄이 섞여 있으면, 예를 들어 띵샤 신호처럼, 그 음색 이름으로)'):('음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)')),
       '다음 곡부터는 트랙을 고르고 이 이름을 한 번 누르면 악기, 플러그인, 센드가 한꺼번에 들어옴']));
     h.push('<h3>라. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
       '마스터링용: 빈 프로젝트(48 kHz) 오디오 트랙 하나에 '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('25 Hz')+' 만) → '+B('Adaptive Limiter')+' (Out Ceiling '+B('-1.0 dB')+', True Peak Detection '+R('ON')+') → '+B('Loudness Meter')+' → '+B('Y')+' 라이브러리 <b>저장...</b> → '+B('SO 마스터링')]));
@@ -29899,7 +30257,7 @@ window.__openApply=function(u8, ctx){ try{
     mk('pad', rowInst('02',padP)+' | Breath Pad', 0, 84);
     mk('drone', rowInst('04',droneP)+' | Floor Drone', 1, 84);
     mk('hp', 'Kontakt > Pan Drums (스냅샷 Templates/Hang Mk 1 - Filter Delay) | Handpan', 2, VOL('hp',84));
-    mk('tak', 'Kontakt > Pan Drums II/Hang Mk.1 (Slap) | Handpan Tak', 10, VOL('tak',66));   /* ★ 2026-10-20 탁 슬랩 고스트(타악 소리), 본동작 리듬 꼴 */
+    mk('tak', 'Kontakt > Pan Drums II/Hang Mk.1 (Edge) | Handpan Tak', 10, VOL('tak',66));   /* ★ 2026-10-20 탁 센 탁 고스트(타악 소리), 본동작 리듬 꼴. ★ 2026-10-23 형: Hang Mk 1 에 Slap 주법이 없음 → Edge(가장자리 손끝, 짧고 마름) */
     mk('yg', 'DecentSampler > Yanggeum | Yanggeum', 4, VOL('yg',50));
     mk('sg', 'DecentSampler > Saenghwang | Saenghwang', 12, VOL('sg',44));
     mk('kl', 'World/Percussion/African Kalimba | Kalimba', 13, VOL('kl',54));
@@ -29996,8 +30354,8 @@ window.__openApply=function(u8, ctx){ try{
       let out=PAN.filter(function(x){ return ct.indexOf(x%12)>=0; }); if(out.length<4){ PAN.forEach(function(x){ if(out.length<5 && out.indexOf(x)<0 && x>panDing) out.push(x); }); }
       return out.sort(function(a,z){ return a-z; }); };
     /* ★ 2026-10-20 형: 핸드팬 연주 패턴을 30초마다 바꿔 가며. 핸드팬 연주 말(Louis 표기 Notepan 표기): D 딩, 숫자 둘레 음, T 탁(딩 어깨),
-       S 슬랩, • 고스트(아주 여린 탁, 박을 지키는 손), 손가락 롤, 플램. 한 꼴 = 16분 열여섯 칸 두 마디(A B).
-       글자: D 딩(Handpan Pulse 트랙, 판의 딩 하나), n 둘레 음(화음음을 지그재그로, 왼손 오른손이 번갈아 둘레를 오르내림), h 맨 위 음, T 탁, S 슬랩, . 고스트(Handpan Tak 트랙), - 쉼.
+       S 센 탁(Edge 세게), • 고스트(아주 여린 탁, 박을 지키는 손), 손가락 롤, 플램. 한 꼴 = 16분 열여섯 칸 두 마디(A B).
+       글자: D 딩(Handpan Pulse 트랙, 판의 딩 하나), n 둘레 음(화음음을 지그재그로, 왼손 오른손이 번갈아 둘레를 오르내림), h 맨 위 음, T 탁, S 센 탁, . 고스트(Handpan Tak 트랙), - 쉼.
        30초(9마디) = 꼴 A A A B A A A B + 마지막 마디는 손가락 롤로 다음 30초(띵샤 화음 바뀜)에 넘겨 줌, 새 30초 첫 딩은 플램.
        25분 흐름: 처음 3분 성긴 꼴(1단) → 4~7분 1 2단 → 가운데 2 3단 → 끝 5분 2단 → 마지막 3분 1단. 바로 앞 두 꼴은 다시 안 씀 */
     const HPG=[
@@ -30010,7 +30368,7 @@ window.__openApply=function(u8, ctx){ try{
       {nm:'Son Clave 3-2', ko:'손 클라베 3 2', tier:2, A:'D-.-.-n-.-.-n-.-', B:'T-.-n-.-n-.-.-.-'},
       {nm:'Dotted Flow', ko:'점 8분 흐름', tier:2, A:'D--n--n--n--T--n', B:'D--n--n--h--T---'},
       {nm:'Ghost Groove', ko:'고스트 위 선율', tier:3, A:'D-n.T-n.D-n.T.n-', B:'D-n.T-n.D.n-T-h-'},
-      {nm:'Slap Drive', ko:'슬랩 드라이브', tier:3, A:'D.n.S.n.D.n.S.nn', B:'D.n.S.n.D.h.S.n.'}];
+      {nm:'Accent Drive', ko:'센 탁 드라이브', tier:3, A:'D.n.S.n.D.n.S.nn', B:'D.n.S.n.D.h.S.n.'}];
     const HPF={1:'D-------n---r---', 2:'D-.-n-.-n-n-r---', 3:'D.n.S.n.n.n.r---'};
     const hpTierAt=function(u){ return u<0.12?[1]:u<0.3?[1,2]:u<0.8?[2,3]:u<0.92?[2]:[1]; };
     const HPORD=[]; { const nb=49; for(let blk=0;blk<nb;blk++){ const T=hpTierAt(blk/(nb-1)); let c=HPG.filter(function(g){ return T.indexOf(g.tier)>=0 && HPORD.slice(-2).indexOf(g)<0; }); if(!c.length) c=HPG.filter(function(g){ return T.indexOf(g.tier)>=0; }); HPORD.push(pick(c)); } }
@@ -30280,7 +30638,7 @@ window.__openApply=function(u8, ctx){ try{
     L.push('   15:00 피아노 연주곡 (사극 OST 느낌, '+B.pieceKey+' 에올리안, 몸풀기 색의 나란한 단조). 4분: 들어가는 4마디, 주제 A 16마디, B(높이 올라가는 대목) 16마디, A 클라이맥스(한 옥타브 위 옥타브 겹침) 16마디, 자리에 따라 여린 A 나 짧은 꼬리, 맺는 두 마디와 짧은 머묾(19:00 에 정확히 끝). 왼손 8분 펼침, 앞꾸밈음과 돌림음, 여리게(세기 40 안팎). 그동안 패드 드론 베이스는 연주곡 화음을 따라가고 숨 패드는 악구(4마디)마다 부풂(A 76 B 84 클라이맥스 94), 양금 자리 넷 핸드팬은 쉼. 피아노는 가운데에서 살짝 왼쪽(46)에서 천천히 조금 움직이고 +0.5dB, 앰비언트 -1.5dB');
     L.push('   19:00 피아노 정리 1분: 펼침이 잦아들며 i ♭VI ♭VII ♭III 로 원래 몸풀기 화음에 넘겨 줌, 주제 첫 마디가 높게 두어 번. 20:00 부터 원래 흐름(핸드팬 박)');
     L.push('   30:00 본동작     띵샤 두 번. 앰비언트 -3dB(약 30% 작게), 핸드팬 리듬 연주를 은은하게(30초마다 연주 꼴이 바뀜, 아래 목록). 72 BPM 고정 = 한 마디 3.333초, 9마디 = 30초, 450마디 = 25분. 30초마다 띵샤와 함께 화음이 바뀜(30:30, 31:00 ... 54:30, 마커 Change)');
-    if(B.hpOrd && B.hpOrd.length){ L.push('   본동작 핸드팬 꼴(30초마다, 마커 Change 옆에 영어 이름): 딩(D)은 Handpan Pulse, 둘레 음은 Handpan, 탁 슬랩 고스트는 Handpan Tak.');
+    if(B.hpOrd && B.hpOrd.length){ L.push('   본동작 핸드팬 꼴(30초마다, 마커 Change 옆에 영어 이름): 딩(D)은 Handpan Pulse, 둘레 음은 Handpan, 탁 센 탁 고스트는 Handpan Tak(Edge 주법).');
       L.push('     각 30초의 마지막 마디는 손가락 롤로 다음 30초에 넘겨 주고, 새 30초 첫 딩은 플램(앞꾸밈). 처음과 끝은 성긴 꼴, 가운데는 고스트가 깔린 꼴.');
       for(let i=0;i<B.hpOrd.length;i+=5){ L.push('     '+B.hpOrd.slice(i,i+5).map(function(nm,j){ const sec=1800+(i+j)*30; return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0')+' '+nm; }).join(', ')); } }
     L.push('   52:00 본동작 끝   자연음 2 바람이 3분에 걸쳐 서서히 들어와(-15dB) 몸을 식히며 사바사나로 넘겨 줌');
@@ -30307,7 +30665,7 @@ window.__openApply=function(u8, ctx){ try{
     L.push('');
     L.push('■ 트랙 (로직에서 파일 > 열기, 1번은 Conductor)');
     const T=[['Quick Sampler','Nature Bed','자연음 1 물(바다나 계곡). 형이 녹음한 wav 를 Original 칸에, Mode Classic, Root Key C3 (70분보다 짧으면 Mode Loop, 크로스페이드 길게). MIDI 리전은 지우지 않기(볼륨 흐름 CC7)'],['Quick Sampler','Nature Wind','자연음 2 바람. 형이 녹음한 바람 wav 를 Original 칸에, Mode Classic, Root Key C3 (짧으면 Mode Loop). MIDI 리전은 지우지 않기(볼륨 흐름 CC7)'],['Quick Sampler','Nature Forest','자연음 3 숲(새소리). 형이 녹음한 숲 wav 를 Original 칸에, Mode Classic, Root Key C3 (짧으면 Mode Loop). MIDI 리전은 지우지 않기(볼륨 흐름 CC7)'],[B.padName,'Breath Pad','숨 패드, 전 구간'],[B.droneName,'Floor Drone','바닥 드론'],['Kontakt > Pan Drums (스냅샷 Hang Mk 1 - Filter Delay)','Handpan','핸드팬 한 대(딩 박도 이 트랙). 본동작 연주 꼴의 D 와 둘레 음'],
-      ['Kontakt > Pan Drums II/Hang Mk.1 (Slap)','Handpan Tak','핸드팬 탁 슬랩 고스트(타악 소리), 본동작 연주 꼴의 T S 고스트. 고스트는 아주 여리게(세기 22~30) 박만 지킴. 핸드팬과 같은 자리'],['DecentSampler > Yanggeum','Yanggeum','양금, 몸풀기에서 포인트 선율. 아래 셋과 넷 가운데 하나만 켬'],['DecentSampler > Saenghwang','Saenghwang','생황(양금 대신). 이어 부는 긴 음, 위 5도 화음'],['World/Percussion/African Kalimba','Kalimba','칼림바(양금 대신). 짧게, 겹음, 악구 끝 굴리기'],['Kontakt > True Strike 1/Celesta s (Stage Mic)','Celesta','첼레스타(양금 대신). 펼침, 옥타브 반짝임'],['Kontakt > CSP Piano','Piano melody','피아노, 사바사나는 조성 없는 루바토, 본동작은 30초마다 화음 한 번'],
+      ['Kontakt > Pan Drums II/Hang Mk.1 (Edge)','Handpan Tak','핸드팬 탁 센 탁 고스트(Edge 주법, 가장자리를 손끝으로 친 짧은 소리), 본동작 연주 꼴의 T S 고스트. 고스트는 아주 여리게(세기 22~30) 박만 지킴. 핸드팬과 같은 자리'],['DecentSampler > Yanggeum','Yanggeum','양금, 몸풀기에서 포인트 선율. 아래 셋과 넷 가운데 하나만 켬'],['DecentSampler > Saenghwang','Saenghwang','생황(양금 대신). 이어 부는 긴 음, 위 5도 화음'],['World/Percussion/African Kalimba','Kalimba','칼림바(양금 대신). 짧게, 겹음, 악구 끝 굴리기'],['Kontakt > True Strike 1/Celesta s (Stage Mic)','Celesta','첼레스타(양금 대신). 펼침, 옥타브 반짝임'],['Kontakt > CSP Piano','Piano melody','피아노, 사바사나는 조성 없는 루바토, 본동작은 30초마다 화음 한 번'],
       ['Kontakt > CSP Piano','Piano Solo','피아노 연주곡(양손). 몸풀기 15:00~20:00 사극풍, 사바사나 61:00~64:00 회상. 피아노 선율과 같은 악기, 패치 SO 공통 29'],['Synthesizer/Bass/Deep Sub Bass','Bass','베이스, 몸풀기 뒤쪽 본동작 정리'],['World/Percussion/Tibetan Singing Bowls','Singing Bowl','싱잉볼'],[B.tingP,'Tingsha signal','띵샤, 동작 전환'],['Synthesizer/Pad/Cloud Shimmer','Cosmos Pad','우주 울림, 사바사나와 정리에서 화음이 한 옥타브 위로 열림(우주 효과)'],['Synthesizer/Pad/Dark Pad','Flip Pad','뒤집힌 울림, 64:26~65:04 한 옥타브 아래로 가라앉음(뒤집힌 세계)']];
     (window.__trackSort?window.__trackSort(T,function(x){ return x[0]+' | '+x[1]; }):T).forEach(function(x,i){ L.push('▸ 트랙 '+(i+2)+'. '+x[1]); L.push('   역할 : '+x[2]); L.push('   ① 음원 : '+x[0]); });   /* ★ 2026-10-23 MIDI 와 같은 순서, 1번은 Conductor */
     L.push('');
@@ -30330,7 +30688,7 @@ window.__openApply=function(u8, ctx){ try{
       'Handpan':{ko:'핸드팬'}, 'Handpan Tak':{ko:'핸드팬 탁'}, 'Yanggeum':{ko:'양금', lead:true}, 'Saenghwang':{ko:'생황'}, 'Kalimba':{ko:'칼림바'}, 'Celesta':{ko:'첼레스타'}, 'Piano melody':{ko:'피아노'}, 'Bass':{ko:'베이스'},
       'Singing Bowl':{ko:'싱잉볼'}, 'Tingsha signal':{ko:'띵샤 (동작 전환)'}, 'Cosmos Pad':{ko:'우주 울림'}, 'Flip Pad':{ko:'뒤집힌 울림'}};
     let book=null; try{ if(window.__WAMB && window.__WAMB.guideKit){ const kit=window.__WAMB.guideKit('deep', {flips:FLIPWS_G, flip:[3866,3874,3892,3904], flipSends:['숨 패드','양금 자리 선율(양금 생황 칼림바 첼레스타)','피아노','베이스','싱잉볼'], nat:'숲이나 바다', dur:'70분', scope:'웰니스 앰비언트(명상 앱 호흡 앰비언트)와 같은 패치, 음색 중후', midiFx:{cos:COS_WIN.map(function(W){ return W.pts.map(function(x){ return x[0]; }); }), flips:FLIPWS_G, dip:8, freeze:null, echo:false}, cosSends:['숨 패드','바닥 드론','양금 자리 선율','피아노','싱잉볼']});
-        book=Object.assign({}, kit.K, {noPt:true}); Object.keys(kit.info).forEach(function(r){ info[r]=Object.assign({}, info[r]||{}, kit.info[r]); });
+        book=Object.assign({}, kit.K, {noPt:true, onlyUsed:true});   /* ★ 2026-10-23 형: 이 곡에 없는 트랙의 패치는 안 보이게 */ Object.keys(kit.info).forEach(function(r){ info[r]=Object.assign({}, info[r]||{}, kit.info[r]); });
         info['Nature Bed']=Object.assign({}, info['Nature Bed'], {ko:'자연음 1 물'});
         [['Nature Wind','자연음 2 바람','형이 녹음한 바람 wav. 70분보다 짧으면 Mode Loop, 크로스페이드 길게'],['Nature Forest','자연음 3 숲','형이 녹음한 숲(새소리) wav. 70분보다 짧으면 Mode Loop, 크로스페이드 길게']].forEach(function(x){ info[x[0]]=Object.assign({}, info['Nature Bed'], {ko:x[1], qsWhere:x[2]}); });   /* ★ 자연음 2 3 은 자연음 1 과 같은 패치(같은 Quick Sampler 설정, 소리만 다름) */
         const r10=window.__WAMB.BOOK.tones.mid.rows.find(function(r){ return r.n==='10'; }); if(r10) info['Tingsha signal']=Object.assign({}, info['Tingsha signal']||{}, {eq:r10.eq.map(function(e){ return Object.assign({},e); }), eqExact:true, spread:r10.spread, space:r10.space, air:r10.air, patchName:'SO 적당 10 띵샤 신호'}); } }catch(e){ book=null; }   /* 띵샤만 편종 줄(음색 적당 10) */
@@ -30508,7 +30866,7 @@ window.__openApply=function(u8, ctx){ try{
   const XROWS=[
     {n:'14', role:'Singing Bowl', ko:'싱잉볼', inst:'World/Percussion/Tibetan Singing Bowls', gain:null, eq:[{b:1,hz:80},{b:7,hz:9000,db:-2}], spread:0.8, space:-10, air:null, cos:true, flip:true, key:'bowl'},
     {n:'15', role:'Star Bells', ko:'별빛 종', inst:'Synthesizer/Bell/Gentle Sine Bells', gain:null, eq:[{b:1,hz:300},{b:7,hz:10000,db:-2}], spread:1.0, space:-8, air:-8, cos:true, flip:true, key:'spark'},
-    {n:'16', role:'Handpan Tak', ko:'핸드팬 탁', inst:'Kontakt > Pan Drums II/Hang Mk.1 (Slap)', gain:null, eq:[{b:1,hz:100}], spread:0.4, space:-18, air:null, cos:false, flip:false, key:'tak'},
+    {n:'16', role:'Handpan Tak', ko:'핸드팬 탁', inst:'Kontakt > Pan Drums II/Hang Mk.1 (Edge)', gain:null, eq:[{b:1,hz:100}], spread:0.4, space:-18, air:null, cos:false, flip:false, key:'tak'},
     {n:'18', role:'Nature Pad', ko:'자연음 패드', inst:'Sample Alchemy', sa:true, gain:null, eq:[{b:1,hz:120},{b:7,hz:9000,db:-2}], spread:1.2, space:-8, air:-8, cos:true, flip:true, key:'npad'},
     {n:'19', role:'Overtone Drone', ko:'배음 드론', inst:'ES2', es2:true, gain:null, eq:[{b:1,hz:60}], spread:1.0, space:-8, air:-8, cos:true, flip:true, key:'otone'},
     {n:'20', role:'Wind Chimes', ko:'풍경', inst:'Synthesizer/Bell/Mellow Chimes', gain:null, eq:[{b:1,hz:400},{b:7,hz:10000,db:-2}], spread:1.2, space:-10, air:-8, cos:true, flip:false, key:'chime'},
@@ -30534,7 +30892,7 @@ window.__openApply=function(u8, ctx){ try{
     hpe:{name:'Kontakt > Pan Drums', alt:[], role:'Handpan Echo', ko:'핸드팬 메아리', why:'핸드팬과 같은 악기. 쉼 앞 음이 박 자리에서 반대쪽으로 되울리며 사라짐(딜레이 버스 없이 MIDI 음)'},
     gy:{name:'DecentSampler > Gayageum(25strings)', alt:['Sampler > Strings/GaYaGeum (25-string) - DEMO_simple'], role:'Gayageum', ko:'가야금', why:'양금 대신(하나만 켜기). 25현, 현대적인 연주: 맑게 뜯는 Basic 위주, 첫 음 앞 싸랭, 꼭대기 긴 음 Tremolo, 추성 퇴성 농현은 가끔만'},
     gm:{name:'DecentSampler > Geomungo', alt:['Sampler > Strings/GeoMunGo - DEMO_simple'], role:'Geomungo', ko:'거문고', why:'양금 대신(하나만 켜기). 현대적인 연주: 첫 음 대점(술대로 세게), 가운데(조임)는 음 사이 화려한 잔가락(자출), 싸랭 추성 퇴성은 가끔만'},
-    tak:{name:'Kontakt > Pan Drums II/Hang Mk.1 (Slap)', alt:[], role:'Handpan Tak', ko:'핸드팬 탁', why:'같은 핸드팬의 탁 슬랩 고스트(손바닥과 손끝 타악 소리). 핸드팬과 같은 자리에서 같이 움직임'},
+    tak:{name:'Kontakt > Pan Drums II/Hang Mk.1 (Edge)', alt:[], role:'Handpan Tak', ko:'핸드팬 탁', why:'같은 핸드팬의 Edge 주법(가장자리를 손끝으로 친 짧고 마른 소리)으로 탁, 센 탁, 고스트. 핸드팬과 같은 자리에서 같이 움직임'},
     hit:{name:'Orchestral/Percussion/Timpani', alt:['Kontakt > True Strike 1 의 큰북(Gran Cassa) 계열','World/Percussion/Indonesian Gamelan Gongs'], role:'Low Hit', ko:'낮은 울림', why:'도입음의 뜨 든. 팀파니 한 번(두 번 울림은 5도 다음 으뜸). 아래 서브 베이스와 겹쳐 몸으로 느껴지는 낮은 울림'},
     sub:{name:'Synthesizer/Bass/Deep Sub Bass', alt:['ES2 (사인파 하나, Glide 0)'], role:'Bass', ko:'아래 울림', why:'도입음의 낮은 울림 밑에 사인파 같은 서브 한 음(3초 안팎). 휴대폰 스피커에서는 안 들려도 이어폰과 큰 스피커에서 바닥이 됨'}};
   /* 패치 책 한 벌: 명상 앱 공통 05~13 + 플레이 14~17, 음색 줄은 그대로 */
@@ -31176,7 +31534,7 @@ window.__openApply=function(u8, ctx){ try{
     if(pc.ev.handpan.length){ const ch=chOf('hp'), ev=head('hp','핸드팬 한 대. 딩 '+mname(pc.hpSet[0])+', 음 '+pc.hpSet.map(mname).join(' ')+'. 처음과 끝은 성기게, 가운데는 손 연주 꼴(8마디마다 바뀜, 마커 * Handpan)');
       pc.ev.handpan.forEach(function(b){ ev.push(on(ch,tk(b.t),b.midi,b.vel)); ev.push(off(ch,tk(b.t+Math.max(0.1,b.decay)),b.midi)); });
       panMove(ev,ch,'hp'); flowCurve(ev,ch,'hp',90); tracks.push(chunk(ev)); }
-    if(pc.ev.tak.length){ const ch=chOf('tak'), ev=head('tak','핸드팬 탁 슬랩 고스트(타악 소리). 핸드팬과 같은 자리에서 같이 움직임. 고스트는 아주 여리게(세기 21~28)');
+    if(pc.ev.tak.length){ const ch=chOf('tak'), ev=head('tak','핸드팬 탁 센 탁 고스트(Edge 주법 타악 소리). 핸드팬과 같은 자리에서 같이 움직임. 고스트는 아주 여리게(세기 21~28)');
       pc.ev.tak.forEach(function(b){ ev.push(on(ch,tk(b.t),b.midi,b.vel)); ev.push(off(ch,tk(b.t+b.dur),b.midi)); });
       panMove(ev,ch,'tak'); flowCurve(ev,ch,'tak',90); tracks.push(chunk(ev)); }
     /* ★ 2026-10-21 형: 디센트 표본 주법을 키스위치로(실제 연주처럼). 같이 뜯는 음 묶음마다 으뜸 음의 주법, 바뀔 때만 그 음 10~5틱 앞에 짧게. 표지 FF 7F 'SOKS' 가 있으면 앱 공통 주법 고르기(__dsArtic)가 손대지 않음 */
@@ -31328,7 +31686,7 @@ window.__openApply=function(u8, ctx){ try{
       if(r.nki) s2.push('Kontakt 왼쪽 브라우저(Files) 에서 '+FM.B(r.nki)+' 더블클릭 '+FM.G('(없으면 로직 Orchestral > Keyboard > Celesta)'));
       if(r.ds) s2.push('악기 슬롯 '+FM.B('AU 악기')+' → '+FM.B('Decidedly')+' → '+FM.B('DecentSampler')+', 프리셋 '+FM.B(r.ds)+' 열기'+((r.ds==='Yanggeum'||r.ds==='Saenghwang'||r.ds==='Gayageum(25strings)'||r.ds==='Geomungo')?' '+FM.G('(주법은 MIDI 키스위치가 바꿈)'):''));
       if(r.dyn) s2.push('플러그인 창 위 '+FM.B('Dynamics via CC')+' 켜기');
-      if(r.n==='16') s2.push('Kontakt '+FM.B('Pan Drums')+', Hang Mk 1 의 '+FM.B('Slap')+' 주법 '+FM.G('(핸드팬과 같은 악기, 탁과 고스트만 이 트랙)'));
+      if(r.n==='16') s2.push('Kontakt '+FM.B('Pan Drums')+', Hang Mk 1 의 '+FM.B('Edge')+' 주법 '+FM.G('(핸드팬과 같은 악기, 가장자리를 손끝으로 친 짧은 소리. 탁 센 탁 고스트만 이 트랙)'));
       if(r.sa) s2.push('악기 슬롯 '+FM.B('Sample Alchemy')+'. 형 자연음 wav 를 창에 끌어 놓기 → 위 재생 방식 '+FM.B('Loop')+', 아래 Synthesis 를 '+FM.B('Granular')+': Size '+FM.B('60 ms')+' 안팎, Density '+FM.B('높게(3/4)')+', Random Time '+FM.B('30 %')+', Random Pan '+FM.B('40 %')+'. 소리 엔벌로프 Attack '+FM.B('2 s')+', Release '+FM.B('4 s')+' '+FM.G('(녹음 파일은 곡마다 바꿔도 됨, 값은 패치에)'));
       if(r.cv) s2.push('오디오 FX '+FM.B('Direction Mixer')+' 아래 빈칸에 '+FM.B('ChromaVerb')+': Room '+FM.B('FX - Bloomy')+', Decay '+FM.B('12 s')+', Predelay '+FM.B('80 ms')+', Dry '+FM.B('40 %')+', Wet '+FM.B('100 %')+' '+FM.G('(이 트랙만 패치 안에 긴 울림을 둠. 우주로 열리는 소리)'));
       if(r.from06) s2.push('라이브러리에서 '+FM.B('SO 공통 06 핸드팬')+' 을 먼저 누른 뒤 EQ, Spread, 센드만 이 줄 값으로 바꿔 이 이름으로 저장 '+FM.G('(같은 악기 같은 스냅샷. 메아리 음은 MIDI 가 넣음)'));
@@ -32258,8 +32616,114 @@ window.__pbNong=function(a, b, P, seed){ const out=[]; if(!(b>a+0.08)) return ou
   out.push([b, 8192]); return out; };
 window.__pbRamp=function(a, b, v0, v1, ease){ const out=[]; if(!(b>a)) return [[a,v1]]; const n=Math.max(4,Math.round((b-a)/0.008));
   for(let k=0;k<=n;k++){ const u=k/n; const e=(ease==='out')?1-(1-u)*(1-u):(ease==='in')?u*u:u*u*(3-2*u); out.push([a+(b-a)*u, Math.max(0,Math.min(16383,Math.round(v0+(v1-v0)*e)))]); } return out; };
+/* ★ 2026-10-23 형: 설명서는 그 장르(그 곡)에 맞는 것만. 동경요가 패치 표처럼 모든 앱 장르 편성의 txt 설명서에서 이 곡에 없는 악기 이야기를 뺌.
+   곡 트랙 이름은 마지막으로 내보낸 MIDI(__midiTrackSort 가 적는 __LAST_TRK). 줄 단위 규칙:
+   보컬 가이드 절(보컬 없음), 저역 교통정리와 사이드체인(킥 드럼 없음), 리드 포켓(이 곡 선율 악기 줄만), 신스 만들기(Retro Synth ES2 Alchemy 로 만드는 트랙이 없으면 통째, 있으면 그 역할만),
+   밑청소 HPF 와 장르 계열별 손질(있는 악기, 이 장르 줄만), 음원 대체 목록(있는 역할만), 아티큘레이션 목록(금관 현 목관 합창 하프 가운데 있는 것만), 악기별 익스프레션(숨 악기 발현 로즈 팀파니 가운데 있는 것만) */
+window.__sheetFams=function(names){ const N=(names||[]).map(function(x){ return String(x||'').replace(/\s*\[(Gain|Track Delay)[^\]]*\]/g,''); }); const F={}; const any=function(rx){ return N.some(function(n){ return rx.test(n); }); };
+  const roleOf=function(n){ const k=n.indexOf(' | '); return k>=0?n.slice(k+3):n; }, patchOf=function(n){ const k=n.indexOf(' | '); return k>=0?n.slice(0,k):n; };
+  F.vocal=N.some(function(n){ return /Vocal|보컬|Choir|합창|Voice|Singer|Rap\b|랩/i.test(roleOf(n)) || (/Choir|Vocal|Voice/i.test(patchOf(n)) && !/^Synthesizer\//.test(patchOf(n))); });
+  F.choir=any(/Choir|합창|\bOoh\b|\bAah\b/i);
+  F.brass=any(/Trumpet|French Horn|\bHorns?\b|Trombone|Tuba|Brass|Flugel|Cornet|Euphonium|Tbn|Tpt/i);
+  F.strings=N.some(function(n){ const t=n.replace(/Strings\/(YangGeum|GaYaGeum|GeoMunGo|HaeGeum|AJaeng)[^|]*/gi,''); return /Violin|Viola|Cello|Contrabass|Double Bass|String Ensemble|Studio Strings|\bStrings\b|Sordino|Spiccato|Pizz|현악/i.test(t); });
+  F.woodwind=any(/Flute|Clarinet|Oboe|Bassoon|Woodwind|Piccolo|Recorder|Sax|Daegeum|DaeGeum|Deageum|Danso|DanSo|Piri|PiRi|Sogeum|SoGeum|Taepyeongso|\bHoon\b|Shakuhachi|Dizi|Whistle|Ocarina|Bansuri|Winds\b/i);
+  F.breath=F.woodwind || any(/Accordion|Bandoneon|Harmonica|Melodica|Sax/i);
+  F.harp=any(/\bHarp\b/i);
+  F.pluck=any(/Guitar|Gtr|Nylon|Steel String|Ukulele|Banjo|Mandolin|\bHarp\b|Gayageum|GaYaGeum|Geomungo|GeoMunGo|Koto|Kalimba|Sitar|\bOud\b|Bouzouki|Electric Mint|Picked Acoustic/i);
+  F.guitar=any(/Guitar|Gtr|Nylon|Steel String|Electric Mint|Picked Acoustic|Banjo|Ukulele|Mandolin/i);
+  F.rhodes=any(/Rhodes|Electric Piano|Wurl|Suitcase|\bEP\b|Vintage Electric/i);
+  F.timpani=any(/Timpani/i);
+  F.kick=any(/Kick/i); F.drums=F.kick || any(/Drum|Snare|Hi-?Hat|Drummer|\bKit\b|Studio Drummer|Breakbeat/i);
+  F.bass=N.some(function(n){ return /(^|[^A-Za-z])(Bass|Sub|808)([^A-Za-z]|$)/.test(n) && !/^(?=.*(Contrabass|Double Bass|Bass Drum|Basses|Bassoon|Bass Clarinet|Bass Flute|Bass Trombone))/i.test(n.replace(/(Sub|808)\b/g,'')) || /Deep Sub|Sub Bass|808/i.test(n); });
+  F.b808=any(/808/);
+  F.piano=N.some(function(n){ return /Piano|CSP|Grand\b|Steinway|Upright|Keys\b/i.test(n) && !/Electric Piano|Rhodes|Wurl/i.test(n); });
+  F.pad=any(/Pad\b|패드|Synthesizer\/Pad/i);
+  F.synth=any(/^Synthesizer\/|Retro Synth|ES2|Alchemy|Synth\b|신스/i);
+  const made=function(n){ return /Retro Synth|\bES2\b|만들 소리/i.test(n); };   /* 노브로 만드는 소리만(Alchemy 프리셋은 고르는 것) */
+  F.mkBass=N.some(function(n){ return made(n) && /Bass|Sub|808|베이스/i.test(n); });
+  F.mkLead=N.some(function(n){ return made(n) && /Lead|리드|Arp|아르프|Pluck|플럭/i.test(n); });
+  F.mkPad=N.some(function(n){ return made(n) && /Pad|패드/i.test(n); });
+  F.mkChord=N.some(function(n){ return made(n) && /Chord|코드|Stab|Keys/i.test(n); });
+  F.made=F.mkBass||F.mkLead||F.mkPad||F.mkChord;
+  F.fx=any(/\bFX\b|FX-|Riser|Impact|Sweep|Crash|Vinyl|\bRain\b|Noise|Uplift|Downlift/i);
+  F.shaker=any(/Shaker|Perc|Tamb|Conga|Bongo|Cajon/i);
+  /* 선율 악기 */
+  const lead=N.find(function(n){ return /^(Melody|Lead|Vocal|리드|선율|Solo)\b|\| *(Melody|Lead|Vocal|Solo|리드|선율)|\]\s*(Melody|Lead|Vocal)\b/i.test(n); });
+  F.lead=lead?(/Vocal|보컬|Voice|Choir/i.test(lead)?'vocal':/Flute|Clarinet|Oboe|Sax|Trumpet|Horn|Daegeum|DaeGeum|Danso|Piri|Whistle|Recorder|Winds|Brass/i.test(lead)?'wind':/Violin|Viola|Cello|Strings|Erhu|HaeGeum|Haegeum/i.test(lead)?'string':/Piano|CSP|Grand|Keys|Rhodes/i.test(lead)?'piano':/Synth|Lead|Retro|ES2|Alchemy|Pluck/i.test(lead)?'synth':''):'';
+  F.roles=N.map(function(n){ return roleOf(n).trim().split(/[\s,(]/)[0].toLowerCase(); });
+  return F; };
+window.__sheetTrim=function(txt){ try{ const s=String(txt==null?'':txt); if(s.split('\n').length<40) return s;   /* 설명서(긴 글)만. 트랙 이름 같은 짧은 글도 __L12 를 지나므로(비트 [FX-hit] 트랙 이름이 지워졌던 것) */ const names=window.__LAST_TRK; if(!names||names.length<2) return s; if(window.__LAST_TRK_T && Date.now()-window.__LAST_TRK_T>300000) return s;   /* 5분 넘게 지난 MIDI 면 다른 곡일 수 있어 그대로 */ const F=window.__sheetFams(names);
+  let L=s.split('\n'); const out=[]; const ind=function(x){ return (x.match(/^ */)||[''])[0].length; };
+  const isHead=function(x){ return /^\s*■|^\s*══|^\s*━━|^\s*──|^\s*┈┈/.test(x); };
+  let i=0;
+  /* 장르 계열(시트 앞쪽 글로) */
+  const top=L.slice(0,40).join('\n');
+  const GEN=[['가요, 발라드',/발라드|Ballad|가요|K-?Pop|팝 |Pop\b|Disney|디즈니|City ?Pop|시티팝|J-?Pop|Worship|워십|Gospel|가스펠|R&B|알앤비|Neo ?Soul|네오소울|Motown|모타운|UK ?Pop|Royal ?Road|Komuro|Marusa|animeost|Anime ?OST|billie/i],['EDM, 하우스',/EDM|하우스|House|Techno|테크노|Trance|트랜스|Big ?Room|빅룸|Disco|디스코|Ambient Techno|Dubstep/i],['트랩, 힙합',/트랩|Trap|힙합|Hip-?Hop|Boom ?Bap|붐뱁|Drill|드릴|Lo-?fi Hip|billie/i],['록',/록|Rock|Punk|펑크 록|Metal|메탈|Grunge|Anime ?Rock|애니 록|K-?Band|밴드 사운드/i],['재즈, 어쿠스틱',/재즈|Jazz|어쿠스틱|Acoustic|보사|Bossa|포크|Folk|컨트리|Country|Blues|블루스|Swing|스윙|Tango|탱고|Rumba|룸바|Gypsy|집시|Celtic|켈틱|Reggae|레게|Funk\b|펑크\b|Latin|라틴|balkan|Balkan|발칸/i],['로파이',/로파이|Lo-?fi|Chillhop/i],['오케스트라',/오케|Orchestra|시네마|Cinematic|Epic|에픽|웰니스 오케|Classic|클래식|사극|Saguk|Film|animeost|Anime ?OST/i],['레트로, 신스',/레트로|Retro|신스웨이브|Synthwave|Synth ?Pop|80년대|80s|Vaporwave/i]];
+  const genHit=GEN.filter(function(g){ return g[1].test(top); }).map(function(g){ return g[0]; });
+  const hpfItem={'킥':F.kick,'베이스':F.bass,'피아노':F.piano,'기타':F.guitar,'보컬':F.vocal,'신스 리드':F.synth,'패드':F.pad,'현':F.strings,'관':F.brass||F.woodwind,'드럼 오버헤드':F.drums,'FX':F.fx,'셰이커':F.shaker};
+  const famWord={'금관':F.brass,'현':F.strings,'목관':F.woodwind,'합창':F.choir,'하프':F.harp};
+  const keepFamItem=function(t){ const m=t.trim().match(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/); return !m || famWord[m[1]]; };
+  while(i<L.length){ const x=L[i];
+    /* 보컬 가이드 절 */
+    if(/^■ 🎤 보컬 가이드/.test(x) && !F.vocal){ i++; while(i<L.length && !/^\s*(■|══)/.test(L[i])) i++; continue; }
+    /* 저역 교통정리 */
+    if(/^\s*── 저역 교통정리/.test(x) && !((F.kick||F.drums) && (F.bass||F.b808))){ i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])) i++; continue; }
+    /* 사이드체인 줄 */
+    if(/^\s*── 사이드체인/.test(x) && !(F.kick||F.drums)){ i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i]) && ind(L[i])>ind(x)) i++; continue; }
+    /* 리드 포켓 */
+    if(/^\s*── 리드 포켓/.test(x) && !F.lead) F.lead='vocal';   /* 선율 트랙이 없는 반주 곡(밴드 비트)은 그 위에 얹을 노래가 리드 */
+    if(/^\s*── 리드 포켓/.test(x) && F.lead){ out.push(x); i++; const want={vocal:/^리드=보컬/,wind:/^리드=플루트/,piano:/^리드=피아노/,synth:/^리드=신스/,string:/^리드=현/}[F.lead];
+      while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const t=L[i].trim(); if(/^리드=/.test(t) && want && !want.test(t)){ i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 신스 만들기 */
+    if(/^\s*── 신스 만들기/.test(x)){ if(!F.made){ i++; while(i<L.length && !/^\s*※ 프리셋을 먼저/.test(L[i]) && !/^■/.test(L[i])) i++; if(i<L.length && /^\s*※ 프리셋을 먼저/.test(L[i])) i++; continue; }
+      out.push(x); i++; const okR={'베이스':F.mkBass,'리드':F.mkLead,'패드':F.mkPad,'코드':F.mkChord};
+      while(i<L.length && !/^■/.test(L[i]) && !/^\s*※ 프리셋을 먼저/.test(L[i])){ const m=L[i].match(/^\s*\[(베이스|리드|패드|코드)\]/); if(m && !okR[m[1]]){ i++; while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !/^\s*──/.test(L[i])) i++; while(i<L.length && L[i].trim()==='') i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 밑청소 HPF */
+    if(/^\s*── 밑청소 HPF/.test(x)){ out.push(x); i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const lead=L[i].match(/^\s*/)[0]; const items=L[i].trim().split(/,\s*/).filter(function(it){ const k=Object.keys(hpfItem).sort(function(a,z){ return z.length-a.length; }).find(function(w){ return it.indexOf(w)===0 || it.replace(/=.*/,'')===w; }); return !k || hpfItem[k]; }); if(items.length) out.push(lead+items.join(', ')); i++; } continue; }
+    /* 장르 계열별 손질 */
+    if(/^\s*── 장르 계열별 손질/.test(x) && genHit.length){ out.push(x); i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const t=L[i].trim(); const g=GEN.find(function(G){ return t.indexOf(G[0])===0; }); if(g && genHit.indexOf(g[0])<0){ i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 음원 대체 목록 */
+    if(/\[음원이 로직에 없으면\? 소리계열로 대체\]/.test(x)){ const k=x.indexOf(']')+1; const head=x.slice(0,k); const items=x.slice(k).split(' / ').map(function(t){ return t.trim(); }).filter(function(t){ const key=t.split('=')[0].trim().toLowerCase(); return !key || F.roles.some(function(r){ return r===key; }); }); if(items.length) out.push(head+' '+items.join(' / ')); i++; continue; }
+    /* 아티큘레이션 목록 */
+    if(/^\s*\[(노트 길이|벨로시티 상한|음역 보정|호흡)\]/.test(x)){ const blk=[x]; i++; let lastKept=true; let kept=0;
+      while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])){ let t=L[i]; const tr=t.trim();
+        if(/^→/.test(tr)){ if(lastKept) blk.push(t); i++; continue; }
+        if(/^- /.test(tr)){ const body=tr.slice(2); const lead=t.match(/^\s*/)[0]+'- ';
+          if(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/.test(body) && !/ \/ /.test(body)){ lastKept=keepFamItem(body); if(lastKept){ blk.push(t); kept++; } i++; continue; }
+          if(/ \/ /.test(body)){ let k0=true; const parts=body.split(' / ').filter(function(q){ if(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/.test(q.trim())) k0=keepFamItem(q); return k0; }); lastKept=parts.length>0; if(lastKept){ blk.push(lead+parts.join(' / ')); kept++; } i++; continue; }
+          const m=body.match(/^([^,]+),\s*(.*)$/); if(m && /(금관|현|목관|합창) /.test(m[2])){ const it=m[2].split(/,\s*(?=(?:금관|현|목관|합창|하프) )/).filter(function(q){ return keepFamItem(q); }); lastKept=it.length>0; if(lastKept){ blk.push(lead+m[1]+', '+it.join(', ')); kept++; } i++; continue; } }
+        blk.push(t); kept++; lastKept=true; i++; }
+      if(kept) Array.prototype.push.apply(out, blk); while(!kept && i<L.length && L[i].trim()===''){ i++; break; } continue; }
+    if(/^\s*\[음 들어오는 결\]/.test(x) && !(F.strings||F.woodwind||F.brass||F.choir||F.pad||F.synth)){ i++; while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])) i++; continue; }
+    /* 비트 FX 목록([FX-bed] [FX-hit]): 이 곡에 있는 FX 트랙 것만 */
+    if(/^\s*\[FX-(bed|hit)\]/.test(x)){ const FXK=[[/^바이닐/,/Vinyl/i],[/^히스|^테이프/,/Hiss|Tape/i],[/^비, 파도|^비,|^파도|^바람/,/Rain|Wave|Ocean|Wind|Nature/i],[/^필터스윕/,/Sweep/i],[/^임팩트|^부머/,/Impact|Boom/i],[/^라이저/,/Riser|Uplift/i],[/^서브드롭/,/Sub ?Drop|Drop/i],[/^리버스크래시/,/Reverse Crash|Reverse Cymbal/i],[/^싱잉볼|^벨/,/Bowl|Bell/i]];
+      const has=function(t){ const k=FXK.find(function(q){ return q[0].test(t); }); return !k || (names||[]).some(function(n){ return k[1].test(n); }); };
+      const blk=[x]; i++; let kept=0;
+      while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])){ const tr=L[i].trim(); if(/^- /.test(tr)){ if(has(tr.slice(2))){ blk.push(L[i]); kept++; } } else blk.push(L[i]); i++; }
+      if(kept) Array.prototype.push.apply(out, blk); continue; }
+    /* 연주 관습: 금관 팀파니 줄은 그 악기가 있을 때만, 빈 왈츠는 3/4 왈츠일 때만, 피카르디는 단조 곡일 때만 */
+    { const m=x.match(/^\s{1,4}(팀파니|금관|빈 왈츠|피카르디)\s*:/); if(m){ const ok=(m[1]==='팀파니')?F.timpani:(m[1]==='금관')?F.brass:(m[1]==='빈 왈츠')?/3\/4|왈츠|Waltz/i.test(top):/단조|minor|Aeolian|에올리안|Dorian|도리안|Phrygian|프리지안/i.test(top);
+        if(!ok){ i++; while(i<L.length && /^\s{8,}\S/.test(L[i]) && !/^\s{1,4}\S[^:]{0,8}:/.test(L[i])) i++; continue; } } }
+    /* 스웰: 표본 현 금관 목관 음원 이야기 */
+    if(/^\s*음원에서: 표본 현 금관 목관/.test(x) && !(F.strings||F.brass||F.woodwind)){ i++; continue; }
+    /* 용어 풀이: 이 설명서 다른 곳에 나오는 말만 */
+    if(/^\s*── 용어 풀이/.test(x)){ const rest=L.slice(0,i).concat(L.slice(i+1)).filter(function(q){ return !/^\s+\S.{0,30} = /.test(q); }).join('\n'); const blk=[x]; i++;
+      while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const m=L[i].match(/^\s*(.+?) = /); if(m){ const words=m[1].split(/[\s\/()（）,]+/).filter(function(w){ return w.length>=2 || /[‖\[\]]/.test(w); }); const used=!words.length || words.some(function(w){ return rest.indexOf(w)>=0; }); if(used) blk.push(L[i]); } else blk.push(L[i]); i++; }
+      if(blk.length>1) Array.prototype.push.apply(out, blk); continue; }
+    /* 비트 드럼 음원 고르기: 이 곡 드럼 음원 것만 */
+    { const m=x.match(/^\s*\[(전자 드럼|어쿠스틱)\]/); if(m){ const nm=(names||[]).join('|'); const ok=(m[1]==='전자 드럼')?/Drum Machine Designer|DMD/i.test(nm):/Studio Drummer|Drum Kit|Drummer/i.test(nm); if(!ok){ const d0=ind(x); i++; while(i<L.length && L[i].trim()!=='' && ind(L[i])>d0+2 && !/^\s*\[/.test(L[i])) i++; continue; } } }
+    /* 밴드 1단계: 만들 소리 안내는 만드는 트랙이 있을 때만 */
+    if(/「만들 소리」로 적힌/.test(x) && !F.made){ i++; continue; }
+    /* 악기별 익스프레션 */
+    if(/^■ 악기별 익스프레션/.test(x)){ const blk=[x]; i++; let cur=true, kept=0; const want={'숨 악기':F.breath,'발현 악기':F.pluck,'로즈':F.rhodes,'팀파니':F.timpani};
+      while(i<L.length && !/^\s*(■|══)/.test(L[i]) && L[i].trim()!==''){ const m=L[i].match(/^\s{1,4}(숨 악기|발현 악기|로즈|팀파니)\s*:/); if(m){ cur=!!want[m[1]]; if(cur) kept++; } if(cur) blk.push(L[i]); i++; }
+      if(kept) Array.prototype.push.apply(out, blk); else { while(i<L.length && L[i].trim()==='') i++; } continue; }
+    let y=x; if(!(F.kick||F.drums)) y=y.replace(/사이드체인\([^)]*\)[^,]*덕킹,?\s*/g,''); if(!F.vocal) y=y.replace(/선율\(보컬\)/g,'선율');
+    out.push(y); i++; }
+  return out.join('\n').replace(/\n[ \t]*\n([ \t]*\n)+/g,'\n\n'); }catch(e){ window.__sheetTrimErr=String(e&&e.stack||e); return String(txt); } };
+
 /* ★ 2026-10-21 셋업 시트(txt)의 악기 이름도 디센트로: 시트를 내보내는 __L12 에 이름 바꾸기를 덧붙임 */
-(function(){ const hook=function(){ try{ if(window.__L12 && !window.__L12.__ds){ const o=window.__L12; const f=function(s){ return window.__dsRename(o(s)); }; f.__ds=true; window.__L12=f; } }catch(e){} };
+(function(){ const hook=function(){ try{ if(window.__L12 && !window.__L12.__ds){ const o=window.__L12; const f=function(s){ const r=window.__dsRename(o(s)); return window.__sheetTrim?window.__sheetTrim(window.__noDashText?window.__noDashText(r):r):r; }; f.__ds=true;   /* ★ 2026-10-23 이 곡에 없는 악기 이야기 빼기 */ window.__L12=f; } }catch(e){} };
   hook(); if(typeof document!=='undefined'){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',hook); } setTimeout(hook,0); setTimeout(hook,1500); setTimeout(hook,4000); })();
 /* ★ 2026-10-23 형: 비슷한 트랙끼리 모아서 배열(모든 앱 모든 장르 편성). 위에서 아래로 타악 → 저역 → 건반 기타 하프 → 패드 → 국악기와 포인트 악기 → 종과 말렛 → 현 → 금관 → 목관 → 노래 → 신스 → 효과 → 가이드.
    이름 'Patch | Role' 에서 역할로 먼저 가르는 것(킥, 드럼, 타악, 베이스, 드론, 자연음 바탕, 효과, 가이드), 그다음 악기(패치)로, 그래도 모르면 역할 이름으로. 같은 무리 안에서는 앱이 쓴 순서 그대로.
@@ -32299,6 +32763,7 @@ window.__midiTrackSort=function(u8){ try{ const b=u8; if(!b||b.length<14||b[0]!=
   while(p+8<=b.length){ const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0; const isT=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); CH.push({t:isT, s:p, e:p+8+len}); p+=8+len; }
   const TR=CH.filter(function(c){ return c.t; }); if(TR.length<3) return u8;
   const nameOf=function(c){ const L=Math.min(c.e-3, c.s+8+6000); for(let q=c.s+8;q<L;q++){ if(b[q]===0xFF && b[q+1]===0x03){ let n=0,j=q+2; do{ n=(n<<7)|(b[j]&0x7f); }while(b[j++]&0x80); return dec.decode(b.subarray(j,j+n)); } } return ''; };
+  try{ window.__LAST_TRK=TR.slice(1).map(nameOf); window.__LAST_TRK_T=Date.now(); }catch(e){}   /* ★ 2026-10-23 형: 설명서를 이 곡 트랙에 맞게만(__sheetTrim 이 씀) */
   { const c0=TR[0]; const L=Math.min(c0.e-6, c0.s+8+20000); for(let q=c0.s+8;q<L;q++){ if(b[q]===0xFF&&b[q+1]===0x7F&&b[q+2]===4&&b[q+3]===0x53&&b[q+4]===0x4F&&b[q+5]===0x4B&&b[q+6]===0x4F) return u8; } }
   const rest=TR.slice(1).map(function(c,i){ return {c:c, i:i, r:window.__trackRank(nameOf(c))}; }); const srt=rest.slice().sort(function(a,z){ return (a.r-z.r)||(a.i-z.i); });
   if(srt.every(function(o,i){ return o.i===i; })) return u8;
@@ -32938,7 +33403,8 @@ window.__guideHTML=function(opt){
   h.push('<h2>0. 프로젝트 설정 <small>MIDI 를 열자마자</small></h2>'+ck(['<b>파일 &gt; 열기</b> 로 MIDI 열기 '+Gr('(영어 화면 File &gt; Open. 가져오기 말고 열기. 템포, 박자, 마커, 트랙 이름이 그대로 들어옴)'),'<b>파일 &gt; 프로젝트 설정 &gt; 오디오</b> '+Gr('(File &gt; Project Settings &gt; Audio)')+': Sample Rate '+B('48 kHz'),'<b>Logic Pro &gt; 설정 &gt; 녹음</b> '+Gr('(Logic Pro &gt; Settings &gt; Recording)')+': Recording File Type '+B('WAVE')+', Resolution '+B('24 bit')]));
   const room=GS.room||SPC.room, decay=GS.decay||SPC.decay, pre=GS.pre||(SPC.pre&&SPC.pre[1])||20, same=(room==='Smooth Space'&&decay===4.5&&pre===20);
   if(opt.book){ /* ★ 2026-10-20 형: 호흡 앰비언트 패치 방식. 순서 0 프로젝트 설정, 1 처음 한 번(버스 셋, 공통 패치, 음색 패치, 마스터, 다 만들면 접힘), 2 곡마다, 3 선택 우주 효과, 4 크기와 바운스, 5 마스터링, 6 곡 지도 */
-    const K=opt.book, NM=K.names, curN=NM[K.cur];
+    const K=Object.assign({}, opt.book); if(K.onlyUsed==null) K.onlyUsed=true;   /* ★ 2026-10-23 형: 모든 앱 장르 편성 설명서는 그 곡에 쓰는 패치만(동경요가처럼). 패치 책 전체가 필요하면 book.onlyUsed=false */
+    const NM=K.names, curN=NM[K.cur];
     const pn=function(tk, r){ return 'SO '+(tk?NM[tk]:'공통')+' '+r.n+' '+r.ko; };
     const pid=function(name){ return 'p-'+String(name).replace(/\s+/g,'-'); };
     const dif=function(x){ return '<span class="dif">'+x+'</span>'; };
@@ -32959,13 +33425,13 @@ window.__guideHTML=function(opt){
     if(NEWR.length) h.push('<div class="box"><div><b>호흡 앰비언트(명상 앱) 설명서로 이미 만들었으면</b> 버스 '+B('SO 중후 Space')+' 같은 Space 넷, '+B('SO 공통 Air')+', '+B('SO 공통 Cosmos')+', '+B('SO 공통 Flip')+', Stereo Out '+B('SO 마스터')+', '+B('SO 마스터링')+', 공통 05~13 과 음색 패치는 이름과 값이 같아 그대로 씁니다. 다시 만들지 않습니다.</div>'
       +(K.echoBus?'<div>버스 '+B('SO 공통 Echo')+' 는 '+R('새로')+' 만듭니다(가 표 맨 아래).</div>':'')
       +(NEED.length?'<div>이 곡에 더 만들 패치 '+R(NEED.length+'개')+': '+NEED.map(function(r){ return '<a class="pl" href="#'+esc(pid(pn(null,r)))+'">'+B(esc(pn(null,r)))+'</a>'; }).join(', ')+'. 아래 표에서 '+B('이 곡')+' 과 '+R('새 패치')+' 가 함께 붙은 줄입니다. 만드는 법은 나 다 와 같습니다.</div>':'<div>이 곡은 호흡 앰비언트 패치만으로 됩니다.</div>')
-      +'<div>'+R('새 패치')+' 가 붙은 다른 줄은 다른 웰니스 앰비언트 곡에서 쓰니 그 곡을 만들 때 만들어도 됩니다.</div></div>');
+      +(K.onlyUsed?'':'<div>'+R('새 패치')+' 가 붙은 다른 줄은 다른 웰니스 앰비언트 곡에서 쓰니 그 곡을 만들 때 만들어도 됩니다.</div>')+'</div>');
     h.push('<h3>가. 버스 '+(K.echoBus?'다섯':K.flipDb!=null?'넷':'셋')+'</h3>'+stp([B('X')+' 로 믹서를 열고 첫 트랙의 <b>Sends</b> 첫 빈칸 → '+B('Bus')+' → '+B('Bus 1')+'. 오른쪽에 Aux 가 생기면 이름을 더블클릭해 '+B('Space'),
       '같은 트랙 Sends 둘째 빈칸 → '+B('Bus 2')+' → 이름 '+B('Air')+', 셋째 빈칸 → '+B('Bus 3')+' → 이름 '+B('Cosmos')+(K.flipDb!=null?', 넷째 빈칸 → '+B('Bus 4')+' → 이름 '+B('Flip'):'')+(K.echoBus?', 다섯째 빈칸 → '+B('Bus 5')+' → 이름 '+B('Echo'):''),
       'Aux 마다 오디오 FX 첫 빈칸부터 아래 표의 플러그인과 값',
-      'Aux 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → 표의 저장 이름. Space 는 음색마다 하나씩 넷 '+Gr('(하나 만든 뒤 Decay 같은 값만 바꿔 다른 이름으로 저장)')])
+      'Aux 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → 표의 저장 이름.'+(K.onlyUsed?'':' Space 는 음색마다 하나씩 넷 '+Gr('(하나 만든 뒤 Decay 같은 값만 바꿔 다른 이름으로 저장)'))])
       +'<div class="wrap"><table><tr><th></th><th>저장 이름</th><th>버스</th><th>플러그인과 값</th></tr>'
-      +K.order.map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
+      +K.order.filter(function(k){ return !K.onlyUsed || k===K.cur; }).map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Air')+'</td><td>Bus 2</td><td>'+B('ChromaVerb')+': Room '+B('Airy')+', Predelay '+B('40 ms')+', Decay '+B('8 s')+', Dry '+B('0 %')+', Wet '+B('100 %')+', Damping EQ 오른쪽 끝 점 '+B('100 %')+'. DETAILS 탭 Output EQ '+B('켬')+': 첫째 '+B('400 Hz')+', 다섯째 '+B('10 kHz +4 dB')+', 여섯째 '+R('끄기')+'</td></tr>'
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Cosmos')+'<br>'+Gr('우주 효과용')+'</td><td>Bus 3</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B('12 s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('400 Hz, 24 dB/Oct')+', '+bd(8)+' High Cut '+B('1000 Hz, 24 dB/Oct')+')<br>'+Gr('EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐')+'</td></tr>'
       +(K.flipDb!=null?'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Flip')+'<br>'+Gr('뒤집힌 세계용')+'</td><td>Bus 4</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('-12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('Space Designer')+' (위 단추 '+B('Synthesized IR')+', '+B('Reverse')+' '+R('켬')+', Length '+B('3 s')+', Dry '+B('맨 아래(끔)')+', Wet '+B('0 dB')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('80 Hz')+', '+bd(8)+' High Cut '+B('2000 Hz, 24 dB/Oct')+')<br>'+Gr('Cosmos(한 옥타브 위, 하늘로 열림)의 반대: 한 옥타브 아래로 가라앉고 잔향이 거꾸로 부풀어 오름')+'</td></tr>':'')
@@ -32973,16 +33439,20 @@ window.__guideHTML=function(opt){
       +'</table></div>');
     h.push('<h3>나. 트랙마다 값 넣기 <small class="g">아래 표 한 줄이 패치 하나. 그 트랙에 이 순서로 값을 다 넣은 뒤 다 에서 저장</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
       '<b>악기</b>: 이름이 Synthesizer/, Strings/ 로 시작하면 '+B('Y')+' 라이브러리에서 그 이름을 누름. Kontakt, DecentSampler, Quick Sampler 는 채널 스트립 악기 칸에서 고르고 악기까지 불러 둠 '+Gr('(불러 둔 악기와 설정이 패치에 같이 저장되어 다음부터 바로 열림)')+'. 표의 설정까지',
-      '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
+      '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. 그 센드 때문에 믹서 오른쪽에 새로 생긴 Aux(리버브 딜레이가 든 것)는 믹서에서 그 Aux 를 눌러 고르고 '+B('Delete')+' 키로 지움 '+Gr('(남길 Aux 는 이름이 Space, Air, Cosmos, Flip'+(K.echoBus?', Echo':'')+' 인 것뿐. 센드를 지운 Aux 는 아무 소리도 안 받아 지워도 됨)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
       '<b>오디오 FX</b> 그 아래 빈칸에 위에서부터 '+B('Gain')+' → '+B('Channel EQ')+' → '+B('Direction Mixer')+' 를 넣고 표의 값. Direction Mixer 는 Input '+B('LR')+', Direction '+B('0')+' 그대로 두고 Spread 만',
       '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos)'+(K.flipDb!=null?', 넷째 칸 '+B('Bus 4')+'(Flip)':'')+' 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠 '+Gr('(Cosmos 는 Bus 3 Aux 가 없으면 소리가 안 나서 우주 효과를 안 쓰는 곡에서는 그냥 꺼진 셈)')+(K.flipDb!=null?'<br>Bus 4 에 '+B('Pre')+' 라 적힌 칸은 그 센드 칸의 버스 이름을 클릭하면 나오는 메뉴에서 '+B('Pre Fader')+' 고름 '+Gr('(한글 메뉴 프리 페이더. 뒤집힌 세계 동안 MIDI 가 페이더로 음악을 내려도 Flip 으로 가는 소리는 그대로 들어가게)'):'')])
       +'<details><summary>Channel EQ 보는 법</summary><figure><img src="'+EQIMG+'" alt="Channel EQ"></figure><div class="box"><div>밴드는 왼쪽부터 '+bd(1)+'~'+bd(8)+'. 흐린 밴드는 그림을 눌러 켭니다.</div><div>밴드 아래 숫자 세 줄: 위부터 '+B('주파수 Hz')+', '+B('크기 dB')+', '+B('폭 Q')+'. 숫자를 위아래로 끌거나 더블클릭해서 입력.</div><div>'+bd(1)+' Low Cut 은 기울기 '+B('12 dB/Oct')+' 그대로(표에 따로 적은 것만 바꿈).</div></div></details>');
-    h.push('<h4>공통 '+(['','하나','둘','셋','넷','다섯','여섯','일곱','여덟','아홉','열','열하나','열둘','열셋','열넷','열다섯','열여섯','열일곱','열여덟','열아홉','스물','스물하나','스물둘'][K.common.length]||K.common.length)+' <small class="g">음색과 상관없이 같음'+(K.common.some(function(r){ return /Saenghwang|Kalimba|Celesta/.test(r.role); })?(K.common.some(function(r){ return /Gayageum|Geomungo/.test(r.role); })?'. 11 12 13 26 27 은 양금 대신 쓸 선율(곡에서는 그 가운데 하나만 켬)':'. 11 12 13 은 양금 대신 쓸 선율(곡에서는 넷 가운데 하나만 켬)'):'')+'</small></h4><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
-    h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
-    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
+    /* ★ 2026-10-23 형: 동경요가 설명서에 그 곡에 없는 트랙의 패치(핸드팬 메아리 가야금 거문고 풍경 ...)까지 나와 헷갈림 → K.onlyUsed 면 이 곡이 쓰는 패치 줄만(공통, 음색, Space 버스) */
+    const COM=K.onlyUsed?K.common.filter(function(r){ return USED.has(pn(null,r)); }):K.common;
+    h.push('<h4>공통 '+(['','하나','둘','셋','넷','다섯','여섯','일곱','여덟','아홉','열','열하나','열둘','열셋','열넷','열다섯','열여섯','열일곱','열여덟','열아홉','스물','스물하나','스물둘'][COM.length]||COM.length)+' <small class="g">'+(K.onlyUsed?'이 곡에 쓰는 것만, ':'')+'음색과 상관없이 같음'+(!K.onlyUsed && K.common.some(function(r){ return /Saenghwang|Kalimba|Celesta/.test(r.role); })?(K.common.some(function(r){ return /Gayageum|Geomungo/.test(r.role); })?'. 11 12 13 26 27 은 양금 대신 쓸 선율(곡에서는 그 가운데 하나만 켬)':'. 11 12 13 은 양금 대신 쓸 선율(곡에서는 넷 가운데 하나만 켬)'):'')+'</small></h4><div class="wrap"><table>'+head+rowsOf(COM,null,null)+'</table></div>');
+    if(K.onlyUsed){ K.order.forEach(function(k){ const R0=K.tones[k].rows, B0=K.tones[K.order[0]].rows; const ix=R0.map(function(r,i){ return USED.has(pn(k,r))?i:-1; }).filter(function(i){ return i>=0; }); if(!ix.length) return;
+        h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+' <small class="g">이 곡에 쓰는 것만</small></h4><div class="wrap"><table>'+head+rowsOf(ix.map(function(i){ return R0[i]; }),k,(k===K.order[0])?null:ix.map(function(i){ return B0[i]; }))+'</table></div>'); }); }
+    else { h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
+    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); }); }
     h.push('<h3>다. 패치로 저장 <small class="g">표 한 줄의 값을 다 넣은 트랙마다</small></h3>'+stp(['값을 다 넣은 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 엶',
       '라이브러리 맨 아래 '+B('저장...')+' → 그 줄의 저장 이름(예: '+B('SO '+esc(NM[K.order[0]])+' 02 호흡 패드')+') 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김. 표 줄 왼쪽 칸에 체크',
-      '음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)'),
+      K.onlyUsed?'저장 이름은 표 줄 그대로 '+Gr('(다른 음색 줄이 섞여 있으면, 예를 들어 띵샤 신호처럼, 그 음색 이름으로)'):('음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)')),
       '다음 곡부터는 트랙을 고르고 이 이름을 한 번 누르면 악기, 플러그인, 센드가 한꺼번에 들어옴']));
     h.push('<h3>라. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
       '마스터링용: 빈 프로젝트(48 kHz) 오디오 트랙 하나에 '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('25 Hz')+' 만) → '+B('Adaptive Limiter')+' (Out Ceiling '+B('-1.0 dB')+', True Peak Detection '+R('ON')+') → '+B('Loudness Meter')+' → '+B('Y')+' 라이브러리 <b>저장...</b> → '+B('SO 마스터링')]));
@@ -33927,7 +34397,7 @@ try{ if(!window.__TE_L12){ window.__TE_L12=1; const _oe=TextEncoder.prototype.en
           feel:'같은 무중력인데 <b>어둡다</b> — 성운 속.',
           theory:'단조 자리에 4도 쌓기를 올리면 어둡되 닫히지 않습니다.'}
       ]},
-    /* ★ 핸드팬 — ProjectSAM Pan Drums II (Hang Mk.1). 전 음역 매핑 · 주법 CENTRE·EDGE·SLAP·CORNER.
+    /* ★ 핸드팬 — ProjectSAM Pan Drums II (Hang Mk.1). 전 음역 매핑 · 주법은 Centre, Edge 둘(형 화면 2026-10-23. 설명서에 손바닥 손마디로도 녹음했다지만 고르는 칸은 둘뿐).
          핸드팬은 음계가 악기에 박혀 있다(Hang Mk.1 은 D 단조 계열). 진행을 많이 움직이지 않고
          한 음계 안에서 순환하며 여운으로 채우는 것이 어법이다. */
     gukamb:{name:'국악 앰비언트 (가야금, 양금, 생황)', note:'D 단조 계열 한 음계 안에서 순환 · 진행을 적게 움직이고 여운으로 채운다',
@@ -35253,7 +35723,11 @@ CINE=new Set(['cineTension','cineSoar','cineSorrow','cineJoy','cineWar','cineDri
     try{ if(gsel!=='gugak' && p && p.mode!=='modal'){ const st=(p&&p.steps)||[]; let mj=0, mn=0; st.forEach(function(x){ const r=((x[1]%12)+12)%12, q=String(x[2]||''); const isMin=/^m(?!aj)|min|dim|m7b5/.test(q), isMaj=!isMin && !/^sus|^5$|^q4/.test(q);
         if((r===5&&isMaj)||(r===9&&isMin)||(r===4&&isMin)||(r===7&&isMaj)) mj++; if((r===3&&isMaj)||(r===5&&isMin)||(r===8&&isMaj)||(r===7&&isMin)) mn++; }); if(mj>mn) return 'major'; if(mn>mj) return 'minor'; } }catch(e){}   /* 으뜸이 sus 뿐이면 다른 화음(IV vi 이면 장조, ♭III iv ♭VI 이면 단조)으로 */
     return (p && p.mode==='modal')?((window.__modalMode&&window.__modalMode())||keyMode):keyMode; }
-  function __modalScale(p){ const M={dorian:[0,2,3,5,7,9,10], mixolydian:[0,2,4,5,7,9,10], lydian:[0,2,4,6,7,9,11], phrygian:[0,1,3,5,7,8,10]}; if(p && M[p.scale]) return M[p.scale]; if(p && (p.scale==='phrygdom'||p.scale==='doubleharm') && p._scaleArr) return p._scaleArr;   /* 서사 구간 프리지안 도미넌트 더블 하모닉 */ try{ if(p && p.mode!=='major' && M[gsel]) return M[gsel]; }catch(e){}   try{ if(p && /^(phrygdom|doubleharm|lyricMid)$/.test(gsel) && (p.mode!=='major' || (p.steps||[]).some(function(x){ return ((x[1]%12)+12)%12===1; }))) return (gsel==='doubleharm')?[0,1,4,5,7,8,11]:[0,1,4,5,7,8,10]; }catch(e){}   /* ★ 2026-10-21 전체 검증: 프리지안 도미넌트(♭II 를 쓰는 진행)와 더블 하모닉은 조표를 iv 단조로(E 프리지안 도미넌트 = A단조 조표). 으뜸 장조 조표로 찍어 ♭II iv 가 다 임시표였음 */   /* 인트로 아웃트로 씨앗 진행은 mode 가 비어 있어 단조로 찍혔음 */ return null; }   /* 선법 장르(도리안 믹솔리디안 리디안 프리지안)의 'modal' 진행 */
+  function __modalScale0(p){ const M={dorian:[0,2,3,5,7,9,10], mixolydian:[0,2,4,5,7,9,10], lydian:[0,2,4,6,7,9,11], phrygian:[0,1,3,5,7,8,10]}; if(p && M[p.scale]) return M[p.scale]; if(p && (p.scale==='phrygdom'||p.scale==='doubleharm') && p._scaleArr) return p._scaleArr;   /* 서사 구간 프리지안 도미넌트 더블 하모닉 */ try{ if(p && p.mode!=='major' && M[gsel]) return M[gsel]; }catch(e){}   try{ if(p && /^(phrygdom|doubleharm|lyricMid)$/.test(gsel) && (p.mode!=='major' || (p.steps||[]).some(function(x){ const r=((x[1]%12)+12)%12; return r===1 || r===8 || (r===5 && /^m(?!aj)|min/.test(String(x[2]||''))); }))) return (gsel==='doubleharm')?[0,1,4,5,7,8,11]:[0,1,4,5,7,8,10]; }catch(e){}   /* ★ 2026-10-23: ♭VI 나 iv 단조를 쓰는 장조 으뜸 구간(F Bbm Ab Db7)도 같은 식(F장조 조표 ♭1 이 소리 Fm 와 넷 차이였음) ★ 2026-10-21 전체 검증: 프리지안 도미넌트(♭II 를 쓰는 진행)와 더블 하모닉은 조표를 iv 단조로(E 프리지안 도미넌트 = A단조 조표). 으뜸 장조 조표로 찍어 ♭II iv 가 다 임시표였음 */   /* 인트로 아웃트로 씨앗 진행은 mode 가 비어 있어 단조로 찍혔음 */ return null; }   /* 선법 장르(도리안 믹솔리디안 리디안 프리지안)의 'modal' 진행 */
+  /* ★ 2026-10-23 조표 검증: 4도 쌓기 '헤매는' 진행(C(4) D♭(4))이 도리안으로 적혀 있어 D 로 전조한 벌스가 C장조 조표(♮)로 찍혔음(소리는 E♭ A♭ D♭).
+     진행의 근음이 선법 음계 밖이면 근음을 다 품는 선법(에이올리안 프리지안 도리안 믹솔리디안 리디안 이오니안 차례)으로 */
+  function __modalScale(p){ const sc=__modalScale0(p); try{ if(!sc || sc.length!==7 || !p || !p.steps) return sc; const R=p.steps.map(function(x){ return ((x[1]%12)+12)%12; }); if(R.every(function(r){ return sc.indexOf(r)>=0; })) return sc; const _out=R.filter(function(r){ return sc.indexOf(r)<0; }).length; const _th=(window.__MSFIT_TH==null)?0.5:window.__MSFIT_TH; if(_out<_th*R.length) return sc;
+      const C=[[0,2,3,5,7,8,10],[0,1,3,5,7,8,10],[0,2,3,5,7,9,10],[0,2,4,5,7,9,10],[0,2,4,6,7,9,11],[0,2,4,5,7,9,11]]; for(const c of C){ if(R.every(function(r){ return c.indexOf(r)>=0; })) return c; } }catch(e){} return sc; }
   function keySigFor(pc, md, sc){ pc=((pc%12)+12)%12; const KM=md||keyMode;
     try{ if(sc && sc.length===7 && (sc.join(',')==='0,1,4,5,7,8,10' || sc.join(',')==='0,1,4,5,7,8,11')){ const mS={9:0,4:1,11:2,6:3,1:4,8:-7,3:-6,10:-5,5:-4,0:-3,7:-2,2:-1}; let sf0=mS[(pc+5)%12]; if(sf0<-6) sf0+=12; return [0xFF,0x59,0x02,(sf0<0?256+sf0:sf0)&0xff,1]; } }catch(e){}   /* ★ 2026-10-21 프리지안 도미넌트 더블 하모닉 = iv 단조 조표 */
     /* ★ 2026-10-20 형 조성 검증: 선법 곡(믹솔리디안 도리안 리디안 프리지안)을 장단으로만 적어 D 믹솔리디안이 D단조 조표(♭1)로 찍혔음(소리는 F♯).
@@ -42451,7 +42925,7 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
     gukamb:{set:'모달, 62 BPM, 가야금 양금 거문고 생황 대금 단소 (핸드팬 명상 계열에 국악기 음색과 음역)', combos:[
       {n:'제자리 순환', d:'화성을 거의 움직이지 않는다 · 손이 같은 자리를 돌고 배음이 겹치며 색이 바뀐다', c:0,s:0,h:0,mod:'0'},
       {n:'파도', d:'i–♭VII–♭VI–♭VII · 밀려왔다 물러난다 · 명상·라운지에 잘 맞는다', c:0,s:0,h:0,mod:'0'}]},
-    handpan:{set:'모달 · 62 BPM · 핸드팬 하나(Centre·Edge·Corner·Slap)', combos:[
+    handpan:{set:'모달 · 62 BPM · 핸드팬 하나(Centre, Edge)', combos:[
       {n:'제자리 순환', d:'화성을 거의 움직이지 않는다 · 손이 같은 자리를 돌고 배음이 겹치며 색이 바뀐다', c:0,s:0,h:0,mod:'0'},
       {n:'파도', d:'i–♭VII–♭VI–♭VII · 밀려왔다 물러난다 · 명상·라운지에 잘 맞는다', c:0,s:0,h:0,mod:'0'}]},
     rock:{set:'장조 · 120 BPM · 풀 밴드', combos:[
@@ -47904,6 +48378,10 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
     if(!(window.__scoreOn&&window.__scoreOn())) tBytes=tBytes.concat([0,0xFF,0x01]).concat(vlq(ovB.length)).concat(ovB); };   /* 악보용은 곡 개요 글 빼기 */
     // 첫 섹션 마커(FF 06) tick 0
     let lastTk=0, mkQueue=[], ksQueue=[]; const baseTonicKS=tonic; let prevMd=keyMode;
+    /* ★ 2026-10-23 조표 검증: 같은 조 같은 장단이라도 구간 선법이 달라 조표가 둘 넘게 갈리면(4도 쌓기 곡 E 프리지안 벌스 ♮ 다음 E 도리안 코러스 ♯2) 그 구간에서 조표를 새로. 하나 차이(도리안 대 에이올리안)는 한 조표로 둠 */
+    const __sfOf=function(k,m,pr){ try{ const b=keySigFor(baseTonicKS+k, m, __modalScale(pr)); return b[3]>127?b[3]-256:b[3]; }catch(e){ return null; } };
+    let __sfLast=(function(){ try{ const c0=currentSong&&currentSong[0]; if(!c0 || (gsel==='wellorch' && loungeMode)) return null; return __sfOf(c0.keyShift||0, __progMode(c0.prog), c0.prog); }catch(e){ return null; } })();
+    const __sfFar=function(k,m,pr){ if(gsel==='wellorch' || __sfLast==null) return false; const v=__sfOf(k,m,pr); if(v==null) return false; const d=(((v-__sfLast)%12)+12)%12; return Math.min(d,12-d)>=((window.__SFFAR_TH==null)?2:window.__SFFAR_TH); };
     { let mkTk=PAD, prevKs=0, lastChordLbl=null;
       mkQueue.push({tk:0, txt:'>>> 4 empty bars (edit room)'});
       currentSong.forEach((sec,_si)=>{ const _svT=tonic; tonic=tonic+(sec.keyShift||0); const measureTick=SEC_TK[_si].meas; mkTk=SEC_TK[_si].start; // 섹션별 박자표 반영
@@ -47919,7 +48397,7 @@ LOUNGE_MODE=['major','minor','modal','major','modal','minor','major','modal'];
           /* ★ 2026-10-21 전체 검증: 다음 구간 조로 가는 다리 구간(두 화음 [B E7] 처럼 끝이 다음 조의 V7)은 다음 조표로. 앞 조표에 남아 'Chorus var [B E7]' 가 D단조 조표였음 */
           try{ const st=(sec.prog&&sec.prog.steps)||[]; if((nx.keyShift||0)!==(sec.keyShift||0) && st.length>=2 && st.length<=3){ const L=st[st.length-1]; const rL=((((sec.keyShift||0)+L[1])%12)+12)%12, want=((((nx.keyShift||0)+7)%12)+12)%12; if(rL===want && /^(dom7|7|9|13|maj)$/.test(String(L[2]||''))) return nx; } }catch(e){}
           return null; })();   /* ★ 2026-10-21 전체 검증: 라운지 편 사이 다리(다음 편 조의 iv V7, ii V7)는 다음 편 조표로. 앞 편 조표에 남아 [Ab Bb7] 이 E조표(♯4) 아래 있었음 */
-        const ks=_nb?(_nb.keyShift||0):(sec.keyShift||0); const md=(gsel==='wellorch' && loungeMode)?(sec.resonance?sec.resMode:(sec.wellMov?((sec.wellMov.mode==='major')?'major':'minor'):prevMd)):__progMode(_nb?_nb.prog:sec.prog);   /* 공연판은 악장 설계의 선법으로, 악장 정보 없는 구간은 앞 조표 그대로 */ if(!(gsel==='wellorch' && loungeMode && (sec.lounge==='bridge' || sec.gp)) && (ks!==prevKs || md!==prevMd || (sec.resonance==='start'))){ ksQueue.push({tk:mkTk, ks:ks, md:md, sc:__modalScale(_nb?_nb.prog:sec.prog)}); prevKs=ks; prevMd=md; }   /* 공연판은 다리와 G.P. 에서 조표를 바꾸지 않고 다음 악장 첫 구간에서 */
+        const ks=_nb?(_nb.keyShift||0):(sec.keyShift||0); const md=(gsel==='wellorch' && loungeMode)?(sec.resonance?sec.resMode:(sec.wellMov?((sec.wellMov.mode==='major')?'major':'minor'):prevMd)):__progMode(_nb?_nb.prog:sec.prog);   /* 공연판은 악장 설계의 선법으로, 악장 정보 없는 구간은 앞 조표 그대로 */ if(!(gsel==='wellorch' && loungeMode && (sec.lounge==='bridge' || sec.gp)) && (ks!==prevKs || md!==prevMd || (sec.resonance==='start') || __sfFar(ks,md,_nb?_nb.prog:sec.prog))){ ksQueue.push({tk:mkTk, ks:ks, md:md, sc:__modalScale(_nb?_nb.prog:sec.prog)}); prevKs=ks; prevMd=md; __sfLast=__sfOf(ks,md,_nb?_nb.prog:sec.prog); }   /* 공연판은 다리와 G.P. 에서 조표를 바꾸지 않고 다음 악장 첫 구간에서 */
         });
       mkQueue.push({tk:SONG_END+Math.round(TPQ*3.6)+PAD, txt:'<<< END'}); } // 페르마타 뒤 4마디 여백까지 프로젝트 길이 확보
     try{ if(loungeMode && gsel==='wellorch'){ let _pm=null;   /* ★ 공연판 마커: 악장 이름, rit., 늘임표, G.P., a tempo */
@@ -51646,9 +52124,9 @@ function __smoothCCEvents(list, getT, getCC, getVal, getCh, make, maxGapTicks, s
             if(__isHp(gsel)){
               M.melody='Kontakt > Pan Drums II/Hang Mk.1 (Centre)';
               M.piano='Kontakt > Pan Drums II/Hang Mk.1 (Edge)';
-              M.harp='Kontakt > Pan Drums II/Hang Mk.1 (Corner)';
+              M.harp='Kontakt > Pan Drums II/Hang Mk.1 (Centre)';   /* ★ 2026-10-23 형: Hang Mk 1 주법은 Centre, Edge 둘뿐(Corner Slap 없음). 여운은 Centre 를 여리게 */
               M.strings='06 Synthesizers/03 Synth Pads/Ambient Current';
-              M.piano2='Kontakt > Pan Drums II/Hang Mk.1 (Slap)';
+              M.piano2='Kontakt > Pan Drums II/Hang Mk.1 (Edge)';   /* 타격은 Edge 를 짧고 여리게 */
               M.pad='06 Synthesizers/03 Synth Pads/Ambient Current';
             }
           if(gsel==='gukamb'){   /* ★ 2026-09-27 국악 앰비언트: 핸드팬 자리마다 국악기 (형 보유 EXS 와 DecentSampler). 음역은 아래 국악기 음역 가두기(_KR)가 음원 이름으로 적용 */
@@ -55834,13 +56312,13 @@ if(loungeMode && gsel==='wellorch' && grp.key==='pad' && N.length && typeof __ba
       gukamb:{
         melody:['Hang Centre. 딩과 중심 음','가운데 · -3dB','HPF 70Hz · 250Hz -2dB · 4kHz +1dB','1.5:1 · Attack 30ms · GR 1dB','Plate 2.4s 20%'],
         piano:['Hang Edge. 밝은 배음','L 20 · -6dB','HPF 120Hz · 6kHz +1.5dB','걸지 않음','Plate 2.4s 25%'],
-        harp:['Hang Corner. 여운','R 25 · -8dB','HPF 150Hz','걸지 않음','Hall 4s 30%'],
-        piano2:['Hang Slap. 타격','L 10 · -9dB','HPF 100Hz · 2kHz +1dB','2:1 · Attack 5ms · GR 2dB','Room 1.2s 10%']},
+        harp:['Hang Centre. 여운(여리게, 멀리)','R 25 · -8dB','HPF 150Hz','걸지 않음','Hall 4s 30%'],
+        piano2:['Hang Edge. 타격(짧고 여리게)','L 10 · -9dB','HPF 100Hz · 2kHz +1dB','2:1 · Attack 5ms · GR 2dB','Room 1.2s 10%']},
             handpan:{
         melody:['Hang Centre. 딩과 중심 음','가운데 · -3dB','HPF 70Hz · 250Hz -2dB · 4kHz +1dB','1.5:1 · Attack 30ms · GR 1dB','Plate 2.4s 20%'],
         piano:['Hang Edge. 밝은 배음','L 20 · -6dB','HPF 120Hz · 6kHz +1.5dB','걸지 않음','Plate 2.4s 25%'],
-        harp:['Hang Corner. 여운','R 25 · -8dB','HPF 150Hz','걸지 않음','Hall 4s 30%'],
-        piano2:['Hang Slap. 타격','L 10 · -9dB','HPF 100Hz · 2kHz +1dB','2:1 · Attack 5ms · GR 2dB','Room 1.2s 10%']},
+        harp:['Hang Centre. 여운(여리게, 멀리)','R 25 · -8dB','HPF 150Hz','걸지 않음','Hall 4s 30%'],
+        piano2:['Hang Edge. 타격(짧고 여리게)','L 10 · -9dB','HPF 100Hz · 2kHz +1dB','2:1 · Attack 5ms · GR 2dB','Room 1.2s 10%']},
       country:{
         melody:['피들 선율(바이올린). 노래 사이를 채움','R 15 · -4dB','HPF 180Hz · 3kHz +1dB','2:1 · GR 2dB','Room 1.0s 15%'],
         harp:['통기타 스트럼(Picked Acoustic). 둘 넷 박','L 30 · -5dB','HPF 100Hz · 200Hz -2dB · 5kHz +1dB','3:1 · GR 2dB','Room 0.8s 10%'],
@@ -59786,8 +60264,114 @@ window.__pbNong=function(a, b, P, seed){ const out=[]; if(!(b>a+0.08)) return ou
   out.push([b, 8192]); return out; };
 window.__pbRamp=function(a, b, v0, v1, ease){ const out=[]; if(!(b>a)) return [[a,v1]]; const n=Math.max(4,Math.round((b-a)/0.008));
   for(let k=0;k<=n;k++){ const u=k/n; const e=(ease==='out')?1-(1-u)*(1-u):(ease==='in')?u*u:u*u*(3-2*u); out.push([a+(b-a)*u, Math.max(0,Math.min(16383,Math.round(v0+(v1-v0)*e)))]); } return out; };
+/* ★ 2026-10-23 형: 설명서는 그 장르(그 곡)에 맞는 것만. 동경요가 패치 표처럼 모든 앱 장르 편성의 txt 설명서에서 이 곡에 없는 악기 이야기를 뺌.
+   곡 트랙 이름은 마지막으로 내보낸 MIDI(__midiTrackSort 가 적는 __LAST_TRK). 줄 단위 규칙:
+   보컬 가이드 절(보컬 없음), 저역 교통정리와 사이드체인(킥 드럼 없음), 리드 포켓(이 곡 선율 악기 줄만), 신스 만들기(Retro Synth ES2 Alchemy 로 만드는 트랙이 없으면 통째, 있으면 그 역할만),
+   밑청소 HPF 와 장르 계열별 손질(있는 악기, 이 장르 줄만), 음원 대체 목록(있는 역할만), 아티큘레이션 목록(금관 현 목관 합창 하프 가운데 있는 것만), 악기별 익스프레션(숨 악기 발현 로즈 팀파니 가운데 있는 것만) */
+window.__sheetFams=function(names){ const N=(names||[]).map(function(x){ return String(x||'').replace(/\s*\[(Gain|Track Delay)[^\]]*\]/g,''); }); const F={}; const any=function(rx){ return N.some(function(n){ return rx.test(n); }); };
+  const roleOf=function(n){ const k=n.indexOf(' | '); return k>=0?n.slice(k+3):n; }, patchOf=function(n){ const k=n.indexOf(' | '); return k>=0?n.slice(0,k):n; };
+  F.vocal=N.some(function(n){ return /Vocal|보컬|Choir|합창|Voice|Singer|Rap\b|랩/i.test(roleOf(n)) || (/Choir|Vocal|Voice/i.test(patchOf(n)) && !/^Synthesizer\//.test(patchOf(n))); });
+  F.choir=any(/Choir|합창|\bOoh\b|\bAah\b/i);
+  F.brass=any(/Trumpet|French Horn|\bHorns?\b|Trombone|Tuba|Brass|Flugel|Cornet|Euphonium|Tbn|Tpt/i);
+  F.strings=N.some(function(n){ const t=n.replace(/Strings\/(YangGeum|GaYaGeum|GeoMunGo|HaeGeum|AJaeng)[^|]*/gi,''); return /Violin|Viola|Cello|Contrabass|Double Bass|String Ensemble|Studio Strings|\bStrings\b|Sordino|Spiccato|Pizz|현악/i.test(t); });
+  F.woodwind=any(/Flute|Clarinet|Oboe|Bassoon|Woodwind|Piccolo|Recorder|Sax|Daegeum|DaeGeum|Deageum|Danso|DanSo|Piri|PiRi|Sogeum|SoGeum|Taepyeongso|\bHoon\b|Shakuhachi|Dizi|Whistle|Ocarina|Bansuri|Winds\b/i);
+  F.breath=F.woodwind || any(/Accordion|Bandoneon|Harmonica|Melodica|Sax/i);
+  F.harp=any(/\bHarp\b/i);
+  F.pluck=any(/Guitar|Gtr|Nylon|Steel String|Ukulele|Banjo|Mandolin|\bHarp\b|Gayageum|GaYaGeum|Geomungo|GeoMunGo|Koto|Kalimba|Sitar|\bOud\b|Bouzouki|Electric Mint|Picked Acoustic/i);
+  F.guitar=any(/Guitar|Gtr|Nylon|Steel String|Electric Mint|Picked Acoustic|Banjo|Ukulele|Mandolin/i);
+  F.rhodes=any(/Rhodes|Electric Piano|Wurl|Suitcase|\bEP\b|Vintage Electric/i);
+  F.timpani=any(/Timpani/i);
+  F.kick=any(/Kick/i); F.drums=F.kick || any(/Drum|Snare|Hi-?Hat|Drummer|\bKit\b|Studio Drummer|Breakbeat/i);
+  F.bass=N.some(function(n){ return /(^|[^A-Za-z])(Bass|Sub|808)([^A-Za-z]|$)/.test(n) && !/^(?=.*(Contrabass|Double Bass|Bass Drum|Basses|Bassoon|Bass Clarinet|Bass Flute|Bass Trombone))/i.test(n.replace(/(Sub|808)\b/g,'')) || /Deep Sub|Sub Bass|808/i.test(n); });
+  F.b808=any(/808/);
+  F.piano=N.some(function(n){ return /Piano|CSP|Grand\b|Steinway|Upright|Keys\b/i.test(n) && !/Electric Piano|Rhodes|Wurl/i.test(n); });
+  F.pad=any(/Pad\b|패드|Synthesizer\/Pad/i);
+  F.synth=any(/^Synthesizer\/|Retro Synth|ES2|Alchemy|Synth\b|신스/i);
+  const made=function(n){ return /Retro Synth|\bES2\b|만들 소리/i.test(n); };   /* 노브로 만드는 소리만(Alchemy 프리셋은 고르는 것) */
+  F.mkBass=N.some(function(n){ return made(n) && /Bass|Sub|808|베이스/i.test(n); });
+  F.mkLead=N.some(function(n){ return made(n) && /Lead|리드|Arp|아르프|Pluck|플럭/i.test(n); });
+  F.mkPad=N.some(function(n){ return made(n) && /Pad|패드/i.test(n); });
+  F.mkChord=N.some(function(n){ return made(n) && /Chord|코드|Stab|Keys/i.test(n); });
+  F.made=F.mkBass||F.mkLead||F.mkPad||F.mkChord;
+  F.fx=any(/\bFX\b|FX-|Riser|Impact|Sweep|Crash|Vinyl|\bRain\b|Noise|Uplift|Downlift/i);
+  F.shaker=any(/Shaker|Perc|Tamb|Conga|Bongo|Cajon/i);
+  /* 선율 악기 */
+  const lead=N.find(function(n){ return /^(Melody|Lead|Vocal|리드|선율|Solo)\b|\| *(Melody|Lead|Vocal|Solo|리드|선율)|\]\s*(Melody|Lead|Vocal)\b/i.test(n); });
+  F.lead=lead?(/Vocal|보컬|Voice|Choir/i.test(lead)?'vocal':/Flute|Clarinet|Oboe|Sax|Trumpet|Horn|Daegeum|DaeGeum|Danso|Piri|Whistle|Recorder|Winds|Brass/i.test(lead)?'wind':/Violin|Viola|Cello|Strings|Erhu|HaeGeum|Haegeum/i.test(lead)?'string':/Piano|CSP|Grand|Keys|Rhodes/i.test(lead)?'piano':/Synth|Lead|Retro|ES2|Alchemy|Pluck/i.test(lead)?'synth':''):'';
+  F.roles=N.map(function(n){ return roleOf(n).trim().split(/[\s,(]/)[0].toLowerCase(); });
+  return F; };
+window.__sheetTrim=function(txt){ try{ const s=String(txt==null?'':txt); if(s.split('\n').length<40) return s;   /* 설명서(긴 글)만. 트랙 이름 같은 짧은 글도 __L12 를 지나므로(비트 [FX-hit] 트랙 이름이 지워졌던 것) */ const names=window.__LAST_TRK; if(!names||names.length<2) return s; if(window.__LAST_TRK_T && Date.now()-window.__LAST_TRK_T>300000) return s;   /* 5분 넘게 지난 MIDI 면 다른 곡일 수 있어 그대로 */ const F=window.__sheetFams(names);
+  let L=s.split('\n'); const out=[]; const ind=function(x){ return (x.match(/^ */)||[''])[0].length; };
+  const isHead=function(x){ return /^\s*■|^\s*══|^\s*━━|^\s*──|^\s*┈┈/.test(x); };
+  let i=0;
+  /* 장르 계열(시트 앞쪽 글로) */
+  const top=L.slice(0,40).join('\n');
+  const GEN=[['가요, 발라드',/발라드|Ballad|가요|K-?Pop|팝 |Pop\b|Disney|디즈니|City ?Pop|시티팝|J-?Pop|Worship|워십|Gospel|가스펠|R&B|알앤비|Neo ?Soul|네오소울|Motown|모타운|UK ?Pop|Royal ?Road|Komuro|Marusa|animeost|Anime ?OST|billie/i],['EDM, 하우스',/EDM|하우스|House|Techno|테크노|Trance|트랜스|Big ?Room|빅룸|Disco|디스코|Ambient Techno|Dubstep/i],['트랩, 힙합',/트랩|Trap|힙합|Hip-?Hop|Boom ?Bap|붐뱁|Drill|드릴|Lo-?fi Hip|billie/i],['록',/록|Rock|Punk|펑크 록|Metal|메탈|Grunge|Anime ?Rock|애니 록|K-?Band|밴드 사운드/i],['재즈, 어쿠스틱',/재즈|Jazz|어쿠스틱|Acoustic|보사|Bossa|포크|Folk|컨트리|Country|Blues|블루스|Swing|스윙|Tango|탱고|Rumba|룸바|Gypsy|집시|Celtic|켈틱|Reggae|레게|Funk\b|펑크\b|Latin|라틴|balkan|Balkan|발칸/i],['로파이',/로파이|Lo-?fi|Chillhop/i],['오케스트라',/오케|Orchestra|시네마|Cinematic|Epic|에픽|웰니스 오케|Classic|클래식|사극|Saguk|Film|animeost|Anime ?OST/i],['레트로, 신스',/레트로|Retro|신스웨이브|Synthwave|Synth ?Pop|80년대|80s|Vaporwave/i]];
+  const genHit=GEN.filter(function(g){ return g[1].test(top); }).map(function(g){ return g[0]; });
+  const hpfItem={'킥':F.kick,'베이스':F.bass,'피아노':F.piano,'기타':F.guitar,'보컬':F.vocal,'신스 리드':F.synth,'패드':F.pad,'현':F.strings,'관':F.brass||F.woodwind,'드럼 오버헤드':F.drums,'FX':F.fx,'셰이커':F.shaker};
+  const famWord={'금관':F.brass,'현':F.strings,'목관':F.woodwind,'합창':F.choir,'하프':F.harp};
+  const keepFamItem=function(t){ const m=t.trim().match(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/); return !m || famWord[m[1]]; };
+  while(i<L.length){ const x=L[i];
+    /* 보컬 가이드 절 */
+    if(/^■ 🎤 보컬 가이드/.test(x) && !F.vocal){ i++; while(i<L.length && !/^\s*(■|══)/.test(L[i])) i++; continue; }
+    /* 저역 교통정리 */
+    if(/^\s*── 저역 교통정리/.test(x) && !((F.kick||F.drums) && (F.bass||F.b808))){ i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])) i++; continue; }
+    /* 사이드체인 줄 */
+    if(/^\s*── 사이드체인/.test(x) && !(F.kick||F.drums)){ i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i]) && ind(L[i])>ind(x)) i++; continue; }
+    /* 리드 포켓 */
+    if(/^\s*── 리드 포켓/.test(x) && !F.lead) F.lead='vocal';   /* 선율 트랙이 없는 반주 곡(밴드 비트)은 그 위에 얹을 노래가 리드 */
+    if(/^\s*── 리드 포켓/.test(x) && F.lead){ out.push(x); i++; const want={vocal:/^리드=보컬/,wind:/^리드=플루트/,piano:/^리드=피아노/,synth:/^리드=신스/,string:/^리드=현/}[F.lead];
+      while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const t=L[i].trim(); if(/^리드=/.test(t) && want && !want.test(t)){ i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 신스 만들기 */
+    if(/^\s*── 신스 만들기/.test(x)){ if(!F.made){ i++; while(i<L.length && !/^\s*※ 프리셋을 먼저/.test(L[i]) && !/^■/.test(L[i])) i++; if(i<L.length && /^\s*※ 프리셋을 먼저/.test(L[i])) i++; continue; }
+      out.push(x); i++; const okR={'베이스':F.mkBass,'리드':F.mkLead,'패드':F.mkPad,'코드':F.mkChord};
+      while(i<L.length && !/^■/.test(L[i]) && !/^\s*※ 프리셋을 먼저/.test(L[i])){ const m=L[i].match(/^\s*\[(베이스|리드|패드|코드)\]/); if(m && !okR[m[1]]){ i++; while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !/^\s*──/.test(L[i])) i++; while(i<L.length && L[i].trim()==='') i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 밑청소 HPF */
+    if(/^\s*── 밑청소 HPF/.test(x)){ out.push(x); i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const lead=L[i].match(/^\s*/)[0]; const items=L[i].trim().split(/,\s*/).filter(function(it){ const k=Object.keys(hpfItem).sort(function(a,z){ return z.length-a.length; }).find(function(w){ return it.indexOf(w)===0 || it.replace(/=.*/,'')===w; }); return !k || hpfItem[k]; }); if(items.length) out.push(lead+items.join(', ')); i++; } continue; }
+    /* 장르 계열별 손질 */
+    if(/^\s*── 장르 계열별 손질/.test(x) && genHit.length){ out.push(x); i++; while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const t=L[i].trim(); const g=GEN.find(function(G){ return t.indexOf(G[0])===0; }); if(g && genHit.indexOf(g[0])<0){ i++; continue; } out.push(L[i]); i++; } continue; }
+    /* 음원 대체 목록 */
+    if(/\[음원이 로직에 없으면\? 소리계열로 대체\]/.test(x)){ const k=x.indexOf(']')+1; const head=x.slice(0,k); const items=x.slice(k).split(' / ').map(function(t){ return t.trim(); }).filter(function(t){ const key=t.split('=')[0].trim().toLowerCase(); return !key || F.roles.some(function(r){ return r===key; }); }); if(items.length) out.push(head+' '+items.join(' / ')); i++; continue; }
+    /* 아티큘레이션 목록 */
+    if(/^\s*\[(노트 길이|벨로시티 상한|음역 보정|호흡)\]/.test(x)){ const blk=[x]; i++; let lastKept=true; let kept=0;
+      while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])){ let t=L[i]; const tr=t.trim();
+        if(/^→/.test(tr)){ if(lastKept) blk.push(t); i++; continue; }
+        if(/^- /.test(tr)){ const body=tr.slice(2); const lead=t.match(/^\s*/)[0]+'- ';
+          if(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/.test(body) && !/ \/ /.test(body)){ lastKept=keepFamItem(body); if(lastKept){ blk.push(t); kept++; } i++; continue; }
+          if(/ \/ /.test(body)){ let k0=true; const parts=body.split(' / ').filter(function(q){ if(/^(금관|현|목관|합창|하프)(?=[\s(]|$)/.test(q.trim())) k0=keepFamItem(q); return k0; }); lastKept=parts.length>0; if(lastKept){ blk.push(lead+parts.join(' / ')); kept++; } i++; continue; }
+          const m=body.match(/^([^,]+),\s*(.*)$/); if(m && /(금관|현|목관|합창) /.test(m[2])){ const it=m[2].split(/,\s*(?=(?:금관|현|목관|합창|하프) )/).filter(function(q){ return keepFamItem(q); }); lastKept=it.length>0; if(lastKept){ blk.push(lead+m[1]+', '+it.join(', ')); kept++; } i++; continue; } }
+        blk.push(t); kept++; lastKept=true; i++; }
+      if(kept) Array.prototype.push.apply(out, blk); while(!kept && i<L.length && L[i].trim()===''){ i++; break; } continue; }
+    if(/^\s*\[음 들어오는 결\]/.test(x) && !(F.strings||F.woodwind||F.brass||F.choir||F.pad||F.synth)){ i++; while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])) i++; continue; }
+    /* 비트 FX 목록([FX-bed] [FX-hit]): 이 곡에 있는 FX 트랙 것만 */
+    if(/^\s*\[FX-(bed|hit)\]/.test(x)){ const FXK=[[/^바이닐/,/Vinyl/i],[/^히스|^테이프/,/Hiss|Tape/i],[/^비, 파도|^비,|^파도|^바람/,/Rain|Wave|Ocean|Wind|Nature/i],[/^필터스윕/,/Sweep/i],[/^임팩트|^부머/,/Impact|Boom/i],[/^라이저/,/Riser|Uplift/i],[/^서브드롭/,/Sub ?Drop|Drop/i],[/^리버스크래시/,/Reverse Crash|Reverse Cymbal/i],[/^싱잉볼|^벨/,/Bowl|Bell/i]];
+      const has=function(t){ const k=FXK.find(function(q){ return q[0].test(t); }); return !k || (names||[]).some(function(n){ return k[1].test(n); }); };
+      const blk=[x]; i++; let kept=0;
+      while(i<L.length && L[i].trim()!=='' && !/^\s*\[/.test(L[i]) && !isHead(L[i])){ const tr=L[i].trim(); if(/^- /.test(tr)){ if(has(tr.slice(2))){ blk.push(L[i]); kept++; } } else blk.push(L[i]); i++; }
+      if(kept) Array.prototype.push.apply(out, blk); continue; }
+    /* 연주 관습: 금관 팀파니 줄은 그 악기가 있을 때만, 빈 왈츠는 3/4 왈츠일 때만, 피카르디는 단조 곡일 때만 */
+    { const m=x.match(/^\s{1,4}(팀파니|금관|빈 왈츠|피카르디)\s*:/); if(m){ const ok=(m[1]==='팀파니')?F.timpani:(m[1]==='금관')?F.brass:(m[1]==='빈 왈츠')?/3\/4|왈츠|Waltz/i.test(top):/단조|minor|Aeolian|에올리안|Dorian|도리안|Phrygian|프리지안/i.test(top);
+        if(!ok){ i++; while(i<L.length && /^\s{8,}\S/.test(L[i]) && !/^\s{1,4}\S[^:]{0,8}:/.test(L[i])) i++; continue; } } }
+    /* 스웰: 표본 현 금관 목관 음원 이야기 */
+    if(/^\s*음원에서: 표본 현 금관 목관/.test(x) && !(F.strings||F.brass||F.woodwind)){ i++; continue; }
+    /* 용어 풀이: 이 설명서 다른 곳에 나오는 말만 */
+    if(/^\s*── 용어 풀이/.test(x)){ const rest=L.slice(0,i).concat(L.slice(i+1)).filter(function(q){ return !/^\s+\S.{0,30} = /.test(q); }).join('\n'); const blk=[x]; i++;
+      while(i<L.length && L[i].trim()!=='' && !isHead(L[i])){ const m=L[i].match(/^\s*(.+?) = /); if(m){ const words=m[1].split(/[\s\/()（）,]+/).filter(function(w){ return w.length>=2 || /[‖\[\]]/.test(w); }); const used=!words.length || words.some(function(w){ return rest.indexOf(w)>=0; }); if(used) blk.push(L[i]); } else blk.push(L[i]); i++; }
+      if(blk.length>1) Array.prototype.push.apply(out, blk); continue; }
+    /* 비트 드럼 음원 고르기: 이 곡 드럼 음원 것만 */
+    { const m=x.match(/^\s*\[(전자 드럼|어쿠스틱)\]/); if(m){ const nm=(names||[]).join('|'); const ok=(m[1]==='전자 드럼')?/Drum Machine Designer|DMD/i.test(nm):/Studio Drummer|Drum Kit|Drummer/i.test(nm); if(!ok){ const d0=ind(x); i++; while(i<L.length && L[i].trim()!=='' && ind(L[i])>d0+2 && !/^\s*\[/.test(L[i])) i++; continue; } } }
+    /* 밴드 1단계: 만들 소리 안내는 만드는 트랙이 있을 때만 */
+    if(/「만들 소리」로 적힌/.test(x) && !F.made){ i++; continue; }
+    /* 악기별 익스프레션 */
+    if(/^■ 악기별 익스프레션/.test(x)){ const blk=[x]; i++; let cur=true, kept=0; const want={'숨 악기':F.breath,'발현 악기':F.pluck,'로즈':F.rhodes,'팀파니':F.timpani};
+      while(i<L.length && !/^\s*(■|══)/.test(L[i]) && L[i].trim()!==''){ const m=L[i].match(/^\s{1,4}(숨 악기|발현 악기|로즈|팀파니)\s*:/); if(m){ cur=!!want[m[1]]; if(cur) kept++; } if(cur) blk.push(L[i]); i++; }
+      if(kept) Array.prototype.push.apply(out, blk); else { while(i<L.length && L[i].trim()==='') i++; } continue; }
+    let y=x; if(!(F.kick||F.drums)) y=y.replace(/사이드체인\([^)]*\)[^,]*덕킹,?\s*/g,''); if(!F.vocal) y=y.replace(/선율\(보컬\)/g,'선율');
+    out.push(y); i++; }
+  return out.join('\n').replace(/\n[ \t]*\n([ \t]*\n)+/g,'\n\n'); }catch(e){ window.__sheetTrimErr=String(e&&e.stack||e); return String(txt); } };
+
 /* ★ 2026-10-21 셋업 시트(txt)의 악기 이름도 디센트로: 시트를 내보내는 __L12 에 이름 바꾸기를 덧붙임 */
-(function(){ const hook=function(){ try{ if(window.__L12 && !window.__L12.__ds){ const o=window.__L12; const f=function(s){ return window.__dsRename(o(s)); }; f.__ds=true; window.__L12=f; } }catch(e){} };
+(function(){ const hook=function(){ try{ if(window.__L12 && !window.__L12.__ds){ const o=window.__L12; const f=function(s){ const r=window.__dsRename(o(s)); return window.__sheetTrim?window.__sheetTrim(window.__noDashText?window.__noDashText(r):r):r; }; f.__ds=true;   /* ★ 2026-10-23 이 곡에 없는 악기 이야기 빼기 */ window.__L12=f; } }catch(e){} };
   hook(); if(typeof document!=='undefined'){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',hook); } setTimeout(hook,0); setTimeout(hook,1500); setTimeout(hook,4000); })();
 /* ★ 2026-10-23 형: 비슷한 트랙끼리 모아서 배열(모든 앱 모든 장르 편성). 위에서 아래로 타악 → 저역 → 건반 기타 하프 → 패드 → 국악기와 포인트 악기 → 종과 말렛 → 현 → 금관 → 목관 → 노래 → 신스 → 효과 → 가이드.
    이름 'Patch | Role' 에서 역할로 먼저 가르는 것(킥, 드럼, 타악, 베이스, 드론, 자연음 바탕, 효과, 가이드), 그다음 악기(패치)로, 그래도 모르면 역할 이름으로. 같은 무리 안에서는 앱이 쓴 순서 그대로.
@@ -59827,6 +60411,7 @@ window.__midiTrackSort=function(u8){ try{ const b=u8; if(!b||b.length<14||b[0]!=
   while(p+8<=b.length){ const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0; const isT=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); CH.push({t:isT, s:p, e:p+8+len}); p+=8+len; }
   const TR=CH.filter(function(c){ return c.t; }); if(TR.length<3) return u8;
   const nameOf=function(c){ const L=Math.min(c.e-3, c.s+8+6000); for(let q=c.s+8;q<L;q++){ if(b[q]===0xFF && b[q+1]===0x03){ let n=0,j=q+2; do{ n=(n<<7)|(b[j]&0x7f); }while(b[j++]&0x80); return dec.decode(b.subarray(j,j+n)); } } return ''; };
+  try{ window.__LAST_TRK=TR.slice(1).map(nameOf); window.__LAST_TRK_T=Date.now(); }catch(e){}   /* ★ 2026-10-23 형: 설명서를 이 곡 트랙에 맞게만(__sheetTrim 이 씀) */
   { const c0=TR[0]; const L=Math.min(c0.e-6, c0.s+8+20000); for(let q=c0.s+8;q<L;q++){ if(b[q]===0xFF&&b[q+1]===0x7F&&b[q+2]===4&&b[q+3]===0x53&&b[q+4]===0x4F&&b[q+5]===0x4B&&b[q+6]===0x4F) return u8; } }
   const rest=TR.slice(1).map(function(c,i){ return {c:c, i:i, r:window.__trackRank(nameOf(c))}; }); const srt=rest.slice().sort(function(a,z){ return (a.r-z.r)||(a.i-z.i); });
   if(srt.every(function(o,i){ return o.i===i; })) return u8;
@@ -60466,7 +61051,8 @@ window.__guideHTML=function(opt){
   h.push('<h2>0. 프로젝트 설정 <small>MIDI 를 열자마자</small></h2>'+ck(['<b>파일 &gt; 열기</b> 로 MIDI 열기 '+Gr('(영어 화면 File &gt; Open. 가져오기 말고 열기. 템포, 박자, 마커, 트랙 이름이 그대로 들어옴)'),'<b>파일 &gt; 프로젝트 설정 &gt; 오디오</b> '+Gr('(File &gt; Project Settings &gt; Audio)')+': Sample Rate '+B('48 kHz'),'<b>Logic Pro &gt; 설정 &gt; 녹음</b> '+Gr('(Logic Pro &gt; Settings &gt; Recording)')+': Recording File Type '+B('WAVE')+', Resolution '+B('24 bit')]));
   const room=GS.room||SPC.room, decay=GS.decay||SPC.decay, pre=GS.pre||(SPC.pre&&SPC.pre[1])||20, same=(room==='Smooth Space'&&decay===4.5&&pre===20);
   if(opt.book){ /* ★ 2026-10-20 형: 호흡 앰비언트 패치 방식. 순서 0 프로젝트 설정, 1 처음 한 번(버스 셋, 공통 패치, 음색 패치, 마스터, 다 만들면 접힘), 2 곡마다, 3 선택 우주 효과, 4 크기와 바운스, 5 마스터링, 6 곡 지도 */
-    const K=opt.book, NM=K.names, curN=NM[K.cur];
+    const K=Object.assign({}, opt.book); if(K.onlyUsed==null) K.onlyUsed=true;   /* ★ 2026-10-23 형: 모든 앱 장르 편성 설명서는 그 곡에 쓰는 패치만(동경요가처럼). 패치 책 전체가 필요하면 book.onlyUsed=false */
+    const NM=K.names, curN=NM[K.cur];
     const pn=function(tk, r){ return 'SO '+(tk?NM[tk]:'공통')+' '+r.n+' '+r.ko; };
     const pid=function(name){ return 'p-'+String(name).replace(/\s+/g,'-'); };
     const dif=function(x){ return '<span class="dif">'+x+'</span>'; };
@@ -60487,13 +61073,13 @@ window.__guideHTML=function(opt){
     if(NEWR.length) h.push('<div class="box"><div><b>호흡 앰비언트(명상 앱) 설명서로 이미 만들었으면</b> 버스 '+B('SO 중후 Space')+' 같은 Space 넷, '+B('SO 공통 Air')+', '+B('SO 공통 Cosmos')+', '+B('SO 공통 Flip')+', Stereo Out '+B('SO 마스터')+', '+B('SO 마스터링')+', 공통 05~13 과 음색 패치는 이름과 값이 같아 그대로 씁니다. 다시 만들지 않습니다.</div>'
       +(K.echoBus?'<div>버스 '+B('SO 공통 Echo')+' 는 '+R('새로')+' 만듭니다(가 표 맨 아래).</div>':'')
       +(NEED.length?'<div>이 곡에 더 만들 패치 '+R(NEED.length+'개')+': '+NEED.map(function(r){ return '<a class="pl" href="#'+esc(pid(pn(null,r)))+'">'+B(esc(pn(null,r)))+'</a>'; }).join(', ')+'. 아래 표에서 '+B('이 곡')+' 과 '+R('새 패치')+' 가 함께 붙은 줄입니다. 만드는 법은 나 다 와 같습니다.</div>':'<div>이 곡은 호흡 앰비언트 패치만으로 됩니다.</div>')
-      +'<div>'+R('새 패치')+' 가 붙은 다른 줄은 다른 웰니스 앰비언트 곡에서 쓰니 그 곡을 만들 때 만들어도 됩니다.</div></div>');
+      +(K.onlyUsed?'':'<div>'+R('새 패치')+' 가 붙은 다른 줄은 다른 웰니스 앰비언트 곡에서 쓰니 그 곡을 만들 때 만들어도 됩니다.</div>')+'</div>');
     h.push('<h3>가. 버스 '+(K.echoBus?'다섯':K.flipDb!=null?'넷':'셋')+'</h3>'+stp([B('X')+' 로 믹서를 열고 첫 트랙의 <b>Sends</b> 첫 빈칸 → '+B('Bus')+' → '+B('Bus 1')+'. 오른쪽에 Aux 가 생기면 이름을 더블클릭해 '+B('Space'),
       '같은 트랙 Sends 둘째 빈칸 → '+B('Bus 2')+' → 이름 '+B('Air')+', 셋째 빈칸 → '+B('Bus 3')+' → 이름 '+B('Cosmos')+(K.flipDb!=null?', 넷째 빈칸 → '+B('Bus 4')+' → 이름 '+B('Flip'):'')+(K.echoBus?', 다섯째 빈칸 → '+B('Bus 5')+' → 이름 '+B('Echo'):''),
       'Aux 마다 오디오 FX 첫 빈칸부터 아래 표의 플러그인과 값',
-      'Aux 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → 표의 저장 이름. Space 는 음색마다 하나씩 넷 '+Gr('(하나 만든 뒤 Decay 같은 값만 바꿔 다른 이름으로 저장)')])
+      'Aux 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → 표의 저장 이름.'+(K.onlyUsed?'':' Space 는 음색마다 하나씩 넷 '+Gr('(하나 만든 뒤 Decay 같은 값만 바꿔 다른 이름으로 저장)'))])
       +'<div class="wrap"><table><tr><th></th><th>저장 이름</th><th>버스</th><th>플러그인과 값</th></tr>'
-      +K.order.map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
+      +K.order.filter(function(k){ return !K.onlyUsed || k===K.cur; }).map(function(k){ const S=K.tones[k].space; return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO '+NM[k]+' Space')+'</td><td>Bus 1</td><td>'+B('ChromaVerb')+': Room '+B(S.room)+', Predelay '+B(S.pre+' ms')+', Decay '+B(S.decay+' s')+', Dry '+B('0 %')+', Wet '+B('100 %')+'</td></tr>'; }).join('')
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Air')+'</td><td>Bus 2</td><td>'+B('ChromaVerb')+': Room '+B('Airy')+', Predelay '+B('40 ms')+', Decay '+B('8 s')+', Dry '+B('0 %')+', Wet '+B('100 %')+', Damping EQ 오른쪽 끝 점 '+B('100 %')+'. DETAILS 탭 Output EQ '+B('켬')+': 첫째 '+B('400 Hz')+', 다섯째 '+B('10 kHz +4 dB')+', 여섯째 '+R('끄기')+'</td></tr>'
       +'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Cosmos')+'<br>'+Gr('우주 효과용')+'</td><td>Bus 3</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('+12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('ChromaVerb')+' (Room '+B('FX - Bloomy')+', Decay '+B('12 s')+', Predelay '+B('80 ms')+', Dry '+B('0 %')+', Wet '+B('100 %')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('400 Hz, 24 dB/Oct')+', '+bd(8)+' High Cut '+B('1000 Hz, 24 dB/Oct')+')<br>'+Gr('EQ 를 맨 뒤에 두어야 High Cut 을 닫을 때 12초 꼬리까지 같이 어두워짐')+'</td></tr>'
       +(K.flipDb!=null?'<tr><td class="c"><input type="checkbox"></td><td class="t">'+B('SO 공통 Flip')+'<br>'+Gr('뒤집힌 세계용')+'</td><td>Bus 4</td><td>위에서 아래로 셋: '+B('Pitch Shifter')+' (Semi Tones '+B('-12')+', Cents '+B('0')+', Timing '+B('Vocals')+', Mix '+B('100 %')+') → '+B('Space Designer')+' (위 단추 '+B('Synthesized IR')+', '+B('Reverse')+' '+R('켬')+', Length '+B('3 s')+', Dry '+B('맨 아래(끔)')+', Wet '+B('0 dB')+') → '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('80 Hz')+', '+bd(8)+' High Cut '+B('2000 Hz, 24 dB/Oct')+')<br>'+Gr('Cosmos(한 옥타브 위, 하늘로 열림)의 반대: 한 옥타브 아래로 가라앉고 잔향이 거꾸로 부풀어 오름')+'</td></tr>':'')
@@ -60501,16 +61087,20 @@ window.__guideHTML=function(opt){
       +'</table></div>');
     h.push('<h3>나. 트랙마다 값 넣기 <small class="g">아래 표 한 줄이 패치 하나. 그 트랙에 이 순서로 값을 다 넣은 뒤 다 에서 저장</small></h3>'+stp(['트랙을 고르고 '+B('I')+' 로 왼쪽 채널 스트립(인스펙터)을 엶',
       '<b>악기</b>: 이름이 Synthesizer/, Strings/ 로 시작하면 '+B('Y')+' 라이브러리에서 그 이름을 누름. Kontakt, DecentSampler, Quick Sampler 는 채널 스트립 악기 칸에서 고르고 악기까지 불러 둠 '+Gr('(불러 둔 악기와 설정이 패치에 같이 저장되어 다음부터 바로 열림)')+'. 표의 설정까지',
-      '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
+      '<b>라이브러리 패치에 붙어 온 것 정리</b> (Synthesizer/, Strings/ 트랙만): '+R('MIDI FX 칸')+'에 무엇이 있으면 끔 '+Gr('(아르페지에이터 같은 것은 MIDI 음을 바꿈)')+', 오디오 FX 중 '+R('리버브')+'('+B('ChromaVerb')+', '+B('Space Designer')+' 등) 만 전원 단추로 끔 '+Gr('(우리 Space Air 버스와 두 번 울림)')+', '+R('Sends')+' 에 미리 들어 온 것이 있으면 지움 '+Gr('(다른 버스로 새 Aux 를 만들어 버스 번호가 꼬임)')+'. 그 센드 때문에 믹서 오른쪽에 새로 생긴 Aux(리버브 딜레이가 든 것)는 믹서에서 그 Aux 를 눌러 고르고 '+B('Delete')+' 키로 지움 '+Gr('(남길 Aux 는 이름이 Space, Air, Cosmos, Flip'+(K.echoBus?', Echo':'')+' 인 것뿐. 센드를 지운 Aux 는 아무 소리도 안 받아 지워도 됨)')+'. EQ, 컴프레서, 코러스, 딜레이 같은 나머지 오디오 FX 는 음색이라 그대로',
       '<b>오디오 FX</b> 그 아래 빈칸에 위에서부터 '+B('Gain')+' → '+B('Channel EQ')+' → '+B('Direction Mixer')+' 를 넣고 표의 값. Direction Mixer 는 Input '+B('LR')+', Direction '+B('0')+' 그대로 두고 Spread 만',
       '<b>Sends</b> 첫 칸 '+B('Bus 1')+'(Space), 둘째 칸 '+B('Bus 2')+'(Air), 셋째 칸 '+B('Bus 3')+'(Cosmos)'+(K.flipDb!=null?', 넷째 칸 '+B('Bus 4')+'(Flip)':'')+' 에 표의 값. 손잡이를 '+B('Option')+' 누른 채 더블클릭하면 숫자를 칠 수 있음. "비움" 은 그 칸을 비워 둠 '+Gr('(Cosmos 는 Bus 3 Aux 가 없으면 소리가 안 나서 우주 효과를 안 쓰는 곡에서는 그냥 꺼진 셈)')+(K.flipDb!=null?'<br>Bus 4 에 '+B('Pre')+' 라 적힌 칸은 그 센드 칸의 버스 이름을 클릭하면 나오는 메뉴에서 '+B('Pre Fader')+' 고름 '+Gr('(한글 메뉴 프리 페이더. 뒤집힌 세계 동안 MIDI 가 페이더로 음악을 내려도 Flip 으로 가는 소리는 그대로 들어가게)'):'')])
       +'<details><summary>Channel EQ 보는 법</summary><figure><img src="'+EQIMG+'" alt="Channel EQ"></figure><div class="box"><div>밴드는 왼쪽부터 '+bd(1)+'~'+bd(8)+'. 흐린 밴드는 그림을 눌러 켭니다.</div><div>밴드 아래 숫자 세 줄: 위부터 '+B('주파수 Hz')+', '+B('크기 dB')+', '+B('폭 Q')+'. 숫자를 위아래로 끌거나 더블클릭해서 입력.</div><div>'+bd(1)+' Low Cut 은 기울기 '+B('12 dB/Oct')+' 그대로(표에 따로 적은 것만 바꿈).</div></div></details>');
-    h.push('<h4>공통 '+(['','하나','둘','셋','넷','다섯','여섯','일곱','여덟','아홉','열','열하나','열둘','열셋','열넷','열다섯','열여섯','열일곱','열여덟','열아홉','스물','스물하나','스물둘'][K.common.length]||K.common.length)+' <small class="g">음색과 상관없이 같음'+(K.common.some(function(r){ return /Saenghwang|Kalimba|Celesta/.test(r.role); })?(K.common.some(function(r){ return /Gayageum|Geomungo/.test(r.role); })?'. 11 12 13 26 27 은 양금 대신 쓸 선율(곡에서는 그 가운데 하나만 켬)':'. 11 12 13 은 양금 대신 쓸 선율(곡에서는 넷 가운데 하나만 켬)'):'')+'</small></h4><div class="wrap"><table>'+head+rowsOf(K.common,null,null)+'</table></div>');
-    h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
-    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); });
+    /* ★ 2026-10-23 형: 동경요가 설명서에 그 곡에 없는 트랙의 패치(핸드팬 메아리 가야금 거문고 풍경 ...)까지 나와 헷갈림 → K.onlyUsed 면 이 곡이 쓰는 패치 줄만(공통, 음색, Space 버스) */
+    const COM=K.onlyUsed?K.common.filter(function(r){ return USED.has(pn(null,r)); }):K.common;
+    h.push('<h4>공통 '+(['','하나','둘','셋','넷','다섯','여섯','일곱','여덟','아홉','열','열하나','열둘','열셋','열넷','열다섯','열여섯','열일곱','열여덟','열아홉','스물','스물하나','스물둘'][COM.length]||COM.length)+' <small class="g">'+(K.onlyUsed?'이 곡에 쓰는 것만, ':'')+'음색과 상관없이 같음'+(!K.onlyUsed && K.common.some(function(r){ return /Saenghwang|Kalimba|Celesta/.test(r.role); })?(K.common.some(function(r){ return /Gayageum|Geomungo/.test(r.role); })?'. 11 12 13 26 27 은 양금 대신 쓸 선율(곡에서는 그 가운데 하나만 켬)':'. 11 12 13 은 양금 대신 쓸 선율(곡에서는 넷 가운데 하나만 켬)'):'')+'</small></h4><div class="wrap"><table>'+head+rowsOf(COM,null,null)+'</table></div>');
+    if(K.onlyUsed){ K.order.forEach(function(k){ const R0=K.tones[k].rows, B0=K.tones[K.order[0]].rows; const ix=R0.map(function(r,i){ return USED.has(pn(k,r))?i:-1; }).filter(function(i){ return i>=0; }); if(!ix.length) return;
+        h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+' <small class="g">이 곡에 쓰는 것만</small></h4><div class="wrap"><table>'+head+rowsOf(ix.map(function(i){ return R0[i]; }),k,(k===K.order[0])?null:ix.map(function(i){ return B0[i]; }))+'</table></div>'); }); }
+    else { h.push('<p class="g" style="font-size:13px;margin:14px 0 0">음색 패치는 음색마다 넷. '+R('빨강')+' 칸만 '+esc(NM[K.order[0]])+'과 다름</p>');
+    K.order.forEach(function(k,i){ const base=i?K.tones[K.order[0]].rows:null; h.push('<h4>음색 '+esc(NM[k])+(k===K.cur?' '+R('(이 곡)'):'')+'</h4><div class="wrap"><table>'+head+rowsOf(K.tones[k].rows,k,base)+'</table></div>'); }); }
     h.push('<h3>다. 패치로 저장 <small class="g">표 한 줄의 값을 다 넣은 트랙마다</small></h3>'+stp(['값을 다 넣은 그 트랙을 고른 채 '+B('Y')+' 로 라이브러리를 엶',
       '라이브러리 맨 아래 '+B('저장...')+' → 그 줄의 저장 이름(예: '+B('SO '+esc(NM[K.order[0]])+' 02 호흡 패드')+') 입력 → 저장. 라이브러리 목록 맨 아래 '+B('사용자 패치')+' 에 생김. 표 줄 왼쪽 칸에 체크',
-      '음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)'),
+      K.onlyUsed?'저장 이름은 표 줄 그대로 '+Gr('(다른 음색 줄이 섞여 있으면, 예를 들어 띵샤 신호처럼, 그 음색 이름으로)'):('음색 패치는 '+esc(NM[K.order[0]])+' 넷을 먼저 저장한 뒤, 다른 음색은 그 트랙에 '+esc(NM[K.order[0]])+' 패치를 불러와 '+R('빨강')+' 칸만 고치고 그 음색 이름으로 다시 저장 '+Gr('(악기가 빨강이면 악기만 바꿔 얹음)')),
       '다음 곡부터는 트랙을 고르고 이 이름을 한 번 누르면 악기, 플러그인, 센드가 한꺼번에 들어옴']));
     h.push('<h3>라. Stereo Out 과 마스터링</h3>'+stp([B('X')+' 믹서 맨 오른쪽 '+B('Stereo Out')+' 오디오 FX 첫 칸 '+B('Gain')+' '+Gr('(Utility)')+', 둘째 칸 '+B('Loudness Meter')+' '+Gr('(Metering)')+' → 맨 위 <b>설정</b> 단추 → <b>채널 스트립 설정을 별도 저장...</b> → '+B('SO 마스터'),
       '마스터링용: 빈 프로젝트(48 kHz) 오디오 트랙 하나에 '+B('Channel EQ')+' ('+bd(1)+' Low Cut '+B('25 Hz')+' 만) → '+B('Adaptive Limiter')+' (Out Ceiling '+B('-1.0 dB')+', True Peak Detection '+R('ON')+') → '+B('Loudness Meter')+' → '+B('Y')+' 라이브러리 <b>저장...</b> → '+B('SO 마스터링')]));
@@ -67212,10 +67802,7 @@ ${(state.aes&&GENRE_SPEC[state.aes])?genreGuideText(state.aes)+'\n\n────
    저역(Bass/Drone)은 센드 0 — 리버브 안 보냄.
 
 [장르(에스테틱) FX — 무엇을·어느 트랙에·어떻게]  ※ MIDI엔 못 담겨 로직에서
-${state.aes ? '▶ 현재 장르 ['+AESTHETICS[state.aes].name+']\n    '+AES_FXREC[state.aes] : '▶ 장르 미선택 — 아래에서 골라 참고'}
-
-· 전체 장르 한눈:
-${Object.keys(AES_FXREC).map(k=>'  ['+AESTHETICS[k].name+'] '+AES_FXREC[k]).join('\n')}
+${state.aes ? '▶ 현재 장르 ['+AESTHETICS[state.aes].name+']\n    '+AES_FXREC[state.aes] : '▶ 장르(에스테틱)를 고르지 않은 곡입니다. 앱에서 장르를 고르면 그 장르의 FX 만 여기 나옵니다'}
 
 [몽환적(Dreamy) 만들기 — 선택 · MIDI엔 못 담겨 로직에서]
 리버브만으론 안 됨. 아래를 패드(Chord/Air)에 겹쳐야 "몽환"이 나옴:
