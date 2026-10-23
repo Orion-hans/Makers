@@ -29693,19 +29693,61 @@ window.__openApply=function(u8, ctx){ try{
     const N=Math.max(1,Math.round(sec*avg/240)); const T=[]; for(let k=0;k<N;k++) T.push(curve((k+0.5)/N));
     const D=T.reduce(function(a,b){ return a+240/b; },0), f=D/sec; return T.map(function(b){ return b*f; }); }
 
+  /* ★ 2026-10-23 형: 동경요가에도 호흡법(호흡명상과 정리). SUM WAVE 호흡법 다섯 분류(명상 앱 BREATHS)에서 요가에 맞는 것만, 초는 그대로.
+     h1 = 들숨 뒤 멈춤, h2 = 날숨 뒤 멈춤. 곡마다 랜덤(다른 RNG 라 나머지 색 조 음색 뽑기는 예전 씨앗 흐름 그대로) */
+  const BRM={
+    equal:{ko:'균등 호흡', en:'Equal', i:4, h1:0, o:4, h2:0, way:'코로 들이쉬고 코로 내쉼. 들숨과 날숨이 같아 처음 하는 사람도 쉬움'},
+    resonance:{ko:'공명 호흡', en:'Resonance', i:4, h1:0, o:6, h2:0, way:'코로 들이쉬고 코로 내쉼, 분당 6번'},
+    ujjayi:{ko:'우짜이', en:'Ujjayi', i:5, h1:0, o:5, h2:0, way:'목을 살짝 좁혀 바다 같은 숨소리를 내며 코로 들이쉬고 내쉼'},
+    box:{ko:'박스 호흡', en:'Box', i:4, h1:4, o:4, h2:4, way:'코로 들이쉬고 4초 멈춤, 내쉬고 4초 멈춤'},
+    b57:{ko:'5:7 호흡', en:'5-7', i:5, h1:0, o:7, h2:0, way:'코로, 날숨이 조금 더 김'},
+    bhramari:{ko:'브라마리', en:'Bhramari', i:4, h1:0, o:6, h2:0, way:'코로 들이쉬고 입을 다문 채 음 하고 허밍하며 내쉼'},
+    resolips:{ko:'공명 입술', en:'Resonance lips', i:4, h1:0, o:6, h2:0, way:'코로 들이쉬고 입술을 오므려 천천히 내쉼'},
+    longout:{ko:'긴 날숨', en:'Long exhale', i:4, h1:0, o:8, h2:0, way:'코로 들이쉬고 날숨을 두 배로 길게'},
+    coherent:{ko:'코히런트', en:'Coherent', i:5, h1:0, o:5, h2:0, way:'코로, 분당 6번(심박 변이도가 가장 고르게 되는 빠르기)'}};
+  const BR1=['equal','resonance','ujjayi','box','b57'], BR5=['bhramari','resolips','longout','coherent'];
+  const ro=function(w){ const c=w.charCodeAt(w.length-1); if(c<0xAC00||c>0xD7A3) return w+'로'; const j=(c-0xAC00)%28; return w+((j===0||j===8)?'로':'으로'); };   /* 받침 따라 로 / 으로 (ㄹ 받침은 로) */
+  const cycOf=function(m){ return m.i+m.h1+m.o+m.h2; };
+  /* 한 숨 = kb 박(짝수, 화음이 마디 줄과 들숨 첫머리에 함께 오게). 빠르기 = 60 x kb / 초, 56~66 안에서 바라는 빠르기에 가장 가까운 것 */
+  const kbOf=function(m,want){ const C=cycOf(m); let best=null; for(let kb=4;kb<=40;kb+=2){ const bp=60*kb/C; if(bp<56||bp>66.01) continue;   /* ★ 1 의 빠르기는 처음 설계(60~66) 안 */ if(!best||Math.abs(bp-want)<Math.abs(best.bp-want)) best={kb:kb, bp:bp}; } return best||{kb:2*Math.round(C/2), bp:60*2*Math.round(C/2)/C}; };
+  const gcd=function(a,b){ return b?gcd(b,a%b):a; };
+  /* 화음 한 묶음 = q 숨(q x kb 박이 마디의 배수, 14초 넘게) */
+  const qOf=function(kb,C){ const base=4/gcd(kb,4); let q=base; while(q*C<14) q+=base; return q; };
+  /* 숨 꼴(한 숨 안 자리 p 0~1 → 0~1): 들숨 차오름, 들숨 뒤 멈춤 꼭대기, 날숨 잦아듦, 날숨 뒤 멈춤 바닥 */
+  const brShape=function(m,p){ const C=cycOf(m); let t=p*C; if(t<m.i) return 0.5-0.5*Math.cos(Math.PI*t/m.i); t-=m.i; if(t<m.h1) return 1; t-=m.h1; if(t<m.o) return 0.5+0.5*Math.cos(Math.PI*t/m.o); return 0; };
+
   function build(seed){
     const SEED=seed||((Math.random()*1e9)|0); const R=rngOf(SEED); const pick=function(a){ return a[Math.floor(R()*a.length)]; }; const rr=function(a,b){ return a+R()*(b-a); };
     const palK=pick(['dawn','forest','ocean']), P=PAL[palK];
     const tonic=pick([2,3,4,5,7,8,9]);   /* D Eb E F G Ab A */
-    const bpm1=pick([60,62,64,66]), bpm3=72, bpm4=56, bpm5=64;
+    const bpm1w=pick([60,62,64,66]), bpm3=72, bpm4=56;
     const padP=pick(PADS), droneP=pick(DRONES);
+    /* ★ 호흡법(다른 RNG). 1: 10분 = n 숨, 한 숨 = kb 박 → 빠르기 = n x kb / 10 (10:00 이 정확히 숨 끝) */
+    const RB=rngOf((SEED^0xb4ea7)>>>0); const BM1=BRM[BR1[Math.floor(RB()*BR1.length)]], BM5=BRM[BR5[Math.floor(RB()*BR5.length)]];
+    const K1=kbOf(BM1,bpm1w), C1n=cycOf(BM1); let n1=Math.round(600/C1n); { let best=null; for(let n=n1-4;n<=n1+4;n++){ if(n<1||(n*K1.kb)%4) continue; if(best==null||Math.abs(n*C1n-600)<Math.abs(best*C1n-600)) best=n; } n1=best; }
+    const bpm1=n1*K1.kb/10, C1=600/n1, Q1=qOf(K1.kb,C1), SP1=Q1*K1.kb/4;
+    /* 5: 넘어옴(56 → 숨 빠르기, 숨 박에 맞는 마디 수) + 고른 숨 n5 번(빠르기 그대로) + 맺음 늦춤(54 까지). 합이 정확히 300초 */
+    const K5=kbOf(BM5,64), C5=cycOf(BM5), bpm5=K5.bp, gb5=K5.kb/gcd(K5.kb,4);
+    const fitN=function(sec,N,curve){ const T=[]; for(let k=0;k<N;k++) T.push(curve((k+0.5)/N)); const D=T.reduce(function(a,b){ return a+240/b; },0), f=D/sec; return T.map(function(b){ return b*f; }); };
+    /* ★ 2026-10-23 논리 점검: 늦춤 마디 수를 반올림한 뒤 통째로 비율을 곱하니 60 → 57.6 으로 툭 떨어지고 끝이 51~52 까지 내려갔음(글은 54).
+       이제 늦춤은 고른 숨 빠르기에서 h 마디 더 간 뒤 N 마디에 걸쳐 같은 폭으로 끝 값 e 까지(한 걸음 2% 안). 넘어옴 마디 수(R5), 고른 숨 수(n5), h, N 을 함께 골라 e 가 54 에 가장 가깝게 */
+    const ritFit=function(sec){ let best=null;
+      for(let h=0;h<=12;h++) for(let N=3;N<=16;N++){ const dur=function(e){ let D=h*240/bpm5; for(let k=0;k<N;k++) D+=240/(bpm5+(e-bpm5)*(k+1)/N); return D; };
+        let lo=40, hi=bpm5; if(dur(hi)>sec || dur(lo)<sec) continue; for(let it=0;it<60;it++){ const mid=(lo+hi)/2; if(dur(mid)>sec) lo=mid; else hi=mid; } const e=(lo+hi)/2;
+        const st=Math.abs(e-bpm5)/N/bpm5, sc=Math.abs(e-54)+(st>0.02?100*(st-0.02)*10:0); if(!best||sc<best.sc) best={h:h, N:N, e:e, sc:sc}; }
+      if(!best) return null; const T=[]; for(let k=0;k<best.h;k++) T.push(bpm5); for(let k=0;k<best.N;k++) T.push(bpm5+(best.e-bpm5)*(k+1)/best.N); T.sc=best.sc; return T; };
+    let PL5=null; for(let R=gb5;R*240/((bpm4+bpm5)/2)<=34;R+=gb5){ const rs=R*240/((bpm4+bpm5)/2); if(rs<16) continue;
+      for(let n=Math.floor((300-rs-20)/C5);n>=Math.floor((300-rs-60)/C5);n--){ if(n<1||(n*K5.kb)%4) continue; const T=ritFit(300-rs-n*C5); if(T && (!PL5 || T.sc<PL5.T.sc)) PL5={R:R, rs:rs, n:n, T:T}; } }
+    const R5=PL5.R, rampSec=PL5.rs, n5=PL5.n, S5=n5*K5.kb/4, ritSec=300-rampSec-n5*C5, Q5=qOf(K5.kb,C5), SP5=Q5*K5.kb/4;
+    const RIT5=PL5.T, ritEnd=RIT5[RIT5.length-1];
+    const BRS={0:{m:BM1, kb:K1.kb, off:0, n:n1, C:C1, q:Q1}, 4:{m:BM5, kb:K5.kb, off:R5*4, n:n5, C:C5, q:Q5}};
     /* 마디별 템포 */
     const segT=[];
-    segT.push(Array(bpm1*5/2).fill(bpm1));                                               /* 1: 10분 = 2.5 x BPM 마디 */
+    segT.push(Array(n1*K1.kb/4).fill(bpm1));                                             /* 1: 10분 = n1 숨 */
     segT.push(fitSeg(1200, function(u){ const w=u*u*(3-2*u); return bpm1+(bpm3-bpm1)*w; }));   /* 2: 서서히 72 로 */
     segT.push(Array(450).fill(bpm3));                                                    /* 3: 72 고정, 450마디 = 25분 */
     segT.push(fitSeg(600, function(u){ return u<0.06 ? bpm3+(bpm4-bpm3)*(u/0.06) : bpm4; }));   /* 4: 거의 안 느껴지는 56 */
-    segT.push(fitSeg(300, function(u){ return u<0.15 ? bpm4+(bpm5-bpm4)*(u/0.15) : (u>0.9 ? bpm5-(bpm5-54)*((u-0.9)/0.1) : bpm5); }));   /* 5: 64, 끝에서 늦춤 */
+    segT.push(fitN(rampSec, R5, function(u){ return bpm4+(bpm5-bpm4)*u*u*(3-2*u); }).concat(Array(S5).fill(bpm5)).concat(RIT5));   /* 5: 넘어옴, 고른 숨, 맺음 늦춤 */
     const bars=[]; segT.forEach(function(T,si){ T.forEach(function(b){ bars.push({s:si, bpm:b}); }); });
     const NB=bars.length; const segStart=[]; { let k=0; segT.forEach(function(T){ segStart.push(k); k+=T.length; }); segStart.push(NB); }
     const tk=function(b,beat){ return (PRE+b)*BAR+Math.round((beat||0)*PPQ); };
@@ -29713,16 +29755,18 @@ window.__openApply=function(u8, ctx){ try{
     const DRM={A:[0,[0,7,14,21]], B:[10,[0,7,14,21]], C:[5,[0,7,14,21]]};   /* 사바사나: 5도 쌓기(3도 없음) 몽환 */
     const loop1=pick(P.m1), loop2=pick(P.m2), loop3=pick(P.m2.filter(function(x){ return x!==loop2; })), loop4=pick([['A','B'],['A','C'],['A','B','A','C']]), loop5=pick(HOPE.m5);
     const PW={ch:{}, key:{}};   /* ★ 피아노 연주곡 자리의 화음(마디마다) */
-    const chordSpan=function(b){ const s=bars[b].s; return s===0?4:(s===2?9:(s===3?8:2)); };
+    const chordSpan=function(b){ const s=bars[b].s; return s===0?SP1:(s===2?9:(s===3?8:SP5)); };   /* ★ 1 과 5 는 q 숨(들숨 첫머리) */
+    const F5=(function(){ const n=segT[4].length, g=K5.kb/gcd(K5.kb,4); let k=R5; while(k+g<=n-4) k+=g; return k; })();   /* ★ 끝 으뜸 화음도 들숨 첫머리(끝에서 4마디쯤) */
+    const grp5=function(k){ if(k>=F5) return -1; if(k<R5) return 0; return 1+Math.floor((k-R5)/SP5); };   /* 5 화음 묶음: 넘어옴 하나, 그다음 q 숨마다, 끝 4마디 으뜸 */
     const chordAt=function(b){ if(PW.ch[b]) return PW.ch[b]; const s=bars[b].s, k=b-segStart[s], sp=chordSpan(b);
       if(s===0) return P.ch[loop1[Math.floor(k/sp)%loop1.length]];
       if(s===1) return P.ch[loop2[Math.floor(k/sp)%loop2.length]];
       if(s===2) return P.ch[loop3[Math.floor(k/sp)%loop3.length]];
       if(s===3) return DRM[loop4[Math.floor(k/sp)%loop4.length]];
-      const n=segT[4].length; if(k>=n-4) return HOPE.ch.I; return HOPE.ch[loop5[Math.floor(k/sp)%loop5.length]]; };
+      const g5=grp5(k); if(g5<0) return HOPE.ch.I; return HOPE.ch[loop5[g5%loop5.length]]; };
     const scaleAt=function(b){ return bars[b].s===4?HOPE.pent:P.pent; };
-    const isChordStart=function(b){ if(PW.ch[b]) return !PW.ch[b-1] || PW.key[b]!==PW.key[b-1]; if(b>0 && PW.ch[b-1]) return true; const s=bars[b].s, k=b-segStart[s]; return k%chordSpan(b)===0; };
-    const runLen=function(b){ if(PW.ch[b]){ let n=1; while(PW.ch[b+n] && PW.key[b+n]===PW.key[b]) n++; return n; } let n=chordSpan(b); if(b>0 && PW.ch[b-1]){ const s=bars[b].s, k=b-segStart[s]; n=n-(k%n); } for(let j=1;j<n;j++){ if(PW.ch[b+j]){ n=j; break; } } return n; };   /* 연주곡 자리 앞 화음은 그 자리에서 끊음 */
+    const isChordStart=function(b){ if(PW.ch[b]) return !PW.ch[b-1] || PW.key[b]!==PW.key[b-1]; if(b>0 && PW.ch[b-1]) return true; const s=bars[b].s, k=b-segStart[s]; if(s===4) return k===0 || grp5(k)!==grp5(k-1); return k%chordSpan(b)===0; };
+    const runLen=function(b){ if(PW.ch[b]){ let n=1; while(PW.ch[b+n] && PW.key[b+n]===PW.key[b]) n++; return n; } const s=bars[b].s, k=b-segStart[s]; let n=chordSpan(b); if(s===4){ n=1; while(k+n<segT[4].length && grp5(k+n)===grp5(k)) n++; } else if(b>0 && PW.ch[b-1]){ n=n-(k%n); } else n=n-(k%n); n=Math.min(n, segStart[s+1]-b);   /* ★ 2026-10-23: 구간 끝을 넘지 않게(예전엔 1 의 마지막 화음이 몸풀기 첫 화음 위로 두 마디 겹침) */ for(let j=1;j<n;j++){ if(PW.ch[b+j]){ n=j; break; } } return n; };   /* 연주곡 자리 앞 화음은 그 자리에서 끊음 */
     /* 시각(첫 구간 0:00 기준 초) */
     const barSec=[0]; for(let b=0;b<NB;b++) barSec.push(barSec[b]+240/bars[b].bpm);
     const secOf=function(b,beat){ return barSec[b]+(beat||0)*60/bars[b].bpm; };
@@ -29868,7 +29912,8 @@ window.__openApply=function(u8, ctx){ try{
     const note=function(k,t,m,v,d){ const T=TR[k]; v=Math.max(1,Math.min(127,Math.round(v))); d=Math.max(30,Math.round(d)); T.ev.push({t:t,on:1,m:m,v:v},{t:t+d,on:0,m:m}); };
     const cc=function(k,t,c,v){ TR[k].ev.push({t:t,cc:c,v:Math.max(0,Math.min(127,Math.round(v)))}); };
     const hum=function(x){ return x+Math.round(rr(-8,8)); };
-    const breathAt=function(b,x){ const s=bars[b].s, k=b-segStart[s]; return (s===3)?Math.sin(Math.PI*(((k%4)+x)/4)):Math.sin(Math.PI*(((k%2)+x)/2)); };   /* 1 두 마디 숨, 4 네 마디 숨 */
+    const breathAt=function(b,x){ const s=bars[b].s, k=b-segStart[s]; const H=BRS[s]; if(H){ const bt=k*4+x*4-H.off; return brShape(H.m, (((bt%H.kb)+H.kb)%H.kb)/H.kb); }   /* ★ 1 과 5 는 고른 호흡법(한 숨 = kb 박) */
+      return (s===3)?Math.sin(Math.PI*(((k%4)+x)/4)):Math.sin(Math.PI*(((k%2)+x)/2)); };   /* 4 네 마디 숨 */
     /* 0 자연음 ASMR: 노트 C3 하나가 처음부터 끝까지, 페이더가 흐름과 숨을 그림 */
     note('nat', tk(0), 60, 100, tk(NB)+BAR*2-tk(0));
     cc('nat', tk(0)-PPQ, 7, 0);   /* 녹음이 울리기 전에 페이더를 바닥에 */
@@ -29895,7 +29940,7 @@ window.__openApply=function(u8, ctx){ try{
         else if(s===1){ const u=k/segT[1].length; v=(80+10*u)+8*Math.sin(Math.PI*(((k%2)+x)/2)); }
         else if(s===2){ const cyc=((k%9)+x)/9; v=88+8*Math.sin(Math.PI*cyc); }                 /* 화음 하나(30초)에 한 번 부풂 */
         else if(s===3){ v=55+35*breathAt(b,x); if(k>segT[3].length-16) v*=1-0.3*((k-(segT[3].length-16)+x)/16); }   /* 네 마디 숨, 끝으로 갈수록 여운 */
-        else { const n=segT[4].length; v=78+20*Math.sin(Math.PI*(((k%2)+x)/2)); if(k>=n-4) v*=1-0.9*((k-(n-4)+x)/4); }
+        else { const n=segT[4].length; v=74+26*breathAt(b,x); if(k>=n-4) v*=1-0.9*((k-(n-4)+x)/4); }   /* ★ 정리 호흡법 그대로 */
         if(pw){ const B=pw.B, flow=(pw.P2.kind==='flow'); let vv=(flow?PBASE[B.sec]:({S:54,SB:60,S2:62,C:52})[B.sec])||60;
           if(B.role==='ant'||B.role==='cons'||B.role==='b') vv+=6*Math.sin(Math.PI*(((B.pos%4)+x)/4));
           if(B.role==='hold') vv=Math.max(flow?54:44, vv-(B.pos+x)*(flow?3:1.2))+3*Math.sin(Math.PI*(((B.pos%2)+x)/2));
@@ -29912,7 +29957,8 @@ window.__openApply=function(u8, ctx){ try{
       const rootPc=(s===0||s===3)?tonic:tonic+C[0]; const pedal=(s===0||s===3);
       const P3=PCS[1], inS=(s===3 && b>=P3.b0 && b<P3.b1);   /* ★ 사바사나 연주곡 동안 드론은 으뜸음만(5도는 ♭VI 화음과 반음) */
       let span, L;
-      if(pedal){ const st=(k%8===0) || b===P3.b0 || b===P3.b1; if(!st || (inS && b!==P3.b0)) continue; span=8-(k%8); if(b===P3.b0) span=P3.b1-P3.b0; L=Math.min(span, NB-b); if(!inS && b<P3.b0 && b+L>P3.b0) L=P3.b0-b; if(inS) L=Math.min(L, P3.b1-b); }
+      const PD=(s===0)?(SP1>=6?SP1:2*SP1):8;   /* ★ 1 은 바닥 드론도 화음 묶음(들숨 첫머리)에서 다시 침 */
+      if(pedal){ const st=(k%PD===0) || b===P3.b0 || b===P3.b1; if(!st || (inS && b!==P3.b0)) continue; span=PD-(k%PD); if(b===P3.b0) span=P3.b1-P3.b0; L=Math.min(span, NB-b, segStart[s+1]-b); if(!inS && b<P3.b0 && b+L>P3.b0) L=P3.b0-b; if(inS) L=Math.min(L, P3.b1-b); }   /* ★ 구간 끝에서 끊음(1 의 마지막 페달이 몸풀기 첫 화음 아래로 두 마디 넘어가던 것) */
       else { if(!isChordStart(b)) continue; span=runLen(b); L=Math.min(span, NB-b); }
       const r=fold(rootPc,36,43);
       note('drone', tk(b), r, 62, L*BAR+60); if(s!==2 && !inS) note('drone', tk(b)+20, r+7, 52, L*BAR+60); }
@@ -29964,7 +30010,8 @@ window.__openApply=function(u8, ctx){ try{
         else if(ch==='.'){ note('tak', t, tkP, 26+rr(-3,4), PPQ/4); }
         else if(ch==='r'){ const m=pool[pool.length-1]; for(let q=0;q<6;q++) note('hp', tk(b, st/4+q/6)+Math.round(rr(-4,4)), m, 34+q*5+lift, PPQ/3); } } };
     for(let b=0;b<NB;b++){ const s=bars[b].s, k=b-segStart[s], pool=hpPool(b);
-      if(s===0){ if(k%8===4){ const n=1+Math.floor(R()*3); for(let j=0;j<n;j++) note('hp', hum(tk(b, j*1.5+rr(0,0.5))), pick(pool), rr(44,56), BAR); } }
+      if(s===0){ const H=BRS[0], b0=k*4, b1=b0+4; for(let i=Math.ceil(b0/H.kb);i*H.kb<b1;i++){ if(i%4!==2) continue; const B0=i*H.kb, top=B0+H.kb*H.m.i/cycOf(H.m);   /* ★ 네 숨에 한 번, 들숨 첫머리와 숨 꼭대기(호흡 앰비언트처럼) */
+          note('hp', hum(tk(segStart[0], B0)), pick(pool), rr(44,56), BAR); if(R()<0.7){ const tb=Math.floor(top/4); note('hp', hum(tk(segStart[0], top)), pick(hpPool(segStart[0]+Math.min(tb,segT[0].length-1))), rr(40,50), BAR); } } }
       else if(s===1){ if(inPiece(barSec[b]) || inPiece(barSec[Math.min(NB-1,b+1)])) continue;   /* 연주곡 바로 앞 마디(울림이 넘어감)와 연주곡, 정리 1분 동안 쉬고 20:00(핸드팬 박이 들어오는 자리)부터 */ const u=k/segT[1].length; const want=Math.round(1+4*u); const grid=[0,0.5,1,1.5,2,2.5,3,3.5]; const pos=[0]; while(pos.length<want){ const g=pick(grid); if(pos.indexOf(g)<0) pos.push(g); } pos.sort();
         pos.forEach(function(p,j){ note('hp', hum(tk(b,p)), j===0?pool[0]:pick(pool), (j===0?58:48)+10*u+rr(-4,4), PPQ*2); }); }
       else if(s===2){ if(k>=441) continue; hpGroove(b, k, pool); }
@@ -30000,7 +30047,7 @@ window.__openApply=function(u8, ctx){ try{
         t+=rh[j]; }
       ygCenter=Math.max(66, Math.min(78, Math.round((ygCenter*2+m)/3))); };
     for(let b=0;b<NB;b++){ const s=bars[b].s, k=b-segStart[s];
-      if(s===0 && k%16===10) phrase(b, pick([0,1,2]), 3+Math.floor(R()*3), 48);
+      if(s===0){ const H=BRS[0], ev=Math.max(1,Math.round(64/H.kb)); for(let i=Math.ceil(k*4/H.kb);i*H.kb<k*4+4;i++){ if(i%ev===Math.min(ev-1,Math.round(40/H.kb))) phrase(b, i*H.kb-k*4, 3+Math.floor(R()*3), 48); } }   /* ★ 양금 악구는 들숨 첫머리에서(예전 16마디마다 10번째 마디 자리쯤) */
       else if(s===1 && k>=8 && k%4===1 && !(barSec[b]>=870 && barSec[b]<barSec[PCS[0].b2]-0.01)) phrase(b, pick([0,0.5,1]), 4+Math.floor(R()*4), 62+6*(k/segT[1].length));
       else if(s===2 && k<441 && k%18===13) phrase(b, 2, 4+Math.floor(R()*2), 52);
       else if(s===4 && k%4===2 && k<segT[4].length-6) phrase(b, 1, 4+Math.floor(R()*3), 58); }
@@ -30059,10 +30106,11 @@ window.__openApply=function(u8, ctx){ try{
     /* 5 피아노 */
     const ped=function(t0){ cc('pn', t0+5, 64, 0); cc('pn', t0+20, 64, 127); };
     for(let b=0;b<NB;b++){ const s=bars[b].s, k=b-segStart[s], C=chordAt(b); const tones=C[1].map(function(iv){ return tonic+C[0]+iv; });
-      if(s===0){ if(k%8===2){ ped(tk(b)); note('pn', hum(tk(b, rr(0,1))), fold(pick(tones),74,88), rr(34,44), BAR*3); if(R()<0.5) note('pn', hum(tk(b,2.5)), fold(pick(tones),72,86), 32, BAR*2); } }
+      if(s===0){ const H=BRS[0], ev=Math.max(1,Math.round(32/H.kb)); for(let i=Math.ceil(k*4/H.kb);i*H.kb<k*4+4;i++){ if(i%ev!==Math.min(ev-1,Math.round(8/H.kb))) continue; const o=i*H.kb-k*4, top=H.kb*H.m.i/cycOf(H.m);   /* ★ 피아노는 들숨 첫머리에 한 음, 반은 숨 꼭대기에 한 음 더 */
+          ped(tk(b,o)); note('pn', hum(tk(b, o)), fold(pick(tones),74,88), rr(34,44), BAR*3); if(R()<0.5) note('pn', hum(tk(b,o+top)), fold(pick(tones),72,86), 32, BAR*2); } }
       else if(s===1){ const u=k/segT[1].length; if(u<0.3) continue; if(barSec[b]>=880 && barSec[b]<1200) continue; if(isChordStart(b)) ped(tk(b)); pnBar(b, k, tones, u, 1); }
       else if(s===2){ if(k>=441 || k%9!==0) continue; ped(tk(b)); tones.slice(0,4).forEach(function(m,j){ note('pn', tk(b)+40+j*28, fold(m,57,79), 38-j*2, BAR*4); }); }   /* 30초마다 띵샤와 함께 화음 한 번 */
-      else if(s===4){ const n=segT[4].length; if(isChordStart(b)) ped(tk(b)); if(k>=n-4){ if(k===n-4){ tones.forEach(function(m,j){ note('pn', tk(b)+j*30, fold(m,55,76), 46-j*3, BAR*4); }); } continue; }
+      else if(s===4){ const n=segT[4].length; if(isChordStart(b)) ped(tk(b)); if(k>=F5){ if(k===F5){ tones.forEach(function(m,j){ note('pn', tk(b)+j*30, fold(m,55,76), 46-j*3, BAR*(n-F5)); }); } continue; }
         pnBar(b, k, tones, 0.7+0.3*(k/n), 4); } }
     /* 사바사나 피아노: 조성 없는 루바토. 박에 안 맞는 자리에서 3~7음 몸짓, 간격이 점점 늘어나거나(늦춤) 줄었다 늘어남. 4도 증4도 5도 7도 9도로 움직여 조가 안 잡힘 */
     { let t=3300+9, gi=0; const IV=[5,6,7,10,11,13,14];
@@ -30104,13 +30152,13 @@ window.__openApply=function(u8, ctx){ try{
     for(let b=0;b<NB;b++){ const s=bars[b].s, k=b-segStart[s], C=chordAt(b); const r=fold(tonic+C[0],36,47);
       if(s===1 && k/segT[1].length>=0.4 && isChordStart(b)) note('bass', tk(b), r, 52, runLen(b)*BAR-60);
       else if(s===2 && k<441){ note('bass', tk(b), r, 56, PPQ*2-30); note('bass', tk(b,2), r, 48, PPQ*2-30); }
-      else if(s===4 && isChordStart(b) && k<segT[4].length-4) note('bass', tk(b), r, 48, chordSpan(b)*BAR-60); }
+      else if(s===4 && isChordStart(b) && k<F5) note('bass', tk(b), r, 48, runLen(b)*BAR-60); }
     for(let b=0;b<NB;b+=2) cc('bass', tk(b), 11, 96);
     /* 7 싱잉볼: 시작, 사바사나 */
     const bowl1=fold(tonic,48,59), bowl2=fold(tonic+7,48,62);
     note('bowl', tickAt(10), bowl1, 72, BAR*6); note('bowl', tickAt(56), bowl1, 66, BAR*6);   /* ★ 첫 숨(0:10, 음악이 차오른 자리)과 우주가 닫히는 자리(0:56) */
     for(let b=0;b<NB;b++){ const s=bars[b].s, k=b-segStart[s];
-      if(s===0 && k>0 && k%32===0) note('bowl', tk(b), k%64===0?bowl1:bowl2, 50, BAR*6);
+      if(s===0){ const H=BRS[0], ev=Math.max(1,Math.round(128/H.kb)); for(let i=Math.ceil(k*4/H.kb);i*H.kb<k*4+4;i++){ if(i>0 && i%ev===0 && i*H.kb>=96) note('bowl', tk(b, i*H.kb-k*4), (i/ev)%2?bowl2:bowl1, 50, BAR*6); } }   /* ★ 싱잉볼도 들숨 첫머리(예전 32마디마다) */
       if(s===3){ if(k===0) note('bowl', tk(b), bowl1, 80, BAR*6); else if(k%8===0 && k<segT[3].length-4){ const inS=(b+6>PCS[1].b0 && b<PCS[1].b1); note('bowl', tk(b), ((k/8)%2 && !inS)?bowl2:bowl1, 44+rr(-4,4), BAR*6); } }
       if(s===4 && k===0) note('bowl', tk(b), bowl1, 66, BAR*6); }
     note('bowl', tk(NB-2), bowl1, 70, BAR*6);
@@ -30157,7 +30205,7 @@ window.__openApply=function(u8, ctx){ try{
     { const sf=(function(){ const maj=(palK==='ocean')?(tonic+10)%12:(palK==='dawn'?(tonic+7)%12:tonic); const SF={0:0,7:1,2:2,9:3,4:4,11:5,6:6,5:-1,10:-2,3:-3,8:-4,1:-5}; return SF[maj]; })(); C0.push({t:0,o:2,b:[0xFF,0x59,2,(sf+256)%256,0]});
       const ks=function(b,sf2,mi){ C0.push({t:tk(b),o:2,b:[0xFF,0x59,2,(sf2+256)%256,mi]}); };   /* ★ 연주곡 자리 조표: 몸풀기는 나란한 단조(같은 조표), 사바사나는 으뜸 단조, 정리는 으뜸 장조 */
       ks(PCS[0].b0, sf, 1); ks(PCS[0].b2, sf, 0); ks(PCS[1].b0, SFM[(tonic+3)%12], 1); ks(segStart[4], SFM[tonic], 0); }   /* 선법의 바탕 장조 조표 */
-    const ov=txt('Dongkyung Yoga 70 / '+NN[tonic]+' '+P.name.replace(/[^\x00-\x7F]/g,'').trim()+' / '+bpm1+'-72-56-64bpm / 4/4'); C0.push({t:0,o:3,b:[0xFF,0x01].concat(vlq(ov.length)).concat(ov)});
+    const ov=txt('Dongkyung Yoga 70 / '+NN[tonic]+' '+P.name.replace(/[^\x00-\x7F]/g,'').trim()+' / '+(Math.round(bpm1*10)/10)+'-72-56-'+(Math.round(bpm5*10)/10)+'bpm / 4/4'); C0.push({t:0,o:3,b:[0xFF,0x01].concat(vlq(ov.length)).concat(ov)});
     let lastUs=-1; C0.push({t:0,o:4,b:[0xFF,0x51,3].concat((function(){ const u=Math.round(60e6/bpm1); return [(u>>16)&255,(u>>8)&255,u&255]; })())}); lastUs=Math.round(60e6/bpm1);
     { let errUs=0; segT.forEach(function(T,si){ let want=0, got=0; T.forEach(function(bp,k){ const b=segStart[si]+k; let us=Math.round(60e6/bp); want+=240e6/bp; got+=4*us;
           if(k===T.length-1){ us+=Math.round((want-got)/4); }   /* 구간 끝 마디에서 반올림 차이를 갚아 경계를 정확히 */
@@ -30165,6 +30213,8 @@ window.__openApply=function(u8, ctx){ try{
     C0.push({t:0,o:6,b:[0xFF,0x06].concat(vlq(txt('>>> 4 empty bars (edit room)').length)).concat(txt('>>> 4 empty bars (edit room)'))});
     SEC.forEach(function(S,i){ const m=txt(S[3]+' '+Math.floor(S[0]/60)+':00'); C0.push({t:tk(segStart[i]),o:7,b:[0xFF,0x06].concat(vlq(m.length)).concat(m)}); });
     [[8,'* Cosmos opens 0:08'],[44,'* Cosmos closing 0:44'],[52,'* Dark sink 0:52 (Flip)'],[900,'* Piano piece 15:00 (sageuk ballad, aeolian)'],[1140,'* Piano wraps up 19:00'],[3660,'* Piano theme returns 61:00'],[3840,'* Piano rests 64:00']].forEach(function(x){ const m=txt(x[1]); C0.push({t:(x[0]===900?tk(PCS[0].b0):x[0]===1140?tk(PCS[0].b1):x[0]===3660?tk(PCS[1].b0):x[0]===3840?tk(PCS[1].b1):tickAt(x[0])),o:8,b:[0xFF,0x06].concat(vlq(m.length)).concat(m)}); });
+    { const lab=function(H){ const m=H.m; return '* Breath '+m.en+' '+[m.i,m.h1,m.o,m.h2].filter(function(v,j){ return v>0||j===0||j===2; }).join('-')+' x'+H.n; };   /* ★ 호흡법 표지(로직 마커): 이름, 들숨-멈춤-날숨-멈춤 초, 숨 수 */
+      [[segStart[0],lab(BRS[0])],[segStart[4]+R5,lab(BRS[4])]].forEach(function(x){ const m=txt(x[1]); C0.push({t:tk(x[0]),o:8,b:[0xFF,0x06].concat(vlq(m.length)).concat(m)}); }); }
     for(let k=9;k<450;k+=9){ const sec=1800+k/9*30; const m=txt('* Change '+Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0')+(k<441?' / Handpan '+HPORD[k/9].nm:'')); C0.push({t:tk(segStart[2]+k),o:8,b:[0xFF,0x06].concat(vlq(m.length)).concat(m)}); }
     { const m=txt('Fin 70:00'); C0.push({t:tk(NB),o:9,b:[0xFF,0x06].concat(vlq(m.length)).concat(m)}); const e=txt('<<< END'); C0.push({t:END,o:9,b:[0xFF,0x06].concat(vlq(e.length)).concat(e)}); }
     const NT=1+Object.keys(TR).length; const out=[0x4D,0x54,0x68,0x64,0,0,0,6,0,1,(NT>>8)&255,NT&255,(PPQ>>8)&255,PPQ&255].concat(chunk(C0));
@@ -30180,7 +30230,7 @@ window.__openApply=function(u8, ctx){ try{
     let u8=new Uint8Array(out);
     try{ window.__STAGE_CTX={app:'medi', amb5:true, wamb:true, genre:'yoga70'}; if(window.__midiSafety) u8=window.__midiSafety(u8); }catch(e){}   /* ★ 2026-10-21 웰니스 앰비언트와 같은 길(자리 그대로, 스웰은 앱이 그림) */
     const preSec=PRE*240/bpm1;
-    return {u8:u8, seed:seed, pcs:PCS.map(function(P2){ return {b0:P2.b0,b1:P2.b1,b2:P2.b2,center:P2.center,kind:P2.kind,bars:P2.bars}; }), pieceKey:NN[PCS[0].center], pal:palK, palName:P.name, tonic:tonic, key:NN[tonic], bpm1:bpm1, padP:padP, droneP:droneP, padName:TR.pad.name.split(' | ')[0], droneName:TR.drone.name.split(' | ')[0], tingP:tingP, tingNote:tingNote, preSec:preSec, nb:NB, segBars:segT.map(function(T){ return T.length; }), hpOrd:HPORD.map(function(g){ return g.ko; })};
+    return {u8:u8, seed:seed, pcs:PCS.map(function(P2){ return {b0:P2.b0,b1:P2.b1,b2:P2.b2,center:P2.center,kind:P2.kind,bars:P2.bars}; }), pieceKey:NN[PCS[0].center], pal:palK, palName:P.name, tonic:tonic, key:NN[tonic], bpm1:Math.round(bpm1*10)/10, bpm5:Math.round(bpm5*10)/10, ritEnd:Math.round(ritEnd*10)/10, br:[0,4].map(function(s0){ const H=BRS[s0], sb=segStart[s0]+(s0===4?R5:0); return {ko:H.m.ko, en:H.m.en, i:H.m.i, h1:H.m.h1, o:H.m.o, h2:H.m.h2, way:H.m.way, kb:H.kb, n:H.n, C:Math.round(H.C*100)/100, q:H.q, t0:Math.round(barSec[sb]*10)/10, t1:Math.round((s0===0?600:barSec[sb]+H.n*H.C)*10)/10}; }), padP:padP, droneP:droneP, padName:TR.pad.name.split(' | ')[0], droneName:TR.drone.name.split(' | ')[0], tingP:tingP, tingNote:tingNote, preSec:preSec, nb:NB, segBars:segT.map(function(T){ return T.length; }), hpOrd:HPORD.map(function(g){ return g.ko; })};
   }
 
   /* 셋업 시트(txt) */
@@ -30188,11 +30238,11 @@ window.__openApply=function(u8, ctx){ try{
     const L=[]; const ky=B.key+(B.pal==='ocean'?' 도리안':(B.pal==='dawn'?' 리디안':' 장조'));
     L.push('동경요가 시그니처 70분 (플레이 웰니스 앰비언트)');
     L.push('조와 색 : '+ky+', '+B.palName+'. 정리 구간은 같은 으뜸음의 장조');
-    L.push('템포   : 호흡명상 '+B.bpm1+', 몸풀기 '+B.bpm1+'에서 72로 서서히, 본동작 72 고정(9마디 = 30초), 사바사나 56, 정리 64 (끝에서 늦춤). 로직에서 템포를 바꾸지 않기');
+    L.push('템포   : 호흡명상 '+B.bpm1+'(호흡법 한 숨이 박에 맞는 빠르기), 몸풀기 '+B.bpm1+'에서 72로 서서히, 본동작 72 고정(9마디 = 30초), 사바사나 56, 정리는 56에서 넘어와 '+B.bpm5+', 끝에서 '+B.ritEnd+'까지 늦춤. 로직에서 템포를 바꾸지 않기');
     L.push('길이   : 70분. 0:00 = 4마디 편집 여백 뒤 첫 마디. 구간 경계는 정확히 그 시각');
     L.push('');
     L.push('■ 흐름');
-    L.push('   0:00  호흡명상   도입: 자연음이 1초 만에 들어와 0:10 까지 사라지고 드론과 숨 패드가 차오름(0:10 싱잉볼, 첫 숨). 0:08 부터 우주가 크게 열려 0:26~0:44 다 열림(숨 패드 꽉 참, 맨 위 으뜸음), 0:56 에 닫히며(싱잉볼) 0:52~1:10 어둡게 가라앉음(뒤집힌 세계). 1:00~1:20 앰비언트는 -6dB 로 내려가고 자연음이 제 크기로. 그 뒤 숨 패드 두 마디 들숨 날숨(약 7.5초)');
+    L.push('   0:00  호흡명상   도입: 자연음이 1초 만에 들어와 0:10 까지 사라지고 드론과 숨 패드가 차오름(0:10 싱잉볼, 음악이 다 차오른 자리). 0:08 부터 우주가 크게 열려 0:26~0:44 다 열림(숨 패드 꽉 참, 맨 위 으뜸음), 0:56 에 닫히며(싱잉볼) 0:52~1:10 어둡게 가라앉음(뒤집힌 세계). 1:00~1:20 앰비언트는 -6dB 로 내려가고 자연음이 제 크기로. 처음부터 10:00 까지 숨 패드 바닥 드론 자연음이 '+B.br[0].ko+'대로 오르내림(아래 ■ 호흡법)');
     L.push('   10:00 몸풀기     띵샤 두 번. 자연음은 13:00 까지 점점 사라지고 밝은 앰비언트가 12:00 까지 다시 커짐. 양금이 네 마디마다 포인트 선율, 핸드팬이 조금씩 촘촘해지고 20분쯤 베이스와 핸드팬 박');
     L.push('   15:00 피아노 연주곡 (사극 OST 느낌, '+B.pieceKey+' 에올리안, 몸풀기 색의 나란한 단조). 4분: 들어가는 4마디, 주제 A 16마디, B(높이 올라가는 대목) 16마디, A 클라이맥스(한 옥타브 위 옥타브 겹침) 16마디, 자리에 따라 여린 A 나 짧은 꼬리, 맺는 두 마디와 짧은 머묾(19:00 에 정확히 끝). 왼손 8분 펼침, 앞꾸밈음과 돌림음, 여리게(세기 40 안팎). 그동안 패드 드론 베이스는 연주곡 화음을 따라가고 숨 패드는 악구(4마디)마다 부풂(A 76 B 84 클라이맥스 94), 양금 자리 넷 핸드팬은 쉼. 피아노는 가운데에서 살짝 왼쪽(46)에서 천천히 조금 움직이고 +0.5dB, 앰비언트 -1.5dB');
     L.push('   19:00 피아노 정리 1분: 펼침이 잦아들며 i ♭VI ♭VII ♭III 로 원래 몸풀기 화음에 넘겨 줌, 주제 첫 마디가 높게 두어 번. 20:00 부터 원래 흐름(핸드팬 박)');
@@ -30202,7 +30252,17 @@ window.__openApply=function(u8, ctx){ try{
       for(let i=0;i<B.hpOrd.length;i+=5){ L.push('     '+B.hpOrd.slice(i,i+5).map(function(nm,j){ const sec=1800+(i+j)*30; return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0')+' '+nm; }).join(', ')); } }
     L.push('   55:00 사바사나   싱잉볼. 자연음이 1분에 걸쳐 다시 제 크기로, 앰비언트는 5도 쌓기 화음으로 몽환적으로 -12dB 에 깔림. 피아노는 조성 없는 루바토(박에 안 맞는 자리, 점점 느려지는 몸짓)');
     L.push('   61:00 피아노 회상 (같은 주제를 '+B.key+' 에올리안으로 느리게, 왼손은 열린 5도 굴림). 앞악구 맺는 악구, 높은 대목, 한 옥타브 위 주제, 맺음 뒤 으뜸 화음에 머묾. 그동안 패드는 열린 5도 화음(악구마다 얕게 부풂), 드론은 으뜸음만, 피아노 0dB. 64:00 에 맺고 남은 1분은 우주 닫힘과 뒤집힌 세계로 넘김. 앞 6분(55:00~60:40)은 조성 없는 루바토 몸짓 그대로');
-    L.push('   65:00 정리       띵샤 두 번. 자연음 1분에 걸쳐 빠짐, 앰비언트가 다시 커지고 같은 으뜸음의 장조로 희망적으로, 70:00 마지막 화음');
+    L.push('   65:00 정리       띵샤 두 번. 자연음 1분에 걸쳐 빠짐, 앰비언트가 다시 커지고 같은 으뜸음의 장조로 희망적으로, 70:00 마지막 화음. '+ro(B.br[1].ko)+' 숨을 고르고 끝 늦춤과 함께 숨이 길어지며 맺음(아래 ■ 호흡법)');
+    L.push('');
+    L.push('■ 호흡법 (곡마다 랜덤, SUM WAVE 호흡법 분류의 초 그대로)');
+    const mmss=function(t){ t=Math.round(t); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); };
+    const bl=function(r){ const P=['들숨 '+r.i+'초']; if(r.h1) P.push('멈춤 '+r.h1+'초'); P.push('날숨 '+r.o+'초'); if(r.h2) P.push('멈춤 '+r.h2+'초'); return P.join(', '); };
+    [['호흡명상',B.br[0],B.bpm1],['정리',B.br[1],B.bpm5]].forEach(function(x,j){ const r=x[1], C=r.i+r.h1+r.o+r.h2;
+      L.push('   '+x[0]+' '+mmss(r.t0)+'~'+mmss(r.t1)+'  '+r.ko+' ('+r.en+'): '+bl(r)+(Math.abs(r.C-C)>0.01?' (한 숨을 '+r.C+'초로 맞춰 '+(j?'정리 길이':'10분')+'에 딱 맞춤)':'')+', '+r.n+'번. '+r.way);
+      L.push('         한 숨 = '+r.kb+'박('+x[2]+' BPM). 숨 패드가 들숨에 차오르고'+(r.h1?' 멈춤 동안 머물고':'')+' 날숨에 잦아듦'+(r.h2?', 날숨 뒤 멈춤은 바닥에서 머묾':'')+'. 바닥 드론(얕게)'+(j?'':'과 자연음 페이더')+'도 같은 숨. 화음은 들숨 첫머리에서 '+r.q+'숨마다 바뀜'+(j?'':', 핸드팬은 네 숨에 한 번 들숨 첫머리와 숨 꼭대기'));
+      L.push('         로직 마커: * Breath '+r.en+' (그 숨이 시작하는 마디)');
+      if(!j) L.push('         숨은 0:00 부터 셈. 도입에서 우주가 열린 0:08~0:56 동안은 숨 패드가 꽉 찬 채 얕게 숨 쉬고, 1:00 쯤부터 또렷함. 양금 피아노 싱잉볼도 들숨 첫머리에서'); });
+    L.push('   정리 앞 '+mmss(3900)+'~'+mmss(B.br[1].t0)+' 은 사바사나 56 에서 넘어오는 동안(같은 숨이 조금 길게), '+mmss(B.br[1].t1)+' 부터 끝 늦춤과 함께 숨이 길어지며 마지막 화음. 몸풀기 본동작 사바사나는 동작에 맞춘 숨(몸풀기 두 마디, 본동작 30초, 사바사나 네 마디)');
     L.push('');
     L.push('■ 트랙 (로직에서 파일 > 열기, 1번은 Conductor)');
     const T=[['Quick Sampler','Nature Bed','자연음 ASMR. 형이 녹음한 wav 를 Original 칸에, Mode Classic, Root Key C3 (70분보다 짧으면 Mode Loop, 크로스페이드 길게). MIDI 리전은 지우지 않기(볼륨 흐름 CC7)'],[B.padName,'Breath Pad','숨 패드, 전 구간'],[B.droneName,'Floor Drone','바닥 드론'],['Kontakt > Pan Drums (스냅샷 Hang Mk 1 - Filter Delay)','Handpan','핸드팬 한 대(딩 박도 이 트랙). 본동작 연주 꼴의 D 와 둘레 음'],
@@ -30226,7 +30286,7 @@ window.__openApply=function(u8, ctx){ try{
         book=Object.assign({}, kit.K, {noPt:true}); Object.keys(kit.info).forEach(function(r){ info[r]=Object.assign({}, info[r]||{}, kit.info[r]); });
         const r10=window.__WAMB.BOOK.tones.mid.rows.find(function(r){ return r.n==='10'; }); if(r10) info['Tingsha signal']=Object.assign({}, info['Tingsha signal']||{}, {eq:r10.eq.map(function(e){ return Object.assign({},e); }), eqExact:true, spread:r10.spread, space:r10.space, air:r10.air, patchName:'SO 적당 10 띵샤 신호'}); } }catch(e){ book=null; }   /* 띵샤만 편종 줄(음색 적당 10) */
     return window.__guideHTML({midi:B.u8, app:'play-yoga70', title:'동경요가 시그니처 70분 제작 가이드', sub:'Play Composer, 웰니스 앰비언트', genre:'yoga70', book:book,
-      chips:[B.key+' '+B.palName, '70분', B.bpm1+' → 72 → 56 → 64 BPM', '음색 중후'], lufs:-17, grMax:2, info:info, sheet:txtS, startSec:B.preSec,
+      chips:[B.key+' '+B.palName, '70분', B.bpm1+' → 72 → 56 → '+B.bpm5+' BPM', '호흡 '+B.br[0].ko+', '+B.br[1].ko, '음색 중후'], lufs:-17, grMax:2, info:info, sheet:txtS, startSec:B.preSec,
       points:[[0,'호흡명상'],[600,'몸풀기'],[1800,'본동작'],[3300,'사바사나'],[3900,'정리'],[4200,'마지막 화음']],
       optFx:function(at){ return window.__cosmosFx?window.__cosmosFx({title:'우주로 열리는 효과 (Cosmos 버스)', why:'도입에서 0:08 부터 크게 열려 0:56 에 닫히고(이어 어둡게 가라앉음), 사바사나에서 반쯤 열려 몽환적으로 떠 있다가, 정리에서 앰비언트가 커지는 동안 3분에 걸쳐 크게 열려 마지막 화음과 함께 우주로 나갑니다. 리듬이 있는 몸풀기와 본동작은 닫혀 있어 박이 또렷합니다.',
         sends:['숨 패드','바닥 드론','양금','피아노','싱잉볼'], nosend:'자연음 핸드팬 베이스 띵샤', win:COS_WIN, lvl:[[-3,18000],[-4,18000],[-3,18000],[-4,18000]]}, at):null; }}); }
@@ -30246,7 +30306,7 @@ window.__openApply=function(u8, ctx){ try{
     P.innerHTML='<b>동경요가 시그니처 70분</b><div style="opacity:.75;margin:4px 0 10px">호흡명상 0:00 (자연음이 나왔다 사라지며 우주가 열리고 닫힘) / 몸풀기 10:00 (양금, 15:00 피아노 연주곡 사극풍) / 본동작 30:00 (30초마다 띵샤와 화음) / 사바사나 55:00 (자연음, 61:00 피아노 회상) / 정리 65:00 ~ 70:00 (우주로 열림). 색과 조와 선율은 만들 때마다 달라집니다.</div><div id="yogaInfo" style="margin-bottom:10px;opacity:.85"></div><button type="button" id="yogaNew" class="gchip">새로 만들기</button> <button type="button" id="yogaDl" class="gchip on">MIDI, 가이드, txt 받기</button>';
     const row=document.getElementById('gchipRow'); (row&&row.parentNode?row.parentNode:document.body).insertBefore(P, row?row.nextSibling:null);
     P.addEventListener('click', function(e){ e.stopPropagation(); });   /* 장르 칩 줄의 클릭 처리(장르 바꾸기)로 올라가지 않게 */
-    const info=function(){ const B=LAST&&LAST.B; document.getElementById('yogaInfo').textContent=B?('지금 곡: '+B.key+' '+B.palName+', 호흡명상 '+B.bpm1+' BPM, 패드 '+B.padP.split('/').pop()):''; };
+    const info=function(){ const B=LAST&&LAST.B; document.getElementById('yogaInfo').textContent=B?('지금 곡: '+B.key+' '+B.palName+', 호흡명상 '+B.br[0].ko+' '+B.bpm1+' BPM, 정리 '+B.br[1].ko+', 패드 '+B.padP.split('/').pop()):''; };
     document.getElementById('yogaNew').onclick=function(){ make(); info(); };
     document.getElementById('yogaDl').onclick=function(){ if(!LAST) make(); info(); download(); };
     make(); info(); }
@@ -31527,8 +31587,8 @@ window.__openApply=function(u8, ctx){ try{
     const si=document.getElementById('wambStNo'); if(si) si.onchange=function(){ const v=parseInt(String(this.value).replace(/[^0-9]/g,''),10); if(v>0){ ST.stseed=v; ST.sthist=[{s:v,k:ST.sting}].concat((ST.sthist||[]).filter(function(x){ return x.s!==v; })).slice(0,8); build(); render(); } };
     const vi=document.getElementById('wambInfo'); if(vi && ST.use==='app'){ try{ const V=stingVar(ST.seed||1, ST.stseed||ST.seed||1); vi.textContent+=' 도입음 '+(V.stseed%100000)+': 소리 로고 '+V.logoName+', 부름 '+V.callGap+'박 앞, 숨 '+V.swellLen+'박, 별 '+({harm:'배음',pent:'5음 계단',downup:'내렸다 오름',twinkle:'반짝임'})[V.starPat]+'.'; }catch(e){} } }
   function yogaInto(el){ if(!el) return; if(!window.__YOGA){ el.textContent='동경요가 모듈이 없습니다'; return; }
-    el.innerHTML='<div style="opacity:.75;margin:4px 0 10px">호흡명상 0:00 (도입 우주 열림 닫힘) / 몸풀기 10:00 (15:00 피아노 연주곡 사극풍 4분 + 정리 1분) / 본동작 30:00 (30초마다 띵샤와 화음, 핸드팬 손 연주 꼴) / 사바사나 55:00 (61:00 피아노 회상) / 정리 65:00 ~ 70:00. 패치 책, 팬 움직임, 우주 효과, 뒤집힌 세계(도입 0:52~1:10, 64:26~65:04)가 이 엔진과 같습니다.</div><div id="yogaInfo2" style="margin-bottom:10px;opacity:.85"></div><button type="button" class="wb" id="yogaNew2">🎲 새로 만들기</button> <button type="button" class="wb go" id="yogaDl2">MIDI, 가이드, txt 받기</button>';
-    const info=function(){ const L0=window.__YOGA.last(), B=L0&&L0.B; const e=document.getElementById('yogaInfo2'); if(e) e.textContent=B?('지금 곡: '+B.key+' '+B.palName+', 호흡명상 '+B.bpm1+' BPM'):''; };
+    el.innerHTML='<div style="opacity:.75;margin:4px 0 10px">호흡명상 0:00 (도입 우주 열림 닫힘, 호흡법 랜덤) / 몸풀기 10:00 (15:00 피아노 연주곡 사극풍 4분 + 정리 1분) / 본동작 30:00 (30초마다 띵샤와 화음, 핸드팬 손 연주 꼴) / 사바사나 55:00 (61:00 피아노 회상) / 정리 65:00 ~ 70:00 (호흡법 랜덤). 패치 책, 팬 움직임, 우주 효과, 뒤집힌 세계(도입 0:52~1:10, 64:26~65:04)가 이 엔진과 같습니다.</div><div id="yogaInfo2" style="margin-bottom:10px;opacity:.85"></div><button type="button" class="wb" id="yogaNew2">🎲 새로 만들기</button> <button type="button" class="wb go" id="yogaDl2">MIDI, 가이드, txt 받기</button>';
+    const info=function(){ const L0=window.__YOGA.last(), B=L0&&L0.B; const e=document.getElementById('yogaInfo2'); if(e) e.textContent=B?('지금 곡: '+B.key+' '+B.palName+', 호흡명상 '+(B.br?B.br[0].ko+' ':'')+B.bpm1+' BPM'+(B.br?', 정리 '+B.br[1].ko:'')):''; };
     document.getElementById('yogaNew2').onclick=function(){ window.__YOGA.make(); info(); };
     document.getElementById('yogaDl2').onclick=function(){ if(!window.__YOGA.last()) window.__YOGA.make(); info(); window.__YOGA.download(); };
     if(!window.__YOGA.last()) window.__YOGA.make(); info(); }
