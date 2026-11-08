@@ -44399,6 +44399,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       ['piano',['Kontakt > Cinematic Studio Piano/CSP Piano'],'Piano (피아노 가락)','point',0,[45,84]],
       ['swell',['Synthesizer/Pad/Calming Waves','Synthesizer/Pad/Slow Breaths','Synthesizer/Pad/Warm Tides'],'Breath Swell Pad (숨 스웰, 낮게)','swell',0,[48,72]],
       ['ajaeng',['DecentSampler > Ajaeng(Jungak)'],'Low Drone (아쟁 지속음)','swell',1,[44,63]],
+      ['floor',['Synthesizer/Pad/Infinite Drone'],'Floor Drone (바닥 드론, 처음부터 끝까지)','swell',0,[24,52]],   /* ★ 2026-11-09 형 "바닥 드론도 깔자" */
       ['n_wind',['Quick Sampler'],'Nature 1 Mountain Wind (산사 바람)','nature',0,null],
       ['n_bird',['Quick Sampler'],'Nature 2 Temple Birds (산새)','nature',0,null],
       ['n_rain',['Quick Sampler'],'Nature 3 Eaves Rain (처마 빗물)','nature',0,null],
@@ -44425,6 +44426,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       ['clear',['Synthesizer/Pad/Airways','Synthesizer/Pad/Widely Serene','Synthesizer/Pad/Morning Meditation'],'Clear Pad','swell',0,[52,81]],
       ['bright',['Synthesizer/Soundscape/Morning Mist','Synthesizer/Soundscape/Peaceful Meadow'],'Bright Pad','swell',0,[55,84]],
       ['drone',['Synthesizer/Pad/Meditation Drone','Synthesizer/Pad/Infinite Drone','Synthesizer/Soundscape/Deep Ambient Stack'],'Low Drone','swell',0,[36,55]],
+      ['floor',['Synthesizer/Pad/Infinite Drone'],'Floor Drone (바닥 드론, 처음부터 끝까지)','swell',0,[24,52]],
       ['under',['Synthesizer/Soundscape/Underwater Temple','Synthesizer/Soundscape/Subaquatic Dreams'],'Underwater Pad','swell',0,[40,67]],
       ['space',['Synthesizer/Pad/Space Oddity','Synthesizer/Pad/Cosmos','Synthesizer/Pad/Zero Gravity','Synthesizer/Pad/Stars Drifting By'],'Space Pad','swell',0,[48,79]],
       ['n_wave',['Quick Sampler'],'Nature 1 Waves (바다)','nature',0,null],
@@ -44732,6 +44734,13 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
           placed++; t+=len+1.2+1.8*rnd(); k++; } });
       steps=MA[0]; rhy=MA[1]; base0=baseA;
       if(!placed) tryPlay(a+10, 0, b-8); };
+    /* ★ 2026-11-09 형 "바닥 드론도 깔자": 편종 6초 뒤부터 곡 끝까지 으뜸음(낮은 옥타브)과 5도를 길게. 장면마다 다시 짚어(같은 음 겹침 없이) 숨이 이어지게, 40초에 걸쳐 들어오고 끝 30초에 걸쳐 사라짐.
+       크기는 스웰 층(-16 dB) 안에서 0.7, 먹먹 구간은 다른 층처럼 멀어짐 */
+    if(TR.floor){ const st=P[0].a+6; SEG('floor', st, LEN, 40, 30, 0.7);
+      const pcR=function(m){ return ((m-tonic)%12+12)%12; }; const lowP=pool(TR.floor.rng[0], TR.floor.rng[1]);
+      const roots=lowP.filter(function(m){ return pcR(m)===0; }); const root=roots.length?near(roots, 36):null;
+      if(root!=null){ const fifth=inScale(root+7)?root+7:null, vR=sleep?44:50, vF=sleep?34:40;
+        P.forEach(function(sc,i){ const a0=i?sc.a:st, b0=Math.min(LEN, sc.b); if(b0-a0<4) return; N('floor', a0, root, b0-a0, vR); if(fifth) N('floor', a0+(i?0:2), fifth, b0-a0-(i?0:2), vF); }); } }
     /* ★ 2026-11-08 밤 형 "중간 악기 연주는 연주 멜로디 같이, 피아노는 뉴에이지 느낌". 그 전(같은 날 저녁)은 3~4음 동기를 이어 붙인 것.
        이제 한 구절 = 4마디(16초, 60 BPM). 구절 넷이 한 연주 구간: A(물음, 으뜸음 아닌 데서 멈춤) A'(앞 두 마디 같고 으뜸음으로 닫음) B(높게, 리듬 새로) A''(닫음).
        선율은 차례로 걷는 음 위주, 한 구절에 큰 뜀 한 번까지(뜀 뒤는 반대쪽 걸음), 구절 가운데 뒤쪽에 가장 높은 음, 끝음 길게.
