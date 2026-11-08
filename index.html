@@ -6657,7 +6657,8 @@ window.__stageSpace=function(ctx){ ctx=ctx||{};
     return 'band'; }
   if(app==='beat'){ if(/^(country)$/.test(g)) return 'band'; if(/^(ambtechno|chillwave)$/.test(g)) return 'elec'; return 'elec'; }
   return 'band'; };
-window.__stageSeat=function(space, c, ctx){ if(window.__CAROL_SEAT && ctx && /^carol/.test(String(ctx.genre||''))){ const z=window.__CAROL_SEAT(c, space, ctx); if(z) return z; }   /* ★ 2026-11-01 캐롤 갈래마다 자리표(carol_module) */
+window.__stageSeat=function(space, c, ctx){ if(window.__CAROL_SEAT && ctx && /^carol/.test(String(ctx.genre||''))){ const z=window.__CAROL_SEAT(c, space, ctx); if(z) return z; }
+  if(ctx && ctx.seatFn && typeof window[ctx.seatFn]==='function'){ const z=window[ctx.seatFn](c, space, ctx); if(z) return z; }   /* ★ 2026-11-08 모듈이 자기 자리표를 줄 때(퓨전국악 노래곡: 기타 좌우 더블 등) */   /* ★ 2026-11-01 캐롤 갈래마다 자리표(carol_module) */
   const S=window.__STAGE_SEATS; const sp=S[space]||{}; const B=S.base;
   const pick=function(k){ if(sp.hasOwnProperty(k) && sp[k]) return sp[k].slice(); if(B[k]) return B[k].slice(); return null; };
   let s=null;
@@ -6725,7 +6726,7 @@ window.__stageApply=function(u8){ try{
     const par=cand.find(function(y){ return y.cls.base===x.cls.base; })||cand.find(function(y){ return y.cls.tail===x.cls.tail; })||cand.find(function(y){ return y.ch===x.ch && y.cls.role===x.cls.role; })||cand.find(function(y){ return y.cls.role===x.cls.role && y.cls.role!=='comp' && y.cls.role!=='rhythm'; });
     if(par){ x.parent=par; } });
   /* 3) 겹침 풀기: 같은 자리(0.12 안) 같은 음역(9반음 안)의 화성 악기 둘. 주선율 베이스 리듬 패드 가운데 축은 건드리지 않는다 */
-  if(!keep && space!=='quartet' && space!=='orch' && space!=='chamber' && space!=='duo' && !/^carol/.test(String(ctx.genre||''))){   /* 캐롤은 자리표 그대로 */
+  if(!keep && space!=='quartet' && space!=='orch' && space!=='chamber' && space!=='duo' && !/^carol/.test(String(ctx.genre||'')) && !ctx.seatFn){   /* 캐롤과 자리표를 준 모듈은 그대로 */
     const PR={mel:0,counter:1,comp:2,color:3,pad:4,bass:5,rhythm:6,fx:7};
     const mov=T.filter(function(x){ return !x.parent && !x.keepPan && (x.cls.role==='comp'||x.cls.role==='counter'||x.cls.role==='color') && x.p50!=null; }).sort(function(a,z){ return (PR[a.cls.role]-PR[z.cls.role])||(z.n-a.n); });
     const placed=[]; const clash=function(x,pn){ return placed.some(function(y){ return Math.abs(y.pan-pn)<0.12 && y.p50!=null && Math.abs(y.p50-x.p50)<=9; }) || T.some(function(y){ return y!==x && (y.cls.role==='mel') && Math.abs(pn)<0.12; }); };
@@ -14717,7 +14718,8 @@ window.__stageSpace=function(ctx){ ctx=ctx||{};
     return 'band'; }
   if(app==='beat'){ if(/^(country)$/.test(g)) return 'band'; if(/^(ambtechno|chillwave)$/.test(g)) return 'elec'; return 'elec'; }
   return 'band'; };
-window.__stageSeat=function(space, c, ctx){ if(window.__CAROL_SEAT && ctx && /^carol/.test(String(ctx.genre||''))){ const z=window.__CAROL_SEAT(c, space, ctx); if(z) return z; }   /* ★ 2026-11-01 캐롤 갈래마다 자리표(carol_module) */
+window.__stageSeat=function(space, c, ctx){ if(window.__CAROL_SEAT && ctx && /^carol/.test(String(ctx.genre||''))){ const z=window.__CAROL_SEAT(c, space, ctx); if(z) return z; }
+  if(ctx && ctx.seatFn && typeof window[ctx.seatFn]==='function'){ const z=window[ctx.seatFn](c, space, ctx); if(z) return z; }   /* ★ 2026-11-08 모듈이 자기 자리표를 줄 때(퓨전국악 노래곡: 기타 좌우 더블 등) */   /* ★ 2026-11-01 캐롤 갈래마다 자리표(carol_module) */
   const S=window.__STAGE_SEATS; const sp=S[space]||{}; const B=S.base;
   const pick=function(k){ if(sp.hasOwnProperty(k) && sp[k]) return sp[k].slice(); if(B[k]) return B[k].slice(); return null; };
   let s=null;
@@ -14785,7 +14787,7 @@ window.__stageApply=function(u8){ try{
     const par=cand.find(function(y){ return y.cls.base===x.cls.base; })||cand.find(function(y){ return y.cls.tail===x.cls.tail; })||cand.find(function(y){ return y.ch===x.ch && y.cls.role===x.cls.role; })||cand.find(function(y){ return y.cls.role===x.cls.role && y.cls.role!=='comp' && y.cls.role!=='rhythm'; });
     if(par){ x.parent=par; } });
   /* 3) 겹침 풀기: 같은 자리(0.12 안) 같은 음역(9반음 안)의 화성 악기 둘. 주선율 베이스 리듬 패드 가운데 축은 건드리지 않는다 */
-  if(!keep && space!=='quartet' && space!=='orch' && space!=='chamber' && space!=='duo' && !/^carol/.test(String(ctx.genre||''))){   /* 캐롤은 자리표 그대로 */
+  if(!keep && space!=='quartet' && space!=='orch' && space!=='chamber' && space!=='duo' && !/^carol/.test(String(ctx.genre||'')) && !ctx.seatFn){   /* 캐롤과 자리표를 준 모듈은 그대로 */
     const PR={mel:0,counter:1,comp:2,color:3,pad:4,bass:5,rhythm:6,fx:7};
     const mov=T.filter(function(x){ return !x.parent && !x.keepPan && (x.cls.role==='comp'||x.cls.role==='counter'||x.cls.role==='color') && x.p50!=null; }).sort(function(a,z){ return (PR[a.cls.role]-PR[z.cls.role])||(z.n-a.n); });
     const placed=[]; const clash=function(x,pn){ return placed.some(function(y){ return Math.abs(y.pan-pn)<0.12 && y.p50!=null && Math.abs(y.p50-x.p50)<=9; }) || T.some(function(y){ return y!==x && (y.cls.role==='mel') && Math.abs(pn)<0.12; }); };
@@ -26714,7 +26716,8 @@ window.__stageSpace=function(ctx){ ctx=ctx||{};
     return 'band'; }
   if(app==='beat'){ if(/^(country)$/.test(g)) return 'band'; if(/^(ambtechno|chillwave)$/.test(g)) return 'elec'; return 'elec'; }
   return 'band'; };
-window.__stageSeat=function(space, c, ctx){ if(window.__CAROL_SEAT && ctx && /^carol/.test(String(ctx.genre||''))){ const z=window.__CAROL_SEAT(c, space, ctx); if(z) return z; }   /* ★ 2026-11-01 캐롤 갈래마다 자리표(carol_module) */
+window.__stageSeat=function(space, c, ctx){ if(window.__CAROL_SEAT && ctx && /^carol/.test(String(ctx.genre||''))){ const z=window.__CAROL_SEAT(c, space, ctx); if(z) return z; }
+  if(ctx && ctx.seatFn && typeof window[ctx.seatFn]==='function'){ const z=window[ctx.seatFn](c, space, ctx); if(z) return z; }   /* ★ 2026-11-08 모듈이 자기 자리표를 줄 때(퓨전국악 노래곡: 기타 좌우 더블 등) */   /* ★ 2026-11-01 캐롤 갈래마다 자리표(carol_module) */
   const S=window.__STAGE_SEATS; const sp=S[space]||{}; const B=S.base;
   const pick=function(k){ if(sp.hasOwnProperty(k) && sp[k]) return sp[k].slice(); if(B[k]) return B[k].slice(); return null; };
   let s=null;
@@ -26782,7 +26785,7 @@ window.__stageApply=function(u8){ try{
     const par=cand.find(function(y){ return y.cls.base===x.cls.base; })||cand.find(function(y){ return y.cls.tail===x.cls.tail; })||cand.find(function(y){ return y.ch===x.ch && y.cls.role===x.cls.role; })||cand.find(function(y){ return y.cls.role===x.cls.role && y.cls.role!=='comp' && y.cls.role!=='rhythm'; });
     if(par){ x.parent=par; } });
   /* 3) 겹침 풀기: 같은 자리(0.12 안) 같은 음역(9반음 안)의 화성 악기 둘. 주선율 베이스 리듬 패드 가운데 축은 건드리지 않는다 */
-  if(!keep && space!=='quartet' && space!=='orch' && space!=='chamber' && space!=='duo' && !/^carol/.test(String(ctx.genre||''))){   /* 캐롤은 자리표 그대로 */
+  if(!keep && space!=='quartet' && space!=='orch' && space!=='chamber' && space!=='duo' && !/^carol/.test(String(ctx.genre||'')) && !ctx.seatFn){   /* 캐롤과 자리표를 준 모듈은 그대로 */
     const PR={mel:0,counter:1,comp:2,color:3,pad:4,bass:5,rhythm:6,fx:7};
     const mov=T.filter(function(x){ return !x.parent && !x.keepPan && (x.cls.role==='comp'||x.cls.role==='counter'||x.cls.role==='color') && x.p50!=null; }).sort(function(a,z){ return (PR[a.cls.role]-PR[z.cls.role])||(z.n-a.n); });
     const placed=[]; const clash=function(x,pn){ return placed.some(function(y){ return Math.abs(y.pan-pn)<0.12 && y.p50!=null && Math.abs(y.p50-x.p50)<=9; }) || T.some(function(y){ return y!==x && (y.cls.role==='mel') && Math.abs(pn)<0.12; }); };
@@ -41783,13 +41786,19 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
   /* ── 트랙(이름 = 패치 | 역할). 패치는 음원_레퍼런스 2.2 2.3 3.4 3.7 3.9 와 로직 두 목록에 있는 이름만. 드럼 킷과 패드는 곡마다 그루브와 토리로 ── */
   const TRK={vo:['(보컬, 실제 녹음으로 교체) | Vocal Guide (replace with your vocal)',0,100,54], ch:['(보컬, 실제 녹음으로 교체) | Vocal Guide (받는 소리)',1,90,52],
     tp:['DecentSampler > Taepyeongso | Taepyeongso (Hook)',2,88,111,[70,86]], pr:['DecentSampler > Piri(Hyang) | Piri',3,82,68,[62,78]], dg:['DecentSampler > Deageum(Jungak) | Daegeum',3,86,77,[62,86]],
-    hg:['DecentSampler > HaeGeum | Haegeum (Counter)',4,84,110,[65,86]], gy:['DecentSampler > Gayageum(25strings) | Gayageum (Riff)',5,82,107,[52,79]], gm:['DecentSampler > Geomungo | Geomungo',6,84,107,[40,64]],
+    hg:['DecentSampler > HaeGeum | Haegeum (Counter)',4,84,110,[65,86]], gy:['DecentSampler > Gayageum(25strings) | Gayageum (Riff)',5,82,107,[52,79]], gm:['DecentSampler > Geomungo | Geomungo',11,84,107,[40,64]],
     gc:['09 Guitars/02 Electric Guitars/Delicate Echoes | Clean Guitar (delay)',13,72,27,[52,79]], gl:['Guitar/Hard Rock | Rhythm Guitar L',7,80,30,[40,76]], gr:['09 Guitars/02 Electric Guitars/Distorted Stratocaster | Rhythm Guitar R',8,78,30,[40,76]],
     gmu:['09 Guitars/02 Electric Guitars/Edgy Muted | Muted Guitar',12,76,28,[40,57]],
     pad:['Synthesizer/Pad/Epic Cloud Formation | Synth Pad',14,70,89,[53,74]], pl:['Synthesizer/Plucked/Deep Plucked Synth | Synth Pluck',15,66,45,[60,86]],
     bs:['Bass/Rock Growl | Bass',6,94,33,[28,55]], sub:['Synthesizer/Bass/Deep Sub Bass | Sub Bass',11,80,38,[28,50]], dr:['Drum Kit/Smash | Drums',9,98,0,null],
-    jg:['DecentSampler > Samulnori | Janggu',10,80,116,null], kk:['DecentSampler > Samulnori | Kkwaenggwari',10,70,116,null], br:['08 Pop Horns/Live Funk Horns | Brass Stabs',3,80,61,[55,82]], buk:['DecentSampler > Samulnori | Buk',10,82,116,null], jing:['DecentSampler > Samulnori | Jing',10,76,116,null],
-    riser:['Synthesizer/Arrangement FX/Endless Riser | Riser',15,70,102,null], imp:['Synthesizer/Arrangement FX/Downing Boom | Impact',14,76,119,null]};
+    jg:['DecentSampler > Samulnori | Janggu',10,72,116,null], kk:['DecentSampler > Samulnori | Kkwaenggwari',10,64,116,null], br:['08 Pop Horns/Live Funk Horns | Brass Stabs',12,80,61,[55,82]], buk:['DecentSampler > Samulnori | Buk',10,74,116,null], jing:['DecentSampler > Samulnori | Jing',10,68,116,null],
+    riser:['Synthesizer/Arrangement FX/Endless Riser | Riser',13,70,102,null], imp:['Synthesizer/Arrangement FX/Downing Boom | Impact',13,76,119,null]};
+  /* 무대 자리 [팬 -1~1, 줄 1 가까이~3 멀리, 폭]. 공통 무대 배치(STAGE)가 이 표를 씀(자동으로 흩지 않음). 리듬 기타 둘은 좌우 끝, 클린과 뮤트는 엇갈려, 국악기는 좌우로 나눔 */
+  const SEAT={'Vocal Guide (replace with your vocal)':[0,1,0], 'Vocal Guide (받는 소리)':[0,2,0.7], 'Taepyeongso (Hook)':[0.1,1,0.3], 'Piri':[-0.3,2,0.4], 'Daegeum':[-0.3,2,0.4],
+    'Haegeum (Counter)':[0.35,2,0.4], 'Gayageum (Riff)':[-0.45,2,0.5], 'Geomungo':[-0.25,2,0.4], 'Clean Guitar (delay)':[0.5,2,0.6], 'Rhythm Guitar L':[-0.8,1,0.2], 'Rhythm Guitar R':[0.8,1,0.2],
+    'Muted Guitar':[-0.5,1,0.3], 'Synth Pad':[0,3,1.0], 'Synth Pluck':[0.45,3,0.6], 'Brass Stabs':[0.25,2,0.8], 'Bass':[0,2,0], 'Sub Bass':[0,2,0], 'Drums':[0,2,1.0],
+    'Janggu':[-0.2,2,0.3], 'Kkwaenggwari':[0.4,2,0.2], 'Buk':[-0.1,2,0.3], 'Jing':[0.15,3,0.6], 'Riser':[0,3,1.0], 'Impact':[0,3,1.0]};
+  window.__SONG_SEAT=function(c){ const t=String(c.tail||'').replace(/\s*\[[^\]]*\]/g,'').trim(); const z=SEAT[t]; return z?z.slice():null; };
   const ORD=['vo','ch','tp','pr','dg','hg','gy','gm','gc','gl','gr','gmu','pad','pl','br','bs','sub','dr','jg','kk','buk','jing','riser','imp'];
   const GVKO={drive:'드라이브 록(곧은 8분)', halftime:'하프타임 헤비 록', mid:'16비트 미드템포 록', dance:'댄스 록(킥 네 박)', shuffle:'12/8 셔플 록', anthem:'애니송 록(빠른 8비트, 장조, 떼창 후렴)'};
   const KITOF={drive:'Drum Kit/Smash', halftime:'Drum Kit/Heavy', mid:'Drum Kit/East Bay', dance:'Drum Kit/SoCal', shuffle:'Drum Kit/Retro Rock', anthem:'Drum Kit/Smash'};
@@ -42036,7 +42045,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       }
       /* 효과음: 후렴 앞 라이저(많아야 두 마디), 첫 후렴 끝 후렴 첫 박 임팩트 */
       if(nx && /chorus|final/.test(nx.k) && /pre|build|break/.test(k)){ const L=Math.min(2,s.n); put('riser',tk(last-L),60,v,L*BAR-SX,0); }
-      if((k==='chorus' && !secs.slice(0,si).some(function(x){ return x.k==='chorus'; })) || k==='final' || (si>0 && secs[si-1].k==='cold')) put('imp',tk(s.b0),60,v+6,BAR*2,0);
+      if((k==='chorus' && !secs.slice(0,si).some(function(x){ return x.k==='chorus'; })) || k==='final') put('imp',tk(s.b0),60,v+6,BAR*2,0);
       /* 대답 가락: 벌스 줄 끝 긴 음 동안 피리 또는 대금이 국악 모티브 머리 조각 */
       if(k==='verse'){ for(let i=0;i<s.lines;i++){ if(R()<0.35) continue; gugakMotif(ANS, s.b0+i*PH, TR[ANS][4], v-8, {frag:3, off:LN-Math.round(BEAT*2.5)}); } }
       /* 국악 모티브: 인트로 앞 반은 대금 또는 피리가 여리게, 인트로 뒤 반과 후크 연주와 아웃트로는 태평소(후크 연주는 해금이 옥타브 아래, 애니송 록은 관악도 겹침), 브레이크다운은 대금 피리 */
@@ -42079,7 +42088,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       P[k].forEach(function(x){ const h=x.h?Math.round((Rh()*2-1)*x.h):0; const t=Math.max(1,x.t+h); E.push({t:t,o:4,b:[0x90|ch,x.m,x.v]}); E.push({t:t+x.d,o:3,b:[0x80|ch,x.m,0]}); });
       if(LYR[k]) LYR[k].forEach(function(l){ E.push({t:Math.max(1,l[0]),o:3.9,b:meta(0x05,l[1])}); });   /* 가사 메타 */
       E.push({t:END,o:9,b:[0xFF,0x01,1,32]}); Array.prototype.push.apply(out, chunk(E)); });
-    let u8=new Uint8Array(out); try{ window.__STAGE_CTX={app:'play', genre:'fusionGugak'}; if(window.__midiSafety) u8=window.__midiSafety(u8); }catch(e){ window.__songSafeErr=String(e&&e.stack||e); }
+    let u8=new Uint8Array(out); try{ window.__STAGE_CTX={app:'play', genre:'fusionGugak', seatFn:'__SONG_SEAT'}; if(window.__midiSafety) u8=window.__midiSafety(u8); }catch(e){ window.__songSafeErr=String(e&&e.stack||e); }
     /* ── 악보 MIDI(편집 여백 없이, 16분 격자) ── */
     const SC={vo:'Vocal', ch:'Response', tp:'Taepyeongso', pr:'Piri', dg:'Daegeum', hg:'Haegeum', gy:'Gayageum', gm:'Geomungo', gc:'Clean Guitar', gl:'Guitar L', gr:'Guitar R', gmu:'Muted Guitar', pad:'Synth Pad', pl:'Synth Pluck', br:'Brass', kk:'Kkwaenggwari', bs:'Bass', sub:'Sub Bass', dr:'Drums', jg:'Janggu', buk:'Buk'};
     const scK=['vo','ch','tp','pr','dg','hg','gy','gm','gc','gl','gr','gmu','pad','pl','br','bs','sub','dr','jg','kk','buk'].filter(function(k){ return P[k].length; });
@@ -42125,8 +42134,14 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     L.push('박자   : '+B.meter+(B.meter==='12/8'?', 박(점4분) '+B.bpm+' (로직 템포 '+Math.round(B.qpm)+')':', 박 '+B.bpm)+', 빠르기 고정(클릭). 그루브 '+GVKO[B.gv]+'. 한 마디 '+B.barSec.toFixed(2)+'초, 길이 '+mm(B.dur)+'. 0:00 = 2마디 편집 여백 뒤 첫 마디');
     L.push('스타일 : '+STYKO[B.sty]);
     L.push('형식   : '+B.FM.ko);
-    L.push('편성   : 드럼 '+B.tr.dr[0].split(' | ')[0]+', 베이스 Bass/Rock Growl, 기타 셋(좌 Guitar/Hard Rock, 우 Distorted Stratocaster, 뮤트 Edgy Muted, 클린 Delicate Echoes), 신스 패드 '+B.tr.pad[0].split(' | ')[0].split('/').pop()+', 플럭 Deep Plucked Synth, 서브 Deep Sub Bass, 라이저 임팩트(Arrangement FX)');
-    L.push('         국악기: 태평소 후크, '+({pr:'피리',dg:'대금'}[B.ans])+' 대답, 해금 대선율, 25현 가야금 리프, 거문고 술대. 장구 북 징(디센트 Samulnori)은 장단이 아니라 드럼을 따라 치는 색');
+    const PN=function(tail){ return (B.names&&B.names[tail])||''; };   /* 내보낸 MIDI 트랙 이름의 패치(앱 이름 맞춤 뒤) */
+    L.push('편성   : 트랙 이름 앞쪽이 로직 패치(MIDI 와 같음)');
+    L.push('         밴드: 드럼 '+PN('Drums')+', 베이스 '+PN('Bass')+', 기타 좌 '+PN('Rhythm Guitar L')+', 기타 우 '+PN('Rhythm Guitar R')+', 뮤트 '+PN('Muted Guitar')+', 클린 '+PN('Clean Guitar (delay)'));
+    L.push('         신스: 패드 '+PN('Synth Pad')+', 플럭 '+PN('Synth Pluck')+(PN('Sub Bass')?', 서브 '+PN('Sub Bass'):'')+(PN('Riser')?', 라이저 '+PN('Riser'):'')+(PN('Impact')?', 임팩트 '+PN('Impact'):'')+(PN('Brass Stabs')?', 관악 '+PN('Brass Stabs'):''));
+    L.push('         국악기: 태평소 후크, '+({pr:'피리',dg:'대금'}[B.ans])+' 대답, 해금 대선율, 25현 가야금 리프, 거문고 술대(디센트). 장구 꽹과리 북 징(디센트 Samulnori)은 록 드럼 위에 얹는 장단 소리색');
+    { const KO2=[['Rhythm Guitar L','기타 좌'],['Rhythm Guitar R','기타 우'],['Muted Guitar','뮤트'],['Clean Guitar (delay)','클린'],['Gayageum (Riff)','가야금'],['Piri','피리'],['Daegeum','대금'],['Geomungo','거문고'],['Haegeum (Counter)','해금'],['Taepyeongso (Hook)','태평소'],['Synth Pluck','플럭'],['Brass Stabs','관악'],['Janggu','장구'],['Kkwaenggwari','꽹과리'],['Buk','북'],['Jing','징']];
+      const pv=function(t){ const v=Math.round(SEAT[t][0]*63); return (v>0?'+':'')+v; };
+      L.push('         자리(로직 Pan, MIDI 맨 앞 CC10 과 같음): '+KO2.filter(function(x){ return PN(x[0]); }).map(function(x){ return x[1]+' '+pv(x[0]); }).join(', ')+', 노래 베이스 서브 드럼 패드 0'); }
     L.push('');
     L.push('■ 흐름 (구간, 드럼, 장구 장단 꼴, 들어오는 소리)');
     B.secs.forEach(function(s,i){ const t=mm(B.secOf(B.tk(s.b0))-B.secOf(B.tk(B.PRE)));
@@ -42155,7 +42170,8 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     {re:/^Janggu$/, map:{48:['C',5,null],50:['A',4,null],55:['E',5,'x'],53:['G',5,'x'],52:['E',5,'slash'],57:['E',5,'triangle']}},
     {re:/^Kkwaenggwari$/, map:{60:['E',5,null],62:['E',5,'x']}}, {re:/^Buk$/, map:{36:['F',4,null],41:['A',4,null]}}];
   const LAST={}; const CH={subj:'rnd', voice:'m', meter:'rnd', style:'rnd'};
-  function make(seed, o){ o=Object.assign({}, CH, o||{}); const B=build(seed||((Math.random()*1e9)|0), {subj:o.subj==='rnd'?null:o.subj, voice:o.voice, meter:o.meter==='rnd'?null:o.meter, style:o.style==='rnd'?null:o.style, form:o.form}); const t=sheet(B); const g=guide(B,t);
+  function trackNames(u8){ const o={}; try{ let i=14; while(i+8<=u8.length){ const L=(u8[i+4]<<24)|(u8[i+5]<<16)|(u8[i+6]<<8)|u8[i+7], a=i+8, z=a+L; for(let k=a;k<Math.min(z,a+400);k++){ if(u8[k]===0xFF && u8[k+1]===0x03){ const n=u8[k+2]; const t=new TextDecoder().decode(u8.slice(k+3,k+3+n)); const q=t.replace(/\s*\[[^\]]*\]/g,'').split(' | '); if(q.length>1) o[q.slice(1).join(' | ').trim()]=q[0].trim(); break; } } i=z; } }catch(e){} return o; }
+  function make(seed, o){ o=Object.assign({}, CH, o||{}); const B=build(seed||((Math.random()*1e9)|0), {subj:o.subj==='rnd'?null:o.subj, voice:o.voice, meter:o.meter==='rnd'?null:o.meter, style:o.style==='rnd'?null:o.style, form:o.form}); B.names=trackNames(B.u8); const t=sheet(B); const g=guide(B,t);
     let xml=null; try{ if(window.__toMusicXML){ xml=window.__toMusicXML(B.score,{title:'퓨전국악 노래곡 '+B.SB.title, perc:PERC, noCombine:true, noArp:true, xhead:[]}); xml=addLyrics(xml,'Vocal',B.syl.vo); xml=addLyrics(xml,'Response',B.syl.ch); if(B.voice==='m'){ xml=tenorClef(xml,'Vocal','Vo.'); xml=tenorClef(xml,'Response','Resp.'); } xml=reorderParts(xml,['Vocal','Response','Taepyeongso','Piri','Daegeum','Haegeum','Gayageum','Geomungo','Clean Guitar','Guitar L','Guitar R','Muted Guitar','Synth Pad','Synth Pluck','Brass','Bass','Sub Bass','Drums','Janggu','Kkwaenggwari','Buk']); } }catch(e){ window.__songXmlErr=String(e&&e.stack||e); }
     LAST.cur={B:B, txt:t, html:g&&g.html, xml:xml}; return LAST.cur; }
   function save(bytes, name, type){ const blob=new Blob([bytes],{type:type}), url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); },1500); }
@@ -48690,7 +48706,8 @@ window.__stageSpace=function(ctx){ ctx=ctx||{};
     return 'band'; }
   if(app==='beat'){ if(/^(country)$/.test(g)) return 'band'; if(/^(ambtechno|chillwave)$/.test(g)) return 'elec'; return 'elec'; }
   return 'band'; };
-window.__stageSeat=function(space, c, ctx){ if(window.__CAROL_SEAT && ctx && /^carol/.test(String(ctx.genre||''))){ const z=window.__CAROL_SEAT(c, space, ctx); if(z) return z; }   /* ★ 2026-11-01 캐롤 갈래마다 자리표(carol_module) */
+window.__stageSeat=function(space, c, ctx){ if(window.__CAROL_SEAT && ctx && /^carol/.test(String(ctx.genre||''))){ const z=window.__CAROL_SEAT(c, space, ctx); if(z) return z; }
+  if(ctx && ctx.seatFn && typeof window[ctx.seatFn]==='function'){ const z=window[ctx.seatFn](c, space, ctx); if(z) return z; }   /* ★ 2026-11-08 모듈이 자기 자리표를 줄 때(퓨전국악 노래곡: 기타 좌우 더블 등) */   /* ★ 2026-11-01 캐롤 갈래마다 자리표(carol_module) */
   const S=window.__STAGE_SEATS; const sp=S[space]||{}; const B=S.base;
   const pick=function(k){ if(sp.hasOwnProperty(k) && sp[k]) return sp[k].slice(); if(B[k]) return B[k].slice(); return null; };
   let s=null;
@@ -48758,7 +48775,7 @@ window.__stageApply=function(u8){ try{
     const par=cand.find(function(y){ return y.cls.base===x.cls.base; })||cand.find(function(y){ return y.cls.tail===x.cls.tail; })||cand.find(function(y){ return y.ch===x.ch && y.cls.role===x.cls.role; })||cand.find(function(y){ return y.cls.role===x.cls.role && y.cls.role!=='comp' && y.cls.role!=='rhythm'; });
     if(par){ x.parent=par; } });
   /* 3) 겹침 풀기: 같은 자리(0.12 안) 같은 음역(9반음 안)의 화성 악기 둘. 주선율 베이스 리듬 패드 가운데 축은 건드리지 않는다 */
-  if(!keep && space!=='quartet' && space!=='orch' && space!=='chamber' && space!=='duo' && !/^carol/.test(String(ctx.genre||''))){   /* 캐롤은 자리표 그대로 */
+  if(!keep && space!=='quartet' && space!=='orch' && space!=='chamber' && space!=='duo' && !/^carol/.test(String(ctx.genre||'')) && !ctx.seatFn){   /* 캐롤과 자리표를 준 모듈은 그대로 */
     const PR={mel:0,counter:1,comp:2,color:3,pad:4,bass:5,rhythm:6,fx:7};
     const mov=T.filter(function(x){ return !x.parent && !x.keepPan && (x.cls.role==='comp'||x.cls.role==='counter'||x.cls.role==='color') && x.p50!=null; }).sort(function(a,z){ return (PR[a.cls.role]-PR[z.cls.role])||(z.n-a.n); });
     const placed=[]; const clash=function(x,pn){ return placed.some(function(y){ return Math.abs(y.pan-pn)<0.12 && y.p50!=null && Math.abs(y.p50-x.p50)<=9; }) || T.some(function(y){ return y!==x && (y.cls.role==='mel') && Math.abs(pn)<0.12; }); };
@@ -79286,7 +79303,8 @@ window.__stageSpace=function(ctx){ ctx=ctx||{};
     return 'band'; }
   if(app==='beat'){ if(/^(country)$/.test(g)) return 'band'; if(/^(ambtechno|chillwave)$/.test(g)) return 'elec'; return 'elec'; }
   return 'band'; };
-window.__stageSeat=function(space, c, ctx){ if(window.__CAROL_SEAT && ctx && /^carol/.test(String(ctx.genre||''))){ const z=window.__CAROL_SEAT(c, space, ctx); if(z) return z; }   /* ★ 2026-11-01 캐롤 갈래마다 자리표(carol_module) */
+window.__stageSeat=function(space, c, ctx){ if(window.__CAROL_SEAT && ctx && /^carol/.test(String(ctx.genre||''))){ const z=window.__CAROL_SEAT(c, space, ctx); if(z) return z; }
+  if(ctx && ctx.seatFn && typeof window[ctx.seatFn]==='function'){ const z=window[ctx.seatFn](c, space, ctx); if(z) return z; }   /* ★ 2026-11-08 모듈이 자기 자리표를 줄 때(퓨전국악 노래곡: 기타 좌우 더블 등) */   /* ★ 2026-11-01 캐롤 갈래마다 자리표(carol_module) */
   const S=window.__STAGE_SEATS; const sp=S[space]||{}; const B=S.base;
   const pick=function(k){ if(sp.hasOwnProperty(k) && sp[k]) return sp[k].slice(); if(B[k]) return B[k].slice(); return null; };
   let s=null;
@@ -79354,7 +79372,7 @@ window.__stageApply=function(u8){ try{
     const par=cand.find(function(y){ return y.cls.base===x.cls.base; })||cand.find(function(y){ return y.cls.tail===x.cls.tail; })||cand.find(function(y){ return y.ch===x.ch && y.cls.role===x.cls.role; })||cand.find(function(y){ return y.cls.role===x.cls.role && y.cls.role!=='comp' && y.cls.role!=='rhythm'; });
     if(par){ x.parent=par; } });
   /* 3) 겹침 풀기: 같은 자리(0.12 안) 같은 음역(9반음 안)의 화성 악기 둘. 주선율 베이스 리듬 패드 가운데 축은 건드리지 않는다 */
-  if(!keep && space!=='quartet' && space!=='orch' && space!=='chamber' && space!=='duo' && !/^carol/.test(String(ctx.genre||''))){   /* 캐롤은 자리표 그대로 */
+  if(!keep && space!=='quartet' && space!=='orch' && space!=='chamber' && space!=='duo' && !/^carol/.test(String(ctx.genre||'')) && !ctx.seatFn){   /* 캐롤과 자리표를 준 모듈은 그대로 */
     const PR={mel:0,counter:1,comp:2,color:3,pad:4,bass:5,rhythm:6,fx:7};
     const mov=T.filter(function(x){ return !x.parent && !x.keepPan && (x.cls.role==='comp'||x.cls.role==='counter'||x.cls.role==='color') && x.p50!=null; }).sort(function(a,z){ return (PR[a.cls.role]-PR[z.cls.role])||(z.n-a.n); });
     const placed=[]; const clash=function(x,pn){ return placed.some(function(y){ return Math.abs(y.pan-pn)<0.12 && y.p50!=null && Math.abs(y.p50-x.p50)<=9; }) || T.some(function(y){ return y!==x && (y.cls.role==='mel') && Math.abs(pn)<0.12; }); };
