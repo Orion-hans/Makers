@@ -44704,7 +44704,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     VO.forEach(function(v){ C0.push({t:tk(v.abs),o:8,b:meta(0x06, 'V '+v.scene+' '+String(v.no).padStart(2,'0'))}); });
     C0.push({t:tk(LEN),o:9,b:meta(0x06,'Fin '+len+':00')}); C0.push({t:END,o:9,b:meta(0x06,'<<< END')});
     const used=order.filter(function(k){ return TR[k].notes.length; });
-    const NT=2+used.length; let out=[0x4D,0x54,0x68,0x64,0,0,0,6,0,1,(NT>>8)&255,NT&255,(PPQ>>8)&255,PPQ&255].concat(chunk(C0));
+    const NT=3+used.length;   /* 지휘, Voice Guide, AI Voice, 소리 층 */ let out=[0x4D,0x54,0x68,0x64,0,0,0,6,0,1,(NT>>8)&255,NT&255,(PPQ>>8)&255,PPQ&255].concat(chunk(C0));
     /* Voice Guide: 맨 위, 음 없음(오디오 트랙 자리) */
     out=out.concat(chunk([{t:0,o:0,b:meta(0x03,'Voice Guide | 음성 가이드 (오디오 트랙, Muffle 버스 밖)')},{t:0,o:1,b:meta(0x01,'아나운서 녹음을 V 마커 자리에. 0 dB 기준, 먹먹함 버스에 넣지 않음')},{t:END,o:2,b:meta(0x01,' ')}]));
     let chN=0; const chOf=function(){ let c=chN%15; if(c>=9) c++; chN++; return c; };
@@ -44732,6 +44732,9 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       T.notes.forEach(function(n){ E.push({t:tk(n.a),o:4,b:[0x90|ch,n.m,n.v]}); E.push({t:tk(n.a+n.d),o:3,b:[0x80|ch,n.m,0]}); });
       E.push({t:END,o:9,b:meta(0x01,' ')});
       out=out.concat(chunk(E)); });
+    /* ★ 2026-11-08 형 "자연배경음 넣는 것처럼 트랙 만들어 주면": AI 음성도 Quick Sampler 트랙. 0초(편집 여백 포함, 음성 파일 0초)부터 끝까지 누르는 C3 노트 하나, 세기 127, 0 dB, 먹먹함 버스 밖 */
+    { const ch=chOf(); out=out.concat(chunk([{t:0,o:0,b:meta(0x03,'Quick Sampler | AI Voice (AI 음성 파일, Muffle 버스 밖)')},{t:0,o:0.6,b:meta(0x01,'받은 _AI음성.m4a 를 Quick Sampler Original 칸에. Mode Classic, Root Key C3, 앞 조용한 부분 자르지 않기')},
+      {t:0,o:1,b:[0xB0|ch,7,cc7Of(0)]},{t:0,o:1.1,b:[0xB0|ch,10,64]},{t:0,o:4,b:[0x90|ch,60,127]},{t:END,o:3,b:[0x80|ch,60,0]}])); }
     let u8=new Uint8Array(out);
     const keepR=Math.random; Math.random=rngOf(seed^0x5EED);
     try{ window.__STAGE_CTX={app:'medi', amb5:true, wamb:true, genre:'soundmed'}; if(window.__midiSafety) u8=window.__midiSafety(u8); }catch(e){ window.__smedErr=String(e&&e.stack||e); } finally{ Math.random=keepR; }
@@ -44739,7 +44742,8 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     { const b=u8; let p=8+(((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0); const head=Array.prototype.slice.call(b,0,p); const CH=[];
       while(p+8<=b.length){ const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0; CH.push(b.subarray(p,p+8+len)); p+=8+len; }
       const isV=function(c){ const s=new TextDecoder().decode(c.subarray(8,Math.min(c.length,140))); return s.indexOf('Voice Guide')>=0; };
-      const vi=CH.findIndex(isV); if(vi>1){ const v=CH.splice(vi,1)[0]; CH.splice(1,0,v); let tot=head.length; CH.forEach(function(c){ tot+=c.length; }); const o=new Uint8Array(tot); o.set(head,0); let q=head.length; CH.forEach(function(c){ o.set(c,q); q+=c.length; }); u8=o; } }
+      const isA=function(c){ const s=new TextDecoder().decode(c.subarray(8,Math.min(c.length,140))); return s.indexOf('| AI Voice')>=0; };
+      const vi=CH.findIndex(isV); if(vi>1){ const v=CH.splice(vi,1)[0]; CH.splice(1,0,v); } const ai=CH.findIndex(isA); if(ai>2){ const a=CH.splice(ai,1)[0]; CH.splice(2,0,a); } if(vi>1||ai>2){ let tot=head.length; CH.forEach(function(c){ tot+=c.length; }); const o=new Uint8Array(tot); o.set(head,0); let q=head.length; CH.forEach(function(c){ o.set(c,q); q+=c.length; }); u8=o; } }
     /* 장면별 소리 층(설명서) */
     const layers=P.map(function(sc){ const ks=used.filter(function(k){ const T=TR[k]; return T.notes.some(function(n){ return n.a<sc.b && n.a+n.d>sc.a+1; }); }); return {mk:sc.mk, ks:ks}; });
     return {u8:u8, pj:P.map(function(sc){ return !!sc.pj; }), bt:BT.map(function(x){ return [Math.round(x.a*10)/10, Math.round(x.b*10)/10, x.k]; }), seed:seed, theme:theme, course:course, len:len, plan:P.map(function(sc){ return {id:sc.id, mk:sc.mk, a:sc.a, b:sc.b, min:sc.min, muff:sc.muff, breath:sc.breath, voice:sc.rep?'cue':sc.voice, ko:sc.S.ko, en:sc.S.en, space:sc.S.space, bed:sc.S.bed, point:[PTKO[PCP[sc.mk]||PCP[sc.id]]?PTKO[PCP[sc.mk]||PCP[sc.id]]+' 가락':'', sc.S.point&&sc.S.point!=='없음'?sc.S.point:''].filter(Boolean).join(', ')||'없음', nature:sc.S.nature, signal:sc.S.signal, clip:sc.clip||null, place:(((DATA.clips||{})[sc.clip]||{}).place||''), lead:sc.V.lead, mainEnd:sc.V.mainEnd, nV:sc.V.lines.length}; }),
@@ -44755,7 +44759,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     L.push('시각은 0:00 = MIDI 편집 여백 4마디(16초) 뒤 첫 박. 마커 V 장면 줄번호 자리에서 그 줄을 읽기 시작합니다. 괄호 안 쉼은 말 사이에 비울 가장 짧은 초이고, 줄과 줄 사이는 왼쪽 시각을 따릅니다(명상이 몰리지 않게 장면 안에 고르게 폈음).');
     L.push('숨 스웰(바탕 패드 크기, 파도 숨결은 파도 크기까지)은 멘트 동안 낮게 머물다가 멘트가 끝나고 0.6초 뒤 들숨부터 다시 올라옵니다. 숨 안내 멘트를 읽고 나면 바로 그 숨이 음악에 있습니다. 숨 세기 줄(하나, 둘, 셋, 넷)은 한 수에 1초로, 읽는 동안 들숨 날숨이 함께 갑니다.');
     L.push('음악은 쉬지 않고 이어지고, 말하는 동안 다른 소리만 4dB 내려갑니다. 녹음은 Voice Guide 트랙(오디오)에, 먹먹함 버스 밖.');
-    L.push('AI 음성 파일(곡 폴더의 _AI음성.m4a, 엣지 SunHi 목소리, 인계문서 v8 규칙)은 Voice Guide 트랙 첫 마디(편집 여백 4마디를 포함한 0초)에 놓으면 멘트 자리가 그대로 맞습니다. 왼쪽 시각과 멘트 동안 낮추기, 숨 스웰은 그 음성의 실제 길이로 맞췄습니다.');
+    L.push('AI 음성 파일(따로 받는 '+'사운드명상_'+B.theme_ko.replace(/,\s*/g,'_').replace(/\s/g,'')+'_'+B.course_ko.replace(/\s/g,'')+'_'+B.len+'분'+(B.vid>1?'_영상'+B.vid:'')+'_AI음성.m4a, 엣지 SunHi 목소리, 인계문서 v8 규칙)은 Quick Sampler | AI Voice 트랙의 Quick Sampler Original 칸에 끌어 놓으면(Mode Classic, Root Key C3, 앞을 자르지 않기) 멘트 자리가 그대로 맞습니다. 오디오 트랙에 둘 때는 첫 마디 0초에(이때 AI Voice 트랙은 끄기). 왼쪽 시각과 멘트 동안 낮추기, 숨 스웰은 그 음성의 실제 길이로 맞췄습니다.');
     B.plan.forEach(function(sc){ L.push(''); L.push('■ '+mmss(sc.a)+'  '+sc.mk+' '+sc.ko+' ('+sc.en+'), '+sc.min+'분, 음성 '+({short:'짧은 판 (★ 줄만)', long:'긴 판', cue:'짧은 멘트만'})[sc.voice]+(sc.place?', 장소 '+sc.place:'')+((B.pj||[])[B.plan.indexOf(sc)]?', 첫 박 편종':''));
       B.voice.filter(function(v){ return v.scene===sc.mk; }).forEach(function(v){ const segs=v.segs.map(function(s){ return s[0]+(s[1]?' (쉼 '+s[1]+'초)':''); }).join(' ');
         L.push('   '+mmss(v.abs)+'  V '+v.scene+' '+String(v.no).padStart(2,'0')+'  '+segs+(v.cue?'  [되풀이 한 마디]':'')+breathNote(B, v)); }); });
@@ -44847,7 +44851,8 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     h.push('<div class="wrap"><table><tr><th></th><th>트랙</th><th>누를 패치</th><th>방법</th></tr>'+PP.rows.map(function(x){ return '<tr><td class="c"><input type="checkbox"></td><td class="t">'+E(x.t.role)+'<br>'+G(E(x.t.patch))+'</td><td>'+Bb(E(x.name))+'</td><td>'+(x.merge?Rr('악기 먼저, 그다음 병합')+'<br>'+G('악기: '+E(x.t.patch)):'한 번 누름')+(x.t.layer==='nature'?'<br>'+G('녹음 파일은 그다음 Quick Sampler 에 끌어 놓기'):'')+'</td></tr>'; }).join('')+'</table></div>');
     return h.join(''); }
   function guideHtml(B, sheet){ if(!window.__guideHTML) return null;
-    const info={}; B.tracks.forEach(function(t){ info[t.role]={ko:t.role.replace(/^[^(]*\(|\)$/g,'')||t.role}; if(t.layer==='nature') info[t.role]=Object.assign(info[t.role],{qsRoot:'C3', qsWhere:((t.key.indexOf('c_')===0)?('영상 '+t.role.replace(/^Nature /,'')+' 의 현장음'):((NATKO_T[B.theme]||{})[t.key]||NATKO[t.key]))+'. 장면 길이보다 짧으면 Mode Loop, 크로스페이드 길게'}); });
+    const vbase='사운드명상_'+B.theme_ko.replace(/,\s*/g,'_').replace(/\s/g,'')+'_'+B.course_ko.replace(/\s/g,'')+'_'+B.len+'분'+(B.vid>1?'_영상'+B.vid:'')+'_AI음성.m4a';
+    const info={'AI Voice (AI 음성 파일, Muffle 버스 밖)':{ko:'AI 음성', qsRoot:'C3', qsFile:vbase, qsWhere:'노트 하나가 0초부터 끝까지 누름. 파일 앞 조용한 부분(편집 여백)이 그대로 있어야 멘트 자리가 맞음, 앞을 자르지 않기. 같은 테마 코스 길이 영상 판이면 곡 번호가 달라도 같은 파일'}}; B.tracks.forEach(function(t){ info[t.role]={ko:t.role.replace(/^[^(]*\(|\)$/g,'')||t.role}; if(t.layer==='nature') info[t.role]=Object.assign(info[t.role],{qsRoot:'C3', qsWhere:((t.key.indexOf('c_')===0)?('영상 '+t.role.replace(/^Nature /,'')+' 의 현장음'):((NATKO_T[B.theme]||{})[t.key]||NATKO[t.key]))+'. 장면 길이보다 짧으면 Mode Loop, 크로스페이드 길게'}); });
     let PP=null; try{ PP=patchPlan(B); }catch(e){ PP=null; }
     if(PP) PP.rows.forEach(function(x){ const r=x.r, I=info[x.t.role]=info[x.t.role]||{}; I.eq=(r.eq||[]).filter(function(e){ return !e.off; }).map(function(e){ return Object.assign({},e); }); I.eqExact=true; I.spread=r.spread; I.space=r.space; I.air=r.air; I.patchName=x.name; if(/Pan Drums/.test(x.t.patch)) I.noTape=true; });
     let G=null; try{ G=window.__guideHTML({midi:B.u8, app:'play-soundmed', patchSec:PP?patchSection(B,PP):'', title:'사운드 명상 '+B.theme_ko+' '+B.course_ko+' '+B.len+'분 제작 가이드', sub:'Play Composer, 웰니스 앰비언트, 사운드 명상', genre:'soundmed', book:null,
