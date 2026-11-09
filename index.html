@@ -6445,7 +6445,7 @@ window.__ccTidy=function(u8){ try{
   const sec=function(tk){ let g=segs[0]; for(let k=0;k<segs.length;k++){ if(tk>=segs[k].t0) g=segs[k]; else break; } return g.s0+(tk-g.t0)*g.us/1e6/ppq; };
   const tick=function(sc){ let g=segs[0]; for(let k=0;k<segs.length;k++){ if(sc>=segs[k].s0-1e-9) g=segs[k]; else break; } return Math.max(0,Math.round(g.t0+(sc-g.s0)*1e6*ppq/g.us)); };
   const sm=function(x){ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); };
-  const PLUCK=/YangGeum|Yanggeum|양금|GaYaGeum|Gayageum|가야금|GeoMunGo|Geomungo|거문고|Harp|Piano|Keys|Rhodes|Celesta|Glock|Marimba|Vibra|Mallet|Bell|Kalimba|Guitar|Gtr|Picked|Nylon|Koto|Guzheng|Pipa|Santoor|Dulcimer|Handpan|Pan Drums|Hang|Tingsha|PyeonJong|Timpani|Clav|Pizz|Staccato|Spiccato|Electric Mint|Session Guitarist|Banghyang/i;
+  const PLUCK=/YangGeum|Yanggeum|양금|GaYaGeum|Gayageum|가야금|GeoMunGo|Geomungo|거문고|Harp|Piano|Keys|Rhodes|Celesta|Glock|Marimba|Vibra|Mallet|Bell|Kalimba|Guitar|Gtr|Picked|Nylon|Koto|Guzheng|Pipa|Santoor|Dulcimer|Handpan|Pan Drums|Hang|Tingsha|Bowl|PyeonJong|Timpani|Clav|Pizz|Staccato|Spiccato|Electric Mint|Session Guitarist|Banghyang/i;
   let changed=false; const rep={trimmed:0, ramps:0, tracks:0};
   chunks.forEach(function(c){ if(!c.ev) return;
     const nmE=c.ev.find(function(e){ return e.meta===0x03; }); let nm=''; try{ nm=nmE?new TextDecoder().decode(new Uint8Array(nmE.dat)):''; }catch(e){}
@@ -6458,7 +6458,7 @@ window.__ccTidy=function(u8){ try{
       c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0){ const k=e.d[0]; if(k===0||k===32||(k>=64&&k<=69)||k>=120) return; if(!seenC[k] || e.t<seenC[k].t) seenC[k]=e; } });
       Object.keys(seenC).forEach(function(k){ const f=seenC[k]; if(f.t>0 && sec(f.t)>notes[0].a+0.01){ c.ev.push({t:0, o:-3, s:0xB0|ch, d:[+k, f.d[1]]}); rep.head=(rep.head||0)+1; changed=true; } });
       return; }
-    const isPad=/Synthesizer\/(Pad|Soundscape)|Breath Pad/i.test(nm);
+    const isPad=/Synthesizer\/(Pad|Soundscape)|Breath Pad/i.test(nm) && !/Bowl/i.test(nm);   /* ★ 2026-11-09: Synthesizer/Soundscape 의 싱잉볼(Ancient Singing Bowl, Metallic Memories Bowl)은 치는 악기. 패드로 보면 들어오기가 0 에서 올라가 치는 소리가 죽음(사운드 명상 마치는 싱잉볼에서 찾음) */
     const pluck=!isPad && PLUCK.test(nm);
     let kind=null; try{ kind=window.__swellKind?window.__swellKind(nm):null; }catch(e){}
     const sust=!pluck && (isPad || kind==='bow' || kind==='wind' || kind==='pad' || /Drone|Strings|String|Violin|Viola|Cello|Contrabass|Choir|Horn|Brass|Flute|Clarinet|Oboe|Daegeum|Deageum|Saenghwang|Haegeum|Ajaeng|Organ/i.test(nm));
@@ -14530,7 +14530,7 @@ window.__ccTidy=function(u8){ try{
   const sec=function(tk){ let g=segs[0]; for(let k=0;k<segs.length;k++){ if(tk>=segs[k].t0) g=segs[k]; else break; } return g.s0+(tk-g.t0)*g.us/1e6/ppq; };
   const tick=function(sc){ let g=segs[0]; for(let k=0;k<segs.length;k++){ if(sc>=segs[k].s0-1e-9) g=segs[k]; else break; } return Math.max(0,Math.round(g.t0+(sc-g.s0)*1e6*ppq/g.us)); };
   const sm=function(x){ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); };
-  const PLUCK=/YangGeum|Yanggeum|양금|GaYaGeum|Gayageum|가야금|GeoMunGo|Geomungo|거문고|Harp|Piano|Keys|Rhodes|Celesta|Glock|Marimba|Vibra|Mallet|Bell|Kalimba|Guitar|Gtr|Picked|Nylon|Koto|Guzheng|Pipa|Santoor|Dulcimer|Handpan|Pan Drums|Hang|Tingsha|PyeonJong|Timpani|Clav|Pizz|Staccato|Spiccato|Electric Mint|Session Guitarist|Banghyang/i;
+  const PLUCK=/YangGeum|Yanggeum|양금|GaYaGeum|Gayageum|가야금|GeoMunGo|Geomungo|거문고|Harp|Piano|Keys|Rhodes|Celesta|Glock|Marimba|Vibra|Mallet|Bell|Kalimba|Guitar|Gtr|Picked|Nylon|Koto|Guzheng|Pipa|Santoor|Dulcimer|Handpan|Pan Drums|Hang|Tingsha|Bowl|PyeonJong|Timpani|Clav|Pizz|Staccato|Spiccato|Electric Mint|Session Guitarist|Banghyang/i;
   let changed=false; const rep={trimmed:0, ramps:0, tracks:0};
   chunks.forEach(function(c){ if(!c.ev) return;
     const nmE=c.ev.find(function(e){ return e.meta===0x03; }); let nm=''; try{ nm=nmE?new TextDecoder().decode(new Uint8Array(nmE.dat)):''; }catch(e){}
@@ -14543,7 +14543,7 @@ window.__ccTidy=function(u8){ try{
       c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0){ const k=e.d[0]; if(k===0||k===32||(k>=64&&k<=69)||k>=120) return; if(!seenC[k] || e.t<seenC[k].t) seenC[k]=e; } });
       Object.keys(seenC).forEach(function(k){ const f=seenC[k]; if(f.t>0 && sec(f.t)>notes[0].a+0.01){ c.ev.push({t:0, o:-3, s:0xB0|ch, d:[+k, f.d[1]]}); rep.head=(rep.head||0)+1; changed=true; } });
       return; }
-    const isPad=/Synthesizer\/(Pad|Soundscape)|Breath Pad/i.test(nm);
+    const isPad=/Synthesizer\/(Pad|Soundscape)|Breath Pad/i.test(nm) && !/Bowl/i.test(nm);   /* ★ 2026-11-09: Synthesizer/Soundscape 의 싱잉볼(Ancient Singing Bowl, Metallic Memories Bowl)은 치는 악기. 패드로 보면 들어오기가 0 에서 올라가 치는 소리가 죽음(사운드 명상 마치는 싱잉볼에서 찾음) */
     const pluck=!isPad && PLUCK.test(nm);
     let kind=null; try{ kind=window.__swellKind?window.__swellKind(nm):null; }catch(e){}
     const sust=!pluck && (isPad || kind==='bow' || kind==='wind' || kind==='pad' || /Drone|Strings|String|Violin|Viola|Cello|Contrabass|Choir|Horn|Brass|Flute|Clarinet|Oboe|Daegeum|Deageum|Saenghwang|Haegeum|Ajaeng|Organ/i.test(nm));
@@ -26552,7 +26552,7 @@ window.__ccTidy=function(u8){ try{
   const sec=function(tk){ let g=segs[0]; for(let k=0;k<segs.length;k++){ if(tk>=segs[k].t0) g=segs[k]; else break; } return g.s0+(tk-g.t0)*g.us/1e6/ppq; };
   const tick=function(sc){ let g=segs[0]; for(let k=0;k<segs.length;k++){ if(sc>=segs[k].s0-1e-9) g=segs[k]; else break; } return Math.max(0,Math.round(g.t0+(sc-g.s0)*1e6*ppq/g.us)); };
   const sm=function(x){ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); };
-  const PLUCK=/YangGeum|Yanggeum|양금|GaYaGeum|Gayageum|가야금|GeoMunGo|Geomungo|거문고|Harp|Piano|Keys|Rhodes|Celesta|Glock|Marimba|Vibra|Mallet|Bell|Kalimba|Guitar|Gtr|Picked|Nylon|Koto|Guzheng|Pipa|Santoor|Dulcimer|Handpan|Pan Drums|Hang|Tingsha|PyeonJong|Timpani|Clav|Pizz|Staccato|Spiccato|Electric Mint|Session Guitarist|Banghyang/i;
+  const PLUCK=/YangGeum|Yanggeum|양금|GaYaGeum|Gayageum|가야금|GeoMunGo|Geomungo|거문고|Harp|Piano|Keys|Rhodes|Celesta|Glock|Marimba|Vibra|Mallet|Bell|Kalimba|Guitar|Gtr|Picked|Nylon|Koto|Guzheng|Pipa|Santoor|Dulcimer|Handpan|Pan Drums|Hang|Tingsha|Bowl|PyeonJong|Timpani|Clav|Pizz|Staccato|Spiccato|Electric Mint|Session Guitarist|Banghyang/i;
   let changed=false; const rep={trimmed:0, ramps:0, tracks:0};
   chunks.forEach(function(c){ if(!c.ev) return;
     const nmE=c.ev.find(function(e){ return e.meta===0x03; }); let nm=''; try{ nm=nmE?new TextDecoder().decode(new Uint8Array(nmE.dat)):''; }catch(e){}
@@ -26565,7 +26565,7 @@ window.__ccTidy=function(u8){ try{
       c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0){ const k=e.d[0]; if(k===0||k===32||(k>=64&&k<=69)||k>=120) return; if(!seenC[k] || e.t<seenC[k].t) seenC[k]=e; } });
       Object.keys(seenC).forEach(function(k){ const f=seenC[k]; if(f.t>0 && sec(f.t)>notes[0].a+0.01){ c.ev.push({t:0, o:-3, s:0xB0|ch, d:[+k, f.d[1]]}); rep.head=(rep.head||0)+1; changed=true; } });
       return; }
-    const isPad=/Synthesizer\/(Pad|Soundscape)|Breath Pad/i.test(nm);
+    const isPad=/Synthesizer\/(Pad|Soundscape)|Breath Pad/i.test(nm) && !/Bowl/i.test(nm);   /* ★ 2026-11-09: Synthesizer/Soundscape 의 싱잉볼(Ancient Singing Bowl, Metallic Memories Bowl)은 치는 악기. 패드로 보면 들어오기가 0 에서 올라가 치는 소리가 죽음(사운드 명상 마치는 싱잉볼에서 찾음) */
     const pluck=!isPad && PLUCK.test(nm);
     let kind=null; try{ kind=window.__swellKind?window.__swellKind(nm):null; }catch(e){}
     const sust=!pluck && (isPad || kind==='bow' || kind==='wind' || kind==='pad' || /Drone|Strings|String|Violin|Viola|Cello|Contrabass|Choir|Horn|Brass|Flute|Clarinet|Oboe|Daegeum|Deageum|Saenghwang|Haegeum|Ajaeng|Organ/i.test(nm));
@@ -37345,7 +37345,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
 globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
 /*YOGA-BEGIN*/
 /* ★ 2026-10-19 형: 동경요가 시그니처 70분 (플레이 웰니스 앰비언트). inject_yoga.py 가 Play 에 넣는다. 고칠 때는 이 파일만 고치고 python3 inject_yoga.py.
-   틀(고정): 1 호흡명상 0:00~10:00, 2 몸풀기 10:00~30:00, 3 본동작 30:00~55:00 (30초마다 띵샤), 4 사바사나 55:00~65:00, 5 정리 65:00~70:00.
+   틀(고정): 1 호흡명상 0:00~10:00, 2 몸풀기 10:00~30:00, 3 본동작 30:00~55:00 (30초마다 편경), 4 사바사나 55:00~65:00, 5 정리 65:00~70:00.
    마디와 템포를 맞춰 구간 경계가 정확히 그 시각(첫 구간 0:00 기준)에 온다. 3 은 72 BPM 고정, 9마디 = 30초.
    느낌(랜덤): 색(새벽빛 리디안, 숲 장조, 바다 도리안), 조, 진행, 패드와 드론 음색, 1 의 빠르기(60~66), 선율 씨앗.
    호흡 앰비언트 결: 숨 패드는 1 에서 두 마디 들숨 날숨(약 7.5초), 4 에서 네 마디. 핸드팬 양금 피아노는 뒤에서 은은하게. 우주로 열리는 효과는 설명서 선택 칸(1 처음, 4 사바사나, 5 끝). */
@@ -37633,6 +37633,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     mk('bowl', 'World/Percussion/Tibetan Singing Bowls | Singing Bowl', 7, VOL('bowl',70));
     const tingNote=fold(tonic,48,59), tingP='DecentSampler > Pyeonjong';   /* ★ 2026-10-22 형: 띵샤는 편종(디센트, 16매 C3~D#4 안 으뜸음). 패치는 음색 적당 10 띵샤 신호(편종) 줄 */
     mk('ting', tingP+' | Tingsha signal', 8, 84);
+    mk('pg', 'DecentSampler > Pyeongyeong | Pyeongyeong signal', 8, 84);   /* ★ 2026-11-09 형 금성옥진(명상 계열 전부): 0:00 시작은 띵샤 자리 편종, 구간 넘김과 30초 동작 전환과 마침은 편경. 띵샤와 같은 채널(겹치지 않음) */
     mk('heart', 'Orchestral/Percussion/Timpani | Heartbeat', 3, VOL('heart',75));   /* ★ 2026-10-26 형: 먹먹한 침묵 동안 심장 고동(꿍꿍 꿍꿍 꿍) */
     const note=function(k,t,m,v,d){ const T=TR[k]; v=Math.max(1,Math.min(127,Math.round(v))); d=Math.max(30,Math.round(d)); T.ev.push({t:t,on:1,m:m,v:v},{t:t+d,on:0,m:m}); };
     const cc=function(k,t,c,v){ TR[k].ev.push({t:t,cc:c,v:Math.max(0,Math.min(127,Math.round(v)))}); };
@@ -37992,16 +37993,16 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       if(s===0){ const H=BRS[0], ev=Math.max(1,Math.round(128/H.kb)); for(let i=Math.ceil(k*4/H.kb);i*H.kb<k*4+4;i++){ if(i>0 && i%ev===0 && i*H.kb>=96) note('bowl', tk(b, i*H.kb-k*4), (i/ev)%2?bowl2:bowl1, 50, BAR*6); } }   /* ★ 싱잉볼도 들숨 첫머리(예전 32마디마다) */
       if(s===3){ if(k===0) note('bowl', tk(b), bowl1, 80, BAR*6); else if(k%8===0 && k<segT[3].length-4){ const inS=(b+6>PCS[1].b0 && b<PCS[1].b1); note('bowl', tk(b), ((k/8)%2 && !inS)?bowl2:bowl1, 44+rr(-4,4), BAR*6); } }
       if(s===4 && k===0) note('bowl', tk(b), bowl1, 66, BAR*6); }
-    note('bowl', tk(NB-2), bowl1, 70, BAR*6);
+    [0,1,2].forEach(function(k){ note('pg', tk(NB-4+k), fold(tingNote+[0,-2,-5][k],48,63), 78-5*k, BAR*2); });   /* ★ 2026-11-09 마침: 마지막 싱잉볼 대신 편경 세 번 내려옴 */
     /* 8 띵샤: 구간 바뀌는 자리 두 번, 본동작 30초(9마디)마다 한 번(화음이 바뀌는 자리) */
-    const ting2=function(b){ note('ting', tk(b), tingNote, 88, BAR*2); note('ting', tk(b,1), tingNote, 74, BAR*2); };
+    const ting2=function(b){ note('pg', tk(b), tingNote, 88, BAR*2); note('pg', tk(b,1), tingNote, 74, BAR*2); };
     ting2(segStart[1]); ting2(segStart[2]); ting2(segStart[4]);
     note('ting', tk(0), tingNote, 80, BAR*2);   /* ★ 2026-10-23 형: 맨 처음 0:00 자연음이 들어오는 자리에 띵샤 한 번 */
-    for(let k=9;k<450;k+=9) note('ting', tk(segStart[2]+k), tingNote, 84, BAR*2);
+    for(let k=9;k<450;k+=9) note('pg', tk(segStart[2]+k), tingNote, 84, BAR*2);
     /* ★ 2026-10-21 양금 자리 셋 안전망: 패드 바닥 드론 베이스 핸드팬 피아노 싱잉볼 띵샤와 반음으로 겹치면 그 마디 화음음으로 고치거나 뺌 */
     { const pairs=function(key){ const ev=TR[key].ev.filter(function(e){ return e.cc==null; }).sort(function(a,z){ return a.t-z.t||(a.on?1:-1); }); const open={}, out=[];
         ev.forEach(function(e){ if(e.on) (open[e.m]=open[e.m]||[]).push(e); else if(open[e.m]&&open[e.m].length){ const o=open[e.m].shift(); out.push({on:o, off:e}); } }); return out; };
-      const REF=[]; ['pad','drone','bass','hp','pn','ps','bowl','ting'].forEach(function(k){ pairs(k).forEach(function(p){ REF.push([p.on.t, p.off.t, p.on.m]); }); });
+      const REF=[]; ['pad','drone','bass','hp','pn','ps','bowl','ting','pg'].forEach(function(k){ pairs(k).forEach(function(p){ REF.push([p.on.t, p.off.t, p.on.m]); }); });
       REF.sort(function(a,z){ return a[0]-z[0]; });
       const hit=function(a,z,m){ for(let i=0;i<REF.length;i++){ const r=REF[i]; if(r[0]>=z) break; if(r[1]<=a) continue; const d=Math.abs(r[2]-m); if(d%12===1||d%12===11) return true; } return false; };
       ['sg','kl','ce'].forEach(function(key){ const kill=new Set(); pairs(key).forEach(function(p){ const a=p.on.t, z=p.off.t; if(!hit(a,z,p.on.m)) return;
@@ -38112,17 +38113,17 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     L.push('');
     L.push('■ 흐름');
     L.push('   0:00  호흡명상   도입: 0:00 띵샤 한 번과 함께 자연음 1(물)이 1초 만에 들어와 0:10 까지 작아지고 드론과 숨 패드가 차오름(0:10 싱잉볼, 음악이 다 차오른 자리). 0:08 부터 우주가 크게 열려 0:26~0:44 다 열림(숨 패드 꽉 참, 맨 위 으뜸음), 0:56 에 닫히며(싱잉볼) 0:52~1:10 어둡게 가라앉음(뒤집힌 세계, 자연음 2 바람이 0:48~1:16 같이). 1:00~1:20 앰비언트는 -6dB 로 내려가고 자연음이 제 크기로. 처음부터 10:00 까지 숨 패드 바닥 드론 자연음이 '+B.br[0].ko+'대로 오르내림(아래 ■ 호흡법)');
-    L.push('   10:00 몸풀기     띵샤 두 번. 자연음 1(물)은 13:00 까지 점점 사라지고, 9:30 부터 자연음 3 숲(새소리)이 엇갈려 들어와 10:00~14:00 작게(-24dB) 깔렸다가 15:00 피아노 연주곡 전에 빠짐. 밝은 앰비언트가 12:00 까지 다시 커짐. 양금이 네 마디마다 포인트 선율, 핸드팬이 조금씩 촘촘해지고 20분쯤 베이스와 핸드팬 박');
+    L.push('   10:00 몸풀기     편경 두 번. 자연음 1(물)은 13:00 까지 점점 사라지고, 9:30 부터 자연음 3 숲(새소리)이 엇갈려 들어와 10:00~14:00 작게(-24dB) 깔렸다가 15:00 피아노 연주곡 전에 빠짐. 밝은 앰비언트가 12:00 까지 다시 커짐. 양금이 네 마디마다 포인트 선율, 핸드팬이 조금씩 촘촘해지고 20분쯤 베이스와 핸드팬 박');
     L.push('   15:00 피아노 연주곡 (사극 OST 느낌, '+B.pieceKey+' 에올리안, 몸풀기 색의 나란한 단조). 4분: 들어가는 4마디, 주제 A 16마디, B(높이 올라가는 대목) 16마디, A 클라이맥스(한 옥타브 위 옥타브 겹침) 16마디, 자리에 따라 여린 A 나 짧은 꼬리, 맺는 두 마디와 짧은 머묾(19:00 에 정확히 끝). 왼손은 네 마디 악구마다 짜임이 바뀜(8분 펼침, 3+3+2 흐름, 발라드 컴핑, 걷는 베이스, 클라이맥스는 넓은 펼침과 고동, 맺음은 굴림). 되풀이 주제는 꾸밈(이웃음 감기, 지나는 음, 점음표, 당김음)과 다른 화음으로. 악구마다 루바토(가운데 밀고 끝 늘임, 첫 음 머뭇, 끝 숨 고름), 오른손이 왼손보다 살짝 늦게. 앞꾸밈음과 돌림음, 여리게(세기 40 안팎). 그동안 패드 드론 베이스는 연주곡 화음을 따라가고 숨 패드는 악구(4마디)마다 부풂(A 76 B 84 클라이맥스 94), 양금 자리 넷 핸드팬은 쉼. 피아노는 가운데에서 살짝 왼쪽(46)에서 천천히 조금 움직이고 +0.5dB, 앰비언트 -1.5dB');
     L.push('   19:00 피아노 정리 1분: 펼침이 잦아들며 i ♭VI ♭VII ♭III 로 원래 몸풀기 화음에 넘겨 줌, 주제 첫 마디가 높게 두어 번. 20:00 부터 원래 흐름(핸드팬 박)');
-    L.push('   30:00 본동작     띵샤 두 번. 앰비언트 -3dB(약 30% 작게), 핸드팬 리듬 연주를 은은하게(30초마다 연주 꼴이 바뀜, 아래 목록). 72 BPM 고정 = 한 마디 3.333초, 9마디 = 30초, 450마디 = 25분. 30초마다 띵샤와 함께 화음이 바뀜(30:30, 31:00 ... 54:30, 마커 Change)');
+    L.push('   30:00 본동작     편경 두 번. 앰비언트 -3dB(약 30% 작게), 핸드팬 리듬 연주를 은은하게(30초마다 연주 꼴이 바뀜, 아래 목록). 72 BPM 고정 = 한 마디 3.333초, 9마디 = 30초, 450마디 = 25분. 30초마다 띵샤와 함께 화음이 바뀜(30:30, 31:00 ... 54:30, 마커 Change)');
     if(B.hpOrd && B.hpOrd.length){ L.push('   본동작 핸드팬 꼴(30초마다, 마커 Change 옆에 영어 이름): 딩(D)은 Handpan Pulse, 둘레 음은 Handpan, 탁 센 탁 고스트는 Handpan Tak(Edge 주법).');
       L.push('     각 30초의 마지막 마디는 손가락 롤로 다음 30초에 넘겨 주고, 새 30초 첫 딩은 플램(앞꾸밈). 처음과 끝은 성긴 꼴, 가운데는 고스트가 깔린 꼴.');
       for(let i=0;i<B.hpOrd.length;i+=5){ L.push('     '+B.hpOrd.slice(i,i+5).map(function(nm,j){ const sec=1800+(i+j)*30; return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0')+' '+nm; }).join(', ')); } }
     L.push('   52:00 본동작 끝   자연음 2 바람이 3분에 걸쳐 서서히 들어와(-21dB) 몸을 식히며 사바사나로 넘겨 줌');
     L.push('   55:00 사바사나   싱잉볼. 자연음 1(물)이 1분에 걸쳐 다시 제 크기로(바람은 56:30 까지 물소리 아래로 빠짐), 앰비언트는 5도 쌓기 화음으로 몽환적으로 -12dB 에 깔림. 피아노는 조성 없는 루바토(박에 안 맞는 자리, 점점 느려지는 몸짓)');
     L.push('   61:00 피아노 회상 (같은 주제를 '+B.key+' 에올리안으로 느리게, 왼손은 굴림 느린 펼침 10도 떠다니는 화음이 악구마다 바뀜, 루바토가 밀물 썰물처럼). 앞악구 맺는 악구, 높은 대목, 한 옥타브 위 주제, 맺음 뒤 으뜸 화음에 머묾. 그동안 패드는 열린 5도 화음(악구마다 얕게 부풂), 드론은 으뜸음만, 피아노 0dB. 64:00 에 맺고 남은 1분은 우주 닫힘과 뒤집힌 세계로 넘김. 앞 6분(55:00~60:40)은 조성 없는 루바토 몸짓 그대로');
-    L.push('   65:00 정리       띵샤 두 번. 물소리는 1분에 걸쳐 빠지고 자연음 3 숲이 엇갈려 들어와(-20dB, 정리 숨 따라 2dB) 70:00 마지막 화음 울림이 끝날 때까지. 앰비언트가 다시 커지고 같은 으뜸음의 장조로 희망적으로, 70:00 마지막 화음. '+ro(B.br[1].ko)+' 숨을 고르고 끝 늦춤과 함께 숨이 길어지며 맺음(아래 ■ 호흡법)');
+    L.push('   65:00 정리       편경 두 번. 물소리는 1분에 걸쳐 빠지고 자연음 3 숲이 엇갈려 들어와(-20dB, 정리 숨 따라 2dB) 70:00 마지막 화음 울림이 끝날 때까지. 앰비언트가 다시 커지고 같은 으뜸음의 장조로 희망적으로, 70:00 마지막 화음. '+ro(B.br[1].ko)+' 숨을 고르고 끝 늦춤과 함께 숨이 길어지며 맺음(아래 ■ 호흡법)');
     L.push('');
     L.push('■ 자연음 세 트랙 (형이 녹음한 소리, 트랙마다 다른 wav. 노트 C3 하나가 끝까지, MIDI 페이더 CC7 이 언제 얼마나 나올지 그림)');
     L.push('   자연음 1 물 (Nature Bed, 바다나 계곡): 0:00 띵샤와 함께 1초 만에 들어와 0:10 까지 작아짐, 1:00~1:20 제 크기(-18dB)로 올라와 10:00 까지 숨 따라 3dB, 10:00~13:00 빠짐 / 55:00~56:00 다시 제 크기, 65:00~66:00 빠짐');
@@ -38181,9 +38182,9 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
   function guide(B, txtS){ if(!window.__guideHTML) return null;
     const info={'Nature Bed':{ko:'자연음 1 물', qsRoot:'C3', qsWhere:'형이 녹음한 자연음 wav. 70분보다 짧으면 Mode Loop, 크로스페이드 길게'}, 'Breath Pad':{ko:'숨 패드', alt:PADS.slice(0,3)}, 'Floor Drone':{ko:'바닥 드론', alt:DRONES.slice(0,2)},
       'Handpan':{ko:'핸드팬'}, 'Handpan Tak':{ko:'핸드팬 탁'}, 'Yanggeum':{ko:'양금', lead:true}, 'Saenghwang':{ko:'생황'}, 'Kalimba':{ko:'칼림바'}, 'Celesta':{ko:'첼레스타'}, 'Piano melody':{ko:'피아노'}, 'Bass':{ko:'베이스'},
-      'Singing Bowl':{ko:'싱잉볼'}, 'Tingsha signal':{ko:'띵샤 (동작 전환)'}, 'Cosmos Pad':{ko:'우주 울림'}, 'Flip Pad':{ko:'뒤집힌 울림'}, 'Gayageum':{ko:'가야금'}, 'Banghyang':{ko:'방향'}, 'Gayageum Solo':{ko:'가야금 연주곡'}};
+      'Singing Bowl':{ko:'싱잉볼'}, 'Tingsha signal':{ko:'편종 (0:00 시작)'}, 'Pyeongyeong signal':{ko:'편경 (넘김, 동작 전환, 마침)'}, 'Cosmos Pad':{ko:'우주 울림'}, 'Flip Pad':{ko:'뒤집힌 울림'}, 'Gayageum':{ko:'가야금'}, 'Banghyang':{ko:'방향'}, 'Gayageum Solo':{ko:'가야금 연주곡'}};
     let book=null; try{ if(window.__WAMB && window.__WAMB.guideKit){ const kit=window.__WAMB.guideKit('deep', {flips:B.efx.flip.filter(function(F){ return F.bus; }).map(function(F){ return F.w; }), dip:'6~8', flip:[3866,3874,3892,3904], flipSends:['숨 패드','양금 자리 선율(양금 생황 칼림바 첼레스타)','피아노','베이스','싱잉볼'], nat:'숲이나 바다', dur:'70분', scope:'웰니스 앰비언트(명상 앱 호흡 앰비언트)와 같은 패치, 음색 중후', midiFx:{cos:B.efx.cos.map(function(W){ return W.pts.map(function(x){ return x[0]; }); }), flips:B.efx.flip.map(function(F){ return F.w; }), dip:'2~8', freeze:null, echo:false}, cosSends:['숨 패드','바닥 드론','양금 자리 선율','피아노','싱잉볼']});
-        book=Object.assign({}, kit.K, {noPt:true, onlyUsed:true, busFx:true, muffle:{wins:B.efx.muf, cue:['본동작 띵샤','사바사나 싱잉볼','피아노 회상 첫 음']}, amt:B.efx.amt});   /* ★ 2026-10-23 형: 이 곡에 없는 트랙의 패치는 안 보이게 */ Object.keys(kit.info).forEach(function(r){ info[r]=Object.assign({}, info[r]||{}, kit.info[r]); });
+        book=Object.assign({}, kit.K, {noPt:true, onlyUsed:true, busFx:true, muffle:{wins:B.efx.muf, cue:['본동작 편경','사바사나 싱잉볼','피아노 회상 첫 음']}, amt:B.efx.amt});   /* ★ 2026-10-23 형: 이 곡에 없는 트랙의 패치는 안 보이게 */ Object.keys(kit.info).forEach(function(r){ info[r]=Object.assign({}, info[r]||{}, kit.info[r]); });
         info['Nature Bed']=Object.assign({}, info['Nature Bed'], {ko:'자연음 1 물'});
         [['Nature Wind','자연음 2 바람','형이 녹음한 바람 wav. 70분보다 짧으면 Mode Loop, 크로스페이드 길게'],['Nature Forest','자연음 3 숲','형이 녹음한 숲(새소리) wav. 70분보다 짧으면 Mode Loop, 크로스페이드 길게']].forEach(function(x){ info[x[0]]=Object.assign({}, info['Nature Bed'], {ko:x[1], qsWhere:x[2]}); });   /* ★ 자연음 2 3 은 자연음 1 과 같은 패치(같은 Quick Sampler 설정, 소리만 다름) */
         const r10=window.__WAMB.BOOK.tones.mid.rows.find(function(r){ return r.n==='10'; }); if(r10) info['Tingsha signal']=Object.assign({}, info['Tingsha signal']||{}, {eq:r10.eq.map(function(e){ return Object.assign({},e); }), eqExact:true, spread:r10.spread, space:r10.space, air:r10.air, patchName:'SO 적당 10 띵샤 신호'}); } }catch(e){ book=null; }   /* 띵샤만 편종 줄(음색 적당 10) */
@@ -42611,7 +42612,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
   /* ★ 2026-10-26 형: 핸드팬 포인트 악기가 배경에 묻힘, 배경음이 큼 → 악기 특성대로. 길게 깔리는 배경(숨 패드 드론 바닥 드론 자연음 자연음 패드 배음 드론 우주 울림 뒤집힌 울림 거꾸로 오는 소리)만 6dB 내림.
      울리고 사라지는 포인트(핸드팬 양금 피아노 칼림바 첼레스타 생황 국악기)와 신호(띵샤 싱잉볼)는 그대로라 배경보다 6dB 앞으로 나옴 */
   const MIX={pad:{vol:36,pan:64,rev:80,ch:0,prog:89}, drone:{vol:34,pan:64,rev:40,ch:1,prog:42}, hp:{vol:84,pan:40,rev:70,ch:2,prog:114}, yg:{vol:50,pan:104,rev:84,ch:3,prog:15},
-    pn:{vol:59,pan:24,rev:90,ch:4,prog:0}, ting:{vol:84,pan:72,rev:110,ch:5,prog:112}, bowl:{vol:70,pan:70,rev:90,ch:6,prog:112}, floor:{vol:42,pan:64,rev:50,ch:7,prog:89}, nature:{vol:42,pan:64,rev:20,ch:8,prog:122},
+    pn:{vol:59,pan:24,rev:90,ch:4,prog:0}, ting:{vol:84,pan:72,rev:110,ch:5,prog:112}, pg:{vol:84,pan:56,rev:110,ch:14,prog:112}, bowl:{vol:70,pan:70,rev:90,ch:6,prog:112}, floor:{vol:42,pan:64,rev:50,ch:7,prog:89}, nature:{vol:42,pan:64,rev:20,ch:8,prog:122},
     pm:{vol:78,pan:56,rev:76,ch:10,prog:0}, tak:{vol:66,pan:40,rev:60,ch:11,prog:114}, spark:{vol:46,pan:64,rev:100,ch:12,prog:14}, sg:{vol:44,pan:104,rev:84,ch:13,prog:21}, kl:{vol:54,pan:104,rev:84,ch:14,prog:108}, ce:{vol:48,pan:104,rev:84,ch:15,prog:8},
     /* ★ 2026-10-21 형: 앰비언트 소리 아이디어 다섯(맥놀이는 뺌). 채널은 쓰는 트랙끼리 겹치지 않게 그때그때 나눔 */
     npad:{vol:42,pan:64,rev:90,ch:2,prog:95}, otone:{vol:35,pan:64,rev:100,ch:2,prog:80}, chime:{vol:46,pan:64,rev:100,ch:11,prog:14}, phase:{vol:56,pan:80,rev:90,ch:4,prog:4}, rev:{vol:38,pan:50,rev:100,ch:5,prog:91},
@@ -43060,8 +43061,11 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       if(!hit(h.midi)) continue; const cp=chordPcs(h.t), c=hpSet.filter(function(n){ return cp.has(mod(n)) && !hit(n); }); if(c.length) h.midi=nearestIn(c,h.midi); else handpan.splice(i,1); }
     /* ⑦ 띵샤(감상만), 싱잉볼(드론), 별빛 종(우주) */
     const tingNote=(function(){ let n=36+mod(tonic-36); if(n>43) n-=12; n+=(TN.ting||0); if(tone==='mid' && n<48) n+=12; return n; })();
+    const pg=[]; const pgNote=fold(tonic,48,63);   /* ★ 2026-11-09 형 금성옥진(명상 계열 전부): 시작은 띵샤 자리 종, 넘김과 마침은 편경. 마침은 편경 세 번 내려옴 */
     const ting=[]; if(o.day){ ting.push({t:0, midi:(o.day.C&&o.day.C.sigKey==='pg')?fold(tonic,60,71):fold(tonic,48,59), vel:84, decay:9, what:'hour'}); }   /* ★ 하루 9시간: 정시마다 편종 한 번(그 시간 으뜸음). 바운스 편집점 */
-    else if(o.use==='listen'){ const put=function(t,what){ ting.push({t:t, midi:tingNote, vel:what==='stay'||what==='intro'?70:64, decay:6, what:what}); };
+    else if(o.use==='listen'){ const put=function(t,what){ if(what==='intro'){ ting.push({t:t, midi:tingNote, vel:70, decay:6, what:what}); return; }
+        if(what==='fade'){ [0,1,2].forEach(function(k){ pg.push({t:t-6+k*4, midi:fold(pgNote+[0,-2,-5][k],48,63), vel:76-5*k, decay:6, what:'end'}); }); return; }
+        pg.push({t:t, midi:pgNote, vel:what==='stay'?70:64, decay:6, what:what}); };
       if(PLN.kind==='short'){ put(10,'intro'); put(L-20,'fade'); }
       else { put(10,'intro'); put(60,'stay'); PLN.bounds.forEach(function(x){ put(x,'bridge'); }); put(L-60,'settle'); put(L-10,'fade'); } }
     const bowl=[]; if(o.use==='exhibit') PLN.flips.forEach(function(W){ bowl.push({t:W[0], midi:fold(tonic,48,59), vel:74, dur:16}); bowl.push({t:W[2], midi:fold(tonic+7,48,62), vel:60, dur:14}); });
@@ -43242,7 +43246,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     if(o.day && PLN.piece){ const a=PLN.piece[0]-3, z=PLN.piece[1]+3; restIn(a,z); [handpan,tak].forEach(function(Lx){ for(let i=Lx.length-1;i>=0;i--){ if(Lx[i].t>=a && Lx[i].t<z) Lx.splice(i,1); } }); }
     handpan.sort(function(a2,z){ return a2.t-z.t; }); tak.sort(function(a2,z){ return a2.t-z.t; });
     /* 별빛 종(우주): 높은 자리에서 드문드문, 우주 효과가 열린 동안 조금 더 자주 */
-    if(PLN.freeze){ const Z=PLN.freeze; [yg,SG,KL,CE,GY,GM,pn,pm].forEach(function(Lx){ for(let i=Lx.length-1;i>=0;i--){ const n=Lx[i]; if(n.t>=Z[0]-0.3 && n.t<Z[1]) Lx.splice(i,1); } }); if(!o.day){ ting.push({t:Z[1], midi:tingNote, vel:62, decay:6, what:'freeze'}); ting.sort(function(a,z){ return a.t-z.t; }); } }
+    if(PLN.freeze){ const Z=PLN.freeze; [yg,SG,KL,CE,GY,GM,pn,pm].forEach(function(Lx){ for(let i=Lx.length-1;i>=0;i--){ const n=Lx[i]; if(n.t>=Z[0]-0.3 && n.t<Z[1]) Lx.splice(i,1); } }); if(!o.day){ pg.push({t:Z[1], midi:pgNote, vel:62, decay:6, what:'freeze'}); pg.sort(function(a,z){ return a.t-z.t; }); } }
     if(isLoop(o)) pn.length=0;   /* 전시와 프로그램 배경은 피아노 캐논 대신 엇갈리는 반복 */
     /* ★ 2026-10-21 형: 앰비언트 소리 아이디어. 자연음 패드(드론), 배음 드론(우주), 풍경(드론), 엇갈리는 반복(전시), 거꾸로 오는 소리(핸드팬) */
     const melAll=[].concat(yg,pn,pm,GY,GM);
@@ -43374,7 +43378,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     if(o.day){ [yg,SG,CE,GY,GM,handpan,hpe,tak].forEach(function(Lx){ Lx.forEach(function(n){ n.vel=Math.max(20,Math.round(n.vel*0.82)); }); }); }   /* ★ 하루 9시간: 포인트는 뒤에서(세기 0.82배, CC7 -3dB, 잔향 +20) */
     function chordsAt(t){ const s=slotAt(t); const c=chords.find(function(x){ return Math.abs(x.t-s.t)<1e-6; }); return c?c.notes:[]; }
     return {o:o, S:S, PLN:PLN, P:P, palK:palK, tonic:tonic, tone:tone, TN:TN, SC:SC, N:N, L:L, slots:slots, chords:chords, phase:phase, dr:dr, floorNotes:floorNotes, tingNote:tingNote,
-      ev:{handpan:handpan, tak:tak, yg:yg, sg:SG, kl:KL, ce:CE, pn:pn, pm:pm, ting:ting, bowl:bowl, spark:spark, npad:npad, otone:otone, chime:chime, phase:phz, rev:revs, cosl:cosl, flipl:flipl, hpe:hpe, gy:GY, gm:GM, ps:ps, hs:hs, heart:heartOf(PLN.muf, tonic)}, hpSet:hpSet, bars:bars, barSec:barSec}; }
+      ev:{handpan:handpan, tak:tak, yg:yg, sg:SG, kl:KL, ce:CE, pn:pn, pm:pm, ting:ting, pg:pg, bowl:bowl, spark:spark, npad:npad, otone:otone, chime:chime, phase:phz, rev:revs, cosl:cosl, flipl:flipl, hpe:hpe, gy:GY, gm:GM, ps:ps, hs:hs, heart:heartOf(PLN.muf, tonic)}, hpSet:hpSet, bars:bars, barSec:barSec}; }
 
   /* ★ 2026-10-21 형: 효과가 처음과 끝에만 나오고 세 세부 장르가 같은 뼈대 → 세부 장르마다 주인공을 정한 구조(창은 [열기 시작, 다 열림, 닫기 시작, 다 닫힘] 초, 시작은 마디 첫 박).
      우주 = 궤도: 2분 30초~3분 30초마다 이륙 20초, 유영 40~60초(선율 쉼, 우주가 솔로), 귀환 20초. 세 바퀴째마다 블랙홀(짧고 깊은 뒤집힌 세계 32초). 가장 깊은 편 유영에서 멈춘 시간.
@@ -43538,7 +43542,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       npad:'자연음 패드. 같은 '+NATN[TH.nat]+' wav 를 Sample Alchemy 그래뉼러에 넣고 화음음 두세 개가 화음마다 길게. CC11 이 숨 따라 70~110'}:{};
     /* 채널: 이 곡에 있는 트랙끼리 겹치지 않게(드럼 채널 10 은 안 씀). 먼저 MIX 의 제 채널, 겹치면 빈 채널 */
     const CHO={}; { const used=new Set([9]); const has=function(k){ if(['pad','drone','floor','nature'].indexOf(k)>=0) return true; const L2=pc.ev[k==='hp'?'handpan':k]; return !!(L2&&L2.length); };
-      const order=['pad','drone','floor','nature','hp','tak','yg','sg','kl','ce','pn','pm','spark','bowl','ting','npad','otone','chime','phase','rev','cosl','flipl','hpe','gy','gm','heart','ps','hs'].filter(has);
+      const order=['pad','drone','floor','nature','hp','tak','yg','sg','kl','ce','pn','pm','spark','bowl','ting','pg','npad','otone','chime','phase','rev','cosl','flipl','hpe','gy','gm','heart','ps','hs'].filter(has);
       order.forEach(function(k){ const want=MIX[k].ch; if(!used.has(want)){ CHO[k]=want; used.add(want); } });
       order.forEach(function(k){ if(CHO[k]!=null) return; for(let c=0;c<16;c++){ if(!used.has(c)){ CHO[k]=c; used.add(c); return; } } CHO[k]=MIX[k].ch; }); }
     const chOf=function(k){ return CHO[k]!=null?CHO[k]:MIX[k].ch; };
@@ -43671,6 +43675,9 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     /* 띵샤 */
     if(pc.ev.ting.length){ const ch=chOf('ting'), ev=head('ting','띵샤 신호. '+pc.ev.ting.map(function(x){ return amm(x.t); }).join(', ')+' 그 시각에 한 번. 으뜸음 '+mname(pc.tingNote));
       pc.ev.ting.forEach(function(x){ ev.push(on(ch,tk(x.t),x.midi,x.vel)); ev.push(off(ch,tk(x.t+Math.min(x.decay,Math.max(2,pc.SC.d[0]*2))),x.midi)); });
+      emit(ev); }
+    if(pc.ev.pg && pc.ev.pg.length){ const ch=chOf('pg'), ev=head('pg','편경 신호(금성옥진: 시작은 종, 넘김과 마침은 경). '+pc.ev.pg.map(function(x){ return amm(x.t); }).join(', ')+' 그 시각에 한 번, 끝은 세 번 내려옴');
+      pc.ev.pg.forEach(function(x){ ev.push(on(ch,tk(x.t),x.midi,x.vel)); ev.push(off(ch,tk(x.t+Math.min(x.decay,Math.max(2,pc.SC.d[0]*2))),x.midi)); });
       emit(ev); }
     pc.phase=ph0;
     if(RAW) return {raw:RAW, END:END, F:F, preSec:PREB*240/bars[0].bpm, TAIL:TAIL, chOf:chOf};
@@ -43837,6 +43844,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     if(key==='floor'){ const r=row('04'); return Object.assign({},REC.floor,{name:r.inst}); }
     if(key==='ting' && pc.o.day && pc.o.day.C && pc.o.day.C.sigKey==='pg') return {name:'DecentSampler > Pyeongyeong', alt:['DecentSampler > Pyeonjong'], role:'Pyeongyeong signal', ko:'편경 (20분마다)', why:'20분마다 그 편 으뜸음 편경 한 번. 자연음 바탕 포인트가 바뀌는 신호이자 편집점'};
     if(key==='ting' && pc.o.day){ const r=BOOK.tones.mid.rows.find(function(r2){ return r2.n==='10'; }); return Object.assign({},REC.ting,{name:r.inst, alt:[], ko:'편종 (정시)', why:'정시마다 그 시간 으뜸음 편종 한 번. 바운스 편집점(한 시간 파일이 편종으로 시작)'}); }
+    if(key==='pg') return {name:'DecentSampler > Pyeongyeong', alt:[], role:'Pyeongyeong signal', ko:'편경 (넘김과 마침)', why:'금성옥진: 시작은 종(띵샤 자리), 구간이 넘어갈 때와 마칠 때는 편경. 마침은 세 번 내려옴'};
     if(key==='ting'){ const r=row('10'); return Object.assign({},REC.ting,{name:r.inst, alt:['Synthesizer/Bell/Cathedral Bells','DecentSampler > Pyeonjong','Synthesizer/Bell/Shimmering Star Chimes'].filter(function(x){ return x!==r.inst; })}); }
     return REC[key]; }
 
@@ -43880,7 +43888,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     if(PLN.hpOrd && PLN.hpOrd.length){ Lx.push(''); Lx.push('■ 핸드팬 손 연주 꼴 (마커 * Handpan)'); for(let i=0;i<PLN.hpOrd.length;i+=5) Lx.push('   '+PLN.hpOrd.slice(i,i+5).map(function(x){ return amm(x[0])+' '+x[1]; }).join(', ')); }
     Lx.push('');
     Lx.push('■ 트랙 (로직에서 파일 > 열기, 영어 화면 File > Open, 1번은 Conductor)');
-    const keys=['pad','drone','floor','nature','hp','tak','hpe','yg','sg','kl','ce','gy','gm','pn','pm','spark','bowl','npad','otone','chime','phase','rev','cosl','flipl','ting'];
+    const keys=['pad','drone','floor','nature','hp','tak','hpe','yg','sg','kl','ce','gy','gm','pn','pm','spark','bowl','npad','otone','chime','phase','rev','cosl','flipl','ting','pg'];
     let n=2; const keysOn=keys.filter(function(k){ return !(['pad','drone','floor','nature'].indexOf(k)<0 && !(pc.ev[k==='hp'?'handpan':k]||[]).length); });
     (window.__trackSort?window.__trackSort(keysOn,function(k){ const R=recFor(k,pc); return R.name+' | '+R.role; }):keysOn).forEach(function(k){ const R=recFor(k,pc);   /* ★ 2026-10-23 MIDI 와 같은 순서 */
       Lx.push('▸ 트랙 '+(n++)+'. '+R.ko+'  ('+R.role+')'); Lx.push('   추천 음원 : '+R.name); if(R.alt&&R.alt.length) Lx.push('   다른 후보 : '+R.alt.join(', ')); if(R.why) Lx.push('   고른 이유 : '+R.why); });
@@ -43952,7 +43960,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     /* ★ 2026-10-24 형: 웰니스 앰비언트도 버스로(우주 울림 뒤집힌 울림 MIDI 트랙 + Bus 3 Cosmos Bus 4 Flip 오토메이션 + 먹먹한 침묵). 효과 세기만큼 Aux 가 크게 열림 */
     K.busFx=!SLP; K.amt=SLP?null:AMT.n; if(SLP){ K.noPt=true; K.allOn=true; } if(K.flip) K.flip.lvl=Math.min(6,(K.flip.lvl||0)+AMT.flipBus);
     K.muffle=(PLN.muf&&PLN.muf.length)?{wins:PLN.muf, cue:PLN.muf.map(function(){ return '편이 바뀌는 띵샤'; })}:null;
-    ['pad','drone','floor','nature','hp','tak','hpe','yg','sg','kl','ce','gy','gm','pn','pm','spark','bowl','npad','otone','chime','phase','rev','cosl','flipl','ting'].forEach(function(k){ const R=recFor(k,pc); if(!R) return; const I=info[R.role]=info[R.role]||{}; I.ko=I.ko||R.ko; I.alt=(R.alt||[]).filter(function(a){ return !/^(Sampler \(|오디오 트랙)/.test(a); }); });
+    ['pad','drone','floor','nature','hp','tak','hpe','yg','sg','kl','ce','gy','gm','pn','pm','spark','bowl','npad','otone','chime','phase','rev','cosl','flipl','ting','pg'].forEach(function(k){ const R=recFor(k,pc); if(!R) return; const I=info[R.role]=info[R.role]||{}; I.ko=I.ko||R.ko; I.alt=(R.alt||[]).filter(function(a){ return !/^(Sampler \(|오디오 트랙)/.test(a); }); });
     if(info['Yanggeum']) info['Yanggeum'].lead=true;
     if(info['Low Drone'] && (tone==='light'||tone==='bright')) info['Low Drone'].ko='숨 쉬는 드론';
     const prep=['자연음 녹음 파일: '+FM.B(SLP?'형 녹음 '+NATN[SLP.nat]:pc.S.nat)+', '+FM.B(o.min+'분 넘게')+' '+FM.G(SLP?'(짧으면 이어 붙여 60분을 채움. 자연음 트랙과 자연음 패드에 같은 파일)':'(없으면 자연음 트랙은 비워 둠)')];
@@ -44159,6 +44167,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     pc.ev.bowl.forEach(function(n){ add(n.t,function(T){ voice.bell(T,n.midi,0.07*n.vel/64,n.dur,0.1,[[1,1],[1.003,0.8],[2.71,0.3],[5.1,0.1]]); }); });
     (pc.ev.heart||[]).forEach(function(n){ add(n.t,function(T){ voice.bell(T,n.midi,0.16*n.vel/64,0.45,0,[[1,1],[2,0.1]]); }); });   /* ★ 2026-10-26 심장 고동 미리듣기(낮은 둥) */
     pc.ev.ting.forEach(function(x){ add(x.t,function(T){ voice.bell(T,Math.min(x.midi+24,100),0.08,6,0.3,[[1,1],[1.007,0.9],[2.4,0.3]]); }); });
+    (pc.ev.pg||[]).forEach(function(x){ add(x.t,function(T){ voice.bell(T,Math.min(x.midi+24,100),0.08,4,0.3,[[1,1],[2.76,0.35],[5.4,0.12]]); }); });
     ev.sort(function(a,b){ return a[0]-b[0]; }); let i=0; while(i<ev.length && ev[i][0]<(from||0)-0.01) i++;
     const pump=function(){ if(!PV || PV.stop) return; const now=ac.currentTime-t0; while(i<ev.length && ev[i][0]<now+3){ const T=Math.max(ac.currentTime+0.02,t0+ev[i][0]); try{ ev[i][1](T); }catch(e){} i++; } if(i<ev.length || now<pc.L+8) setTimeout(pump,500); else stopPreview(); };
     pump(); }
@@ -44388,10 +44397,10 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       ['jukbi',['Drums & Percussion/Percussion/Claps & Snaps Performance'],'Jukbi (죽비 대체)','signal',0,[39,39]],
       ['moktak',['Drums & Percussion/Percussion/Blocks & Bells Performance'],'Moktak (목탁 대체)','signal',0,[77,77]],
       ['bowl',['World/Percussion/Tibetan Singing Bowls','Synthesizer/Soundscape/Ancient Singing Bowl'],'Singing Bowl','signal',0,[48,72]],
-      ['pyeonjong',['DecentSampler > Pyeonjong'],'Pyeonjong (편종)','signal',1,[60,79]],
+      ['pyeonjong',['DecentSampler > Pyeonjong'],'Pyeonjong (편종, 시작)','signal',1,[60,79]],
       ['beomjong',['Synthesizer/Bells/Cathedral Bells'],'Beomjong (범종 대체, 두 옥타브 아래)','signal',0,[33,48]],
       ['punggyeong',['Synthesizer/Bell/Suspended Bells'],'Wind Bell (풍경 대체)','signal',0,[79,96]],
-      ['pyeongyeong',['DecentSampler > Pyeongyeong'],'Pyeongyeong (편경)','point',1,[60,79]],
+      ['pyeongyeong',['DecentSampler > Pyeongyeong'],'Pyeongyeong (편경, 장면 넘김과 마침)','point',1,[60,79]],
       ['yanggeum',['DecentSampler > Yanggeum'],'Yanggeum (양금 가락)','point',1,[55,81]],
       ['saengpt',['DecentSampler > Saenghwang'],'Saenghwang (생황 가락)','point',1,[69,92]],
       ['geomungo',['DecentSampler > Geomungo'],'Geomungo (거문고 가락)','point',1,[39,67]],
@@ -44409,7 +44418,8 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       ['n_near',['Quick Sampler'],'Nature 7 Near Breath (숨소리 가까이)','nature',0,null]],
     lounge:[
       ['bowl',['World/Percussion/Tibetan Singing Bowls','Synthesizer/Soundscape/Ancient Singing Bowl','Synthesizer/Soundscape/Metallic Memories Bowl'],'Singing Bowl','signal',0,[48,72]],
-      ['pyeonjong',['DecentSampler > Pyeonjong'],'Pyeonjong (편종, 시작과 장면 넘김)','signal',1,[60,79]],   /* ★ 2026-11-07 형: 장면 넘어갈 때 편종 */
+      ['pyeonjong',['DecentSampler > Pyeonjong'],'Pyeonjong (편종, 시작)','signal',1,[60,79]],
+      ['pyeongyeong',['DecentSampler > Pyeongyeong'],'Pyeongyeong (편경, 장면 넘김과 마침)','signal',1,[60,79]],   /* ★ 2026-11-09 형 "싱잉볼보다 편경이 낫지 않아? 편종을 띵샤로 쓰잖아": 마침 신호 */   /* ★ 2026-11-07 형: 장면 넘어갈 때 편종 */
       ['hp',['Kontakt > Pan Drums II/Hang Mk 1 (Centre)'],'Handpan','point',0,[57,84]],
       ['hpe',['Kontakt > Pan Drums II/Hang Mk 1 (Edge)'],'Handpan Edge','point',0,[57,84]],
       ['rain',['Synthesizer/Plucked/Water Droplet Plucks','Synthesizer/Plucked/Rain Harp'],'Raindrop Pluck','point',0,[55,84]],
@@ -44598,7 +44608,13 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     const fillOf=function(sc){ const c=CL[sc.clip]||null; const f={}; if(C1) f['[장소]']=C1.place; if(c){ f['[장소에서 보이는 것]']={s:c.see, n:c.title}; f['[장소에서 들리는 것]']=c.hear; }   /* 문장 자리에는 보이는 모습, '을 바라보세요' 앞에는 영상 제목 */ return Object.assign(f, userFill); };   /* ★ 2026-11-06 영상에서 기본값, 앱 칸에 적은 말이 먼저 */
     P.forEach(function(sc){ const mode=sc.rep?'cue':sc.voice; sc.pj=P.indexOf(sc)===0 || !(sleep && sc.muff>=1);   /* ★ 2026-11-08 밤 형 "시작 때 편종, 시작을 알리는 중요한 것": 첫 장면 첫 박도 편종(여는 소리와 멘트 4초 뒤) */ const V=voiceOf(sc.S, mode, course, fillOf(sc), sc.b-sc.a, sc.last, sc.breath, sc.pj);
       V.lines.forEach(function(l){ VO.push(Object.assign({}, l, {scene:sc.mk, sid:sc.id, abs:sc.a+l.at, absEnd:sc.a+l.end})); });
-      V.sigs.forEach(function(s){ SIG.push({at:sc.a+s.at, key:s.key, n:s.n, scene:sc.mk}); }); sc.V=V; });
+      /* ★ 2026-11-09 형 "다른 빠진 건 없지?": 집중 30분 40분은 마지막 줄을 끝 1분 앞까지 늘이면서 마치는 싱잉볼 세 번이 곡 끝(LEN) 뒤로 밀려 빠졌음(라운지 북해도 제주 여섯 곡). 신호가 장면 끝을 넘으면 장면 안으로 당김(마지막 소리가 울릴 6초는 남김) */
+      const SGAP={jukbi:1.0, moktak:1.0, bowl:6.5, pyeonjong:4, beomjong:8, punggyeong:0.4, hp:2, pyeongyeong:4.5};
+      /* ★ 2026-11-09 형 금성옥진: 편종은 곡 시작에만, 장면 안과 넘김 신호의 편종은 편경, 마지막 장면의 마지막 신호(싱잉볼 세 번, 죽비)는 편경 세 번으로 닫음 */
+      const lastIx=(sc.last && !sleep && V.sigs.length)?V.sigs.reduce(function(m,q,ix,arr){ return q.at>=arr[m].at?ix:m; },0):-1;
+      V.sigs.forEach(function(s0,ix){ let s=s0; if(TR.pyeongyeong){ if(ix===lastIx) s=Object.assign({}, s0, {key:'pyeongyeong', n:3}); else if(s0.key==='pyeonjong') s=Object.assign({}, s0, {key:'pyeongyeong'}); } let at=sc.a+s.at; const need=(s.n-1)*(SGAP[s.key]||2)+6; const lim=Math.min(sc.b, LEN)-need; if(at>lim) at=Math.max(sc.a, lim); SIG.push({at:at, raw:sc.a+s.at, key:s.key, n:s.n, scene:sc.mk}); }); sc.V=V; });
+    /* ★ 2026-11-09 형 "수면도 마치는 신호는 줘야 깨지": 수면 코스 끝 19초 앞에 싱잉볼 세 번(끝 3분 페이드와 먹먹함에서 빼서 또렷하게). 그 전(11-06 설계)은 신호 없이 음악만 사라짐 */
+    const WAKE=sleep?LEN-19:null; const WK=TR.pyeongyeong?'pyeongyeong':'bowl'; if(WAKE!=null && TR[WK]) SIG.push({at:WAKE, raw:WAKE, key:WK, n:3, scene:P[P.length-1].mk, wake:true});
     /* ★ 2026-11-07 형: 숨 스웰을 멘트에 맞춤. 멘트 동안은 숨 곡선이 낮게 머물고(날숨 끝), 멘트가 끝나고 0.6초 뒤 들숨부터.
        들숨 날숨 장면은 멘트 사이를 온 숨으로 채우고 남는 시간은 날숨을 늘려(25%까지) 메움. 자연 호흡 장면은 숨 안내 멘트 뒤에만 이끄는 숨 두 번(깊게 세 번 장면은 한 번, 들숨 4초 날숨 8초).
        숨 세기 줄은 첫 묶음 동안 들숨, 다음 묶음 동안 날숨 */
@@ -44632,15 +44648,16 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     const exStarts=function(a0,b0){ return BT.filter(function(x){ return x.k==='out' && x.a>=a0 && x.a<b0; }).map(function(x){ return x.a; }); };
     /* 소리 신호 */
     const sigNote=function(key, at, n){ const T=TR[key]; if(!T){ return; }
-      for(let k=0;k<n;k++){ const t=at+k*({jukbi:1.0, moktak:1.0, bowl:6.5, pyeonjong:4, beomjong:8, punggyeong:0.4, hp:2})[key];
+      for(let k=0;k<n;k++){ const t=at+k*({jukbi:1.0, moktak:1.0, bowl:6.5, pyeonjong:4, beomjong:8, punggyeong:0.4, hp:2, pyeongyeong:4.5})[key];
         if(key==='jukbi') N('jukbi', t, 39, 0.3, 96); else if(key==='moktak') N('moktak', t, 77, 0.3, 80);
         else if(key==='bowl') N('bowl', t, near(pool(T.rng[0],T.rng[1]), 60+((k*5)%7)), 12, 74-6*k);
         else if(key==='pyeonjong') N('pyeonjong', t, near(pool(60,79), 67+k*2), 8, 70);
         else if(key==='beomjong') N('beomjong', t, near(pool(33,48), 38), 14, 72);
         else if(key==='punggyeong'){ const pl=pool(79,96); for(let j=0;j<3;j++) N('punggyeong', t+j*0.35*(0.7+0.6*rnd()), pick(pl), 3, 46+12*rnd()); }
-        else if(key==='hp' && TR.hp) N('hp', t, near(pool(57,84), 65), 4, 66); } };
-    SIG.forEach(function(s){ sigNote(s.key, s.at, s.n); });
-    P.forEach(function(sc,si){ if(sc.pj && TR.pyeonjong) N('pyeonjong', sc.a, near(pool(60,79), 67), 8, si===0?(sleep?60:74):(sleep?52:68)); });   /* 첫 장면은 시작 알림이라 조금 더 또렷하게 */   /* ★ 2026-11-07: 장면 넘김 편종 한 번(수면은 작게, 먹먹한 장면으로 넘어갈 때는 없음) */
+        else if(key==='hp' && TR.hp) N('hp', t, near(pool(57,84), 65), 4, 66);
+        else if(key==='pyeongyeong'){ N('pyeongyeong', t, near(pool(48,63), 62-k*3), 6, 76-5*k); const q=T.notes[T.notes.length-1]; if(q) q.sig=true; } } };   /* 마침 편경 세 번: 높은 데서 한 걸음씩 내려옴 */
+    SIG.forEach(function(s){ sigNote(s.key, s.at, s.n); });   window.__smedSIG=SIG;   /* 검사용 */
+    P.forEach(function(sc,si){ if(!sc.pj) return; if(si===0){ if(TR.pyeonjong) N('pyeonjong', sc.a, near(pool(60,79), 67), 8, sleep?60:74); } else if(TR.pyeongyeong){ N('pyeongyeong', sc.a, near(pool(48,63), 57), 6, sleep?54:70); const q=TR.pyeongyeong.notes[TR.pyeongyeong.notes.length-1]; if(q) q.sig=true; } else if(TR.pyeonjong) N('pyeonjong', sc.a, near(pool(60,79), 67), 8, sleep?52:68); });   /* ★ 2026-11-09 금성옥진: 시작 편종, 장면 넘김 편경 */   /* 첫 장면은 시작 알림이라 조금 더 또렷하게 */   /* ★ 2026-11-07: 장면 넘김 편종 한 번(수면은 작게, 먹먹한 장면으로 넘어갈 때는 없음) */
     /* 장면마다 소리 층 */
     const fadeAll=[];   /* 수면 끝 3분 */
     P.forEach(function(sc, si){ const a=sc.a, b=sc.b, L=b-a, id=sc.S.base||sc.id; REMAP=sc.S.remap||{}; CLIP=sc.clip; const A=si===0?0:a-XF, Bx=sc.last?b:b+13; const fi=si===0?6:25, fo=sc.last?(sleep?1:10):25;
@@ -44660,12 +44677,12 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
         else if(id==='S13'){ natural('n_wind', A, Bx, 0.6, fi, fo); SEG('swell', A, Bx, fi, fo, 0.55); bed('swell', A, Bx, 57, 42);
           let n=0; const t0=(sc.V.lines[1]?sc.V.lines[1].at+a:a+20); exStarts(t0, b-120).forEach(function(t){ n++; if(n<=10) N('moktak', t, 77, 0.3, 40); else if((n-10)%2===0) N('moktak', t, 77, 0.3, 25); }); }   /* ★ 2026-11-07: 목탁은 날숨 시작마다 */
         else if(id==='S14'){ natural('n_wind', A, Bx, 0.4, fi, fo); const mid=SIG.filter(function(s){ return s.scene===sc.mk; }).map(function(s){ return s.at; }); let lastBell=Math.max.apply(null, mid.concat([a]));
-          let k=0; for(let t=lastBell+90;t<b-25;t+=90){ sigNote(k%2?'pyeonjong':'beomjong', t, 1); k++; } }
+          let k=0; for(let t=lastBell+90;t<b-25;t+=90){ sigNote(k%2?'pyeongyeong':'beomjong', t, 1); k++; } }
         else if(id==='S4'){ SEG('n_near', A, a+180, fi, 60, 0.5); N('n_near', Math.max(0,A), 60, a+180-Math.max(0,A), 70); natural('n_place', a+60, Bx, 0.9, 120, fo);   /* ★ 2026-11-08 밤 형 "배경 영상이 있으니 자연음이 깔려야": 산사 바람과 장소 소리 대신 그 장면 영상 현장음 하나 */
           SEG('swell', A, Bx, fi, fo, 0.5); bed('swell', A, Bx, 57, 40); for(let t=a+180;t<b-20;t+=180) phrase('pyeongyeong', t, 1, 7, 50); }
         else if(id==='S6'){ natural('n_rain', A, Bx, 1, fi, fo); natural('n_stream', A, Bx, 0.5, fi, fo); SEG('ajaeng', A, Bx, fi, fo, 0.9); bed('ajaeng', A, Bx, 50, 44, 80); SEG('swell', A, Bx, fi, fo, 0.7); bed('swell', A, Bx, 55, 44); }
         else if(id==='S7'){ natural('n_insect', A, Bx, 0.9, fi, fo); natural('n_wind', A, Bx, 0.5, fi, fo); SEG('ajaeng', A, Bx, fi, fo, 0.8); bed('ajaeng', A, Bx, 49, 40, 90); SEG('swell', A, Bx, fi, fo, 0.45); bed('swell', A, Bx, 55, 38); }
-        else if(id==='S8'){ natural('n_bird', A, Bx, 0.8, fi, fo); natural('n_stream', A, Bx, 0.8, fi, fo); SEG('swell', A, Bx, fi, fo, 1); bed('swell', A, Bx, 60, 54, 30); [0,1,2].forEach(function(k){ N('pyeonjong', a+30+k*5, near(pool(60,79), 64+k*4), 6, 60); }); }
+        else if(id==='S8'){ natural('n_bird', A, Bx, 0.8, fi, fo); natural('n_stream', A, Bx, 0.8, fi, fo); SEG('swell', A, Bx, fi, fo, 1); bed('swell', A, Bx, 60, 54, 30); [0,1,2].forEach(function(k){ N('pyeongyeong', a+30+k*5, near(pool(48,63), 55+k*3), 6, 60); }); }
       } else {
         if(id==='L0'){ natural('n_place', A, Bx, 1, fi, fo); SEG('swell', a+30, Bx, 20, fo, 0.7); bed('swell', a+30, Bx, 62, 50); }
         else if(id==='L1'){ natural('n_wave', A, Bx, 1, fi, fo); SEG('swell', A, Bx, fi, fo, 1); bed('swell', A, Bx, 62, 54);  }
@@ -44825,7 +44842,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
             ph++; cell[ph%3]=tones[Math.floor(rnd()*tones.length)];   /* 구절마다 소리판 한 음씩 바뀜 */
             t+=bars*4+8+8*rnd(); } }); }); }
     /* ★ 2026-11-06 형: 멘트 동안 가락 빠짐. 핸드팬, 먼 종, 편경도 음성 1초 앞부터 끝까지 새로 치지 않음(장면 신호 한 음은 음성 앞이라 남음) */
-    ['hp','hpe','farbell','pyeongyeong'].forEach(function(k){ const T=TR[k]; if(!T) return; T.notes=T.notes.filter(function(n){ return !VO.some(function(v){ return n.a>v.abs-1 && n.a<v.absEnd+0.5; }); }); });
+    ['hp','hpe','farbell','pyeongyeong'].forEach(function(k){ const T=TR[k]; if(!T) return; T.notes=T.notes.filter(function(n){ return n.sig || !VO.some(function(v){ return n.a>v.abs-1 && n.a<v.absEnd+0.5; }); }); });
     /* 겹침 정리(같은 트랙 같은 음): 앞 음을 다음 음 앞에서 끊음 */
     order.forEach(function(k){ const T=TR[k]; T.notes.sort(function(x,y){ return x.a-y.a || x.m-y.m; }); const byM={}; T.notes.forEach(function(n){ const p=byM[n.m]; if(p && p.a+p.d>n.a-0.02) p.d=Math.max(0.05, n.a-p.a-0.02); byM[n.m]=n; }); });
     /* ===== 크기 흐름 =====
@@ -44835,7 +44852,8 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     /* ★ 2026-11-08 밤 형 "먹먹함은 전혀 티가 안 나". 그 전에는 마커와 Muffle 버스 High Cut 손 오토메이션뿐이라 MIDI 만 열면 소리 차이가 없었음.
        이제 MIDI 에서도: 먹먹 단계(0 맑음, 1 먹먹, 2 깊은 먹먹, 장면 경계 앞뒤 15초에 걸쳐)만큼 음성 밖 층을 멀리 보냄. 크기 곡선 먹먹 -4 dB, 깊은 먹먹 -8 dB,
        가락과 신호 음 세기 1단계마다 0.8배, 깊은 먹먹에서는 C6(84) 위 반짝이는 음 뺌. 진짜 고음 깎기는 그대로 Muffle 버스 High Cut */
-    const mufAt=function(t){ let m=P[0].muff||0; for(let i=1;i<P.length;i++){ const sc=P[i], pm=P[i-1].muff||0, cm=sc.muff||0; if(t<sc.a-15) break; m=(t>=sc.a+15)?cm:pm+(cm-pm)*(t-(sc.a-15))/30; } return m; };
+    const mufAt=function(t){ return mufAt0(t)*((WAKE!=null && t>LEN-50)?Math.max(0, 1-(t-(LEN-50))/25):1); };   /* 수면 끝: 깨우는 싱잉볼 앞 50~25초에 먹먹함 걷힘 */
+    const mufAt0=function(t){ let m=P[0].muff||0; for(let i=1;i<P.length;i++){ const sc=P[i], pm=P[i-1].muff||0, cm=sc.muff||0; if(t<sc.a-15) break; m=(t>=sc.a+15)?cm:pm+(cm-pm)*(t-(sc.a-15))/30; } return m; };
     const mufG=function(t){ return Math.pow(10, -4*mufAt(t)/20); };
     const duck=function(t){ let f=1; for(let i=0;i<vIv.length;i++){ const x=vIv[i]; if(t<x[0]-2 || t>x[1]+3) continue; let g; if(t<x[0]) g=(x[0]-t)/2; else if(t<=x[1]) g=0; else g=(t-x[1])/3; g=Math.max(0,Math.min(1,g)); const v=DUCK+(1-DUCK)*g; f=Math.min(f,v); } return f; };
     const endFade=function(t){ if(sleep){ const s=LEN-180; if(t<=s) return 1; return Math.max(0, 0.5+0.5*Math.cos(Math.PI*Math.min(1,(t-s)/180))); } const s=LEN-10; if(t<=s) return 1; return Math.max(0, 1-(t-s)/10); };
@@ -44865,6 +44883,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       if(sc.clip){ const c=(DATA.clips||{})[sc.clip]||{}; C0.push({t:tk(sc.a),o:6.2,b:meta(0x01, '* Video '+sc.clip+' '+(c.title||'')+(c.place?' ('+c.place+')':''))}); }
       const pm=si?P[si-1].muff:0; if(si===0 || pm!==sc.muff){ const st=si?Math.max(0,sc.a-15):0; C0.push({t:tk(st),o:6.5,b:meta(0x06, '* Muffle '+(si?MUFS[pm]+' > ':'')+MUFS[sc.muff]+(si?' (30s)':''))}); }
       const B=BRS[si]; C0.push({t:tk(sc.a),o:7,b:meta(0x01, '* Breath '+(B.kind==='cycle'?(B.i+'-'+B.e0+(B.e1!==B.e0?' > '+B.i+'-'+B.e1:'')+' s'):B.kind))}); });
+    if(WAKE!=null){ const lm=P[P.length-1].muff||0; if(lm) C0.push({t:tk(LEN-50),o:6.5,b:meta(0x06, '* Muffle '+MUFS[lm]+' > '+MUFS[0]+' (25s, wake)')}); C0.push({t:tk(WAKE),o:6.6,b:meta(0x06, '* Wake '+(WK==='pyeongyeong'?'pyeongyeong':'bowl')+' x3')}); }
     VO.forEach(function(v){ C0.push({t:tk(v.abs),o:8,b:meta(0x06, 'V '+v.scene+' '+String(v.no).padStart(2,'0'))}); });
     C0.push({t:tk(LEN),o:9,b:meta(0x06,'Fin '+len+':00')}); C0.push({t:END,o:9,b:meta(0x06,'<<< END')});
     const used=order.filter(function(k){ return TR[k].notes.length; });
@@ -44884,7 +44903,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       /* 크기 곡선 0.1초마다, 바뀔 때만 */
       let pv=-1; const first=T.notes.length?T.notes[0].a:0; const lastEnd=T.notes.reduce(function(a,n){ return Math.max(a, n.a+n.d); },0);
       const t0c=Math.max(0, first-3), t1c=Math.min(LEN+4, lastEnd+1);
-      for(let t=t0c;t<=t1c+1e-6;t+=0.1){ let f=pres(T,t)*duck(t)*endFade(t)*(T.layer==='voice'?1:mufG(t));
+      for(let t=t0c;t<=t1c+1e-6;t+=0.1){ const ef=(WAKE!=null && k===WK && t>LEN-30)?Math.max(endFade(t), Math.min(1,(t-(LEN-30))/6)):endFade(t); let f=pres(T,t)*duck(t)*ef*(T.layer==='voice'?1:mufG(t));
         let v;
         if(isNat){ let w=1; if((k==='n_wave' || k.indexOf('c_')===0) && waveBreath(t)) w=(60+40*breathAt(t))/100; v=Math.round(lv*f*w); }
         else if(swell){ v=Math.round(f*(60+40*breathAt(t))); }   /* 숨: CC11(디센트 생황은 CC1) 60 > 100 > 60 */
@@ -45024,6 +45043,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     const mixFx=function(at, F){ const Bb=F.B, Rr=F.R, G0=F.Gr; const HZ={0:'20000 Hz', 1:'1000 Hz', 2:'300 Hz'}, NM={0:'맑음', 1:'먹먹', 2:'깊은 먹먹'};
       const rows=[]; let pm=B.plan[0].muff||0; if(pm) rows.push([at(0), null, pm]);
       B.plan.forEach(function(sc,i){ if(!i) return; const cm=sc.muff||0; if(cm!==pm) rows.push([at(Math.max(0,sc.a-15)), at(sc.a+15), cm, pm, sc.ko]); pm=cm; });
+      if(B.course==='sleep'){ const lm=B.plan[B.plan.length-1].muff||0; if(lm) rows.push([at(B.len_sec-50), at(B.len_sec-25), 0, lm, '깨우는 싱잉볼 앞']); }
       if(!rows.length) return {title:'먹먹함 (Muffle 버스)', why:'이 곡은 먹먹한 장면이 없어 Muffle 버스를 만들지 않아도 됩니다.', steps:[]};
       return {title:'먹먹함 (Muffle 버스) <small class="g">음성 밖 소리가 물속처럼 멀어지는 자리</small>',
         why:'<div>MIDI 안에 이미 든 것: 먹먹 구간은 음성 밖 소리가 '+Bb('4 dB')+'(깊은 먹먹 '+Bb('8 dB')+') 작아지고, 가락과 신호 음이 여려지며, 깊은 먹먹은 높게 반짝이는 음이 빠짐.</div><div>물속 같은 소리는 고음을 깎아야 나서 아래처럼 '+Rr('Muffle 버스')+' 하나에 '+Bb('High Cut')+' 을 그림. 음성(AI Voice)은 버스 밖이라 또렷한 채로.</div>',
@@ -48675,7 +48695,7 @@ window.__ccTidy=function(u8){ try{
   const sec=function(tk){ let g=segs[0]; for(let k=0;k<segs.length;k++){ if(tk>=segs[k].t0) g=segs[k]; else break; } return g.s0+(tk-g.t0)*g.us/1e6/ppq; };
   const tick=function(sc){ let g=segs[0]; for(let k=0;k<segs.length;k++){ if(sc>=segs[k].s0-1e-9) g=segs[k]; else break; } return Math.max(0,Math.round(g.t0+(sc-g.s0)*1e6*ppq/g.us)); };
   const sm=function(x){ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); };
-  const PLUCK=/YangGeum|Yanggeum|양금|GaYaGeum|Gayageum|가야금|GeoMunGo|Geomungo|거문고|Harp|Piano|Keys|Rhodes|Celesta|Glock|Marimba|Vibra|Mallet|Bell|Kalimba|Guitar|Gtr|Picked|Nylon|Koto|Guzheng|Pipa|Santoor|Dulcimer|Handpan|Pan Drums|Hang|Tingsha|PyeonJong|Timpani|Clav|Pizz|Staccato|Spiccato|Electric Mint|Session Guitarist|Banghyang/i;
+  const PLUCK=/YangGeum|Yanggeum|양금|GaYaGeum|Gayageum|가야금|GeoMunGo|Geomungo|거문고|Harp|Piano|Keys|Rhodes|Celesta|Glock|Marimba|Vibra|Mallet|Bell|Kalimba|Guitar|Gtr|Picked|Nylon|Koto|Guzheng|Pipa|Santoor|Dulcimer|Handpan|Pan Drums|Hang|Tingsha|Bowl|PyeonJong|Timpani|Clav|Pizz|Staccato|Spiccato|Electric Mint|Session Guitarist|Banghyang/i;
   let changed=false; const rep={trimmed:0, ramps:0, tracks:0};
   chunks.forEach(function(c){ if(!c.ev) return;
     const nmE=c.ev.find(function(e){ return e.meta===0x03; }); let nm=''; try{ nm=nmE?new TextDecoder().decode(new Uint8Array(nmE.dat)):''; }catch(e){}
@@ -48688,7 +48708,7 @@ window.__ccTidy=function(u8){ try{
       c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0){ const k=e.d[0]; if(k===0||k===32||(k>=64&&k<=69)||k>=120) return; if(!seenC[k] || e.t<seenC[k].t) seenC[k]=e; } });
       Object.keys(seenC).forEach(function(k){ const f=seenC[k]; if(f.t>0 && sec(f.t)>notes[0].a+0.01){ c.ev.push({t:0, o:-3, s:0xB0|ch, d:[+k, f.d[1]]}); rep.head=(rep.head||0)+1; changed=true; } });
       return; }
-    const isPad=/Synthesizer\/(Pad|Soundscape)|Breath Pad/i.test(nm);
+    const isPad=/Synthesizer\/(Pad|Soundscape)|Breath Pad/i.test(nm) && !/Bowl/i.test(nm);   /* ★ 2026-11-09: Synthesizer/Soundscape 의 싱잉볼(Ancient Singing Bowl, Metallic Memories Bowl)은 치는 악기. 패드로 보면 들어오기가 0 에서 올라가 치는 소리가 죽음(사운드 명상 마치는 싱잉볼에서 찾음) */
     const pluck=!isPad && PLUCK.test(nm);
     let kind=null; try{ kind=window.__swellKind?window.__swellKind(nm):null; }catch(e){}
     const sust=!pluck && (isPad || kind==='bow' || kind==='wind' || kind==='pad' || /Drone|Strings|String|Violin|Viola|Cello|Contrabass|Choir|Horn|Brass|Flute|Clarinet|Oboe|Daegeum|Deageum|Saenghwang|Haegeum|Ajaeng|Organ/i.test(nm));
@@ -79296,7 +79316,7 @@ window.__ccTidy=function(u8){ try{
   const sec=function(tk){ let g=segs[0]; for(let k=0;k<segs.length;k++){ if(tk>=segs[k].t0) g=segs[k]; else break; } return g.s0+(tk-g.t0)*g.us/1e6/ppq; };
   const tick=function(sc){ let g=segs[0]; for(let k=0;k<segs.length;k++){ if(sc>=segs[k].s0-1e-9) g=segs[k]; else break; } return Math.max(0,Math.round(g.t0+(sc-g.s0)*1e6*ppq/g.us)); };
   const sm=function(x){ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); };
-  const PLUCK=/YangGeum|Yanggeum|양금|GaYaGeum|Gayageum|가야금|GeoMunGo|Geomungo|거문고|Harp|Piano|Keys|Rhodes|Celesta|Glock|Marimba|Vibra|Mallet|Bell|Kalimba|Guitar|Gtr|Picked|Nylon|Koto|Guzheng|Pipa|Santoor|Dulcimer|Handpan|Pan Drums|Hang|Tingsha|PyeonJong|Timpani|Clav|Pizz|Staccato|Spiccato|Electric Mint|Session Guitarist|Banghyang/i;
+  const PLUCK=/YangGeum|Yanggeum|양금|GaYaGeum|Gayageum|가야금|GeoMunGo|Geomungo|거문고|Harp|Piano|Keys|Rhodes|Celesta|Glock|Marimba|Vibra|Mallet|Bell|Kalimba|Guitar|Gtr|Picked|Nylon|Koto|Guzheng|Pipa|Santoor|Dulcimer|Handpan|Pan Drums|Hang|Tingsha|Bowl|PyeonJong|Timpani|Clav|Pizz|Staccato|Spiccato|Electric Mint|Session Guitarist|Banghyang/i;
   let changed=false; const rep={trimmed:0, ramps:0, tracks:0};
   chunks.forEach(function(c){ if(!c.ev) return;
     const nmE=c.ev.find(function(e){ return e.meta===0x03; }); let nm=''; try{ nm=nmE?new TextDecoder().decode(new Uint8Array(nmE.dat)):''; }catch(e){}
@@ -79309,7 +79329,7 @@ window.__ccTidy=function(u8){ try{
       c.ev.forEach(function(e){ if(e.s!=null && (e.s&0xF0)===0xB0){ const k=e.d[0]; if(k===0||k===32||(k>=64&&k<=69)||k>=120) return; if(!seenC[k] || e.t<seenC[k].t) seenC[k]=e; } });
       Object.keys(seenC).forEach(function(k){ const f=seenC[k]; if(f.t>0 && sec(f.t)>notes[0].a+0.01){ c.ev.push({t:0, o:-3, s:0xB0|ch, d:[+k, f.d[1]]}); rep.head=(rep.head||0)+1; changed=true; } });
       return; }
-    const isPad=/Synthesizer\/(Pad|Soundscape)|Breath Pad/i.test(nm);
+    const isPad=/Synthesizer\/(Pad|Soundscape)|Breath Pad/i.test(nm) && !/Bowl/i.test(nm);   /* ★ 2026-11-09: Synthesizer/Soundscape 의 싱잉볼(Ancient Singing Bowl, Metallic Memories Bowl)은 치는 악기. 패드로 보면 들어오기가 0 에서 올라가 치는 소리가 죽음(사운드 명상 마치는 싱잉볼에서 찾음) */
     const pluck=!isPad && PLUCK.test(nm);
     let kind=null; try{ kind=window.__swellKind?window.__swellKind(nm):null; }catch(e){}
     const sust=!pluck && (isPad || kind==='bow' || kind==='wind' || kind==='pad' || /Drone|Strings|String|Violin|Viola|Cello|Contrabass|Choir|Horn|Brass|Flute|Clarinet|Oboe|Daegeum|Deageum|Saenghwang|Haegeum|Ajaeng|Organ/i.test(nm));
