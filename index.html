@@ -42002,7 +42002,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     return C.filter(okKey); };
   const SC7={0:[0,2,4,5,7,9,11], 1:[0,2,3,5,7,8,10]}, PENT={0:[0,2,4,7,9], 1:[0,3,5,7,10]};
   /* 화음: 온음계 자리(0~6) 와 꼴 */
-  const CQ={M:[0,4,7], m:[0,3,7], sus2:[0,2,7], sus4:[0,5,7], add9:[0,4,7,2], madd9:[0,3,7,2], m7:[0,3,7,10], M7:[0,4,7,11], '7':[0,4,7,10], '7sus4':[0,5,7,10], dim:[0,3,6], '5':[0,7]};
+  const CQ={M:[0,4,7], m:[0,3,7], sus2:[0,2,7], sus4:[0,5,7], add9:[0,4,7,2], madd9:[0,3,7,2], m7:[0,3,7,10], M7:[0,4,7,11], '7':[0,4,7,10], '7sus4':[0,5,7,10], dim:[0,3,6], '5':[0,7], q4:[0,5,10]};
   const TRI={0:['M','m','m','M','M','m','dim'], 1:['m','dim','M','m','m','M','M']};
   const PROG={0:{open:[[0,5,3,4],[0,2,3,4],[0,3,0,4],[5,3,0,4],[0,4,5,3],[3,0,1,4]], close:[[3,4,0,0],[1,4,0,0],[5,3,4,0],[3,0,4,0],[3,1,4,0]], lyr:[[0,3,5,4],[3,0,1,4],[0,5,1,4]], dev:[[5,3,1,4],[3,4,2,5]]},
               1:{open:[[0,5,2,6],[0,3,6,2],[0,6,5,4],[5,6,0,0],[0,2,3,4],[0,3,4,0]], close:[[3,4,0,0],[5,6,0,0],[3,6,0,0],[5,3,4,0]], lyr:[[0,5,3,4],[5,2,3,4],[0,3,5,6]], dev:[[5,6,2,4],[3,4,5,6]]}};
@@ -42107,22 +42107,87 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     const sigKeyAt=function(b){ const s=secOfBar(b); if(s.keys) return s.keys[keyQ(b)]; return s.K; };
     const inSig=function(b,pc){ const K=sigKeyAt(b); return SC7[K.mi].map(function(x){ return pcOf(K.pc+x); }).indexOf(pcOf(pc))>=0; };
     const keyAt=sigKeyAt;
-    /* 화음: 네 마디 구절마다 여는 진행 닫는 진행, 대목 역할마다 */
-    const CH=[]; secs.forEach(function(s){ const P=PROG[s.K.mi]; let ph=0; for(let b=0;b<s.bars;b+=4){ const pool=(s.k==='dev'||s.k==='dev2'||s.k==='tr')?P.dev:((s.k==='C'||s.k==='intro'||s.k==='cad'||(s.k==='coda'&&END!=='hit'))?P.lyr:((ph%2===0)?P.open:P.close)); const pr=pick(pool); for(let q=0;q<4 && b+q<s.bars;q++) CH.push({deg:pr[q], ph:ph, last:(q===3)}); ph++; } });
+    /* ── 구절 설계(형 2026-11-12 "되풀이 되는게 사실 미디에서는 눈으로 바로 보여. 전체 다 고쳐야겠어"):
+       대목을 4~8마디 구절로 나누고, 구절마다 재료(주제 앞뒤, 조각, 이어가기, 대화, 돌림, 정점, 맺음), 편성(홀로, 지속음 위, 현만, 관만, 발현, 실내악, 오스티나토, 총주),
+       화성(조성, 지속음 선법, 4도 쌓기, 평행 화음), 셈여림 흐름, 타악 세기를 따로 정함. 바로 앞 구절과 편성이 같지 않게 ── */
+    const MAT_KO={a1:'주제 앞', a2:'주제 뒤', a1v:'주제 앞 다시(리듬 바꿈)', a2x:'주제 뒤 바꿔 열림', a1T:'주제 앞 총주', a2T:'주제 뒤 총주', b1:'둘째 주제 앞', b2:'둘째 주제 뒤', b1v:'둘째 주제 다시', c1:'느린 주제 앞', c2:'느린 주제 뒤', c1v:'느린 주제 다시',
+      cont:'이어가기', frag:'모티브 조각 주고받기', dialog:'두 악기 대화', seqUp:'올림 반복진행', stretto:'좁혀 드는 돌림', ostinato:'오스티나토 위 긴 선율', climax:'정점', climaxSoft:'부푼 정점', close:'맺음',
+      pedalColor:'지속음 위 모티브 조각', call:'모티브 부름', echo:'메아리', prep:'준비', retrans:'딸림 지속음 위 돌아갈 준비', build:'쌓아 오름', var1:'변주 잔가락', var2:'변주 돌림', var3:'변주 뒤집기', var4:'변주 넓힘',
+      drive:'몰아치기', drive2:'더 몰아치기', final:'마지막', callEnd:'모티브로 닫음', fade:'잦아듦', cad:'카덴자'};
+    const TEX_KO={solo:'홀로', pedal:'지속음 위', strings:'현만', winds:'관만', plucked:'발현', chamber:'실내악', ostinato:'오스티나토', tutti:'총주', cad:'독주 홀로'};
+    const H_KO={tonal:'조성', modal:'지속음 선법', quartal:'4도 쌓기', parallel:'평행 화음', dom:'딸림 지속음'};
+    const TEMPL={ intro:{head:['pedalColor','call'], pool:['echo'], tail:['prep']},
+      A:{head:['a1','a2','a1v','a2x'], pool:['cont','frag','dialog','seqUp','stretto'], peak:'climax', tail:['close']},
+      B:{head:['b1','b2','b1v'], pool:['dialog','cont','frag','ostinato'], peak:'climax', tail:['close']},
+      B2:{head:['b1','b2'], pool:['dialog','cont','ostinato'], tail:['close']},
+      C:{head:['c1','c2'], pool:['cont','dialog','c1v','ostinato'], peak:'climaxSoft', tail:['close']},
+      tr:{head:['seqUp'], pool:['frag','dialog'], tail:['retrans']},
+      dev:{head:['frag'], pool:['stretto','ostinato','dialog','seqUp','cont','frag'], peak:'build', tail:['climax']},
+      dev2:{head:['stretto'], pool:['frag','ostinato','dialog','seqUp','cont'], peak:'build', tail:['retrans']},
+      vr:{head:['var1','var2','var3','var4'], pool:['var1','var2','var3','var4'], tail:['close']},
+      A2:{head:['a1T','a2T'], pool:['cont','frag','dialog'], peak:'climax', tail:['close']} };
+    const matsFor=function(s,n){
+      if(s.k==='coda'){ let L; if(END==='hit'){ L=[]; for(let i=0;i<n-1;i++) L.push(i%2?'drive2':'drive'); L.push('final'); } else if(END==='cycle'){ L=['pedalColor']; while(L.length<n-1) L.push('echo'); L.push('callEnd'); } else { L=['c1']; while(L.length<n-1) L.push('c1v'); L.push('fade'); } return L.slice(L.length-n); }
+      const T=TEMPL[s.k]; let tail=T.tail.slice();
+      if(s.k==='dev'||s.k==='dev2'){ if(s.next && (s.next.k==='A2'||s.next.k==='cad')) tail=['build']; else if(s.next && s.next.k==='B2') tail=['retrans']; }
+      if(n<=1) return [T.head[0]];
+      const head=T.head.slice(0, Math.max(1, Math.min(T.head.length, n-tail.length))); const mid=n-head.length-tail.length; const M=[];
+      const peak=(T.peak && T.peak!==tail[0])?T.peak:null; for(let i=0;i<mid;i++){ if(peak && i===mid-1 && mid>=2){ M.push(peak); break; } let c, g=0; do{ c=pick(T.pool); g++; } while(g<30 && (c===(M.length?M[M.length-1]:head[head.length-1]) || M.filter(function(x){ return x===c; }).length>=2)); M.push(c); }
+      return head.concat(M).concat(tail).slice(0,n); };
+    const TEXP={a1:['chamber','solo','plucked'], a2:['chamber','strings','winds'], a1v:['strings','winds','plucked'], a2x:['chamber','tutti'], a1T:['tutti'], a2T:['tutti'],
+      b1:['plucked','strings','winds'], b2:['chamber','plucked','winds'], b1v:['winds','strings','chamber'], c1:['solo','pedal','strings'], c2:['strings','chamber','winds'], c1v:['plucked','solo','pedal'],
+      cont:['winds','strings','plucked','chamber','ostinato'], frag:['chamber','winds','strings'], dialog:['chamber','strings','winds'], seqUp:['chamber','ostinato','tutti'], stretto:['strings','winds','chamber'], ostinato:['ostinato'],
+      climax:['tutti'], climaxSoft:['chamber','strings'], close:['chamber','tutti','strings'], pedalColor:['pedal'], call:['solo','pedal'], echo:['winds','strings','plucked'], prep:['chamber','ostinato'], retrans:['pedal','strings'], build:['tutti'],
+      var1:['plucked','chamber'], var2:['strings','winds'], var3:['winds','chamber'], var4:['ostinato','tutti'], drive:['tutti'], drive2:['tutti'], final:['tutti'], callEnd:['solo','pedal'], fade:['pedal','solo']};
+    const HFIX={a1:'tonal', a2:'tonal', a1v:'tonal', a2x:'tonal', a1T:'tonal', a2T:'tonal', b1:'tonal', b2:'tonal', close:'tonal', final:'tonal', climax:'tonal', build:'tonal', retrans:'dom',
+      pedalColor:'modal', call:'modal', callEnd:'modal', fade:'modal', ostinato:['modal','quartal'], c1:['tonal','modal'], c2:['tonal','modal'], c1v:['modal','parallel'], drive:['tonal','quartal'], drive2:'tonal'};
+    const DYN={a1:[-10,-4], a2:[-6,-10], a1v:[-4,2], a2x:[0,8], a1T:[10,12], a2T:[8,4], frag:[-8,0], dialog:[-6,2], seqUp:[-12,10], stretto:[-8,6], ostinato:[-10,0], climax:[12,18], climaxSoft:[-6,6], close:[6,-8],
+      b1:[-10,-4], b2:[-6,-10], b1v:[-4,4], c1:[-20,-12], c2:[-14,-6], c1v:[-22,-16], pedalColor:[-24,-16], call:[-16,-10], echo:[-18,-12], prep:[-14,6], retrans:[-14,-4], build:[-4,16],
+      var1:[-8,0], var2:[-6,2], var3:[-4,6], var4:[4,12], drive:[8,14], drive2:[12,16], final:[14,18], callEnd:[-16,-24], fade:[-18,-28]};
+    const LVT={solo:0, pedal:0, strings:0, winds:1, plucked:1, chamber:1, ostinato:2, tutti:2};
+    const LYR={c1:1, c2:1, c1v:1, call:1, callEnd:1, pedalColor:1, fade:1, ostinato:1, climaxSoft:1};
+    const PLAN=[];
+    secs.forEach(function(s){ if(s.k==='cad'){ PLAN.push({i:PLAN.length, s:s, b0:s.b0, nb:s.bars, mat:'cad', tex:'cad', h:'tonal', dyn:[0,0], lv:0, sp:true}); return; }
+      const U=2*PB(s), n=Math.ceil(s.bars/U), M=matsFor(s,n);
+      for(let i=0;i<n;i++){ const b0=s.b0+i*U, nb=Math.min(U, s.b0+s.bars-b0), mat=M[i], prev=PLAN[PLAN.length-1];
+        let ops=(TEXP[mat]||['chamber']).filter(function(t){ return !((s.k==='C'||s.k==='intro') && t==='tutti'); }); if(!ops.length) ops=['chamber'];
+        let o2=ops.filter(function(t){ return !prev || t!==prev.tex || t==='tutti'; }); if(!o2.length) o2=ops; const tex=pick(o2);
+        const hf=HFIX[mat]; const h=(typeof hf==='string')?hf:(hf?pick(hf):pick(['tonal','tonal','quartal','parallel','modal']));
+        let dyn=DYN[mat]?DYN[mat].slice():[Math.round(R()*12-8), Math.round(R()*12-6)];
+        if(prev && /climax|build|final|drive2/.test(prev.mat) && tex!=='tutti') dyn=[dyn[0]-8, dyn[1]];   /* 정점 뒤 갑자기 여리게 */
+        let lv=LVT[tex]; if(/climax|build|drive|final/.test(mat)) lv=3; if(s.k==='C'||s.k==='intro') lv=Math.min(lv,1);
+        let sp=!!solo; if(solo){ if(s.k==='intro') sp=false; if(s.k==='A' && i<((n>=4)?2:1)) sp=false; }   /* 협주곡: 서주와 제시 앞 구절은 관현악(리토르넬로) */
+        PLAN.push({i:PLAN.length, s:s, b0:b0, nb:nb, mat:mat, tex:tex, h:h, dyn:dyn, lv:lv, sp:sp}); } });
+    /* 화음: 구절 화성 꼴마다. 지속음 선법과 4도 쌓기, 평행 화음은 다섯 음 안의 음만 쓰는 화음(선율 다섯 음과 반음이 안 생김) */
+    const MODAL={0:[{ro:0,q:'sus2'},{ro:2,q:'q4'},{ro:9,q:'q4'},{ro:7,q:'sus2'},{ro:2,q:'sus4'}], 1:[{ro:0,q:'sus4'},{ro:10,q:'sus2'},{ro:5,q:'sus2'},{ro:7,q:'q4'},{ro:3,q:'sus2'}]};
+    const QRT={0:[{ro:2,q:'q4'},{ro:4,q:'q4'},{ro:9,q:'q4'},{ro:7,q:'sus2'},{ro:0,q:'sus2'}], 1:[{ro:0,q:'q4'},{ro:5,q:'q4'},{ro:7,q:'q4'},{ro:10,q:'sus2'},{ro:3,q:'sus2'}]};
+    const PAR={0:[{ro:0,q:'sus2'},{ro:2,q:'sus4'},{ro:7,q:'sus2'},{ro:9,q:'sus4'},{ro:2,q:'sus2'}], 1:[{ro:3,q:'sus2'},{ro:5,q:'sus2'},{ro:10,q:'sus2'},{ro:0,q:'sus4'},{ro:5,q:'sus4'},{ro:10,q:'sus4'}]};
+    const CADM={a2:1, b2:1, c2:1, close:1, a2T:1, final:1, fade:1, callEnd:1}, HALFM={a1:1, b1:1, c1:1, a1T:1, a1v:1, prep:1};
+    const CH=new Array(NB); const LASTPR={v:null};
+    PLAN.forEach(function(ph){ const s=ph.s; const slow=(sum(s.grp)/s.e8*60<2.0); let qi=Math.floor(R()*5), pr=null;
+      for(let j=0;j<ph.nb;j++){ const b=ph.b0+j, K=keyAt(b), mi=K.mi; if(slow && j%2===1 && CH[b-1]){ CH[b]=Object.assign({},CH[b-1],{last:false}); continue; }
+        if(ph.h==='tonal'||ph.mat==='cad'){ if(j%4===0){ const P0=PROG[mi]; const pool=(s.k==='dev'||s.k==='dev2'||s.k==='tr')?P0.dev:((s.k==='C'||s.k==='intro'||ph.mat==='cad'||(s.k==='coda'&&END!=='hit'))?P0.lyr:(((j/4)%2===0)?P0.open:P0.close)); let g=0; do{ pr=pick(pool); g++; } while(g<8 && pr===LASTPR.v); LASTPR.v=pr; }   /* 바로 앞 진행과 같지 않게 */ CH[b]={deg:pr[j%4], ph:ph.i, last:(j%4===3)}; }
+        else if(ph.h==='modal'){ const o=(j%2===0)?MODAL[mi][0]:MODAL[mi][1+Math.floor(R2(b*3+ph.i)*4)]; CH[b]={deg:-1, ro:o.ro, q:o.q, pedal:true, ph:ph.i}; }
+        else if(ph.h==='quartal'){ qi=(qi+(R()<0.5?1:QRT[mi].length-1))%QRT[mi].length; const o=QRT[mi][qi]; CH[b]={deg:-1, ro:o.ro, q:o.q, ph:ph.i}; }
+        else if(ph.h==='parallel'){ qi=(qi+1+Math.floor(R()*2))%PAR[mi].length; const o=PAR[mi][qi]; CH[b]={deg:-1, ro:o.ro, q:o.q, ph:ph.i}; }
+        else { CH[b]={deg:4, ph:ph.i, last:(j===ph.nb-1), pedal:'dom'}; } }
+      const eb=ph.b0+ph.nb-1;
+      if(CADM[ph.mat] && ph.nb>=2){ CH[eb-1]={deg:4, ph:ph.i}; CH[eb]={deg:0, ph:ph.i, last:true}; }
+      else if(HALFM[ph.mat]) CH[eb]={deg:4, ph:ph.i, last:true}; });
     /* 마지막 대목 끝 두 마디는 으뜸화음, 대목 끝 구절이 닫는 진행이면 마지막은 으뜸 */
     secs.forEach(function(s){ const eb=s.b0+s.bars-1;
       if(s.k==='cad'){ for(let b=s.b0;b<=eb;b++) CH[b]={deg:(b>=eb-1)?4:0, ph:0, last:(b===eb)}; return; }   /* 카덴자: 으뜸 위에서 시작해 끝 두 마디 딸림 */
       if(s.k==='tr'){ CH[eb]={deg:4, ph:CH[eb].ph, last:true}; return; }   /* 경과: 다음 대목 조의 딸림에서 멈춤 */
       if(s.k!=='dev' && s.k!=='dev2'){ CH[eb]={deg:0, ph:CH[eb].ph, last:true}; if(s.k==='coda') CH[eb-1]={deg:(END==='hit')?4:3, ph:CH[eb-1].ph}; } });
-    const chordAt=function(b){ const K=keyAt(b); const c=CH[b]; if(K.v) return {root:pcOf(K.pc+7), q:'7sus4', K:K, deg:4}; let q=TRI[K.mi][c.deg]; const r=pcOf(K.pc+SC7[K.mi][c.deg]); const s=secOfBar(b);
+    const chordAt=function(b){ const K=keyAt(b); const c=CH[b]; if(K.v) return {root:pcOf(K.pc+7), q:'7sus4', K:K, deg:4}; if(c.ro!=null) return {root:pcOf(K.pc+c.ro), q:c.q, K:K, deg:-1, pedal:c.pedal}; let q=TRI[K.mi][c.deg]; const r=pcOf(K.pc+SC7[K.mi][c.deg]); const s=secOfBar(b);
       if(q==='dim') q=K.mi?'M':'m';
       if(c.deg===0 && !c.last && R2(b)<0.3) q=K.mi?'madd9':'add9'; if(c.deg===4 && c.last && !K.mi && R2(b+7)<0.35) q='7sus4'; if(c.deg===4 && K.mi && c.last && R2(b+3)<0.45) q='7'; if((c.deg===3||c.deg===5) && s.E<=1 && R2(b+11)<0.25) q='sus2';
-      return {root:r, q:q, K:K, deg:c.deg}; };
+      return {root:r, q:q, K:K, deg:c.deg, pedal:c.pedal}; };
     function R2(x){ const t=Math.sin((seed%997)*13.1+x*7.7)*10000; return t-Math.floor(t); }   /* 마디마다 정해진 값(다시 불러도 같음) */
     const tonesOf=function(C){ return CQ[C.q].map(function(x){ return pcOf(C.root+x); }); };
     const triOf=function(C){ return CQ[C.q].filter(function(x){ return x!==2; }).map(function(x){ return pcOf(C.root+x); }); };   /* 받침은 9도 빼고(선율 단3도와 반음 부딪힘 막기) */
     const fold=function(m,lo,hi){ while(m<lo) m+=12; while(m>hi) m-=12; return m; };
-    const nearPc=function(pc,c){ let m=c-6; while(pcOf(m)!==pc) m++; return m; };
+    const nearPc=function(pc,c){ let m=Math.round(c)-6; pc=pcOf(Math.round(pc)); for(let g=0;g<13 && pcOf(m)!==pc;g++) m++; return m; };
     const P={}; ORD.forEach(function(k){ P[k]=[]; }); const CC1={}, CC11={}; const TM=[]; const put=function(k,t,m,v,d){ if(m==null||d<=10) return; P[k].push({t:Math.round(t), m:Math.round(m), v:Math.max(1,Math.min(127,Math.round(v))), d:Math.round(d)}); };
     const ccp=function(k,t,v,c){ const T=(c===11)?CC11:CC1; (T[k]=T[k]||[]).push([Math.round(t),Math.max(0,Math.min(127,Math.round(v)))]); };
 
@@ -42147,7 +42212,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       const need=function(){ ext(); return D[di++]; }, peek=function(){ ext(); return D[di]; };
       const rv=(opt2.rv!=null)?opt2.rv:(SRV[secOfBar(b0).k]||0), cmax=opt2.cmax||4;
       const KINDS=opt2.virt?['run','turn','arp','leap','run','nb','arp']:['run','turn','nb','run'];
-      G.forEach(function(q,gi){ let c=rs[gi%rs.length]*(opt2.mul||1)+(opt2.add||0); if(opt2.aug) c=1; c=Math.max(1,Math.min(cmax,(q.g===2)?5:6,Math.round(c)));
+      G.forEach(function(q,gi){ if(opt2.gate && !opt2.gate(gi,q)) return; let c=rs[gi%rs.length]*(opt2.mul||1)+(opt2.add||0); if(opt2.aug) c=1; c=Math.max(1,Math.min(cmax,(q.g===2)?5:6,Math.round(c)));
         const lastG=(gi===G.length-1); if(lastG || (opt2.holdLast && gi===G.length-2)) c=1;
         const durs=cellFor(q.g,c,q.b,rv); c=durs.length;
         const d0=need(); const fig=(c>=4)||(c===3 && R2(gi*3+q.b*7+rv)<0.4);
@@ -42267,111 +42332,140 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       const lb=s.b0+s.bars-1, C=chordAt(lb), r=fold(nearPc(C.root,44),38,50), st=Math.round(PPQ/6), tL=BARS[lb].t, n=Math.floor(BARS[lb].L/st);
       for(let i=0;i<n;i++) put('tim', tL+i*st, r, 46+Math.round(66*i/Math.max(1,n-1)), st-8);
       put('cym', tL, 34, 70, BARS[lb].L-20); ccp('cym', tL, 30, 11); ccp('cym', tL+BARS[lb].L-40, 116, 11); }
-    /* ── 대목마다 선율 짜기 ── */
-    const roles=[]; const themeOf={};
-    const themeDegs=function(kind){ const M=MOT.d; if(kind==='seq') return M.map(function(x){ return x+2; }); if(kind==='ans') return inv(M).map(function(x){ return x-1; }); if(kind==='frag'){ const f=M.slice(0,3); return f.concat(f.map(function(x){ return x+1; })).concat(f.map(function(x){ return x+2; })); }
-      if(kind==='cad'){ const a=M[M.length-1]; return [a+2,a+1,a,a-1,a-2,a-1,0].map(function(x){ return x; }); } if(kind==='inv') return inv(M); if(kind==='ret') return M.slice().reverse(); if(kind==='exp'){ const a=M[0]; return M.map(function(x){ return a+(x-a)*2; }); } return M.slice(); };   /* ret 거꾸로, exp 걸음 넓힘 */
-    /* 8마디 주제(두 마디 구절 넷: 모티브, 올림, 쪼갬, 맺음) */
-    const theme8=function(b0, half, rs, mul, ox){ ox=ox||{}; const L=[]; const sh=ox.kinds||((half===1)?['m','ans','seq','cad']:['m','seq','frag','cad']); const pb=PB(secOfBar(b0));
-      sh.forEach(function(kind,q){ const end=(q===3)?((half===0)?pick([1,3]):0):null; L.push.apply(L, passing(phraseNotes(b0+q*pb, pb, themeDegs(kind), rs, Object.assign({endTo:end, holdLast:(q===3), mul:(mul||1)*(pb===4?0.6:1)}, ox)))); }); return L; };   /* 주제 = 구절 넷(마디 짧으면 구절마다 네 마디) */
-    /* B 와 B2 의 묻고 답하는 줄(뒤집은 모티브, 두 마디씩) */
-    const qaLine=function(b0,n,ox){ const rs=MOT.rs.slice().reverse(); const L=[]; for(let q=0;q<n;q+=2){ const kind=['inv','ans','frag','ret','exp','cad'][(q/2)%6]; L.push.apply(L, passing(phraseNotes(b0+q,Math.min(2,n-q),themeDegs(kind),(q>=n/2)?rs.map(function(x){ return Math.min(4,x+1); }):rs,Object.assign({endTo:(q+2>=n)?0:(((q/2)%6===5)?pick([1,3]):null), holdLast:((q/2)%6===5)||(q+2>=n)},ox||{}))).map(function(x){ x.q=q; return x; })); } return L; };
-    const trLine=function(b0,n,ox){ const L=[]; for(let q=0;q<n;q+=2){ const f=MOT.d.slice(0,3).map(function(x){ return x+Math.floor(q/2); }); L.push.apply(L, phraseNotes(b0+q,Math.min(2,n-q),f.concat(f.map(function(x){ return x+1; })),[2,1,2],Object.assign({endTo:(q+2>=n)?3:null, holdLast:(q+2>=n)},ox||{})).map(function(x){ x.q=q; return x; })); } return L; };
-    const devLine=function(b0,n){ const L=[]; for(let q=0;q<n;q++){ const f=MOT.d.slice(0,3).map(function(x){ return x+Math.floor(q/2); }); L.push.apply(L, phraseNotes(b0+q,1,f.concat(f),[2,1,2],{})); } return L; };
-    const ORCHL=['dg','pr','hg'].filter(function(k){ return k!==solo; }); const O0=ORCHL[0], O1=ORCHL[1];
-    const layS=function(L,v,o){ lay(solo, L, v, Object.assign({legato:ST!=='P'}, o||{})); };
-    /* 협주곡 대목: 독주가 앞에, 관현악은 받침과 대답 */
-    const concertoSec=function(s,si,r,vel){ const b0=s.b0, n=s.bars, SK=I[solo].ko;
-      if(s.k==='intro'){ const L=phraseNotes(b0+2, Math.min(4,n-2), MOT.d, [1], {aug:true, aug2:true, endTo:pick([1,3]), holdLast:true}); lay(O0, L, 62, {legato:true}); r.lead=[O0]; r.note='관현악 서주. '+JO(I[O0].ko,'이','가')+' 모티브를 늘여 부르고 독주는 기다림'; themeOf.intro=L; return; }
-      if(s.k==='A'){ const R8=Math.ceil(n/(4*PB(s))); for(let q=0, U=4*PB(s);q*U<n;q++){ const half=q%2; const L=theme8(b0+q*U,half,(q>=2)?MOT.rs.map(function(x){ return Math.min(3,x+1); }):MOT.rs);
-          if(q<2 && R8>2){ lay(O0, L, vel+6, {legato:true}); lay(O1, skeleton(L), vel-6, {late:20, legato:true}); }
-          else if(q<4 || R8<=4){ const LS=theme8(b0+q*U,half,MOT.rs,1,{add:(q>=3)?2:1, cmax:6, virt:true}); layS(LS, vel+12); lay(O0, skeleton(L), vel-14, {late:20, legato:true}); }
-          else { lay(O0, L, vel+2, {legato:true}); lay(O1, skeleton(L), vel-8, {late:20, legato:true}); layS(theme8(b0+q*U,half,MOT.rs,1,{add:2, cmax:6, virt:true, rv:1}), vel+10); } }
-        r.lead=[O0, solo]; r.dbl=[O1]; r.note='관현악이 주제 8마디 둘을 먼저 내고(여는 구절은 반마침, 닫는 구절은 으뜸), 독주 '+JO(SK,'이','가')+' 받아 리듬을 촘촘히 해 부르고, 끝은 관현악 주제 위에 독주가 잔가락으로 얹음'; return; }
-      if(s.k==='tr'){ const L=trLine(b0,n); layS(trLine(b0,n,{add:2, cmax:6, virt:true}), vel+10); lay(O0, skeleton(L), vel-10, {late:14, legato:true}); r.lead=[solo]; r.dbl=[O0]; r.note='독주가 모티브 머리를 두 마디마다 올리며 잔가락으로 '+(s.keys?RO(keyKo(s.keys[1]))+' 건너감':'다음 대목으로 밀어 줌'); return; }
-      if(s.k==='B'){ const L=qaLine(b0,n,{add:1, cmax:6, virt:true}); const ans=['hg','pr','dg'].filter(function(k){ return k!==solo; })[0];
-        layS(L.filter(function(x){ return (x.q/2)%2===0; }), vel+10); lay(ans, L.filter(function(x){ return (x.q/2)%2===1; }), vel+4, {legato:true}); r.lead=[solo, ans]; r.note='독주 '+JO(SK,'이','가')+' 뒤집은 모티브로 묻고 '+JO(I[ans].ko,'이','가')+' 두 마디씩 답함'; themeOf.B=L; return; }
-      if(s.k==='C'){ const L=[]; for(let q=0;q<n;q+=4){ const kind=['m','ans','seq','cad'][(q/4)%4]; L.push.apply(L, phraseNotes(b0+q,Math.min(4,n-q),themeDegs(kind),[1,2],{aug:true, aug2:true, endTo:(q+4>=n)?0:(((q/4)%2)?pick([1,3]):null), holdLast:true})); }
-        layS(L, 64); const dk=(solo==='hg')?'dg':'hg'; lay(dk, skeleton(L.filter(function(x){ return x.b>=b0+Math.floor(n/2); })), 46, {late:30, legato:true, oct:1}); r.lead=[solo]; r.dbl=[dk]; r.note='독주가 주제를 늘여 노래(네 마디 구절: 모티브, 대답, 올림, 맺음), 뒤 절반은 '+JO(I[dk].ko,'이','가')+' 한 옥타브 위 뼈대로 얹음'; return; }
-      if(s.k==='dev'){ const L=devLine(b0,n); const L2=[]; for(let q=0;q<n;q++){ const f=MOT.d.slice(0,4).map(function(x){ return x+2+Math.floor(q/2); }); L2.push.apply(L2, phraseNotes(b0+q,1,f.concat(f.slice().reverse()),[4,3,5,3],{cmax:6, virt:true})); }
-        layS(L2, vel+8, {legato:false}); lay(O0, L, vel-2, {}); lay(O1, shiftN(L, s.grp[0], b0+n), vel-6, {}); r.lead=[solo, O0]; r.dbl=[O1]; r.note='독주가 모티브 머리를 촘촘히 쪼개 몰아가고, 관현악 '+I[O0].ko+' '+JO(I[O1].ko,'이','가')+' 한 묶음 어긋나게 돌림으로 조 옮김('+s.keys.slice(0,3).map(keyKo).join(' → ')+' → 으뜸조 딸림 7sus4)'; return; }
-      if(s.k==='cad'){ realizeCad(s); r.lead=[solo]; r.note=cadNote(); return; }
-      if(s.k==='A2'){ let L1=[]; for(let q=0, U=4*PB(s);q*U<n;q++) L1=L1.concat(theme8(b0+q*U,q%2,(q>=2)?MOT.rs.map(function(x){ return Math.min(3,x+1); }):MOT.rs)); const LL=(s.e8>=260)?L1:diminish(L1);
-        const W=['dg','pr'].filter(function(k){ return k!==solo; }); W.forEach(function(k,z){ lay(k, LL, vel+6-z*2, {legato:true}); }); if(solo!=='hg') lay('hg', skeleton(LL), vel-2, {late:14, legato:true}); if(solo!=='aj') lay('aj', skeleton(LL), vel-4, {legato:true, oct:-1});
-        if(solo!=='tp') lay('tp', LL.filter(function(x){ return x.b>=b0+Math.max(8,n-16); }), vel+12, {legato:true}); { let LS=[]; for(let q=0, U=4*PB(s);q*U<n;q++) LS=LS.concat(theme8(b0+q*U,q%2,MOT.rs,1,{add:(q>=2)?2:1, cmax:6, virt:true, rv:2})); layS(LS, vel+12); }
-        r.lead=W.concat([solo]); r.dbl=['hg','aj'].filter(function(k){ return k!==solo; }); r.note='카덴자 끝 떨기에서 관현악이 모두 함께 주제로 돌아오고, 독주가 그 위를 잔가락으로 이끎. 뒤 열여섯 마디 태평소 정점'; themeOf.A2=LL; return; }
-      if(s.k==='coda'){
-        if(END==='hit'){ const L=[]; for(let q=0;q<n-2;q++) L.push.apply(L, phraseNotes(b0+q,1,MOT.d.slice(0,4).map(function(x){ return x+(q%2); }),[2,2,1,2],{})); L.push.apply(L, phraseNotes(b0+n-2,2,[0],[1],{aug:true, endTo:0}));
-          ['dg','pr','tp','hg'].filter(function(k){ return k!==solo; }).forEach(function(k,z){ lay(k, L, vel+8-z*2, {legato:true}); }); { const LS=[]; for(let q=0;q<n-2;q++) LS.push.apply(LS, phraseNotes(b0+q,1,MOT.d.slice(0,4).map(function(x){ return x+2+(q%2); }),[4,5,3,5],{cmax:6, virt:true, rv:q})); LS.push.apply(LS, phraseNotes(b0+n-2,2,[5],[1],{aug:true, endTo:5})); layS(LS, vel+12); } r.lead=[solo,'관현악 모두']; r.note='모티브 머리를 줄여 몰아치고 독주가 맨 위에서 이끌며 마지막 화음에서 모두 함께 터짐'; return; }
-        if(END==='cycle'){ const L=phraseNotes(b0+1,Math.max(2,n-2),MOT.d,[1],{aug:true, aug2:true, endTo:0, holdLast:true}); layS(L, 58); r.lead=[solo]; r.note='서주의 모티브를 독주가 홀로 늘여 부르며 닫음(수미쌍관)'; return; }
-        const L=phraseNotes(b0,n-1,MOT.d.slice(0,5),[1,1,2],{aug:true, aug2:true, endTo:0, holdLast:true}); layS(L, 54); lay(O0, skeleton(L), 44, {late:40, legato:true, oct:1}); r.lead=[solo, O0]; r.note='주제 첫 구절을 독주가 늘여 여리게, '+JO(I[O0].ko,'이','가')+' 뼈대로 사라짐'; } };
+    /* ── 구절마다 선율: 모티브 음정으로 걷는 새 가락(walk), 주제는 앞뒤 두 구절만 정해 두고 나머지는 구절마다 새로 ── */
+    const roles=[];
+    const MIV=(function(){ const d=[]; for(let i=1;i<MOT.d.length;i++){ const x=MOT.d[i]-MOT.d[i-1]; if(x) d.push(x); } return d.length?d:[1,-1,2]; })();
+    const walk=function(start,n,shape,o){ o=o||{}; const lo=(o.lo!=null)?o.lo:-4, hi=(o.hi!=null)?o.hi:8; let cur=Math.max(lo,Math.min(hi,Math.round(start))); const L=[cur]; const span=hi-lo;
+      for(let i=1;i<n;i++){ const f=i/Math.max(1,n-1); let tg;
+        if(shape==='rise') tg=cur+1.2; else if(shape==='fall') tg=lo+(1-f)*span*0.6; else if(shape==='arch') tg=lo+span*(0.3+0.6*Math.sin(Math.PI*Math.min(1,f*1.6))); else tg=(lo+hi)/2+Math.sin(f*Math.PI*4+start)*span*0.3;
+        let iv; const r=R(); if(r<0.42) iv=MIV[Math.floor(R()*MIV.length)]; else if(r<0.82) iv=(R()<0.5)?1:-1; else if(r<0.92) iv=(R()<0.5)?2:-2; else iv=(R()<0.5)?3:0;
+        if(iv && Math.abs(tg-cur)>0.6 && Math.sign(iv)!==Math.sign(tg-cur) && R()<0.75) iv=-iv;
+        if(i>=2 && iv===L[i-1]-L[i-2] && R()<0.6) iv=(iv>0)?iv-1:iv+1;   /* 같은 걸음 되풀이 줄임 */
+        let nx=cur+iv; if(nx>hi) nx=cur-Math.max(1,Math.abs(iv)); if(nx<lo) nx=cur+Math.max(1,Math.abs(iv)); L.push(nx); cur=nx; }
+      return L; };
+    const ROT=function(a,k){ k=k%a.length; return a.slice(k).concat(a.slice(0,k)); };
+    const TH={}; const thm=function(nm2){ if(TH[nm2]) return TH[nm2]; const M=MOT.d; let d;
+      if(nm2==='a1') d=M.concat(walk(M[6],48,'arch',{lo:-3,hi:7}));
+      else if(nm2==='a2'){ const h=inv(M.slice(0,4)); d=h.concat(walk(h[3],48,'fall',{lo:-4,hi:6})); }
+      else if(nm2==='b1'){ const h=inv(M); d=h.concat(walk(h[6],48,'wave',{lo:-5,hi:6})); }
+      else if(nm2==='b2'){ const h=M.slice(2,6).reverse(); d=h.concat(walk(h[3],48,'fall',{lo:-5,hi:5})); }
+      else if(nm2==='c1'){ const h=M.slice().reverse(); d=h.concat(walk(h[6],48,'arch',{lo:-3,hi:8})); }
+      else { const a=M[0]; const h=M.map(function(x){ return a+(x-a)*2; }).slice(0,5); d=h.concat(walk(h[4],48,'fall',{lo:-4,hi:8})); }
+      TH[nm2]=d; return d; };
+    let lastDeg=0;
+    const PN=function(ph,degs,rs,o,vt){ o=Object.assign({},o||{}); if(vt){ o.add=(o.add||0)+1; o.cmax=6; o.virt=true; } return passing(phraseNotes(ph.b0, ph.nb, degs, rs, o)); };
+    const breath=function(ph){ return function(gi,q){ const s=secOfBar(q.b), j=q.b-ph.b0; return !(j%2===1 && q.e+q.g>=sum(s.grp)-0.01 && q.b<ph.b0+ph.nb-1); }; };   /* 두 마디마다 끝 묶음은 숨 */
+    const mline=function(ph,vt){ const m=ph.mat, rs=MOT.rs, rsB=MOT.rs.slice().reverse(); let L=[], mode=null; const ld=lastDeg;
+      if(m==='a1'||m==='a1T') L=PN(ph,thm('a1'),rs,{endTo:pick([1,3]),holdLast:true,rv:0},vt);
+      else if(m==='a2'||m==='a2T') L=PN(ph,thm('a2'),rs,{endTo:0,holdLast:true,rv:0},vt);
+      else if(m==='a1v') L=PN(ph,thm('a1'),rs.map(function(x){ return x+1; }),{endTo:3,holdLast:true,rv:1},vt);
+      else if(m==='a2x') L=PN(ph,thm('a2').slice(0,6).concat(walk(thm('a2')[5],40,'rise',{lo:-2,hi:8})),rs,{endTo:3,holdLast:true,rv:1},vt);
+      else if(m==='b1') L=PN(ph,thm('b1'),rsB,{endTo:pick([1,3]),holdLast:true,rv:1},vt);
+      else if(m==='b2') L=PN(ph,thm('b2'),rsB,{endTo:0,holdLast:true,rv:1},vt);
+      else if(m==='b1v') L=PN(ph,thm('b1'),rsB.map(function(x){ return x+1; }),{endTo:3,holdLast:true,rv:2},vt);
+      else if(m==='c1') L=PN(ph,thm('c1'),[1,2,1],{aug2:true,endTo:pick([1,3]),holdLast:true,rv:2});
+      else if(m==='c2') L=PN(ph,thm('c2'),[1,1,2],{aug2:true,endTo:0,holdLast:true,rv:2});
+      else if(m==='c1v') L=PN(ph,thm('c1'),[2,1,1],{endTo:0,holdLast:true,rv:3,gate:breath(ph)});
+      else if(m==='cont') L=PN(ph,walk(ld,64,pick(['arch','rise','fall','wave']),{lo:-4,hi:8}),ROT(rs,1+Math.floor(R()*3)),{endTo:pick([0,1,3,4]),holdLast:true,rv:Math.floor(R()*4),gate:breath(ph)},vt);
+      else if(m==='climax') L=PN(ph,walk(Math.max(2,ld),64,'rise',{lo:0,hi:10}),rs.map(function(x){ return x+1; }),{endTo:pick([5,7]),holdLast:true,rv:3},vt);
+      else if(m==='climaxSoft') L=PN(ph,walk(ld,64,'arch',{lo:-2,hi:8}),[2,1,1],{endTo:3,holdLast:true,rv:2});
+      else if(m==='close'||m==='final'||m==='fade') L=PN(ph,walk(ld,64,'fall',{lo:-3,hi:6}),(m==='fade')?[1]:rs,{endTo:0,holdLast:true,aug:(m==='fade'),aug2:(m!=='close')},(m==='close')?vt:false);
+      else if(m==='ostinato') L=PN(ph,walk(ld,64,pick(['arch','wave']),{lo:-3,hi:7}),[1],{aug:true,aug2:true,endTo:pick([0,3]),holdLast:true});
+      else if(m==='pedalColor') L=PN(ph,MOT.d.slice(0,3).concat(walk(MOT.d[2],40,'wave',{lo:-2,hi:5})),[1],{aug:true,endTo:pick([1,3]),holdLast:true,gate:function(gi,q){ return q.e===0 || R2(gi*13+q.b)<0.25; }});
+      else if(m==='call'||m==='callEnd') L=PN(ph,MOT.d.concat(walk(MOT.d[6],32,'fall',{lo:-3,hi:6})),[1],{aug:true,aug2:true,endTo:(m==='callEnd')?0:pick([1,3]),holdLast:true});
+      else if(m==='echo') L=PN(ph,MOT.d.map(function(x){ return x+2; }).concat(walk(MOT.d[6]+2,32,'wave',{lo:-2,hi:7})),[1,2],{endTo:pick([1,3]),holdLast:true,rv:1});
+      else if(m==='dialog'){ L=PN(ph,walk(ld,64,'wave',{lo:-4,hi:7}),ROT(rsB,1),{endTo:pick([0,3]),holdLast:true,rv:2,gate:breath(ph)},vt); mode='alt2'; }
+      else if(m==='stretto'||m==='var2'){ L=PN(ph,(m==='var2')?thm('a1'):MOT.d.concat(walk(MOT.d[6],48,'wave',{lo:-3,hi:7})),rs,{rv:3,endTo:(m==='var2')?0:null,holdLast:(m==='var2')},vt); mode='canon'; }
+      else if(m==='var1') L=PN(ph,thm('a1'),rs,{add:2,cmax:6,virt:true,rv:1,endTo:pick([1,3]),holdLast:true});
+      else if(m==='var3') L=PN(ph,inv(thm('a1').slice(0,40)),ROT(rs,2),{rv:3,endTo:pick([1,3]),holdLast:true},vt);
+      else if(m==='var4'){ const a=thm('a1')[0]; L=PN(ph,thm('a1').slice(0,40).map(function(x){ return a+(x-a)*2; }),rs.map(function(x){ return x+1; }),{rv:0,endTo:0,holdLast:true},vt); }
+      else { /* frag seqUp prep build drive drive2 retrans: 마디마다 모티브 머리를 옮겨 놓고 나머지는 이어감 */
+        const hd=MOT.d.slice(0,(m==='frag')?3:4); const sq=(m==='frag')?ROT([0,2,-1,3,1,4,-2,2],Math.floor(R()*8)):[0,1,2,3,4,5,6,7]; const off=(m==='retrans')?0:Math.floor(R()*3)-1;
+        const dense=(m==='build'||m==='drive'||m==='drive2'||m==='seqUp'); const sparse=(m==='frag'||m==='retrans'||m==='prep');
+        for(let j=0;j<ph.nb;j++){ const b=ph.b0+j; const dd=hd.map(function(x){ return x+sq[j%sq.length]+off; }); const ng=secOfBar(b).grp.length;
+          const o={rv:(j+ph.i)%4, gate:sparse?function(gi){ return gi<Math.ceil(ng/2)+((m==='prep')?1:0); }:null, endTo:(j===ph.nb-1 && m==='retrans')?3:null, holdLast:(j===ph.nb-1)};
+          if(vt){ o.add=1; o.cmax=6; o.virt=true; }
+          const ln=passing(phraseNotes(b,1,dd.concat(walk(dd[dd.length-1],12,'wave')),dense?rs.map(function(x){ return x+1; }):rs,o)); ln.forEach(function(x){ x.j=j; }); L=L.concat(ln); }
+        if(m==='frag'||m==='retrans') mode='alt1'; }
+      if(L.length) lastDeg=L[L.length-1].deg; return {L:L, mode:mode}; };
+    /* 맞선율: 주 선율 머리 음을 거꾸로 움직이며 두 묶음씩 길게 */
+    const counter=function(L){ const H=skeleton(L); if(!H.length) return []; const o=[]; const c0=H[0].deg-2;
+      for(let i=0;i<H.length;i+=2){ const a=H[i], z=H[i+1]; const d=a.d+((z && z.b===a.b)?z.d:0); o.push(Object.assign({},a,{deg:c0-(a.deg-H[0].deg)+(((i/2)%3===2)?1:0), d:Math.min(d, BARS[a.b].n8-a.e), head:true, pass:false})); } return o; };
+    const decor=function(ph,L){ const hd=L.filter(function(n){ return n.head; }).map(function(n){ return n.deg; }); return PN(ph, hd.concat(walk(hd.length?hd[hd.length-1]:0,40,'wave')), MOT.rs.map(function(x){ return Math.max(4,x+2); }), {virt:true, cmax:6, rv:3, holdLast:true}); };   /* 총주 위 독주 잔가락(머리 음은 관현악과 같은 자리) */
+    /* 편성: 구절마다 이끎, 맞선율, 겹침, 받침 꼴 */
+    const FAM={W:['dg','pr'], B:['hg','aj']};
+    const FIGALT={arpU:['arpD','arpW','broken'], arpD:['arpU','arpW'], arpW:['arpU','broken'], broken:['arpW','arpD'], arp16:['broken','arpW'], pluck:['walk','bassL'], walk:['pluck'], bassL:['pluck','trem'], trem:['sus','bassL'], sus:['trem'], off:['arpU'], ost:['ost'], ost2:['ost2'], pad:['pad'], drone:['drone'], sparse:['sparse']};
+    const prevFig={}; let prevLead=null;
+    const avail=function(k){ return k!==solo; };
+    const cast=function(ph){ const t=ph.tex, m=ph.mat; let lead=[], ctr=null, dbl=null, acc=[];
+      const pk=function(L){ const c=L.filter(function(k){ return avail(k) && k!==prevLead && lead.indexOf(k)<0; }); if(c.length) return pick(c); const c2=L.filter(avail); return c2.length?c2[0]:'dg'; };
+      if(t==='solo'||t==='pedal'){ lead=[pk(['dg','hg','pr','aj','gy'])]; acc=(t==='pedal')?[{k:'vc',f:'drone'},{k:'cb',f:'drone'},{k:'sh',f:'drone'}]:[{k:pick(['vc','sh']),f:'drone'}]; if(t==='pedal' && R()<0.5) acc.push({k:'gy',f:'sparse'}); }
+      else if(t==='strings'){ lead=[pk(['hg','aj'])]; ctr=['hg','aj'].filter(function(k){ return k!==lead[0] && avail(k); })[0]||null; acc=[{k:'vc',f:pick(['bassL','pluck','trem'])},{k:'cb',f:'bassL'}]; }
+      else if(t==='winds'){ lead=[pk(['dg','pr'])]; ctr=['dg','pr'].filter(function(k){ return k!==lead[0] && avail(k); })[0]||null; acc=[{k:'sh',f:'pad'}]; if(R()<0.6) acc.push({k:'gm',f:'pluck'}); }
+      else if(t==='plucked'){ lead=[avail('gy')?'gy':pk(['dg','hg'])]; acc=[{k:'yg',f:pick(['arpU','off','arpD'])},{k:'gm',f:pick(['pluck','walk'])}]; if(lead[0]!=='gy' && avail('gy')) acc.push({k:'gy',f:pick(['arpW','broken'])}); }
+      else if(t==='chamber'){ const f1=pick(['W','B']); lead=[pk(FAM[f1])]; ctr=pk(FAM[(f1==='W')?'B':'W']); acc=[{k:'gy',f:pick(['arpU','arpD','arpW','broken'])},{k:'vc',f:pick(['bassL','pluck'])}]; if(R()<0.5) acc.push({k:'sh',f:'pad'}); }
+      else if(t==='ostinato'){ lead=[pk(['dg','pr','hg','aj'])]; acc=[{k:'gy',f:'ost'},{k:'yg',f:'ost2'},{k:'gm',f:'pluck'},{k:'vc',f:'bassL'},{k:'cb',f:'bassL'}]; }
+      else { lead=['dg','pr'].filter(avail); dbl='hg'; ctr='aj'; { const vf=pick(['walk','pluck','bassL']); acc=[{k:'sh',f:'pad'},{k:'gy',f:pick(['arp16','broken','arpW'])},{k:'yg',f:'off'},{k:'gm',f:'pluck'},{k:'vc',f:vf},{k:'cb',f:(vf==='walk')?'walk':'pluck'}]; } if(/climax|build|drive2|final/.test(m)) lead.push('tp'); }
+      if(solo && ph.sp && t!=='tutti'){ const old=lead[0]; lead[0]=solo; if(ctr===solo) ctr=(old!==solo)?old:null; }
+      lead=lead.filter(function(k,i,a){ return a.indexOf(k)===i; });
+      if(ctr && (lead.indexOf(ctr)>=0 || !avail(ctr))) ctr=null; if(dbl && (!avail(dbl) || lead.indexOf(dbl)>=0)) dbl=null;
+      acc=acc.filter(function(a,i,arr){ return avail(a.k) && lead.indexOf(a.k)<0 && a.k!==ctr && a.k!==dbl && arr.findIndex(function(z){ return z.k===a.k; })===i; });
+      acc.forEach(function(a){ if(prevFig[a.k]===a.f && FIGALT[a.f]) a.f=pick(FIGALT[a.f]); prevFig[a.k]=a.f; });
+      prevLead=lead[0]; return {lead:lead, ctr:ctr, dbl:dbl, acc:acc}; };
+    const PLK={gy:1, gm:1, yg:1};
+    PLAN.forEach(function(ph){ if(ph.mat==='cad'){ realizeCad(ph.s); ph.cast={lead:[solo], ctr:null, dbl:null, acc:[]}; return; }
+      const C=cast(ph); ph.cast=C; const sl=(solo && ph.sp && C.lead[0]===solo && ph.tex!=='tutti'); const ml=mline(ph, sl && !LYR[ph.mat]); const L=ml.L; const vel=64+(sl?8:0);
+      const lo=function(k){ return {legato:!PLK[k], up:(ph.mat==='climax'||ph.mat==='final')?5:0}; };
+      const L1=C.lead[0], L2=C.lead[1]||C.ctr;
+      if(ml.mode==='alt1'||ml.mode==='alt2'){ const A=[], Bq=[]; L.forEach(function(n){ const j=(n.j!=null)?n.j:(n.b-ph.b0); const side=(ml.mode==='alt1')?(j%2):(Math.floor(j/2)%2); (side?Bq:A).push(n); });
+        lay(L1,A,vel+4,lo(L1)); lay(L2||L1,Bq,vel+2,lo(L2||L1)); C.lead.slice(1).forEach(function(k){ if(k!==L2) lay(k,L,vel-4,lo(k)); }); }
+      else if(ml.mode==='canon'){ const g0=secOfBar(ph.b0).grp[0]; const oth=[C.ctr].concat(C.lead.slice(1)).filter(Boolean); lay(L1,L,vel+2,lo(L1)); if(oth[0]) lay(oth[0],shiftN(L,g0,ph.b0+ph.nb),vel,lo(oth[0])); if(oth[1]) lay(oth[1],shiftN(L,2*g0,ph.b0+ph.nb),vel-2,lo(oth[1])); }
+      else { C.lead.forEach(function(k,i){ lay(k,L,vel+6-i*2,lo(k)); }); if(C.ctr) lay(C.ctr,counter(L),vel-10,{legato:!PLK[C.ctr], oct:-1}); }
+      if(C.dbl) lay(C.dbl,skeleton(L),vel-8,{late:16, legato:true});
+      if(solo && ph.sp && ph.tex==='tutti') lay(solo, decor(ph,L), vel+10, {legato:!PLK[solo]}); });
+    /* 대목 설명(셋업 시트): 구절 차례 */
     const cadNote=function(){ const SK=I[solo].ko, m={W:'긴 음 앞 꾸밈음과 부풀림, 32분 쓸어 오름, 겹혀 세 번 치기와 옥타브 뜀, 끝은 이웃 온음 32분 떨기', S:'4도 5도 겹음, 겹음 쓸어 오름과 되풀이, 겹음 떨기', B:(solo==='aj')?'낮은 긴 활, 줄 건너기(바리올라주), 정점과 끝은 활 떨기(트레몰로)':'꾸밈음과 부풀림, 32분 쓸어 오름, 줄 건너기(바리올라주), 끝은 이웃 온음 떨기', P:(solo==='gy')?'다섯 음 32분 쓸어 오르내림, 옥타브 번갈음, 긴 음은 옥타브를 짚고 트레몰로, 끝은 딸림음 트레몰로':'술대로 치는 낮은 울림음과 술대 번갈음, 긴 음은 다시 쳐 이음, 끝은 술대 몰아치기'}[ST];
-      return '독주 '+SK+' 홀로, 빠르기는 자유롭게(MIDI 빠르기 줄이 늘이고 몰아침). 셈여림 pp(34) 에서 fff(118), CC1 20~127. ① 부름과 메아리(ff 로 부르고 한 옥타브 위 pp 로 되받음) ② 되풀이 올림(p → ff, 빨라짐) ③ 불꽃(쓸어 오름 내려옴 다시 꼭대기, fff 정점 늘임표, 갑자기 p) ④ 노래(뒤집은 모티브 pp, 둘째 구절 mf 딸림음 늘임표) ⑤ 몰아침(한 자리씩 올라가며 mf → ff, 32분으로 곤두박질 ff → p) ⑥ 쓸어 올라 딸림음 떨기 p → fff, 관현악이 재현으로 들어옴. 주법: '+m; };
-    secs.forEach(function(s,si){ const b0=s.b0, n=s.bars; const r={lead:[], dbl:[], acc:[], note:''};
-      const vel=46+s.E*14;
-      if(solo){ concertoSec(s,si,r,vel); roles.push(r); return; }
-      if(s.k==='intro'){ /* 생황 긴 화음(으뜸 5도), 첼로 베이스 긴 음, 대금이 모티브를 늘여 부름, 가야금 성긴 펼침 */
-        const L=phraseNotes(b0+2, Math.min(4,n-2), MOT.d, [1], {aug:true, aug2:true, endTo:pick([1,3]), holdLast:true}); lay('dg', L, 62, {legato:true}); r.lead=['dg']; r.note='모티브를 늘여 대금 홀로';
-        themeOf.intro=L; }
-      else if(s.k==='A'){ const ROT=[['dg','hg'],['pr','dg'],['hg','dg'],['dg','pr']]; r.lead=[]; r.dbl=[]; const all=[];
-        for(let q=0, U=4*PB(s);q*U<n;q++){ const half=q%2, rnd=Math.floor(q/2); const rs=(rnd===0)?MOT.rs:MOT.rs.map(function(x){ return Math.min(3,x+1); }); let L=(rnd>=2)?theme8(b0+q*U,half,rs,1,{add:1, cmax:5, virt:true, rv:rnd}):theme8(b0+q*U,half,rs); const pr2=ROT[rnd%ROT.length];
-          lay(pr2[0], L, vel+6+Math.min(2,rnd)*4, {legato:true}); lay(pr2[1], skeleton(L), vel-6+Math.min(2,rnd)*4, {late:20, legato:true}); if(r.lead.indexOf(pr2[0])<0) r.lead.push(pr2[0]); if(r.dbl.indexOf(pr2[1])<0) r.dbl.push(pr2[1]); all.push.apply(all,L); }
-        themeOf.A=all; r.note='주제 8마디 둘(여는 구절은 딸림에 반마침, 닫는 구절은 으뜸)을 내고, 16마디마다 이끎 악기를 바꾸고 리듬을 촘촘히 해 되풀이(셋째 돌림부터 잔가락으로 쪼갬)'; }
-      else if(s.k==='tr'){ const L=trLine(b0,n); lay('dg', L.filter(function(x){ return (x.q/2)%2===0; }), vel+4, {legato:true}); lay('pr', L.filter(function(x){ return (x.q/2)%2===1; }), vel+4, {legato:true}); lay('hg', skeleton(L), vel-8, {late:14, legato:true});
-        r.lead=['dg','pr']; r.dbl=['hg']; r.note='모티브 머리 세 음을 두 마디마다 한 자리씩 올려 대금 피리가 주고받으며 '+(s.keys?RO(keyKo(s.keys[1]))+' 건너감':'다음 대목으로 밀어 줌')+', 끝은 다음 조의 딸림'; }
-      else if(s.k==='B'){ /* 모티브 뒤집기, 관악과 현악이 두 마디씩 묻고 답함 */
-        const L=qaLine(b0,n); lay('pr', L.filter(function(x){ return (x.q/2)%2===0; }), vel+8, {legato:true}); lay('aj', L.filter(function(x){ return (x.q/2)%2===1; }), vel+6, {legato:true}); r.lead=['pr','aj']; r.note='모티브를 뒤집어 피리와 아쟁이 두 마디씩 묻고 답함(뒤 절반은 리듬을 촘촘히)'; themeOf.B=L; }
-      else if(s.k==='B2'){ const L=qaLine(b0,n); lay('hg', L.filter(function(x){ return (x.q/2)%2===0; }), vel+8, {legato:true}); lay('gy', L.filter(function(x){ return (x.q/2)%2===1; }), vel+8, {}); lay('dg', skeleton(L), vel-10, {late:20, legato:true});
-        r.lead=['hg','gy']; r.dbl=['dg']; r.note='대비 주제(뒤집은 모티브)가 으뜸조로 돌아와 해금과 25현 가야금이 묻고 답함, 대금이 뼈대'; }
-      else if(s.k==='C'){ const lk='hg', dk='dg'; const L=[]; for(let q=0;q<n;q+=4){ const kind=['m','ans','seq','cad'][(q/4)%4]; L.push.apply(L, phraseNotes(b0+q,Math.min(4,n-q),themeDegs(kind),[1,2],{aug:true, aug2:true, endTo:(q+4>=n)?0:(((q/4)%2)?pick([1,3]):null), holdLast:true})); }
-        const hb=b0+4*Math.floor(n/8); const L1=L.filter(function(x){ return x.b<hb; }), L2=L.filter(function(x){ return x.b>=hb; });
-        lay(lk, L1, 60, {legato:true}); lay(dk, skeleton(L1), 50, {late:30, legato:true, oct:1}); lay(dk, L2, 60, {legato:true}); lay(lk, skeleton(L2), 50, {late:30, legato:true, oct:-1});
-        r.lead=[lk,dk]; r.dbl=[dk,lk]; r.note='주제를 늘여 해금이 노래하고 대금이 한 옥타브 위 뼈대, 뒤 절반은 대금이 노래를 받고 해금이 아래 뼈대(네 마디 구절: 모티브, 대답, 올림, 맺음)'; }
-      else if(s.k==='vr'){ const ROTV=[['hg','gy'],['dg','yg'],['pr','gy'],['hg','dg']]; for(let q=0, U=4*PB(s);q*U<n;q++){ const L=theme8(b0+q*U,q%2,MOT.rs.map(function(x){ return Math.min(4,x+(q>=2?1:0)); }),1,{rv:q, kinds:(q%2)?['m','exp','ret','cad']:null, virt:q>=2}); const pr2=ROTV[Math.floor(q/2)%ROTV.length];
-          lay(pr2[0], L, vel+6, {legato:true}); if(pr2[1]==='gy'||pr2[1]==='yg') lay(pr2[1], diminish(L), vel-2, {}); else lay(pr2[1], skeleton(L), vel-6, {late:16, legato:true, oct:1}); }
-        r.lead=['hg','dg','pr']; r.dbl=['gy','yg']; r.note='주제를 '+s.meter+' ('+s.grp.join('+')+') 묶음에 다시 얹고, 열여섯 마디마다 이끎 악기를 바꾸며 가야금 양금이 잔가락으로 꾸미는 변주'; }
-      else if(s.k==='dev'){ /* 모티브 머리 셋을 조 옮김 따라 올리며 쌓기, 관악과 현악이 한 묶음 늦게 따라 들어감(돌림) */
-        const L=devLine(b0,n);
-        lay('pr', L, vel+4, {}); lay('hg', shiftN(L, secs[si].grp[0], b0+n), vel-2, {}); lay('gy', diminish(L), vel-4, {oct:0}); r.lead=['pr','hg(돌림)','gy']; r.note='모티브 머리 세 음을 조 옮김('+s.keys.slice(0,3).map(keyKo).join(' → ')+(s.keys[3].v?' → 으뜸조 딸림 7sus4 위':' → '+keyKo(s.keys[3]))+')마다 올리며, 해금이 한 묶음 늦게 따라 들어감'; }
-      else if(s.k==='dev2'){ /* 좁혀 들어가는 돌림(스트레토): 아쟁 → 해금(한 마디 뒤) → 대금(두 마디 뒤) */
-        const L=[]; for(let q=0;q<n;q+=2){ const kind=['m','seq','inv','ret','exp','frag'][(q/2)%6]; L.push.apply(L, phraseNotes(b0+q,Math.min(2,n-q),themeDegs(kind).map(function(x){ return x+Math.floor(q/4); }),MOT.rs.map(function(x){ return x+1; }),{rv:q/2})); }
-        const n8=sum(s.grp); lay('aj', L, vel+4, {legato:true}); lay('hg', shiftN(L, n8, b0+n), vel+2, {legato:true}); lay('dg', shiftN(L, 2*n8, b0+n), vel+6, {legato:true, oct:0});
-        r.lead=['aj','hg(한 마디 뒤)','dg(두 마디 뒤)']; r.note='모티브 온꼴, 올림, 뒤집기, 쪼갬을 아쟁이 내고 해금 대금이 한 마디씩 좁혀 따라 들어가는 돌림(조 옮김 '+s.keys.slice(0,3).map(keyKo).join(' → ')+(s.keys[3].v?' → 으뜸조 딸림 7sus4':'')+')'; }
-      else if(s.k==='A2'){ let L1=[]; for(let q=0, U=4*PB(s);q*U<n;q++) L1=L1.concat(theme8(b0+q*U,q%2,(q>=2)?MOT.rs.map(function(x){ return Math.min(3,x+1); }):MOT.rs)); const LL=(s.e8>=260)?L1:diminish(L1);
-        lay('dg', LL, vel+8, {legato:true}); lay('pr', LL, vel+6, {legato:true, oct:0}); lay('hg', skeleton(LL), vel, {late:14, legato:true}); lay('aj', skeleton(LL), vel-2, {legato:true, oct:-1});
-        const climax=LL.filter(function(x){ return x.b>=b0+Math.max(8,n-16); }); lay('tp', climax, vel+14, {legato:true});
-        r.lead=['dg','pr','tp(뒤 열여섯 마디)']; r.dbl=['hg','aj']; r.note='주제가 으뜸조로 돌아와 모두 함께, 뒤 열여섯 마디(짧으면 여덟 마디) 태평소가 정점'; themeOf.A2=LL; }
-      else if(s.k==='coda'){
-        if(END==='hit'){ const L=[]; for(let q=0;q<n-2;q++){ L.push.apply(L, phraseNotes(b0+q,1,MOT.d.slice(0,4).map(function(x){ return x+(q%2); }),[2,2,1,2],{})); } L.push.apply(L, phraseNotes(b0+n-2,2,[0],[1],{aug:true, endTo:0}));
-          ['dg','pr','tp','hg'].forEach(function(k,z){ lay(k, L, vel+10-z*2, {legato:true}); }); r.lead=['dg','pr','tp','hg (모두 같은 가락)']; r.note='모티브 머리를 줄여 몰아치고 마지막 화음에서 모두 함께 터짐'; }
-        else if(END==='cycle'){ const L=themeOf.intro?phraseNotes(b0+1,Math.max(2,n-2),MOT.d,[1],{aug:true, aug2:true, endTo:0, holdLast:true}):[]; lay('dg', L, 58, {legato:true}); r.lead=['dg']; r.note='서주의 대금 모티브로 돌아옴(수미쌍관)'; }
-        else { const L=phraseNotes(b0,n-1,MOT.d.slice(0,5),[1,1,2],{aug:true, aug2:true, endTo:0, holdLast:true}); lay('hg', L, 54, {legato:true}); lay('dg', skeleton(L), 46, {late:40, legato:true, oct:1}); r.lead=['hg','dg']; r.note='주제 첫 구절을 늘여 해금 대금이 여리게'; } }
+      return '독주 '+SK+' 홀로, 빠르기는 자유롭게(MIDI 빠르기 줄이 늘이고 몰아침). 셈여림 pp(34) 에서 fff(118), CC1 20~127. ① 부름과 메아리 ② 되풀이 올림(p → ff, 빨라짐) ③ 불꽃(쓸어 오름 내려옴 다시 꼭대기, fff 늘임표, 갑자기 p) ④ 노래(뒤집은 모티브 pp) ⑤ 몰아침(mf → ff, 32분 곤두박질) ⑥ 쓸어 올라 딸림음 떨기 p → fff, 관현악이 재현으로 들어옴. 주법: '+m; };
+    secs.forEach(function(s){ const phs=PLAN.filter(function(p){ return p.s===s; }); const r={lead:[], dbl:[], acc:[], note:''};
+      phs.forEach(function(p){ if(!p.cast) return; p.cast.lead.forEach(function(k){ if(r.lead.indexOf(k)<0) r.lead.push(k); }); [p.cast.ctr,p.cast.dbl].forEach(function(k){ if(k && r.dbl.indexOf(k)<0 && r.lead.indexOf(k)<0) r.dbl.push(k); }); });
+      r.note=(s.k==='cad')?cadNote():('구절 '+phs.map(function(p){ return MAT_KO[p.mat]+'('+TEX_KO[p.tex]+' '+KO(p.cast.lead[0])+((solo && p.sp && p.tex==='tutti')?' 위에 독주 잔가락':'')+', '+H_KO[p.h]+')'; }).join(' → '));
       roles.push(r); });
-
-    /* ── 받침: 생황 화음, 가야금 양금 펼침, 거문고 첼로 베이스, 아쟁 긴 음 ── */
-    const accUsed={};
-    for(let b=0;b<NB;b++){ const s=secOfBar(b), C=chordAt(b), T=triOf(C), E=s.E, t0=BARS[b].t, Lb=BARS[b].L; const heads=[]; { let e=0; s.grp.forEach(function(g){ heads.push([e,g]); e+=g; }); }
-      if(s.k==='cad') continue;   /* 카덴자는 독주 홀로 */
-      const quiet=(s.k==='intro'&&BARS[b].j<2)||(s.k==='coda'&&END!=='hit');
-      /* 생황: 근음 5도 9도(서주), 그 밖엔 화음 세 음을 가까이 이어서 마디 길게 */
-      { const V=(s.k==='intro')?[C.root, pcOf(C.root+7)]:T.slice(0,3); const top=(s.k==='intro')?[fold(nearPc(V[0],72),69,84),fold(nearPc(V[1],76),69,88)]:V.map(function(pc,i){ return fold(nearPc(pc,74+i*4),69,88); });
-        if(solo!=='sh' && !((s.k==='B'||s.k==='B2') && BARS[b].j%4<2) && !(s.k==='coda'&&END==='hit'&&BARS[b].j<s.bars-2)) top.forEach(function(m){ put('sh',t0+6,m,40+E*8,Lb-30); }); accUsed.sh=1; }
-      /* 가야금: 묶음마다 펼침(기운 0 은 묶음 머리만, 1~2 는 8분, 3~4 는 16분) */
-      if(['dev','B2','vr'].indexOf(s.k)<0 && !quiet && (solo!=='gy' || s.k==='intro')){   /* 가야금이 선율을 타는 대목(전개, 대비 주제 재현, 변주, 가야금 협주)은 펼침 없음 */ const lo=48; const TG=T.filter(function(pc){ return inSig(b,pc); }); if(TG.indexOf(C.root)<0) TG.unshift(C.root); heads.forEach(function(h,hi){ const g=h[1]; const ar=[fold(nearPc(C.root,52),lo,60)].concat(TG.filter(function(pc){ return pc!==C.root; }).map(function(pc){ return fold(nearPc(pc,62),lo,74); })).concat([fold(nearPc(C.root,67),lo,76)]);   /* 조율에 없는 화음 음(단조 이끎음 등)은 가야금에서 뺌 */
-          if(E<=0){ if(hi===0) put('gy',t0+h[0]*E8,ar[0],52,g*E8*2); return; }
-          const step=(E>=3)?0.5:1; let q=0; for(let e=0;e<g;e+=step,q++){ const m=ar[(q+(hi%2))%ar.length]; const tt=t0+(h[0]+e)*E8; put('gy',tt,m,(E>=3?58:54)+(e===0?8:0),Math.min(step*E8*1.6, t0+Lb-tt-10)); } }); accUsed.gy=1; }
-      /* 양금: 기운 2 넘으면 묶음 뒤 8분 반짝임 */
-      if(E>=2 && !quiet){ const TY=T.filter(function(pc){ return inSig(b,pc); }); const T2=TY.length?TY:[C.root]; heads.forEach(function(h,hi){ if(h[1]<2) return; const m=fold(nearPc(T2[(hi+1)%T2.length],72),67,81); put('yg',t0+(h[0]+1)*E8,m,58+E*4,E8*0.9); if(h[1]===3) put('yg',t0+(h[0]+2)*E8,fold(nearPc(T2[(hi+2)%T2.length],74),67,81),54+E*4,E8*0.9); }); accUsed.yg=1; }
-      /* 거문고: 묶음 머리 근음(술대), 셋 묶음은 셋째 8분에 5도 */
-      if(solo!=='gm' && (!quiet || s.k==='intro')){ heads.forEach(function(h,hi){ if(E<=0 && hi>0) return; const r0=fold(nearPc(C.root,45),40,52); put('gm',t0+h[0]*E8,(hi%2===1 && E>=2)?fold(r0+7,40,57):r0,(hi===0?70:60)+E*5,Math.min(h[1],2)*E8*0.8); if(h[1]===3 && E>=3) put('gm',t0+(h[0]+2)*E8,fold(r0+7,40,57),56+E*4,E8*0.7); }); accUsed.gm=1; }
-      /* 첼로 콘트라베이스: 기운 0~1 마디 길게, 2 넘으면 묶음 머리 */
-      { const r=fold(nearPc(C.root,43),36,50), rb=fold(r-12,28,43);
-        if(E<=1 || s.k==='C'){ put('vc',t0+10,r,60+E*8,Lb-40); put('cb',t0+10,rb,58+E*8,Lb-40); ccp('vc',t0,64+E*10,11); ccp('cb',t0,62+E*10,11); }
-        else heads.forEach(function(h,hi){ const m=(hi%2===1 && E>=3)?fold(r+7,36,55):r; put('vc',t0+h[0]*E8,m,64+E*7+(hi===0?8:0),h[1]*E8*0.85); put('cb',t0+h[0]*E8,hi===0?rb:fold(m-12,28,50),62+E*7+(hi===0?8:0),h[1]*E8*0.85); ccp('vc',t0+h[0]*E8,84+E*6,11); ccp('cb',t0+h[0]*E8,82+E*6,11); }); }
-      /* 아쟁: 대비 대목이 아니면 화음 셋째 음을 길게(받침), 재현은 선율 아래 옥타브(위에서) */
-      if(['B','A2','B2','dev2','tr'].indexOf(s.k)<0 && solo!=='aj' && E>=1 && !quiet) { const m=fold(nearPc(T[1]||T[0],55),48,64); put('aj',t0+20,m,52+E*6,Lb-60); accUsed.aj=1; }
-    }
-    /* ── 장단: 묶음 머리 덩 쿵, 셋 묶음 안 덕, 촘촘하면 기덕과 더러러(장구 48 덩 50 쿵 52 기덕 53 더 55 덕 57 더러러) ── */
+    /* ── 받침 꼴: 구절마다 악기와 꼴이 바뀜(지속음, 패드, 긴 음, 트레몰로, 펼침 넷, 오스티나토, 뜯기, 걷는 베이스, 엇박) ── */
+    const RG={sh:[67,88], gy:[45,78], yg:[60,81], gm:[40,57], vc:[36,55], cb:[28,45], aj:[48,66], hg:[64,82]};
+    const near1=function(pc,prev,c,lo,hi){ let m=fold(nearPc(pc,(prev!=null)?prev:c),lo,hi); return m; };
+    const figBar=function(ph,a,b,st){ const k=a.k, f=a.f, lv=ph.lv, s=secOfBar(b), C=chordAt(b), K=keyAt(b), t0=BARS[b].t, Lb=BARS[b].L, j=b-ph.b0, rg=RG[k]||[48,72];
+      const heads=[]; { let e=0; s.grp.forEach(function(g){ heads.push([e,g]); e+=g; }); }
+      const bassPc=(C.pedal==='dom')?pcOf(K.pc+7):(C.pedal?K.pc:C.root);
+      let T=triOf(C); if(k==='gy'||k==='yg'){ T=T.filter(function(pc){ return inSig(b,pc); }); if(!T.length) T=[C.root]; }
+      const V=44+lv*8; const last=(b===ph.b0+ph.nb-1);
+      if(f==='drone'){ if(j%2) return; const len=Math.min(2,ph.b0+ph.nb-b), L2=BARS[b].L*len-40; if(k==='sh'){ put(k,t0+6,fold(nearPc(bassPc,74),rg[0],rg[1]),V-6,L2); put(k,t0+6,fold(nearPc(pcOf(bassPc+7),79),rg[0],rg[1]),V-10,L2); } else put(k,t0+8,fold(nearPc(bassPc,(rg[0]+rg[1])/2),rg[0],rg[1]),V-4,L2); return; }
+      if(f==='pad'){ const top=T.slice(0,3).map(function(pc,i){ return fold(nearPc(pc,(st.pad&&st.pad[i])||(73+i*4)),rg[0],rg[1]); }); st.pad=top; top.forEach(function(m){ put(k,t0+6,m,V-6,Lb-30); }); return; }
+      if(f==='sus'){ const pc=T[(j+1)%T.length]; const m=near1(pc,st.m,(rg[0]+rg[1])/2,rg[0],rg[1]); st.m=m; put(k,t0+20,m,V-6,Lb-50); return; }
+      if(f==='trem'){ const pc=T[Math.min(1,T.length-1)]; const m=near1(pc,st.m,(rg[0]+rg[1])/2,rg[0],rg[1]); st.m=m; const step=E8/2; for(let t=0;t<Lb-10;t+=step) put(k,t0+t,m,V-14+Math.round(10*t/Lb),step-8); return; }
+      if(f==='bassL'){ let m; if(k==='cb' || C.pedal || CH[b].last || j%4===0 || st.m==null) m=fold(nearPc(bassPc,(st.m!=null)?st.m:(rg[0]+rg[1])/2-2),rg[0],rg[1]); else { const cand=triOf(C).map(function(pc){ return fold(nearPc(pc,st.m),rg[0],rg[1]); }); cand.sort(function(x,y){ return Math.abs(x-st.m)-Math.abs(y-st.m); }); m=(cand[0]===st.m && cand[1]!=null)?cand[1]:cand[0]; }   /* 첼로는 자리바꿈으로 걸어감, 콘트라베이스는 근음 */
+        st.m=m; if(k==='cb' && ph.lv<=1 && j%2===1 && !CH[b].last) return; put(k,t0+10,m,V+2,Lb-40); return; }
+      if(f==='pluck'||f==='walk'){ const r0=fold(nearPc(bassPc,(rg[0]+rg[1])/2-3),rg[0],rg[1]); const nb2=(b+1<NB)?chordAt(b+1):C; const tgt=fold(nearPc(nb2.pedal?keyAt(b+1).pc:nb2.root,r0),rg[0],rg[1]);
+        heads.forEach(function(h,hi){ let m=r0; if(f==='walk' && hi>0){ const sc=SC7[K.mi].map(function(x){ return pcOf(K.pc+x); }); let x=r0+Math.round((tgt-r0)*hi/heads.length); for(let q=0;q<3 && sc.indexOf(pcOf(x))<0;q++) x+=(tgt>r0)?1:-1; m=fold(x,rg[0],rg[1]); } else if(hi%2===1 && lv>=2) m=fold(r0+7,rg[0],rg[1]+5);
+          if(lv<=0 && hi>0) return; put(k,t0+h[0]*E8,m,V+(hi===0?8:0),Math.min(h[1],2)*E8*((f==='walk')?0.95:0.7)); }); return; }
+      if(f==='sparse'){ if(j%2) return; const m=fold(nearPc(T[T.length-1],70),rg[0],rg[1]); put(k,t0+E8,m,V-4,E8*3); return; }
+      if(f==='off'){ heads.forEach(function(h,hi){ if(h[1]<2) return; const m=fold(nearPc(T[(hi+j)%T.length],74),rg[0],rg[1]); put(k,t0+(h[0]+1)*E8,m,V-2,E8*0.7); if(h[1]===3 && lv>=2) put(k,t0+(h[0]+2)*E8,fold(nearPc(T[(hi+j+1)%T.length],76),rg[0],rg[1]),V-6,E8*0.6); }); return; }
+      if(f==='ost'||f==='ost2'){ const cell=st.cell||(st.cell=(function(){ const L=[]; const n=4+Math.floor(R()*3); for(let i=0;i<n;i++) L.push(Math.floor(R()*3)+(i%2?1:0)); return L; })());   /* 구절 안에서만 되풀이되는 오스티나토 꼴(구절마다 새로) */
+        const ar=[C.root].concat(T.filter(function(pc){ return pc!==C.root; })).map(function(pc,i){ return fold(nearPc(pc,((f==='ost')?52:70)+i*5),rg[0],rg[1]); }).sort(function(x,y){ return x-y; });
+        const step=(f==='ost')?1:2; let q=0; for(let e=(f==='ost2')?1:0;e<sum(s.grp)-0.01;e+=step,q++){ const m=ar[cell[q%cell.length]%ar.length]; put(k,t0+e*E8,m,V-4+((e%3===0)?6:0),E8*step*0.9); } return; }
+      /* 펼침(가야금 양금): arpU 오름 arpD 내림 arpW 오르내림 broken 낮은 근음과 두 음 arp16 16분 */
+      const ar=[fold(nearPc(C.root,rg[0]+6),rg[0],rg[0]+14)].concat(T.filter(function(pc){ return pc!==C.root; }).map(function(pc){ return fold(nearPc(pc,rg[0]+14),rg[0],rg[1]); })).concat([fold(nearPc(C.root,rg[0]+20),rg[0],rg[1])]).sort(function(x,y){ return x-y; });
+      const step=(f==='arp16' || lv>=2)?0.5:1; heads.forEach(function(h,hi){ let q=0; for(let e=0;e<h[1]-0.01;e+=step,q++){ let idx;
+          if(f==='arpU'||f==='arp16') idx=q%ar.length; else if(f==='arpD') idx=ar.length-1-(q%ar.length); else if(f==='arpW'){ const c=ar.length*2-2; const z=q%Math.max(1,c); idx=(z<ar.length)?z:c-z; } else idx=(q===0)?0:1+((q+hi)%(ar.length-1));
+          const tt=t0+(h[0]+e)*E8; put(k,tt,ar[Math.max(0,Math.min(ar.length-1,idx))],V-2+(e===0?6:0),Math.min(step*E8*1.6,t0+Lb-tt-10)); } }); };
+    PLAN.forEach(function(ph){ if(ph.mat==='cad' || !ph.cast) return; ph.cast.acc.forEach(function(a){ const st={}; for(let b=ph.b0;b<ph.b0+ph.nb;b++) figBar(ph,a,b,st); }); });
+    /* 대목 잇기: 다음 대목이 빠르면 끝 두 마디 점점 빠르게, 느리면 점점 느리게, 비슷하면 지속음을 걸쳐 넘기거나 팀파니 굴림 */
+    const TRANS=[];
+    secs.forEach(function(s){ const n=s.next; if(!n || s.k==='cad' || n.k==='cad' || n.k==='A2' && s.k!=='tr') { if(n && n.k==='A2') TRANS.push([s.i,'build']); return; } const lb=s.b0+s.bars-1, b1=Math.max(s.b0,lb-1), r=n.e8/s.e8, span=BARS[lb].t+BARS[lb].L-BARS[b1].t;
+      if(r>1.12){ for(let q=1;q<=6;q++) TM.push({t:BARS[b1].t+Math.round(q*span/7), e8:Math.round(s.e8*(1+(r*0.94-1)*q/6))}); TRANS.push([s.i,'accel']); }
+      else if(r<0.88){ for(let q=1;q<=6;q++) TM.push({t:BARS[b1].t+Math.round(q*span/7), e8:Math.round(s.e8*(1-0.3*q/6))}); put('tt',BARS[lb].t,36,52,BARS[lb].L*2); TRANS.push([s.i,'rit']); }
+      else if(R()<0.5){ const K2=n.K, m1=fold(nearPc(K2.pc,43),36,50); put('vc',BARS[lb].t+BARS[lb].L/2,m1,56,BARS[lb].L/2+BARS[n.b0].L-30); put('sh',BARS[lb].t+BARS[lb].L/2,fold(nearPc(pcOf(K2.pc+7),76),69,88),48,BARS[lb].L/2+BARS[n.b0].L-30); TRANS.push([s.i,'pedal']); }
+      else { const C=chordAt(lb), r0=fold(nearPc(C.root,44),38,50), st=Math.round(PPQ/6), tL=BARS[lb].t, nn=Math.floor(BARS[lb].L/st); for(let i=0;i<nn;i++) put('tim',tL+i*st,r0,40+Math.round(50*i/Math.max(1,nn-1)),st-8); TRANS.push([s.i,'roll']); } });
+    /* ── 장단과 북 징: 구절 타악 세기(0 없음, 1 성긴 장구와 징, 2 장단과 북, 3 장단 변형, 북 모든 머리, 꽹과리) ── */
     const JDV=window.__JDV||{};
     const jgBar=function(b,lv,fill){ const s=secOfBar(b), t0=BARS[b].t, g=s.grp, kind=jdKind(s); const out=[];
       const tab=(s.meter==='12/8')?(JDV[(kind==='자진모리')?'jajin':'gut']||null):null;
@@ -42383,18 +42477,19 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       if(fill){ const n8=sum(g), last=g[g.length-1]; for(let i=out.length-1;i>=0;i--) if(out[i][0]>=n8-last) out.splice(i,1); for(let q=0;q<last*2;q++){ out.push([n8-last+q*0.5, q===0?52:(q===last*2-1?57:((q%2)?53:55)), -8+Math.round(14*q/(last*2))]); } }
       return out.map(function(x){ return [t0+x[0]*E8, x[1], x[2]]; }); };
     const JDUSE={};
-    for(let b=0;b<NB;b++){ const s=secOfBar(b), E=s.E, j=BARS[b].j; if(s.k==='intro' || (s.k==='coda' && END!=='hit') || s.k==='C' || s.k==='cad') continue;
-      const lv=(E>=4)?2:(E>=2?1:0); const fill=(j%4===3)||(j===s.bars-1); jgBar(b,lv,fill && E>=1).forEach(function(x){ put('jg',x[0],x[1],70+E*6+x[2],E8*0.9); }); JDUSE[jdKind(s)]=1;
-      /* 북: 기운 2 넘으면 묶음 머리, 정점은 모든 머리 + 테 딱 */
-      if(E>=2){ let e=0; s.grp.forEach(function(g,hi){ if(hi===0 || E>=3) put('buk',BARS[b].t+e*E8,hi===0?36:41,(hi===0?92:78)+E*3,E8); if(E>=4 && g===3) put('buk',BARS[b].t+(e+2)*E8,43,70,E8*0.5); e+=g; }); }
-      /* 꽹과리: 빠른 재현과 터지는 코다만, 묶음 머리 갱 사이 지 */
-      if(E>=4 && s.e8>=270 && (s.k==='coda' || BARS[b].j>=s.bars-8)){ let e=0; s.grp.forEach(function(g){ put('kk',BARS[b].t+e*E8,60,72,E8*0.8); if(g>=2) put('kk',BARS[b].t+(e+1)*E8,62,54,E8*0.5); e+=g; }); }
-      /* 소리북(East Asia, 고수 북 색): 대비 대목에서 묶음 머리 궁(60 왼손), 끝 묶음 딱(77 테), 네 마디 끝 악센트(71) */
-      if(s.k==='B'||s.k==='B2'){ let e=0; s.grp.forEach(function(g,hi){ put('sbk',BARS[b].t+e*E8,hi===0?60:61,(hi===0?84:66),E8*0.9); if(g===3) put('sbk',BARS[b].t+(e+2)*E8,77,58,E8*0.4); e+=g; }); if(j%4===3) put('sbk',BARS[b].t+(sum(s.grp)-s.grp[s.grp.length-1])*E8,71,92,E8); }
-    }
-    /* 징: 대목 첫 박과 네(여덟) 마디 구절 머리 */
-    secs.forEach(function(s){ if(s.k==='cad') return; for(let j=0;j<s.bars;j+=(s.E>=3?4:8)){ const b=s.b0+j; put('jing',BARS[b].t,72,(j===0?78:62)+s.E*6,BARS[b].L*1.5); } });
-    /* ── 서양 타악: 팀파니 키스위치(C0 = 한 번 치기), 대목 머리 팀파니, 터지는 자리(재현 첫 박, 코다 끝) ── */
+    PLAN.forEach(function(ph){ if(ph.mat==='cad') return; const s=ph.s, lv=ph.lv, nx=PLAN[ph.i+1];
+      put('jing',BARS[ph.b0].t,72,(lv>=1)?(54+lv*10):44,BARS[ph.b0].L*1.5);   /* 구절 머리 징(세기 따라) */
+      if(lv<=0) return;
+      const vset=Math.floor(R()*4);
+      for(let b=ph.b0;b<ph.b0+ph.nb;b++){ const j=b-ph.b0, last=(b===ph.b0+ph.nb-1), t0=BARS[b].t;
+        const jl=(lv>=3)?2:((lv>=2)?1:0); const fill=last && nx && nx.lv>=2; const skip=(lv===1 && j%2===1 && !fill);
+        if(!skip) jgBar(b,(lv===2 && (j+vset)%4===3)?2:jl,fill).forEach(function(x){ put('jg',x[0],x[1],((lv>=2)?76:60)+x[2]+((j%4===0)?4:0),E8*0.9); });
+        JDUSE[jdKind(s)]=1;
+        if(lv>=2){ let e=0; s.grp.forEach(function(g,hi){ if(hi===0 || lv>=3 || (hi===s.grp.length-1 && j%2===1)) put('buk',t0+e*E8,(hi===0)?36:41,((hi===0)?88:74)+lv*3,E8); if(lv>=3 && g===3 && (j+hi)%2===0) put('buk',t0+(e+2)*E8,43,70,E8*0.5); e+=g; }); }
+        if(lv>=3 && s.e8>=250){ let e=0; s.grp.forEach(function(g){ put('kk',t0+e*E8,60,72,E8*0.8); if(g>=2) put('kk',t0+(e+1)*E8,62,54,E8*0.5); e+=g; }); }
+        if((s.k==='B'||s.k==='B2') && lv>=1){ let e=0; s.grp.forEach(function(g,hi){ if(hi===0 || (j+hi)%2===0) put('sbk',t0+e*E8,(hi===0)?60:61,(hi===0)?82:64,E8*0.9); if(g===3 && lv>=2) put('sbk',t0+(e+2)*E8,77,56,E8*0.4); e+=g; }); if(last) put('sbk',t0+(sum(s.grp)-s.grp[s.grp.length-1])*E8,71,92,E8); }
+        if(lv>=3 && j%4===0 && j>0) put('jing',t0,72,74,BARS[b].L*1.2); } });
+    /* ── 서양 타악 ── */
     put('tim',0,24,100,30);
     const hit=function(b,big){ const t=BARS[b].t, C=chordAt(b), r=fold(nearPc(C.root,44),38,50), q=PPQ*(secOfBar(b).e8/2)/60;
       put('tim',t,r,big?124:104,PPQ*2); put('gc',t,39,big?112:96,BARS[b].L); put('cym',t,49,big?110:90,BARS[b].L*2); put('tt',t,36,big?110:90,Math.round(q*4)); put('tb',t,fold(nearPc(C.root,64),60,71),big?108:92,BARS[b].L*2); put('tb',t,fold(nearPc(C.root,64)+7,60,77),big?100:84,BARS[b].L*2); };
@@ -42406,18 +42501,31 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       const q=PPQ*(secOfBar(bEnd-1).e8/2)/60, sec=(lb-ra)/q, rk=(sec<=1.5)?49:48, ln=Math.round(q*((sec<=1.5)?1.3:Math.min(2.0,sec))); put('tt',Math.max(ra,lb-ln),rk,100,Math.max(60,lb-Math.max(ra,lb-ln)-10));
       /* 숨 멈춤: 터지기 바로 앞 반 묶음은 선율과 받침을 비움(타악 굴림은 그대로) */
       ORD.forEach(function(k){ if(I[k].perc) return; P[k]=P[k].filter(function(x){ return !(x.t>=lb && x.t<BARS[bEnd].t); }); P[k].forEach(function(x){ if(x.t<lb && x.t+x.d>lb) x.d=Math.max(40,lb-x.t-10); }); }); };
-    const HITS=[]; secs.forEach(function(s,si){ if(s.k==='cad'){ build2(s.b0, 2); hit(s.b0,true); HITS.push(s.b0); }   /* 관현악이 으뜸화음에서 멈추고 카덴자 */
-      if(s.k==='A2'){ if(!(s.prev && s.prev.k==='cad')) build2(s.b0, 4); hit(s.b0,true); HITS.push(s.b0); { const U=4*PB(s); if(s.bars>=U+4){ hit(s.b0+U,false); HITS.push(s.b0+U); } } }
-      if(s.k==='B' || s.k==='C' || s.k==='B2' || s.k==='dev2' || s.k==='vr'){ put('tim',BARS[s.b0].t,fold(nearPc(chordAt(s.b0).root,44),38,50),84,PPQ*2); put('cym',BARS[s.b0].t,49,72,BARS[s.b0].L); }
-      if(s.k==='coda' && END==='hit'){ const fb=s.b0+s.bars-1; build2(fb,2); hit(fb,true); HITS.push(fb); }
+    const HITS=[]; const BUILT={};
+    secs.forEach(function(s){ if(s.k==='cad'){ build2(s.b0, 2); BUILT[s.b0]=1; hit(s.b0,true); HITS.push(s.b0); }   /* 관현악이 으뜸화음에서 멈추고 카덴자 */
+      if(s.k==='A2'){ if(!(s.prev && s.prev.k==='cad')){ build2(s.b0, 4); BUILT[s.b0]=1; } hit(s.b0,true); HITS.push(s.b0); }
+      if(s.k==='coda' && END==='hit'){ const fb=s.b0+s.bars-1; build2(fb,2); BUILT[fb]=1; hit(fb,true); HITS.push(fb); }
       if(s.k==='coda' && END!=='hit'){ const fb=s.b0+s.bars-1; put('tt',BARS[fb].t,36,56,PPQ*6); put('jing',BARS[fb].t,72,58,BARS[fb].L*2); } });
-    /* 셈여림: 디센트 관현 CC1 구절마다 부풀었다 가라앉음, 기운 따라 */
-    ['dg','pr','sh','tp','hg','aj'].forEach(function(k){ if(!P[k].length) return; for(let b=0;b<NB;b+=2){ const s=secOfBar(b); if(s.k==='cad' && k===solo) continue; const base=40+s.E*16; ccp(k,BARS[b].t,base,1); ccp(k,BARS[b].t+BARS[b].L,Math.min(124,base+12),1); } });
+    PLAN.forEach(function(ph){ if(ph.mat==='cad') return; const nx=PLAN[ph.i+1], pv=PLAN[ph.i-1], t0=BARS[ph.b0].t, C=chordAt(ph.b0), r0=fold(nearPc(C.root,44),38,50);
+      /* 쌓아 오름: 다음 구절 첫 박에서 터짐(앞 두 마디 팀파니 굴림, 숨 멈춤) */
+      if(ph.mat==='build' && nx && nx.mat!=='cad' && !BUILT[nx.b0]){ build2(nx.b0, Math.min(2,ph.nb)); BUILT[nx.b0]=1; if(HITS.indexOf(nx.b0)<0){ hit(nx.b0,true); HITS.push(nx.b0); } }
+      else if(ph.mat==='climax' && HITS.indexOf(ph.b0)<0 && !(pv && pv.mat==='build')){ hit(ph.b0,false); HITS.push(ph.b0); }
+      else if(ph.tex==='tutti' && !(pv && pv.tex==='tutti') && HITS.indexOf(ph.b0)<0){ put('tim',t0,r0,88,PPQ*2); put('cym',t0,49,70,BARS[ph.b0].L); }
+      if(ph.tex==='ostinato'){ for(let b=ph.b0;b<ph.b0+ph.nb;b++) put('tim',BARS[b].t,fold(nearPc(chordAt(b).pedal?keyAt(b).pc:chordAt(b).root,44),38,50),56+((b-ph.b0)%2?0:6),E8*1.5); }   /* 오스티나토: 팀파니 여린 맥박 */
+      if(ph.mat==='pedalColor'||ph.mat==='retrans') put('tt',t0,36,48,PPQ*6);
+      if(ph.mat==='seqUp' || ph.mat==='prep'){ const lb=ph.b0+ph.nb-1; put('cym',BARS[lb].t,34,50,BARS[lb].L-20); ccp('cym',BARS[lb].t,30,11); ccp('cym',BARS[lb].t+BARS[lb].L-40,100,11); } });
+    /* ── 셈여림: 구절마다 흐름(벨로시티 더하기, 관현 CC1, 첼로 콘트라베이스 CC11), 정점 뒤 갑자기 여리게 ── */
+    { const MEL=['dg','pr','sh','tp','hg','aj','gy','gm','yg','vc','cb'];
+      PLAN.forEach(function(ph){ if(ph.mat==='cad') return; const t0=BARS[ph.b0].t, t1=(ph.b0+ph.nb<NB)?BARS[ph.b0+ph.nb].t:END_T, d0=ph.dyn[0], d1=ph.dyn[1];
+        MEL.forEach(function(k){ P[k].forEach(function(x){ if(x.t>=t0 && x.t<t1 && !x.dy){ x.v=Math.max(16,Math.min(124,x.v+Math.round(d0+(d1-d0)*(x.t-t0)/Math.max(1,t1-t0)))); x.dy=1; } }); });
+        ['dg','pr','sh','tp','hg','aj'].forEach(function(k){ if(solo && k===solo && ph.s.k==='cad') return; if(!P[k].some(function(x){ return x.t>=t0 && x.t<t1; })) return; const c0=Math.max(22,Math.min(124,72+d0*2.2)), c1=Math.max(22,Math.min(124,72+d1*2.2));
+          ccp(k,t0,c0,1); ccp(k,t0+(t1-t0)*0.55,Math.min(124,(c0+c1)/2+10),1); ccp(k,t1-30,c1,1); });
+        ['vc','cb'].forEach(function(k){ ccp(k,t0,Math.max(30,Math.min(124,78+d0*2)),11); ccp(k,t1-30,Math.max(30,Math.min(124,78+d1*2)),11); }); }); }
     /* 끝: 터짐은 마지막 박 늘임, 서정과 수미쌍관은 끝 두 마디 느려짐 */
     const lastS=secs[secs.length-1];
     /* 반음 부딪힘 마지막 정리: 긴 음(4분 넘게)과 4분의 1박 넘게 겹치는 반음(옥타브 넘어도)은 순위 낮은 쪽을 그 마디 화음 음 쪽으로 옮김.
        순위: 첼로 콘트라베이스(근음) > 독주 > 대금 피리 태평소 해금 > 아쟁 거문고 > 생황 가야금 양금(가야금 양금은 조율 일곱 음 안에서만) */
-    { const MK=['dg','pr','sh','tp','hg','aj','gy','gm','yg','vc','cb']; const RK={vc:-1,cb:-1,dg:2,pr:2,tp:2,hg:2,aj:3,gm:3,sh:4,gy:4,yg:4}; if(solo) RK[solo]=0;
+    { const MK=['dg','pr','sh','tp','hg','aj','gy','gm','yg','vc','cb']; const RK={vc:-1,cb:-2,dg:2,pr:2,tp:2,hg:2,aj:3,gm:3,sh:4,gy:4,yg:4}; if(solo) RK[solo]=0;
       const A=[]; MK.forEach(function(k){ const L=P[k].slice().sort(function(a,z){ return a.t-z.t; }); L.forEach(function(x,i){ let nx=null; for(let j=i+1;j<L.length;j++){ if(L[j].t>x.t){ nx=L[j]; break; } } const de=nx?Math.max(x.d, Math.min(nx.t-x.t, x.d+PPQ/2)):x.d; A.push({k:k, x:x, de:de}); }); }); A.sort(function(a,z){ return a.x.t-z.x.t; });   /* de: 내보내기 레가토가 이어 붙일 길이까지 봄 */
       const barAtT=function(t){ let lo=0, hi=NB-1; while(lo<hi){ const m=(lo+hi+1)>>1; if(BARS[m].t<=t) lo=m; else hi=m-1; } return lo; };
       const semi=function(a,b){ const iv=((a-b)%12+12)%12; return iv===1||iv===11; };
@@ -42470,17 +42578,18 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     const secT=function(b){ return (b>=NB)?secAt(END_T):secAt(BARS[b].t); };
     const preSec=2*BARS[0].L/PPQ*60/(secs[0].e8/2); const dur=secAt(END_T);
     return {u8:u8, score:new Uint8Array(so), seed:seed, form:FK, formKo:F.ko, end:END, home:HOME, rel:REL, secs:secs.map(function(s){ return {k:s.k, ko:SEC_KO[s.k], bars:s.bars, meter:s.meter, grp:s.grp, e8:s.e8, K:s.K, E:s.E, b0:s.b0, at:secT(s.b0), jd:jdKind(s), keys:s.keys}; }),
-      roles:roles, motif:MOT, keys:keys, dur:dur, pre:preSec, solo:solo, soloKo:solo?I[solo].ko:null, cad:(CADS?{at:secT(CADS.b0), sec:secAt(BARS[CADS.b0].t+CADS.bars*8*E8)-secT(CADS.b0), bars:CADS.bars}:null), hits:HITS.map(function(b){ return secT(b); }), NB:NB, jd:Object.keys(JDUSE), notes:keys.map(function(k){ return [k,P[k].length]; })}; }
+      roles:roles, motif:MOT, keys:keys, dur:dur, pre:preSec, solo:solo, soloKo:solo?I[solo].ko:null, cad:(CADS?{at:secT(CADS.b0), sec:secAt(BARS[CADS.b0].t+CADS.bars*8*E8)-secT(CADS.b0), bars:CADS.bars}:null), hits:HITS.slice().sort(function(a,z){ return a-z; }).map(function(b){ return secT(b); }), NB:NB, jd:Object.keys(JDUSE), notes:keys.map(function(k){ return [k,P[k].length]; })}; }
 
   const KO=function(k){ return I[k]?I[k].ko:String(k).replace(/^([a-z]+)/,function(m){ return I[m]?I[m].ko:m; }); };
   function sheet(B){ const L=[]; L.push('국악관현악  구성: '+B.formKo+',  끝맺음: '+END_KO[B.end]);
     if(B.solo) L.push('독주   : '+B.soloKo+' ('+I[B.solo].trk.split(' | ')[0]+'). 카덴자 '+mm(B.cad.at)+' 부터 '+Math.round(B.cad.sec)+'초, '+B.cad.bars+'마디(4/4 격자, 빠르기는 MIDI 빠르기 줄이 늘이고 몰아침). 독주 트랙은 무대 가운데 앞 자리(제작 가이드 Pan 0)');
     L.push('조     : 으뜸조 '+keyKo(B.home)+' (플랫 '+(-flatsOf(B.home))+'개), 대비 대목 '+keyKo(B.rel)+'. 형 기준 플랫 2~6개 안에서만');
     L.push('길이   : '+mm(B.dur)+', '+B.NB+'마디. 0:00 = 2마디 편집 여백 뒤 첫 마디. 대목마다 박자 분박 빠르기가 바뀜(MIDI 에 박자표 빠르기 조표가 들어 있음)');
-    L.push('모티브 : 다섯 음 걸음 '+B.motif.d.join(' ')+', 묶음마다 음 수 '+B.motif.rs.join(' ')+'. 이 모티브를 대목마다 그 박자 묶음에 다시 얹어 늘임, 줄임, 뒤집기, 쪼개 올림으로 변형');
+    L.push('모티브 : 다섯 음 걸음 '+B.motif.d.join(' ')+', 묶음마다 음 수 '+B.motif.rs.join(' ')+'. 주제(앞뒤 두 구절)와 둘째 주제, 느린 주제는 이 모티브에서 나오고, 나머지 구절은 모티브 음정으로 새로 걷는 가락(되풀이 없이)');
+    L.push('짜임   : 대목을 4~8마디 구절로 나눠 구절마다 재료, 편성(홀로, 지속음 위, 현만, 관만, 발현, 실내악, 오스티나토, 총주), 화성(조성, 지속음 선법, 4도 쌓기, 평행 화음), 셈여림 흐름, 타악 세기가 바뀜. 대목 사이는 점점 빠르게, 점점 느리게, 지속음 걸침, 팀파니 굴림으로 이음');
     L.push(''); L.push('■ 흐름 (대목, 시각, 박자 분박, 조, 빠르기, 장단, 선율)');
     B.secs.forEach(function(s,i){ const r=B.roles[i]; L.push('   '+String.fromCharCode(65+i)+'  '+mm(s.at)+'  '+s.ko+'  '+s.bars+'마디  '+s.meter+' ('+s.grp.join('+')+')  '+keyKo(s.K)+'  8분 '+s.e8+' (4분 '+Math.round(s.e8/2)+')  '+s.jd);
-      L.push('      '+(r.note||'')+(r.lead&&r.lead.length?'. 이끎 '+r.lead.map(KO).join(', '):'')+(r.dbl&&r.dbl.length?', 헤테로포니 '+r.dbl.map(KO).join(', '):'')); });
+      L.push('      '+(r.note||'')+(r.lead&&r.lead.length?'. 이끎 '+r.lead.map(KO).join(', '):'')+(r.dbl&&r.dbl.length?', 맞선율과 겹침 '+r.dbl.map(KO).join(', '):'')); });
     L.push(''); L.push('■ 터지는 자리: '+B.hits.map(mm).join(', ')+'. 앞 네(두) 마디 팀파니 4분 → 8분 → 굴림, 서스펜디드 심벌과 탐탐 굴림이 숨 멈춤 자리까지, 첫 박 팀파니 대북 심벌 탐탐 튜블라벨');
     L.push('■ 편성 (트랙 이름 = 패치)');
     const G={}; B.keys.forEach(function(k){ (G[I[k].grp]=G[I[k].grp]||[]).push(k); }); Object.keys(G).forEach(function(g){ L.push('   '+g+': '+G[g].map(function(k){ return I[k].ko+' ('+I[k].trk.split(' | ')[0]+(I[k].lo?', '+nm(I[k].lo)+'~'+nm(I[k].hi):'')+')'; }).join(', ')); });
@@ -42508,7 +42617,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     setTimeout(function(){ save((window.__noDashText||String)(L.txt), nmF+'_셋업시트.txt', 'text/plain;charset=utf-8'); }, 700);
     if(L.xml) setTimeout(function(){ save(L.xml, nmF+'_악보.musicxml', 'application/vnd.recordare.musicxml+xml'); }, 1050);
     setTimeout(function(){ save(L.B.score, nmF+'_악보.mid', 'audio/midi'); }, 1400); }
-  window.__GUGAKORCH={make:make, download:download, last:function(){ return LAST.cur; }, forms:function(){ return FORMK.map(function(k){ return {key:k, ko:FORMS[k].ko}; }); }, choose:function(o){ Object.assign(CH,o||{}); }, _t:{build:build, MET:MET, KEYS:KEYS, flatsOf:flatsOf}};
+  window.__GUGAKORCH={make:make, download:download, last:function(){ return LAST.cur; }, forms:function(){ return FORMK.map(function(k){ return {key:k, ko:FORMS[k].ko}; }); }, choose:function(o){ Object.assign(CH,o||{}); }, _t:{build:build, MET:MET, KEYS:KEYS, flatsOf:flatsOf, sheet:sheet}};
 
   function panel(){ let Pn=document.getElementById('gokPanel'); if(Pn){ Pn.style.display=(Pn.style.display==='none')?'':'none'; return; }
     Pn=document.createElement('div'); Pn.id='gokPanel'; Pn.style.cssText='margin:10px 0;padding:14px 16px;border:1px solid var(--celadon,#9bb);border-radius:12px;background:var(--card,#fff);font-size:14px;line-height:1.6';
