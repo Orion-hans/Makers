@@ -6257,14 +6257,19 @@ window.__kbookOf=function(patch){ const p=String(patch||'').replace(/^\[[^\]]*\]
   let i=window.__KBOOK.findIndex(function(r){ return r[0]===p; }); if(i<0) i=window.__KBOOK.findIndex(function(r){ return p.indexOf(r[0])===0; }); if(i<0) return null;
   const r=window.__KBOOK[i], lib=r[0];
   const set=[];
-  if(/^(Orchestral Essentials|Swing|True Strike|Pan Drums)/.test(lib)) set.push('악기 창 '+'<b>REVERB</b> 0 (울림은 Space 버스로)');
-  if(/Epic French Horns/.test(lib)) set.push('<b>OCTAVER</b> 끔 (옥타브 층은 앱이 따로 적음)');
+  /* ★ 2026-11-13 형 캡처(True Strike Celesta 의 Main Options Delay 탭, OE2 Epic French Horns 의 MAIN EFFECTS 탭, OE Strings Arco 의 MAIN SETTINGS EQ EFFECTS SEATING 탭): "콘탁 내부 악기창에 그림과 니 설명이 달라. 꼭해야해?"
+     → 실제 있는 손잡이 이름으로만 적고, 모두 선택(안 해도 MIDI 는 그대로 울림). True Strike 에는 REVERB 가 없음(Attack Decay Sustain Release, Velocity EQ, Delay 뿐) */
+  if(/^Orchestral Essentials 2\//.test(lib)) set.push('MAIN 탭 <b>REVERB</b> 손잡이 왼쪽 끝(울림은 로직 Space 버스로). EFFECTS 탭 COMPRESSOR, DELAY, PRO FILTER, STEREO MOD 가 켜져 있으면 끔');
+  else if(/^Orchestral Essentials\//.test(lib)) set.push('MAIN 탭 <b>REVERB</b> 손잡이 왼쪽 끝(울림은 로직 Space 버스로). SETTINGS 탭 <b>OCTAVER</b> 끔. EFFECTS 탭 COMPRESSOR, DELAY, PRO FILTER, STEREO MOD 가 켜져 있으면 끔. EQ, SEATING 탭은 그대로');
+  else if(/^True Strike/.test(lib)) set.push('손잡이는 처음 값 그대로(이 악기 창에는 REVERB 가 없음). Delay 탭 <b>Delay On/Off</b> 가 켜져 있으면 끔');
+  else if(/^(Swing|Pan Drums)/.test(lib)) set.push('악기 창에 REVERB 손잡이가 있으면 왼쪽 끝(울림은 로직 Space 버스로)');
+  if(/Epic French Horns/.test(lib)) set.push('MAIN 탭 <b>OCTAVER</b> 끔 (옥타브 층은 앱이 따로 적음)');
   if(/\(Melody\)/.test(lib)) set.push('아래 단추 <b>Poly</b>, <b>Plectrum</b>, Sound Preset '+(/Mint/.test(lib)?'Amps 의 <b>CLEAN</b> 하나':'<b>Natural</b>')+', <b>Link to Song</b> 켬. 주법 건반(C1 Open, C#1 Muted)은 MIDI 맨 앞에 있음');
   /* ★ 2026-11-11 형 캡처(악기 창 손잡이): 한 번 정해 두면 되는 값 */
-  if(window.__PSAR_RE && window.__PSAR_RE.test(lib)) set.push('왼쪽 <b>Automation</b> 탭 → <b>MIDI Automation</b> → <b>CC 73</b> 을 ATTACK 손잡이에, <b>CC 72</b> 를 RELEASE 손잡이에 끌어다 놓고 저장 (앱이 구절마다 들어옴 부드럽게, 끝 음만 길게 사라지게 움직임). Host Automation 칸은 아님');
-  if(/Epic French Horns/.test(lib)) set.push('<b>ROUND ROBIN</b> 켬 (같은 음을 거듭 쳐도 녹음이 바뀌어 기계 티가 덜함)');
+  if(window.__PSAR_RE && window.__PSAR_RE.test(lib)) set.push('(하고 싶을 때만) 왼쪽 <b>Automation</b> 탭 → <b>MIDI Automation</b> → <b>CC 73</b> 을 ATTACK 손잡이에, <b>CC 72</b> 를 RELEASE 손잡이에 끌어다 놓고 저장 (앱이 구절마다 들어옴 부드럽게, 끝 음만 길게 사라지게 움직임). Host Automation 칸은 아님');
+  if(/Epic French Horns/.test(lib)) set.push('MAIN 탭 <b>ROUND ROBIN</b> 켬 (같은 음을 거듭 쳐도 녹음이 바뀌어 기계 티가 덜함)');
   if(/^Orchestral Essentials 2\/.*Legato/.test(lib)) set.push('<b>RELEASE TRAILS</b> 켬 (음 끝에 홀 꼬리)');
-  if(/^(Orchestral Essentials|Swing)/.test(lib)) set.push('<b>LIMITER</b> 끔 (크기는 로직 패치에서)');
+  if(/^Swing/.test(lib)) set.push('<b>LIMITER</b> 가 있으면 끔 (크기는 로직 패치에서)');   /* OE OE2 의 LIMITER(INPUT) 손잡이는 처음 값 그대로(형 캡처, 끄는 단추 아님) */
   if(/^Orchestral Essentials\/.*Solo/.test(lib)) set.push('SEATING 은 손대지 않음 (자리는 앱이 Pan 으로)');
   if(/^Swing/.test(lib)) set.push('CLOSE STAGE 밀대와 D A W 마이크 밀대는 처음 값 그대로, '+(/Saxes/.test(lib)?'STEREO 끔, ':'')+'MODWHEEL 은 '+(/Saxes/.test(lib)?'밝기(FILTER OPEN, CLOSED)':/Harmonica/.test(lib)?'비브라토(LONG VIBRATO, LONG NORMAL)':'크기(LOUD, SOFT)')+' 로 MIDI 가 움직임');
   if(/Swing More!\/Saxes & Clarinet\/(Alto|Baritone) Sax - Legato/.test(lib)) set.push('VARIATION 주법 건반(빨간 건반, '+(/Alto/.test(lib)?'C1 NON VIB, D1 SLOW, E1 FAST, F1 GRAD VIB':'C4 NON VIB, D4 SLOW, E4 FAST VIB')+')은 MIDI 가 구절마다 바꿈');
@@ -6272,7 +6277,7 @@ window.__kbookOf=function(patch){ const p=String(patch||'').replace(/^\[[^\]]*\]
   if(/Tam Tam and Wind Gong/.test(lib)) set.push('손잡이는 처음 값 그대로(Tam tam hits Release 3.3k ms 라 끈 뒤에도 울림이 이어짐). 건반은 MIDI 가 고름: C1 한 번 치기, C2 C#2 굴림(커지기)');
   if(/Stradivari|Amati/.test(lib)) set.push('주법 건반은 MIDI 가 알아서 바꿈');
   if(/Buk \(Sori\)/.test(lib)) set.push('건반은 MIDI 가 고름(콘탁 표기 C3=60): C3 궁 왼손, C#3 오른손, B3 악센트, F4 테(딱). 악기 창 손잡이는 처음 값 그대로');
-  set.push('크기 맞추기: 그 악기 가운데 음을 세기 100, 모듈레이션 휠 100 으로 눌러 트랙 미터가 <b>-12 dBFS</b> 둘레가 되게 악기 이름 줄 오른쪽 <b>Volume</b> 을 맞춤 (그래야 표의 Gain 값끼리 균형이 맞음)');
+  set.push('(하고 싶을 때만) 크기 맞추기: 그 악기 가운데 음을 세기 100, 모듈레이션 휠 100 으로 눌러 트랙 미터가 <b>-12 dBFS</b> 둘레가 되게 악기 이름 줄 오른쪽 <b>Volume</b> 을 맞춤 (그래야 표의 Gain 값끼리 균형이 맞음)');
   return {no:i+1, name:'SO 콘탁 '+String(i+1).padStart(2,'0')+' '+r[1], lib:lib, set:set}; };
 
 window.__scDb=function(kind, key, tail){ try{ const band=kind==='band'; const lv=band?((window.__BAND_SC||{})[key]?SC_LV[window.__BAND_SC[key]]:null):(SC_G[key]?SC_LV[SC_G[key]]:null); if(!lv) return 0;
@@ -6616,7 +6621,7 @@ window.__guideHTML=function(opt){
       h.push('<div class="wrap"><table><tr><th></th><th>저장 이름</th><th>1 Gain <small>저장 값</small></th><th>2 Channel EQ</th><th>3 Compressor</th><th>4 Tape Delay</th><th>5 Direction Mixer</th><th>센드</th></tr>'+PD.map(function(d){ const r=d.row;
         return '<tr id="'+esc(pid(r.name))+'"><td class="c">'+pk(r.name)+'</td><td class="t">'+B(esc(r.name))+'<br>'+tn(d)+'<br>'+Gr('오디오 트랙')+'</td><td>'+B('0 dB')+'</td><td>'+r.eq.map(eqTxt).join('<br>')+'</td><td>'+(r.comp?(r.compOn?R('켜 둠'):Gr('값 넣고 꺼 둠'))+'<br>'+compTxt(r.comp):Gr('기본 값, AUTO GAIN OFF, 꺼 둠'))+'</td><td>'+Gr('기본 값, 꺼 둠')+'</td><td>Spread '+B(r.spread.toFixed(2))+'</td><td>Bus 1 Space '+(r.space==null?Gr('비움'):B(r.space+' dB'))+'<br>'+(r.air!=null?'Bus 2 Air '+B(r.air+' dB'):Gr('Bus 2 Air 비움'))+'</td></tr>'; }).join('')+'</table></div>'); } }
   { const KU=[]; tracks.forEach(function(t){ if(t.kb && !KU.some(function(x){ return x.name===t.kb.name; })) KU.push(Object.assign({ns:[]},t.kb)); const u=t.kb && KU.find(function(x){ return x.name===t.kb.name; }); if(u) u.ns.push(t.n); });
-    if(KU.length) h.push('<div class="box"><div>'+B('콘탁 기본 소리')+' '+Gr('(처음 한 번: 새 악기 트랙에 Kontakt 8 → 악기 열기 → 아래 설정 → 크기 맞추기 → 라이브러리 아래 '+B('저장')+' 으로 이 이름. 곡마다는 이 패치를 누르기만)')+'</div><div class="wrap"><table><tr><th></th><th>저장 이름</th><th>콘탁 악기</th><th>저장 전에</th></tr>'+KU.map(function(k){ return '<tr><td class="c">'+pk(k.name)+'</td><td class="t">'+B(esc(k.name))+'<br>'+Gr('트랙 '+k.ns.map(function(n){ return '#'+n; }).join(' '))+'</td><td>'+esc(k.lib)+'</td><td>'+k.set.join('<br>')+'</td></tr>'; }).join('')+'</table></div></div>'); }
+    if(KU.length) h.push('<div class="box"><div>'+B('콘탁 기본 소리')+' '+Gr('(처음 한 번: 새 악기 트랙에 Kontakt 8 → 악기 열기 → 라이브러리 아래 '+B('저장')+' 으로 이 이름. 곡마다는 이 패치를 누르기만. 꼭 맞출 것은 악기 이름 하나, 저장 전에 칸은 해 두면 조금 나은 것이라 안 해도 MIDI 는 그대로 울림)')+'</div><div class="wrap"><table><tr><th></th><th>저장 이름</th><th>콘탁 악기</th><th>저장 전에 (선택)</th></tr>'+KU.map(function(k){ return '<tr><td class="c">'+pk(k.name)+'</td><td class="t">'+B(esc(k.name))+'<br>'+Gr('트랙 '+k.ns.map(function(n){ return '#'+n; }).join(' '))+'</td><td>'+esc(k.lib)+'</td><td>'+k.set.join('<br>')+'</td></tr>'; }).join('')+'</table></div></div>'); }
   /* 트랙마다: 악기와 설정, 패치, 플러그인 값을 트랙 순서대로 한 줄에 */
   h.push('<h2>'+N0(hasP?2:1)+'트랙마다 <small>위에서 아래로 트랙 순서, 한 줄은 왼쪽부터</small></h2>');
   { const nt=[];
@@ -7667,6 +7672,26 @@ window.__variSheetAdd=function(s){ try{ s=String(s==null?'':s); if(s.split('\n')
   if(I.dyn) L.push('   셈여림: 후렴 앞 두 마디 스네어 햇 크레센도, 후렴 첫 박 강세, 여린 벌스 햇 낮춤');
   if(L.length<2) return s; return s.replace(/\s*$/,'')+'\n\n'+L.join('\n')+'\n'; }catch(e){ return s; } };
 }
+/* ★ 2026-11-13 형: "국악 성악곡 에이올리안 이런것도 예전에 만들다보니 지금 우리가 만들어 놓은 구조나 세련됨이 떨어지는데? 형식도 좀 너무 급박하고 애매해."
+   국악 묶음 기본 장르(국악 성악곡, 국악풍 모달, 찬불가)는 팝 형식(4마디 프리코러스, 4마디 브릿지, 하이라이트 두 번 사이 간주 등 12~13 구간, 3분 반)에 팝 형식 조립(__formMutate)까지 얹혀 급하고 흐렸음.
+   → 장르마다 설계한 형식 셋 중 하나(구간 7~10개, 구간마다 마디 수를 정함: 절과 후렴 16, 간주 브릿지 8, 서주 후주 8~12). Play 본문이 songStructure 에서 __gukForm 을 부르고,
+     구조 표 다섯째 값(마디)을 standardizeLengths 가 그대로 쓰며, 사용자가 길이를 비워 두면 fitDuration 이 구간을 끼워 넣지 않음. 사용자가 구조를 따로 고르면(랜덤, 다른 장르 구조, 편성 구조) 손대지 않음 */
+window.__GUKFORM={
+  gukvocal:[
+    {name:'두 절과 절정', rows:[['인트로','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['브릿지','C',1,null,8],['하이라이트','A',1,null,16],['코러스변주','A',1,null,8],['아웃트로','A',1,null,8]]},
+    {name:'느린 서주와 세 도막(A B A\')', rows:[['인트로','A',1,null,12],['벌스','B',1,null,16],['간주','C',1,null,8],['코러스','A',1,null,16],['브릿지','C',1,null,8],['벌스','B',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,12]]},
+    {name:'후렴 먼저(합창 후렴형)', rows:[['인트로','A',1,null,8],['코러스','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,8]]}],
+  gugak:[
+    {name:'제시 비움 쌓음 회귀', rows:[['인트로','A',1,null,8],['벌스','A',1,null,16],['간주','C',1,null,8],['코러스','B',1,null,16],['하이라이트','B',1,null,16],['벌스','A',1,null,8],['아웃트로','A',1,null,8]]},
+    {name:'두 절', rows:[['인트로','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['아웃트로','A',1,null,8]]},
+    {name:'느린 서주와 아치', rows:[['인트로','A',1,null,12],['벌스','A',1,null,16],['브릿지','C',1,null,8],['코러스','B',1,null,16],['간주','C',1,null,8],['하이라이트','B',1,null,16],['아웃트로','A',1,null,12]]}],
+  chanbul:[
+    {name:'세 절(층을 더함)', rows:[['인트로','A',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,4],['하이라이트','A',1,null,16],['아웃트로','A',1,null,8]]},
+    {name:'메기고 받는 두 절과 합창', rows:[['인트로','A',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,12]]},
+    {name:'긴 서주와 후렴 변주', rows:[['인트로','A',1,null,12],['코러스','A',1,null,16],['코러스변주','A',1,null,8],['간주','C',1,null,8],['하이라이트','A',1,null,16],['코러스','A',1,null,8],['아웃트로','A',1,null,12]]}]};
+window.__gukForm=function(g, st, key){ try{ const F=window.__GUKFORM[g]; if(!F) return null; if(window.NARR && NARR.on) return null;
+    if(key && !(new RegExp('^'+g+'(_[bc])?$')).test(key)) return null;   /* 사용자가 고른 구조는 그대로 */
+    const f=F[Math.floor(Math.random()*F.length)]; window.__FORM_OPS=['국악 형식: '+f.name]; window.__GUKFORM_LAST=f.name; return f.rows.map(function(r){ return r.slice(); }); }catch(e){ return null; } };
 /*VARI-END*/
 if(!window.__midiSafety){ window.__midiSafety=function(u8){ try{ if(window.__midiSanity) u8=window.__midiSanity(u8); if(window.__ccRelease) u8=window.__ccRelease(u8); if(window.__variApply) u8=window.__variApply(u8); if(window.__harpGay) u8=window.__harpGay(u8); if(window.__swellApply) u8=window.__swellApply(u8); if(window.__stageApply) u8=window.__stageApply(u8); if(window.__ccTidy) u8=window.__ccTidy(u8); if(window.__midiSanity) u8=window.__midiSanity(u8,{tailOnly:true}); if(window.__midiDS) u8=window.__midiDS(u8); if(window.__noteTidy) u8=window.__noteTidy(u8); if(window.__ccSlew) u8=window.__ccSlew(u8); if(window.__midiNoDash) u8=window.__midiNoDash(u8); if(window.__midiTrackSort) u8=window.__midiTrackSort(u8); if(window.__orchBoost) u8=window.__orchBoost(u8); if(window.__clashFix) u8=window.__clashFix(u8); if(window.__midiDS) u8=window.__midiDS(u8,{again:true}); if(window.__noteTidy) u8=window.__noteTidy(u8); if(window.__ccSlew) u8=window.__ccSlew(u8); if(window.__presApply) u8=window.__presApply(u8); if(window.__ccClean) u8=window.__ccClean(u8); if(window.__hgBow) u8=window.__hgBow(u8); if(window.__loungeGlide) u8=window.__loungeGlide(u8); if(window.__vol7) u8=window.__vol7(u8); if(window.__midiNoDash) u8=window.__midiNoDash(u8); if(window.__midiTrackSort) u8=window.__midiTrackSort(u8); if(window.__ccAlign) u8=window.__ccAlign(u8);   /* ★ 2026-11-10 모든 앱: 익스프레션 점을 음 자리에 맞춤 */
   const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54||b[2]!==0x68||b[3]!==0x64) return u8;
@@ -14717,14 +14742,19 @@ window.__kbookOf=function(patch){ const p=String(patch||'').replace(/^\[[^\]]*\]
   let i=window.__KBOOK.findIndex(function(r){ return r[0]===p; }); if(i<0) i=window.__KBOOK.findIndex(function(r){ return p.indexOf(r[0])===0; }); if(i<0) return null;
   const r=window.__KBOOK[i], lib=r[0];
   const set=[];
-  if(/^(Orchestral Essentials|Swing|True Strike|Pan Drums)/.test(lib)) set.push('악기 창 '+'<b>REVERB</b> 0 (울림은 Space 버스로)');
-  if(/Epic French Horns/.test(lib)) set.push('<b>OCTAVER</b> 끔 (옥타브 층은 앱이 따로 적음)');
+  /* ★ 2026-11-13 형 캡처(True Strike Celesta 의 Main Options Delay 탭, OE2 Epic French Horns 의 MAIN EFFECTS 탭, OE Strings Arco 의 MAIN SETTINGS EQ EFFECTS SEATING 탭): "콘탁 내부 악기창에 그림과 니 설명이 달라. 꼭해야해?"
+     → 실제 있는 손잡이 이름으로만 적고, 모두 선택(안 해도 MIDI 는 그대로 울림). True Strike 에는 REVERB 가 없음(Attack Decay Sustain Release, Velocity EQ, Delay 뿐) */
+  if(/^Orchestral Essentials 2\//.test(lib)) set.push('MAIN 탭 <b>REVERB</b> 손잡이 왼쪽 끝(울림은 로직 Space 버스로). EFFECTS 탭 COMPRESSOR, DELAY, PRO FILTER, STEREO MOD 가 켜져 있으면 끔');
+  else if(/^Orchestral Essentials\//.test(lib)) set.push('MAIN 탭 <b>REVERB</b> 손잡이 왼쪽 끝(울림은 로직 Space 버스로). SETTINGS 탭 <b>OCTAVER</b> 끔. EFFECTS 탭 COMPRESSOR, DELAY, PRO FILTER, STEREO MOD 가 켜져 있으면 끔. EQ, SEATING 탭은 그대로');
+  else if(/^True Strike/.test(lib)) set.push('손잡이는 처음 값 그대로(이 악기 창에는 REVERB 가 없음). Delay 탭 <b>Delay On/Off</b> 가 켜져 있으면 끔');
+  else if(/^(Swing|Pan Drums)/.test(lib)) set.push('악기 창에 REVERB 손잡이가 있으면 왼쪽 끝(울림은 로직 Space 버스로)');
+  if(/Epic French Horns/.test(lib)) set.push('MAIN 탭 <b>OCTAVER</b> 끔 (옥타브 층은 앱이 따로 적음)');
   if(/\(Melody\)/.test(lib)) set.push('아래 단추 <b>Poly</b>, <b>Plectrum</b>, Sound Preset '+(/Mint/.test(lib)?'Amps 의 <b>CLEAN</b> 하나':'<b>Natural</b>')+', <b>Link to Song</b> 켬. 주법 건반(C1 Open, C#1 Muted)은 MIDI 맨 앞에 있음');
   /* ★ 2026-11-11 형 캡처(악기 창 손잡이): 한 번 정해 두면 되는 값 */
-  if(window.__PSAR_RE && window.__PSAR_RE.test(lib)) set.push('왼쪽 <b>Automation</b> 탭 → <b>MIDI Automation</b> → <b>CC 73</b> 을 ATTACK 손잡이에, <b>CC 72</b> 를 RELEASE 손잡이에 끌어다 놓고 저장 (앱이 구절마다 들어옴 부드럽게, 끝 음만 길게 사라지게 움직임). Host Automation 칸은 아님');
-  if(/Epic French Horns/.test(lib)) set.push('<b>ROUND ROBIN</b> 켬 (같은 음을 거듭 쳐도 녹음이 바뀌어 기계 티가 덜함)');
+  if(window.__PSAR_RE && window.__PSAR_RE.test(lib)) set.push('(하고 싶을 때만) 왼쪽 <b>Automation</b> 탭 → <b>MIDI Automation</b> → <b>CC 73</b> 을 ATTACK 손잡이에, <b>CC 72</b> 를 RELEASE 손잡이에 끌어다 놓고 저장 (앱이 구절마다 들어옴 부드럽게, 끝 음만 길게 사라지게 움직임). Host Automation 칸은 아님');
+  if(/Epic French Horns/.test(lib)) set.push('MAIN 탭 <b>ROUND ROBIN</b> 켬 (같은 음을 거듭 쳐도 녹음이 바뀌어 기계 티가 덜함)');
   if(/^Orchestral Essentials 2\/.*Legato/.test(lib)) set.push('<b>RELEASE TRAILS</b> 켬 (음 끝에 홀 꼬리)');
-  if(/^(Orchestral Essentials|Swing)/.test(lib)) set.push('<b>LIMITER</b> 끔 (크기는 로직 패치에서)');
+  if(/^Swing/.test(lib)) set.push('<b>LIMITER</b> 가 있으면 끔 (크기는 로직 패치에서)');   /* OE OE2 의 LIMITER(INPUT) 손잡이는 처음 값 그대로(형 캡처, 끄는 단추 아님) */
   if(/^Orchestral Essentials\/.*Solo/.test(lib)) set.push('SEATING 은 손대지 않음 (자리는 앱이 Pan 으로)');
   if(/^Swing/.test(lib)) set.push('CLOSE STAGE 밀대와 D A W 마이크 밀대는 처음 값 그대로, '+(/Saxes/.test(lib)?'STEREO 끔, ':'')+'MODWHEEL 은 '+(/Saxes/.test(lib)?'밝기(FILTER OPEN, CLOSED)':/Harmonica/.test(lib)?'비브라토(LONG VIBRATO, LONG NORMAL)':'크기(LOUD, SOFT)')+' 로 MIDI 가 움직임');
   if(/Swing More!\/Saxes & Clarinet\/(Alto|Baritone) Sax - Legato/.test(lib)) set.push('VARIATION 주법 건반(빨간 건반, '+(/Alto/.test(lib)?'C1 NON VIB, D1 SLOW, E1 FAST, F1 GRAD VIB':'C4 NON VIB, D4 SLOW, E4 FAST VIB')+')은 MIDI 가 구절마다 바꿈');
@@ -14732,7 +14762,7 @@ window.__kbookOf=function(patch){ const p=String(patch||'').replace(/^\[[^\]]*\]
   if(/Tam Tam and Wind Gong/.test(lib)) set.push('손잡이는 처음 값 그대로(Tam tam hits Release 3.3k ms 라 끈 뒤에도 울림이 이어짐). 건반은 MIDI 가 고름: C1 한 번 치기, C2 C#2 굴림(커지기)');
   if(/Stradivari|Amati/.test(lib)) set.push('주법 건반은 MIDI 가 알아서 바꿈');
   if(/Buk \(Sori\)/.test(lib)) set.push('건반은 MIDI 가 고름(콘탁 표기 C3=60): C3 궁 왼손, C#3 오른손, B3 악센트, F4 테(딱). 악기 창 손잡이는 처음 값 그대로');
-  set.push('크기 맞추기: 그 악기 가운데 음을 세기 100, 모듈레이션 휠 100 으로 눌러 트랙 미터가 <b>-12 dBFS</b> 둘레가 되게 악기 이름 줄 오른쪽 <b>Volume</b> 을 맞춤 (그래야 표의 Gain 값끼리 균형이 맞음)');
+  set.push('(하고 싶을 때만) 크기 맞추기: 그 악기 가운데 음을 세기 100, 모듈레이션 휠 100 으로 눌러 트랙 미터가 <b>-12 dBFS</b> 둘레가 되게 악기 이름 줄 오른쪽 <b>Volume</b> 을 맞춤 (그래야 표의 Gain 값끼리 균형이 맞음)');
   return {no:i+1, name:'SO 콘탁 '+String(i+1).padStart(2,'0')+' '+r[1], lib:lib, set:set}; };
 
 window.__scDb=function(kind, key, tail){ try{ const band=kind==='band'; const lv=band?((window.__BAND_SC||{})[key]?SC_LV[window.__BAND_SC[key]]:null):(SC_G[key]?SC_LV[SC_G[key]]:null); if(!lv) return 0;
@@ -15076,7 +15106,7 @@ window.__guideHTML=function(opt){
       h.push('<div class="wrap"><table><tr><th></th><th>저장 이름</th><th>1 Gain <small>저장 값</small></th><th>2 Channel EQ</th><th>3 Compressor</th><th>4 Tape Delay</th><th>5 Direction Mixer</th><th>센드</th></tr>'+PD.map(function(d){ const r=d.row;
         return '<tr id="'+esc(pid(r.name))+'"><td class="c">'+pk(r.name)+'</td><td class="t">'+B(esc(r.name))+'<br>'+tn(d)+'<br>'+Gr('오디오 트랙')+'</td><td>'+B('0 dB')+'</td><td>'+r.eq.map(eqTxt).join('<br>')+'</td><td>'+(r.comp?(r.compOn?R('켜 둠'):Gr('값 넣고 꺼 둠'))+'<br>'+compTxt(r.comp):Gr('기본 값, AUTO GAIN OFF, 꺼 둠'))+'</td><td>'+Gr('기본 값, 꺼 둠')+'</td><td>Spread '+B(r.spread.toFixed(2))+'</td><td>Bus 1 Space '+(r.space==null?Gr('비움'):B(r.space+' dB'))+'<br>'+(r.air!=null?'Bus 2 Air '+B(r.air+' dB'):Gr('Bus 2 Air 비움'))+'</td></tr>'; }).join('')+'</table></div>'); } }
   { const KU=[]; tracks.forEach(function(t){ if(t.kb && !KU.some(function(x){ return x.name===t.kb.name; })) KU.push(Object.assign({ns:[]},t.kb)); const u=t.kb && KU.find(function(x){ return x.name===t.kb.name; }); if(u) u.ns.push(t.n); });
-    if(KU.length) h.push('<div class="box"><div>'+B('콘탁 기본 소리')+' '+Gr('(처음 한 번: 새 악기 트랙에 Kontakt 8 → 악기 열기 → 아래 설정 → 크기 맞추기 → 라이브러리 아래 '+B('저장')+' 으로 이 이름. 곡마다는 이 패치를 누르기만)')+'</div><div class="wrap"><table><tr><th></th><th>저장 이름</th><th>콘탁 악기</th><th>저장 전에</th></tr>'+KU.map(function(k){ return '<tr><td class="c">'+pk(k.name)+'</td><td class="t">'+B(esc(k.name))+'<br>'+Gr('트랙 '+k.ns.map(function(n){ return '#'+n; }).join(' '))+'</td><td>'+esc(k.lib)+'</td><td>'+k.set.join('<br>')+'</td></tr>'; }).join('')+'</table></div></div>'); }
+    if(KU.length) h.push('<div class="box"><div>'+B('콘탁 기본 소리')+' '+Gr('(처음 한 번: 새 악기 트랙에 Kontakt 8 → 악기 열기 → 라이브러리 아래 '+B('저장')+' 으로 이 이름. 곡마다는 이 패치를 누르기만. 꼭 맞출 것은 악기 이름 하나, 저장 전에 칸은 해 두면 조금 나은 것이라 안 해도 MIDI 는 그대로 울림)')+'</div><div class="wrap"><table><tr><th></th><th>저장 이름</th><th>콘탁 악기</th><th>저장 전에 (선택)</th></tr>'+KU.map(function(k){ return '<tr><td class="c">'+pk(k.name)+'</td><td class="t">'+B(esc(k.name))+'<br>'+Gr('트랙 '+k.ns.map(function(n){ return '#'+n; }).join(' '))+'</td><td>'+esc(k.lib)+'</td><td>'+k.set.join('<br>')+'</td></tr>'; }).join('')+'</table></div></div>'); }
   /* 트랙마다: 악기와 설정, 패치, 플러그인 값을 트랙 순서대로 한 줄에 */
   h.push('<h2>'+N0(hasP?2:1)+'트랙마다 <small>위에서 아래로 트랙 순서, 한 줄은 왼쪽부터</small></h2>');
   { const nt=[];
@@ -16127,6 +16157,26 @@ window.__variSheetAdd=function(s){ try{ s=String(s==null?'':s); if(s.split('\n')
   if(I.dyn) L.push('   셈여림: 후렴 앞 두 마디 스네어 햇 크레센도, 후렴 첫 박 강세, 여린 벌스 햇 낮춤');
   if(L.length<2) return s; return s.replace(/\s*$/,'')+'\n\n'+L.join('\n')+'\n'; }catch(e){ return s; } };
 }
+/* ★ 2026-11-13 형: "국악 성악곡 에이올리안 이런것도 예전에 만들다보니 지금 우리가 만들어 놓은 구조나 세련됨이 떨어지는데? 형식도 좀 너무 급박하고 애매해."
+   국악 묶음 기본 장르(국악 성악곡, 국악풍 모달, 찬불가)는 팝 형식(4마디 프리코러스, 4마디 브릿지, 하이라이트 두 번 사이 간주 등 12~13 구간, 3분 반)에 팝 형식 조립(__formMutate)까지 얹혀 급하고 흐렸음.
+   → 장르마다 설계한 형식 셋 중 하나(구간 7~10개, 구간마다 마디 수를 정함: 절과 후렴 16, 간주 브릿지 8, 서주 후주 8~12). Play 본문이 songStructure 에서 __gukForm 을 부르고,
+     구조 표 다섯째 값(마디)을 standardizeLengths 가 그대로 쓰며, 사용자가 길이를 비워 두면 fitDuration 이 구간을 끼워 넣지 않음. 사용자가 구조를 따로 고르면(랜덤, 다른 장르 구조, 편성 구조) 손대지 않음 */
+window.__GUKFORM={
+  gukvocal:[
+    {name:'두 절과 절정', rows:[['인트로','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['브릿지','C',1,null,8],['하이라이트','A',1,null,16],['코러스변주','A',1,null,8],['아웃트로','A',1,null,8]]},
+    {name:'느린 서주와 세 도막(A B A\')', rows:[['인트로','A',1,null,12],['벌스','B',1,null,16],['간주','C',1,null,8],['코러스','A',1,null,16],['브릿지','C',1,null,8],['벌스','B',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,12]]},
+    {name:'후렴 먼저(합창 후렴형)', rows:[['인트로','A',1,null,8],['코러스','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,8]]}],
+  gugak:[
+    {name:'제시 비움 쌓음 회귀', rows:[['인트로','A',1,null,8],['벌스','A',1,null,16],['간주','C',1,null,8],['코러스','B',1,null,16],['하이라이트','B',1,null,16],['벌스','A',1,null,8],['아웃트로','A',1,null,8]]},
+    {name:'두 절', rows:[['인트로','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['아웃트로','A',1,null,8]]},
+    {name:'느린 서주와 아치', rows:[['인트로','A',1,null,12],['벌스','A',1,null,16],['브릿지','C',1,null,8],['코러스','B',1,null,16],['간주','C',1,null,8],['하이라이트','B',1,null,16],['아웃트로','A',1,null,12]]}],
+  chanbul:[
+    {name:'세 절(층을 더함)', rows:[['인트로','A',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,4],['하이라이트','A',1,null,16],['아웃트로','A',1,null,8]]},
+    {name:'메기고 받는 두 절과 합창', rows:[['인트로','A',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,12]]},
+    {name:'긴 서주와 후렴 변주', rows:[['인트로','A',1,null,12],['코러스','A',1,null,16],['코러스변주','A',1,null,8],['간주','C',1,null,8],['하이라이트','A',1,null,16],['코러스','A',1,null,8],['아웃트로','A',1,null,12]]}]};
+window.__gukForm=function(g, st, key){ try{ const F=window.__GUKFORM[g]; if(!F) return null; if(window.NARR && NARR.on) return null;
+    if(key && !(new RegExp('^'+g+'(_[bc])?$')).test(key)) return null;   /* 사용자가 고른 구조는 그대로 */
+    const f=F[Math.floor(Math.random()*F.length)]; window.__FORM_OPS=['국악 형식: '+f.name]; window.__GUKFORM_LAST=f.name; return f.rows.map(function(r){ return r.slice(); }); }catch(e){ return null; } };
 /*VARI-END*/
 if(!window.__midiSafety){ window.__midiSafety=function(u8){ try{ if(window.__midiSanity) u8=window.__midiSanity(u8); if(window.__ccRelease) u8=window.__ccRelease(u8); if(window.__variApply) u8=window.__variApply(u8); if(window.__harpGay) u8=window.__harpGay(u8); if(window.__swellApply) u8=window.__swellApply(u8); if(window.__stageApply) u8=window.__stageApply(u8); if(window.__ccTidy) u8=window.__ccTidy(u8); if(window.__midiSanity) u8=window.__midiSanity(u8,{tailOnly:true}); if(window.__midiDS) u8=window.__midiDS(u8); if(window.__noteTidy) u8=window.__noteTidy(u8); if(window.__ccSlew) u8=window.__ccSlew(u8); if(window.__midiNoDash) u8=window.__midiNoDash(u8); if(window.__midiTrackSort) u8=window.__midiTrackSort(u8); if(window.__orchBoost) u8=window.__orchBoost(u8); if(window.__clashFix) u8=window.__clashFix(u8); if(window.__midiDS) u8=window.__midiDS(u8,{again:true}); if(window.__noteTidy) u8=window.__noteTidy(u8); if(window.__ccSlew) u8=window.__ccSlew(u8); if(window.__presApply) u8=window.__presApply(u8); if(window.__ccClean) u8=window.__ccClean(u8); if(window.__hgBow) u8=window.__hgBow(u8); if(window.__loungeGlide) u8=window.__loungeGlide(u8); if(window.__vol7) u8=window.__vol7(u8); if(window.__midiNoDash) u8=window.__midiNoDash(u8); if(window.__midiTrackSort) u8=window.__midiTrackSort(u8); if(window.__ccAlign) u8=window.__ccAlign(u8);   /* ★ 2026-11-10 모든 앱: 익스프레션 점을 음 자리에 맞춤 */
   const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54||b[2]!==0x68||b[3]!==0x64) return u8;
@@ -27114,14 +27164,19 @@ window.__kbookOf=function(patch){ const p=String(patch||'').replace(/^\[[^\]]*\]
   let i=window.__KBOOK.findIndex(function(r){ return r[0]===p; }); if(i<0) i=window.__KBOOK.findIndex(function(r){ return p.indexOf(r[0])===0; }); if(i<0) return null;
   const r=window.__KBOOK[i], lib=r[0];
   const set=[];
-  if(/^(Orchestral Essentials|Swing|True Strike|Pan Drums)/.test(lib)) set.push('악기 창 '+'<b>REVERB</b> 0 (울림은 Space 버스로)');
-  if(/Epic French Horns/.test(lib)) set.push('<b>OCTAVER</b> 끔 (옥타브 층은 앱이 따로 적음)');
+  /* ★ 2026-11-13 형 캡처(True Strike Celesta 의 Main Options Delay 탭, OE2 Epic French Horns 의 MAIN EFFECTS 탭, OE Strings Arco 의 MAIN SETTINGS EQ EFFECTS SEATING 탭): "콘탁 내부 악기창에 그림과 니 설명이 달라. 꼭해야해?"
+     → 실제 있는 손잡이 이름으로만 적고, 모두 선택(안 해도 MIDI 는 그대로 울림). True Strike 에는 REVERB 가 없음(Attack Decay Sustain Release, Velocity EQ, Delay 뿐) */
+  if(/^Orchestral Essentials 2\//.test(lib)) set.push('MAIN 탭 <b>REVERB</b> 손잡이 왼쪽 끝(울림은 로직 Space 버스로). EFFECTS 탭 COMPRESSOR, DELAY, PRO FILTER, STEREO MOD 가 켜져 있으면 끔');
+  else if(/^Orchestral Essentials\//.test(lib)) set.push('MAIN 탭 <b>REVERB</b> 손잡이 왼쪽 끝(울림은 로직 Space 버스로). SETTINGS 탭 <b>OCTAVER</b> 끔. EFFECTS 탭 COMPRESSOR, DELAY, PRO FILTER, STEREO MOD 가 켜져 있으면 끔. EQ, SEATING 탭은 그대로');
+  else if(/^True Strike/.test(lib)) set.push('손잡이는 처음 값 그대로(이 악기 창에는 REVERB 가 없음). Delay 탭 <b>Delay On/Off</b> 가 켜져 있으면 끔');
+  else if(/^(Swing|Pan Drums)/.test(lib)) set.push('악기 창에 REVERB 손잡이가 있으면 왼쪽 끝(울림은 로직 Space 버스로)');
+  if(/Epic French Horns/.test(lib)) set.push('MAIN 탭 <b>OCTAVER</b> 끔 (옥타브 층은 앱이 따로 적음)');
   if(/\(Melody\)/.test(lib)) set.push('아래 단추 <b>Poly</b>, <b>Plectrum</b>, Sound Preset '+(/Mint/.test(lib)?'Amps 의 <b>CLEAN</b> 하나':'<b>Natural</b>')+', <b>Link to Song</b> 켬. 주법 건반(C1 Open, C#1 Muted)은 MIDI 맨 앞에 있음');
   /* ★ 2026-11-11 형 캡처(악기 창 손잡이): 한 번 정해 두면 되는 값 */
-  if(window.__PSAR_RE && window.__PSAR_RE.test(lib)) set.push('왼쪽 <b>Automation</b> 탭 → <b>MIDI Automation</b> → <b>CC 73</b> 을 ATTACK 손잡이에, <b>CC 72</b> 를 RELEASE 손잡이에 끌어다 놓고 저장 (앱이 구절마다 들어옴 부드럽게, 끝 음만 길게 사라지게 움직임). Host Automation 칸은 아님');
-  if(/Epic French Horns/.test(lib)) set.push('<b>ROUND ROBIN</b> 켬 (같은 음을 거듭 쳐도 녹음이 바뀌어 기계 티가 덜함)');
+  if(window.__PSAR_RE && window.__PSAR_RE.test(lib)) set.push('(하고 싶을 때만) 왼쪽 <b>Automation</b> 탭 → <b>MIDI Automation</b> → <b>CC 73</b> 을 ATTACK 손잡이에, <b>CC 72</b> 를 RELEASE 손잡이에 끌어다 놓고 저장 (앱이 구절마다 들어옴 부드럽게, 끝 음만 길게 사라지게 움직임). Host Automation 칸은 아님');
+  if(/Epic French Horns/.test(lib)) set.push('MAIN 탭 <b>ROUND ROBIN</b> 켬 (같은 음을 거듭 쳐도 녹음이 바뀌어 기계 티가 덜함)');
   if(/^Orchestral Essentials 2\/.*Legato/.test(lib)) set.push('<b>RELEASE TRAILS</b> 켬 (음 끝에 홀 꼬리)');
-  if(/^(Orchestral Essentials|Swing)/.test(lib)) set.push('<b>LIMITER</b> 끔 (크기는 로직 패치에서)');
+  if(/^Swing/.test(lib)) set.push('<b>LIMITER</b> 가 있으면 끔 (크기는 로직 패치에서)');   /* OE OE2 의 LIMITER(INPUT) 손잡이는 처음 값 그대로(형 캡처, 끄는 단추 아님) */
   if(/^Orchestral Essentials\/.*Solo/.test(lib)) set.push('SEATING 은 손대지 않음 (자리는 앱이 Pan 으로)');
   if(/^Swing/.test(lib)) set.push('CLOSE STAGE 밀대와 D A W 마이크 밀대는 처음 값 그대로, '+(/Saxes/.test(lib)?'STEREO 끔, ':'')+'MODWHEEL 은 '+(/Saxes/.test(lib)?'밝기(FILTER OPEN, CLOSED)':/Harmonica/.test(lib)?'비브라토(LONG VIBRATO, LONG NORMAL)':'크기(LOUD, SOFT)')+' 로 MIDI 가 움직임');
   if(/Swing More!\/Saxes & Clarinet\/(Alto|Baritone) Sax - Legato/.test(lib)) set.push('VARIATION 주법 건반(빨간 건반, '+(/Alto/.test(lib)?'C1 NON VIB, D1 SLOW, E1 FAST, F1 GRAD VIB':'C4 NON VIB, D4 SLOW, E4 FAST VIB')+')은 MIDI 가 구절마다 바꿈');
@@ -27129,7 +27184,7 @@ window.__kbookOf=function(patch){ const p=String(patch||'').replace(/^\[[^\]]*\]
   if(/Tam Tam and Wind Gong/.test(lib)) set.push('손잡이는 처음 값 그대로(Tam tam hits Release 3.3k ms 라 끈 뒤에도 울림이 이어짐). 건반은 MIDI 가 고름: C1 한 번 치기, C2 C#2 굴림(커지기)');
   if(/Stradivari|Amati/.test(lib)) set.push('주법 건반은 MIDI 가 알아서 바꿈');
   if(/Buk \(Sori\)/.test(lib)) set.push('건반은 MIDI 가 고름(콘탁 표기 C3=60): C3 궁 왼손, C#3 오른손, B3 악센트, F4 테(딱). 악기 창 손잡이는 처음 값 그대로');
-  set.push('크기 맞추기: 그 악기 가운데 음을 세기 100, 모듈레이션 휠 100 으로 눌러 트랙 미터가 <b>-12 dBFS</b> 둘레가 되게 악기 이름 줄 오른쪽 <b>Volume</b> 을 맞춤 (그래야 표의 Gain 값끼리 균형이 맞음)');
+  set.push('(하고 싶을 때만) 크기 맞추기: 그 악기 가운데 음을 세기 100, 모듈레이션 휠 100 으로 눌러 트랙 미터가 <b>-12 dBFS</b> 둘레가 되게 악기 이름 줄 오른쪽 <b>Volume</b> 을 맞춤 (그래야 표의 Gain 값끼리 균형이 맞음)');
   return {no:i+1, name:'SO 콘탁 '+String(i+1).padStart(2,'0')+' '+r[1], lib:lib, set:set}; };
 
 window.__scDb=function(kind, key, tail){ try{ const band=kind==='band'; const lv=band?((window.__BAND_SC||{})[key]?SC_LV[window.__BAND_SC[key]]:null):(SC_G[key]?SC_LV[SC_G[key]]:null); if(!lv) return 0;
@@ -27473,7 +27528,7 @@ window.__guideHTML=function(opt){
       h.push('<div class="wrap"><table><tr><th></th><th>저장 이름</th><th>1 Gain <small>저장 값</small></th><th>2 Channel EQ</th><th>3 Compressor</th><th>4 Tape Delay</th><th>5 Direction Mixer</th><th>센드</th></tr>'+PD.map(function(d){ const r=d.row;
         return '<tr id="'+esc(pid(r.name))+'"><td class="c">'+pk(r.name)+'</td><td class="t">'+B(esc(r.name))+'<br>'+tn(d)+'<br>'+Gr('오디오 트랙')+'</td><td>'+B('0 dB')+'</td><td>'+r.eq.map(eqTxt).join('<br>')+'</td><td>'+(r.comp?(r.compOn?R('켜 둠'):Gr('값 넣고 꺼 둠'))+'<br>'+compTxt(r.comp):Gr('기본 값, AUTO GAIN OFF, 꺼 둠'))+'</td><td>'+Gr('기본 값, 꺼 둠')+'</td><td>Spread '+B(r.spread.toFixed(2))+'</td><td>Bus 1 Space '+(r.space==null?Gr('비움'):B(r.space+' dB'))+'<br>'+(r.air!=null?'Bus 2 Air '+B(r.air+' dB'):Gr('Bus 2 Air 비움'))+'</td></tr>'; }).join('')+'</table></div>'); } }
   { const KU=[]; tracks.forEach(function(t){ if(t.kb && !KU.some(function(x){ return x.name===t.kb.name; })) KU.push(Object.assign({ns:[]},t.kb)); const u=t.kb && KU.find(function(x){ return x.name===t.kb.name; }); if(u) u.ns.push(t.n); });
-    if(KU.length) h.push('<div class="box"><div>'+B('콘탁 기본 소리')+' '+Gr('(처음 한 번: 새 악기 트랙에 Kontakt 8 → 악기 열기 → 아래 설정 → 크기 맞추기 → 라이브러리 아래 '+B('저장')+' 으로 이 이름. 곡마다는 이 패치를 누르기만)')+'</div><div class="wrap"><table><tr><th></th><th>저장 이름</th><th>콘탁 악기</th><th>저장 전에</th></tr>'+KU.map(function(k){ return '<tr><td class="c">'+pk(k.name)+'</td><td class="t">'+B(esc(k.name))+'<br>'+Gr('트랙 '+k.ns.map(function(n){ return '#'+n; }).join(' '))+'</td><td>'+esc(k.lib)+'</td><td>'+k.set.join('<br>')+'</td></tr>'; }).join('')+'</table></div></div>'); }
+    if(KU.length) h.push('<div class="box"><div>'+B('콘탁 기본 소리')+' '+Gr('(처음 한 번: 새 악기 트랙에 Kontakt 8 → 악기 열기 → 라이브러리 아래 '+B('저장')+' 으로 이 이름. 곡마다는 이 패치를 누르기만. 꼭 맞출 것은 악기 이름 하나, 저장 전에 칸은 해 두면 조금 나은 것이라 안 해도 MIDI 는 그대로 울림)')+'</div><div class="wrap"><table><tr><th></th><th>저장 이름</th><th>콘탁 악기</th><th>저장 전에 (선택)</th></tr>'+KU.map(function(k){ return '<tr><td class="c">'+pk(k.name)+'</td><td class="t">'+B(esc(k.name))+'<br>'+Gr('트랙 '+k.ns.map(function(n){ return '#'+n; }).join(' '))+'</td><td>'+esc(k.lib)+'</td><td>'+k.set.join('<br>')+'</td></tr>'; }).join('')+'</table></div></div>'); }
   /* 트랙마다: 악기와 설정, 패치, 플러그인 값을 트랙 순서대로 한 줄에 */
   h.push('<h2>'+N0(hasP?2:1)+'트랙마다 <small>위에서 아래로 트랙 순서, 한 줄은 왼쪽부터</small></h2>');
   { const nt=[];
@@ -28524,6 +28579,26 @@ window.__variSheetAdd=function(s){ try{ s=String(s==null?'':s); if(s.split('\n')
   if(I.dyn) L.push('   셈여림: 후렴 앞 두 마디 스네어 햇 크레센도, 후렴 첫 박 강세, 여린 벌스 햇 낮춤');
   if(L.length<2) return s; return s.replace(/\s*$/,'')+'\n\n'+L.join('\n')+'\n'; }catch(e){ return s; } };
 }
+/* ★ 2026-11-13 형: "국악 성악곡 에이올리안 이런것도 예전에 만들다보니 지금 우리가 만들어 놓은 구조나 세련됨이 떨어지는데? 형식도 좀 너무 급박하고 애매해."
+   국악 묶음 기본 장르(국악 성악곡, 국악풍 모달, 찬불가)는 팝 형식(4마디 프리코러스, 4마디 브릿지, 하이라이트 두 번 사이 간주 등 12~13 구간, 3분 반)에 팝 형식 조립(__formMutate)까지 얹혀 급하고 흐렸음.
+   → 장르마다 설계한 형식 셋 중 하나(구간 7~10개, 구간마다 마디 수를 정함: 절과 후렴 16, 간주 브릿지 8, 서주 후주 8~12). Play 본문이 songStructure 에서 __gukForm 을 부르고,
+     구조 표 다섯째 값(마디)을 standardizeLengths 가 그대로 쓰며, 사용자가 길이를 비워 두면 fitDuration 이 구간을 끼워 넣지 않음. 사용자가 구조를 따로 고르면(랜덤, 다른 장르 구조, 편성 구조) 손대지 않음 */
+window.__GUKFORM={
+  gukvocal:[
+    {name:'두 절과 절정', rows:[['인트로','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['브릿지','C',1,null,8],['하이라이트','A',1,null,16],['코러스변주','A',1,null,8],['아웃트로','A',1,null,8]]},
+    {name:'느린 서주와 세 도막(A B A\')', rows:[['인트로','A',1,null,12],['벌스','B',1,null,16],['간주','C',1,null,8],['코러스','A',1,null,16],['브릿지','C',1,null,8],['벌스','B',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,12]]},
+    {name:'후렴 먼저(합창 후렴형)', rows:[['인트로','A',1,null,8],['코러스','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,8]]}],
+  gugak:[
+    {name:'제시 비움 쌓음 회귀', rows:[['인트로','A',1,null,8],['벌스','A',1,null,16],['간주','C',1,null,8],['코러스','B',1,null,16],['하이라이트','B',1,null,16],['벌스','A',1,null,8],['아웃트로','A',1,null,8]]},
+    {name:'두 절', rows:[['인트로','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['아웃트로','A',1,null,8]]},
+    {name:'느린 서주와 아치', rows:[['인트로','A',1,null,12],['벌스','A',1,null,16],['브릿지','C',1,null,8],['코러스','B',1,null,16],['간주','C',1,null,8],['하이라이트','B',1,null,16],['아웃트로','A',1,null,12]]}],
+  chanbul:[
+    {name:'세 절(층을 더함)', rows:[['인트로','A',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,4],['하이라이트','A',1,null,16],['아웃트로','A',1,null,8]]},
+    {name:'메기고 받는 두 절과 합창', rows:[['인트로','A',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,12]]},
+    {name:'긴 서주와 후렴 변주', rows:[['인트로','A',1,null,12],['코러스','A',1,null,16],['코러스변주','A',1,null,8],['간주','C',1,null,8],['하이라이트','A',1,null,16],['코러스','A',1,null,8],['아웃트로','A',1,null,12]]}]};
+window.__gukForm=function(g, st, key){ try{ const F=window.__GUKFORM[g]; if(!F) return null; if(window.NARR && NARR.on) return null;
+    if(key && !(new RegExp('^'+g+'(_[bc])?$')).test(key)) return null;   /* 사용자가 고른 구조는 그대로 */
+    const f=F[Math.floor(Math.random()*F.length)]; window.__FORM_OPS=['국악 형식: '+f.name]; window.__GUKFORM_LAST=f.name; return f.rows.map(function(r){ return r.slice(); }); }catch(e){ return null; } };
 /*VARI-END*/
 if(!window.__midiSafety){ window.__midiSafety=function(u8){ try{ if(window.__midiSanity) u8=window.__midiSanity(u8); if(window.__ccRelease) u8=window.__ccRelease(u8); if(window.__variApply) u8=window.__variApply(u8); if(window.__harpGay) u8=window.__harpGay(u8); if(window.__swellApply) u8=window.__swellApply(u8); if(window.__stageApply) u8=window.__stageApply(u8); if(window.__ccTidy) u8=window.__ccTidy(u8); if(window.__midiSanity) u8=window.__midiSanity(u8,{tailOnly:true}); if(window.__midiDS) u8=window.__midiDS(u8); if(window.__noteTidy) u8=window.__noteTidy(u8); if(window.__ccSlew) u8=window.__ccSlew(u8); if(window.__midiNoDash) u8=window.__midiNoDash(u8); if(window.__midiTrackSort) u8=window.__midiTrackSort(u8); if(window.__orchBoost) u8=window.__orchBoost(u8); if(window.__clashFix) u8=window.__clashFix(u8); if(window.__midiDS) u8=window.__midiDS(u8,{again:true}); if(window.__noteTidy) u8=window.__noteTidy(u8); if(window.__ccSlew) u8=window.__ccSlew(u8); if(window.__presApply) u8=window.__presApply(u8); if(window.__ccClean) u8=window.__ccClean(u8); if(window.__hgBow) u8=window.__hgBow(u8); if(window.__loungeGlide) u8=window.__loungeGlide(u8); if(window.__vol7) u8=window.__vol7(u8); if(window.__midiNoDash) u8=window.__midiNoDash(u8); if(window.__midiTrackSort) u8=window.__midiTrackSort(u8); if(window.__ccAlign) u8=window.__ccAlign(u8);   /* ★ 2026-11-10 모든 앱: 익스프레션 점을 음 자리에 맞춤 */
   const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54||b[2]!==0x68||b[3]!==0x64) return u8;
@@ -38468,13 +38543,29 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
 globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
 globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
 globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
-/*YOGA-BEGIN*/
+/*YOGA-BEGIN*/globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-11-13 단독 Play 에서 이 모듈이 먼저 읽혀 __amax 없음 오류(웰니스 앰비언트가 멈춤) 막기. 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
+
 /* ★ 2026-10-19 형: 동경요가 시그니처 70분 (플레이 웰니스 앰비언트). inject_yoga.py 가 Play 에 넣는다. 고칠 때는 이 파일만 고치고 python3 inject_yoga.py.
    틀(고정): 1 호흡명상 0:00~10:00, 2 몸풀기 10:00~30:00, 3 본동작 30:00~55:00 (30초마다 편경), 4 사바사나 55:00~65:00, 5 정리 65:00~70:00.
    마디와 템포를 맞춰 구간 경계가 정확히 그 시각(첫 구간 0:00 기준)에 온다. 3 은 72 BPM 고정, 9마디 = 30초.
    느낌(랜덤): 색(새벽빛 리디안, 숲 장조, 바다 도리안), 조, 진행, 패드와 드론 음색, 1 의 빠르기(60~66), 선율 씨앗.
    호흡 앰비언트 결: 숨 패드는 1 에서 두 마디 들숨 날숨(약 7.5초), 4 에서 네 마디. 핸드팬 양금 피아노는 뒤에서 은은하게. 우주로 열리는 효과는 설명서 선택 칸(1 처음, 4 사바사나, 5 끝). */
 (function(){
+  /* ★ 2026-11-13 형: 세부 장르 칩(전시곡 퓨전국악 국악관현악 노래 캐롤 로비 요가)을 눌러도 판이 칩 줄 옆에 끼어 칩이 세로로 찌그러지고, 선택 불도 안 옮겨짐
+     → 판은 칩 줄 아래 전폭 자리(#gchipPanels) 하나에 모으고, 한 번에 하나만 열고, 누른 칩에 불. 보통 장르 칩을 누르면 판을 닫음. 일곱 모듈이 같은 도우미를 씀(먼저 읽힌 쪽이 정의) */
+  if(!window.__chipToggle){
+    try{ const st=document.createElement('style'); st.textContent='#gchipRow:has(.chipmod-sel) .gchip.on[data-g]{background:var(--card);color:var(--ink);border-color:var(--line)}.gchip.chipmod-sel{background:var(--celadon-deep,#2f8f7f)!important;color:#fff!important;border-color:var(--celadon-deep,#2f8f7f)!important}#gchipPanels{width:100%;box-sizing:border-box}#gchipPanels>div{max-width:none;box-sizing:border-box}'; (document.head||document.documentElement).appendChild(st); }catch(e){}
+    window.__chipHost=function(P){ const row=document.getElementById('gchipRow'); let host=document.getElementById('gchipPanels'); const line=row?((row.closest && row.closest('.genre-line'))||row.parentNode):null;
+      if(!host){ host=document.createElement('div'); host.id='gchipPanels'; }
+      if(line && line.parentNode){ if(host.previousSibling!==line || host.parentNode!==line.parentNode) line.parentNode.insertBefore(host, line.nextSibling); } else if(!host.parentNode) document.body.appendChild(host);
+      if(P && P.parentNode!==host) host.appendChild(P); return host; };
+    window.__chipToggle=function(P, chipId, force){ const host=window.__chipHost(P); const show=force?true:(P.style.display==='none');
+      Array.prototype.forEach.call(host.children,function(x){ if(x!==P) x.style.display='none'; }); P.style.display=show?'':'none';
+      document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); });
+      const c=chipId?document.getElementById(chipId):null; if(show && c) c.classList.add('chipmod-sel');
+      if(show){ try{ P.scrollIntoView({block:'nearest'}); }catch(e){} } };
+    document.addEventListener('click', function(e){ const b=e.target && e.target.closest && e.target.closest('#gchipRow .gchip[data-g]'); if(!b) return; const host=document.getElementById('gchipPanels'); if(host) Array.prototype.forEach.call(host.children,function(x){ x.style.display='none'; }); document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); }); }, true);
+  }
   const PPQ=480, BAR=PPQ*4, PRE=4;
   const SEC=[[0,600,'호흡명상','1 Breath Meditation'],[600,1800,'몸풀기','2 Warm Up'],[1800,3300,'본동작','3 Main Flow'],[3300,3900,'사바사나','4 Savasana'],[3900,4200,'정리','5 Closing']];
   const NN=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
@@ -39329,10 +39420,10 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
   window.__YOGA={make:make, download:download, last:function(){ return LAST; }};
 
   /* 화면: 웰니스 앰비언트 줄에 '동경요가 70분' 칩, 누르면 작은 판 */
-  function panel(){ let P=document.getElementById('yogaPanel'); if(P){ P.style.display=(P.style.display==='none')?'':'none'; return; }
+  function panel(){ let P=document.getElementById('yogaPanel'); if(P){ window.__chipToggle(P,'yogaChip'); return; }
     P=document.createElement('div'); P.id='yogaPanel'; P.style.cssText='margin:10px 0;padding:14px 16px;border:1px solid var(--celadon,#9bb);border-radius:12px;background:var(--card,#fff);font-size:14px;line-height:1.6';
     P.innerHTML='<b>동경요가 시그니처 70분</b><div style="opacity:.75;margin:4px 0 10px">호흡명상 0:00 (자연음이 나왔다 사라지며 우주가 열리고 닫힘) / 몸풀기 10:00 (양금, 15:00 피아노 연주곡 사극풍) / 본동작 30:00 (30초마다 띵샤와 화음) / 사바사나 55:00 (자연음, 61:00 피아노 회상) / 정리 65:00 ~ 70:00 (우주로 열림). 색과 조와 선율은 만들 때마다 달라집니다.</div><div id="yogaInfo" style="margin-bottom:10px;opacity:.85"></div><button type="button" id="yogaNew" class="gchip">새로 만들기</button> <button type="button" id="yogaDl" class="gchip on">MIDI, 가이드, txt 받기</button>';
-    const row=document.getElementById('gchipRow'); (row&&row.parentNode?row.parentNode:document.body).insertBefore(P, row?row.nextSibling:null);
+    window.__chipToggle(P,'yogaChip',true);
     P.addEventListener('click', function(e){ e.stopPropagation(); });   /* 장르 칩 줄의 클릭 처리(장르 바꾸기)로 올라가지 않게 */
     const info=function(){ const B=LAST&&LAST.B; document.getElementById('yogaInfo').textContent=B?('지금 곡: '+B.key+' '+B.palName+', 호흡명상 '+B.br[0].ko+' '+B.bpm1+' BPM, 정리 '+B.br[1].ko+', 패드 '+B.padP.split('/').pop()):''; };
     document.getElementById('yogaNew').onclick=function(){ make(); info(); };
@@ -39563,13 +39654,29 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
 globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
 globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
 globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
-/*EXH-BEGIN*/
+/*EXH-BEGIN*/globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-11-13 단독 Play 에서 이 모듈이 먼저 읽혀 __amax 없음 오류(웰니스 앰비언트가 멈춤) 막기. 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
+
 /* ★ 2026-10-26 형: 전시곡 셋(거칠산국 10분, 결 6분, 怪沕 10분). inject_exhibit.py 가 Play 에 넣는다. 고칠 때는 이 파일만 고치고 python3 inject_exhibit.py.
    실연은 MIDI 에 맞춰 하지만 MIDI 에 모든 파트를 다 넣어 가이드로 줌(연주자마다 자기 트랙). 미디어아트 큐는 로직 마커.
    ★ 2026-10-26 형2: 대금이 중심, 가야금 거문고 넣음. 구성 아이디어 여러 개(골라 씀), 새로 뽑을 때마다 다채롭게. 악기 파트는 악보(MusicXML), 앰비언트 자연음은 코드 이름과 글로.
    한 판의 음(정본)은 박 격자 위 사건 목록 하나. 거기서 연주 MIDI(사람 손맛, 숨 곡선, 키스위치는 sanity)와 악보용 MIDI(격자 그대로, 코드 글 리허설) 둘을 만든다.
    거칠산국: G 마이너 메나리토리(미 솔 라 도 레 = D F G Bb C, 라 G 로 맺음), 12/8 덧배기풍(박 = 점4분). 핸드팬(D 마이너 판)은 D3 딩 C4 F4 G4 D4 만. 끝 피어남은 같은 다섯 음의 Bb 장조 */
 (function(){
+  /* ★ 2026-11-13 형: 세부 장르 칩(전시곡 퓨전국악 국악관현악 노래 캐롤 로비 요가)을 눌러도 판이 칩 줄 옆에 끼어 칩이 세로로 찌그러지고, 선택 불도 안 옮겨짐
+     → 판은 칩 줄 아래 전폭 자리(#gchipPanels) 하나에 모으고, 한 번에 하나만 열고, 누른 칩에 불. 보통 장르 칩을 누르면 판을 닫음. 일곱 모듈이 같은 도우미를 씀(먼저 읽힌 쪽이 정의) */
+  if(!window.__chipToggle){
+    try{ const st=document.createElement('style'); st.textContent='#gchipRow:has(.chipmod-sel) .gchip.on[data-g]{background:var(--card);color:var(--ink);border-color:var(--line)}.gchip.chipmod-sel{background:var(--celadon-deep,#2f8f7f)!important;color:#fff!important;border-color:var(--celadon-deep,#2f8f7f)!important}#gchipPanels{width:100%;box-sizing:border-box}#gchipPanels>div{max-width:none;box-sizing:border-box}'; (document.head||document.documentElement).appendChild(st); }catch(e){}
+    window.__chipHost=function(P){ const row=document.getElementById('gchipRow'); let host=document.getElementById('gchipPanels'); const line=row?((row.closest && row.closest('.genre-line'))||row.parentNode):null;
+      if(!host){ host=document.createElement('div'); host.id='gchipPanels'; }
+      if(line && line.parentNode){ if(host.previousSibling!==line || host.parentNode!==line.parentNode) line.parentNode.insertBefore(host, line.nextSibling); } else if(!host.parentNode) document.body.appendChild(host);
+      if(P && P.parentNode!==host) host.appendChild(P); return host; };
+    window.__chipToggle=function(P, chipId, force){ const host=window.__chipHost(P); const show=force?true:(P.style.display==='none');
+      Array.prototype.forEach.call(host.children,function(x){ if(x!==P) x.style.display='none'; }); P.style.display=show?'':'none';
+      document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); });
+      const c=chipId?document.getElementById(chipId):null; if(show && c) c.classList.add('chipmod-sel');
+      if(show){ try{ P.scrollIntoView({block:'nearest'}); }catch(e){} } };
+    document.addEventListener('click', function(e){ const b=e.target && e.target.closest && e.target.closest('#gchipRow .gchip[data-g]'); if(!b) return; const host=document.getElementById('gchipPanels'); if(host) Array.prototype.forEach.call(host.children,function(x){ x.style.display='none'; }); document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); }); }, true);
+  }
   const PPQ=480, E8=PPQ/2;
   /* ★ 2026-10-31 형: 결 대금 악보에 연주 MIDI 에 없는 둘째 가락(빨간 둘째 레이어). 한 줄 악기(대금 해금 단소)는 악보에서도 한 줄:
      꾸밈음(orn)은 빼고(글로 적음), 16분에 맞춘 뒤 같은 자리에 둘 넘으면 원래 더 긴 음(같으면 높은 음, 연주 MIDI 가 남기는 음과 같음) 하나만, 다음 음이 오면 앞 음은 거기까지. */
@@ -41266,9 +41373,9 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     setTimeout(function(){ save(L.B.score, nmF+'_악보.mid', 'audio/midi'); }, 1400); }
   window.__EXHIBIT={make:make, download:download, last:function(id){ return LAST[id]; }, fileOf:fileOf, pieces:function(){ return Object.keys(PIECES); }, tpls:function(id){ return (PIECES[id]&&PIECES[id].tpls||[]).map(function(t){ return {key:t.key, ko:t.ko, sum:t.sum}; }); }, choose:function(id,k){ CHOICE[id]=k; }};
 
-  function panel(){ let P=document.getElementById('exhPanel'); if(P){ P.style.display=(P.style.display==='none')?'':'none'; return; }
+  function panel(){ let P=document.getElementById('exhPanel'); if(P){ window.__chipToggle(P,'exhChip'); return; }
     P=document.createElement('div'); P.id='exhPanel'; P.style.cssText='margin:10px 0;padding:14px 16px;border:1px solid var(--celadon,#9bb);border-radius:12px;background:var(--card,#fff);font-size:14px;line-height:1.6';
-    const row=document.getElementById('gchipRow'); (row&&row.parentNode?row.parentNode:document.body).insertBefore(P, row?row.nextSibling:null);
+    window.__chipToggle(P,'exhChip',true);
     const render=function(){ P.innerHTML='<b>전시곡</b>'+Object.keys(PIECES).map(function(id){ const Pc=PIECES[id], L=LAST[id];
         return '<div style="margin-top:12px"><b>'+Pc.ko+'</b> <span style="opacity:.7">'+Pc.desc+'</span>'
           +'<div style="margin:6px 0">구성: <select data-ext="'+id+'"><option value="rnd">랜덤</option>'+Pc.tpls.map(function(t){ return '<option value="'+t.key+'"'+(CHOICE[id]===t.key?' selected':'')+'>'+t.ko+'</option>'; }).join('')+'</select></div>'
@@ -41293,6 +41400,21 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
    밴드: 드럼(로직 Drum Kit), 베이스(로직 Bass), 일렉기타(로직 Guitar), 피아노(콘탁 CSP). 국악기는 디센트(음원_레퍼런스 6장 음역과 주법), 장구 꽹과리는 디센트 Samulnori.
    한 판의 음은 16분 격자 위 사건 목록. 연주 MIDI(사람 손맛, 키스위치는 sanity)와 악보용 MIDI(격자 그대로, 코드 글 리허설) 둘 */
 (function(){
+  /* ★ 2026-11-13 형: 세부 장르 칩(전시곡 퓨전국악 국악관현악 노래 캐롤 로비 요가)을 눌러도 판이 칩 줄 옆에 끼어 칩이 세로로 찌그러지고, 선택 불도 안 옮겨짐
+     → 판은 칩 줄 아래 전폭 자리(#gchipPanels) 하나에 모으고, 한 번에 하나만 열고, 누른 칩에 불. 보통 장르 칩을 누르면 판을 닫음. 일곱 모듈이 같은 도우미를 씀(먼저 읽힌 쪽이 정의) */
+  if(!window.__chipToggle){
+    try{ const st=document.createElement('style'); st.textContent='#gchipRow:has(.chipmod-sel) .gchip.on[data-g]{background:var(--card);color:var(--ink);border-color:var(--line)}.gchip.chipmod-sel{background:var(--celadon-deep,#2f8f7f)!important;color:#fff!important;border-color:var(--celadon-deep,#2f8f7f)!important}#gchipPanels{width:100%;box-sizing:border-box}#gchipPanels>div{max-width:none;box-sizing:border-box}'; (document.head||document.documentElement).appendChild(st); }catch(e){}
+    window.__chipHost=function(P){ const row=document.getElementById('gchipRow'); let host=document.getElementById('gchipPanels'); const line=row?((row.closest && row.closest('.genre-line'))||row.parentNode):null;
+      if(!host){ host=document.createElement('div'); host.id='gchipPanels'; }
+      if(line && line.parentNode){ if(host.previousSibling!==line || host.parentNode!==line.parentNode) line.parentNode.insertBefore(host, line.nextSibling); } else if(!host.parentNode) document.body.appendChild(host);
+      if(P && P.parentNode!==host) host.appendChild(P); return host; };
+    window.__chipToggle=function(P, chipId, force){ const host=window.__chipHost(P); const show=force?true:(P.style.display==='none');
+      Array.prototype.forEach.call(host.children,function(x){ if(x!==P) x.style.display='none'; }); P.style.display=show?'':'none';
+      document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); });
+      const c=chipId?document.getElementById(chipId):null; if(show && c) c.classList.add('chipmod-sel');
+      if(show){ try{ P.scrollIntoView({block:'nearest'}); }catch(e){} } };
+    document.addEventListener('click', function(e){ const b=e.target && e.target.closest && e.target.closest('#gchipRow .gchip[data-g]'); if(!b) return; const host=document.getElementById('gchipPanels'); if(host) Array.prototype.forEach.call(host.children,function(x){ x.style.display='none'; }); document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); }); }, true);
+  }
   const PPQ=480, SX=PPQ/4;
   const rngOf=function(seed){ let a=seed>>>0; return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
   const enc=new TextEncoder(); const txt=function(s){ return Array.from(enc.encode(String(s))); };
@@ -41945,9 +42067,9 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     setTimeout(function(){ save(L.B.score, nmF+'_악보.mid', 'audio/midi'); }, 1400); }
   window.__FUSION={make:make, download:download, last:function(){ return LAST.cur; }, subs:function(){ return SUBS.map(function(s){ return {key:s.key, ko:s.ko, desc:s.desc}; }); }, inst:function(){ return MELK.map(function(k){ return {key:k, ko:INST[k].ko}; }); }, choose:function(o){ Object.assign(CH,o||{}); }};
 
-  function panel(){ let P=document.getElementById('fusPanel'); if(P){ P.style.display=(P.style.display==='none')?'':'none'; return; }
+  function panel(){ let P=document.getElementById('fusPanel'); if(P){ window.__chipToggle(P,'fusChip'); return; }
     P=document.createElement('div'); P.id='fusPanel'; P.style.cssText='margin:10px 0;padding:14px 16px;border:1px solid var(--celadon,#9bb);border-radius:12px;background:var(--card,#fff);font-size:14px;line-height:1.6';
-    const row=document.getElementById('gchipRow'); (row&&row.parentNode?row.parentNode:document.body).insertBefore(P, row?row.nextSibling:null);
+    window.__chipToggle(P,'fusChip',true);
     const render=function(){ const L=LAST.cur; P.innerHTML='<b>퓨전국악</b> <span style="opacity:.7">밴드(드럼 베이스 일렉기타 피아노) + 국악기, 4~5분</span>'
       +'<div style="margin:8px 0">세부 장르: <select data-fsub="1"><option value="rnd">랜덤</option>'+SUBS.map(function(s){ return '<option value="'+s.key+'"'+(CH.sub===s.key?' selected':'')+'>'+s.ko+'</option>'; }).join('')+'</select></div>'
       +'<div style="margin:4px 0">선율 악기: '+MELK.map(function(k){ return '<label style="margin-right:10px;white-space:nowrap"><input type="checkbox" data-fmel="'+k+'"'+(CH.mel.indexOf(k)>=0?' checked':'')+'> '+INST[k].ko+'</label>'; }).join('')+'</div>'
@@ -41974,6 +42096,21 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
    한 곡 = 대목 여럿. 대목마다 박자, 분박(8분 묶음), 빠르기(8분 박), 조, 기운. 모티브(음계 걸음과 묶음마다 음 수)를 그 대목의 묶음 위에 다시 얹어 변형(늘임 줄임 뒤집기 쪼개기 되풀이 올림).
    음은 8분 묶음 격자 위 사건 목록(P), 연주 MIDI 는 __midiSafety(주법 키스위치, 무대 자리, 셈여림 정리)를 거침 */
 (function(){
+  /* ★ 2026-11-13 형: 세부 장르 칩(전시곡 퓨전국악 국악관현악 노래 캐롤 로비 요가)을 눌러도 판이 칩 줄 옆에 끼어 칩이 세로로 찌그러지고, 선택 불도 안 옮겨짐
+     → 판은 칩 줄 아래 전폭 자리(#gchipPanels) 하나에 모으고, 한 번에 하나만 열고, 누른 칩에 불. 보통 장르 칩을 누르면 판을 닫음. 일곱 모듈이 같은 도우미를 씀(먼저 읽힌 쪽이 정의) */
+  if(!window.__chipToggle){
+    try{ const st=document.createElement('style'); st.textContent='#gchipRow:has(.chipmod-sel) .gchip.on[data-g]{background:var(--card);color:var(--ink);border-color:var(--line)}.gchip.chipmod-sel{background:var(--celadon-deep,#2f8f7f)!important;color:#fff!important;border-color:var(--celadon-deep,#2f8f7f)!important}#gchipPanels{width:100%;box-sizing:border-box}#gchipPanels>div{max-width:none;box-sizing:border-box}'; (document.head||document.documentElement).appendChild(st); }catch(e){}
+    window.__chipHost=function(P){ const row=document.getElementById('gchipRow'); let host=document.getElementById('gchipPanels'); const line=row?((row.closest && row.closest('.genre-line'))||row.parentNode):null;
+      if(!host){ host=document.createElement('div'); host.id='gchipPanels'; }
+      if(line && line.parentNode){ if(host.previousSibling!==line || host.parentNode!==line.parentNode) line.parentNode.insertBefore(host, line.nextSibling); } else if(!host.parentNode) document.body.appendChild(host);
+      if(P && P.parentNode!==host) host.appendChild(P); return host; };
+    window.__chipToggle=function(P, chipId, force){ const host=window.__chipHost(P); const show=force?true:(P.style.display==='none');
+      Array.prototype.forEach.call(host.children,function(x){ if(x!==P) x.style.display='none'; }); P.style.display=show?'':'none';
+      document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); });
+      const c=chipId?document.getElementById(chipId):null; if(show && c) c.classList.add('chipmod-sel');
+      if(show){ try{ P.scrollIntoView({block:'nearest'}); }catch(e){} } };
+    document.addEventListener('click', function(e){ const b=e.target && e.target.closest && e.target.closest('#gchipRow .gchip[data-g]'); if(!b) return; const host=document.getElementById('gchipPanels'); if(host) Array.prototype.forEach.call(host.children,function(x){ x.style.display='none'; }); document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); }); }, true);
+  }
   const PPQ=480, SX=PPQ/4, E8=PPQ/2;
   const rngOf=function(seed){ let a=seed>>>0; return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
   const enc=new TextEncoder(); const txt=function(s){ return Array.from(enc.encode(String(s))); };
@@ -42619,9 +42756,9 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     setTimeout(function(){ save(L.B.score, nmF+'_악보.mid', 'audio/midi'); }, 1400); }
   window.__GUGAKORCH={make:make, download:download, last:function(){ return LAST.cur; }, forms:function(){ return FORMK.map(function(k){ return {key:k, ko:FORMS[k].ko}; }); }, choose:function(o){ Object.assign(CH,o||{}); }, _t:{build:build, MET:MET, KEYS:KEYS, flatsOf:flatsOf, sheet:sheet}};
 
-  function panel(){ let Pn=document.getElementById('gokPanel'); if(Pn){ Pn.style.display=(Pn.style.display==='none')?'':'none'; return; }
+  function panel(){ let Pn=document.getElementById('gokPanel'); if(Pn){ window.__chipToggle(Pn,'gokChip'); return; }
     Pn=document.createElement('div'); Pn.id='gokPanel'; Pn.style.cssText='margin:10px 0;padding:14px 16px;border:1px solid var(--celadon,#9bb);border-radius:12px;background:var(--card,#fff);font-size:14px;line-height:1.6';
-    const row=document.getElementById('gchipRow'); (row&&row.parentNode?row.parentNode:document.body).insertBefore(Pn, row?row.nextSibling:null);
+    window.__chipToggle(Pn,'gokChip',true);
     const draw=function(){ const L=LAST.cur; Pn.innerHTML='<b>국악관현악</b> <span style="opacity:.7">디센트 국악기, 첼로 콘트라베이스, 장구 북 징, 팀파니 대북 탐탐 심벌, 한 곡 12~15분</span>'
       +'<div style="margin:8px 0">구성: <select data-gform="1"><option value="rnd">랜덤</option>'+FORMK.map(function(k){ return '<option value="'+k+'"'+(CH.form===k?' selected':'')+'>'+FORMS[k].ko+'</option>'; }).join('')+'</select>'
       +' &nbsp;끝맺음: <select data-gend="1"><option value="rnd">랜덤</option>'+Object.keys(END_KO).map(function(k){ return '<option value="'+k+'"'+(CH.end===k?' selected':'')+'>'+({hit:'터지며 끝',cycle:'수미쌍관',lyric:'서정적으로'}[k])+'</option>'; }).join('')+'</select> &nbsp;협주곡 독주: <select data-gsolo="1"><option value="rnd">랜덤</option>'+SOLOS.map(function(k){ return '<option value="'+k+'"'+(CH.solo===k?' selected':'')+'>'+I[k].ko+'</option>'; }).join('')+'</select></div>'
@@ -42644,6 +42781,21 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
    캐롤 맛: 썰매방울, 첼레스타 글로켄슈필 튜블러 벨, 합창, 장조, 같은 화음 안 반음 내려가는 선(I I+ I6 I7), 버금딸림 단조(IV iv6 I), 부속 딸림(VI7 III7), 마지막 6 9 화음, 끝 느려짐.
    음원 이름은 Play 가 이미 쓰는 것과 음원_레퍼런스(로직 라이브러리, 콘탁 True Strike, OE2)에서만 */
 (function(){
+  /* ★ 2026-11-13 형: 세부 장르 칩(전시곡 퓨전국악 국악관현악 노래 캐롤 로비 요가)을 눌러도 판이 칩 줄 옆에 끼어 칩이 세로로 찌그러지고, 선택 불도 안 옮겨짐
+     → 판은 칩 줄 아래 전폭 자리(#gchipPanels) 하나에 모으고, 한 번에 하나만 열고, 누른 칩에 불. 보통 장르 칩을 누르면 판을 닫음. 일곱 모듈이 같은 도우미를 씀(먼저 읽힌 쪽이 정의) */
+  if(!window.__chipToggle){
+    try{ const st=document.createElement('style'); st.textContent='#gchipRow:has(.chipmod-sel) .gchip.on[data-g]{background:var(--card);color:var(--ink);border-color:var(--line)}.gchip.chipmod-sel{background:var(--celadon-deep,#2f8f7f)!important;color:#fff!important;border-color:var(--celadon-deep,#2f8f7f)!important}#gchipPanels{width:100%;box-sizing:border-box}#gchipPanels>div{max-width:none;box-sizing:border-box}'; (document.head||document.documentElement).appendChild(st); }catch(e){}
+    window.__chipHost=function(P){ const row=document.getElementById('gchipRow'); let host=document.getElementById('gchipPanels'); const line=row?((row.closest && row.closest('.genre-line'))||row.parentNode):null;
+      if(!host){ host=document.createElement('div'); host.id='gchipPanels'; }
+      if(line && line.parentNode){ if(host.previousSibling!==line || host.parentNode!==line.parentNode) line.parentNode.insertBefore(host, line.nextSibling); } else if(!host.parentNode) document.body.appendChild(host);
+      if(P && P.parentNode!==host) host.appendChild(P); return host; };
+    window.__chipToggle=function(P, chipId, force){ const host=window.__chipHost(P); const show=force?true:(P.style.display==='none');
+      Array.prototype.forEach.call(host.children,function(x){ if(x!==P) x.style.display='none'; }); P.style.display=show?'':'none';
+      document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); });
+      const c=chipId?document.getElementById(chipId):null; if(show && c) c.classList.add('chipmod-sel');
+      if(show){ try{ P.scrollIntoView({block:'nearest'}); }catch(e){} } };
+    document.addEventListener('click', function(e){ const b=e.target && e.target.closest && e.target.closest('#gchipRow .gchip[data-g]'); if(!b) return; const host=document.getElementById('gchipPanels'); if(host) Array.prototype.forEach.call(host.children,function(x){ x.style.display='none'; }); document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); }); }, true);
+  }
   const PPQ=480, SX=PPQ/4;
   const rngOf=function(seed){ let a=seed>>>0; return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
   const enc=new TextEncoder(); const txt=function(s){ return Array.from(enc.encode(String(s))); };
@@ -43565,9 +43717,9 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
   window.__CAROL_COMP=function(tail){ const t=String(tail||'').replace(/\s*\[[^\]]*\]/g,'').trim(); return COMP[t]?Object.assign({},COMP[t]):null; };
   window.__CAROL={vox:{cat:CVOX, song:makeCV, sheet:cvSheet}, make:make, download:download, last:function(){ return LAST.cur; }, styles:function(){ return STK.map(function(k){ return {key:k, ko:STY[k].ko}; }); }, melodies:function(){ return PDK.map(function(k){ return {key:k, ko:PD[k].ko}; }); }, choose:function(o){ Object.assign(CH,o||{}); }};
 
-  function panel(){ let Pn=document.getElementById('carPanel'); if(Pn){ Pn.style.display=(Pn.style.display==='none')?'':'none'; return; }
+  function panel(){ let Pn=document.getElementById('carPanel'); if(Pn){ window.__chipToggle(Pn,'carChip'); return; }
     Pn=document.createElement('div'); Pn.id='carPanel'; Pn.style.cssText='margin:10px 0;padding:14px 16px;border:1px solid var(--celadon,#9bb);border-radius:12px;background:var(--card,#fff);font-size:14px;line-height:1.6';
-    const row=document.getElementById('gchipRow'); (row&&row.parentNode?row.parentNode:document.body).insertBefore(Pn, row?row.nextSibling:null);
+    window.__chipToggle(Pn,'carChip',true);
     const render2=function(){ const L=LAST.cur; Pn.innerHTML='<b>캐롤</b> <span style="opacity:.7">한 곡 4~5분, 또는 라운지 60분</span>'
       +'<div style="margin:8px 0">갈래: <select data-csty="1"><option value="rnd">랜덤</option>'+STK.map(function(k){ return '<option value="'+k+'"'+(CH.sty===k?' selected':'')+'>'+STY[k].ko+'</option>'; }).join('')+'</select>'
       +' &nbsp;선율: <select data-cmel="1"><option value="rnd">랜덤</option><option value="new"'+(CH.mel==='new'?' selected':'')+'>새로 짓기</option>'+PDK.map(function(k){ return '<option value="'+k+'"'+(CH.mel===k?' selected':'')+'>'+PD[k].ko+' (전통)</option>'; }).join('')+'</select>'
@@ -43583,7 +43735,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     /* ★ 2026-11-01 형 시즌 묶음: 캐롤은 '시즌' 묶음 줄(gchipRow data-group="시즌")에만. 다른 시즌 장르도 같은 방식으로 칩을 붙이면 됨 */
     if(row.getAttribute('data-group')!=='시즌'){ const c=row.querySelector('#carChip'); if(c) c.remove(); const P0=document.getElementById('carPanel'); if(P0) P0.style.display='none'; return; }
     if(row.querySelector('#carChip')) return; const b=document.createElement('button'); b.type='button'; b.id='carChip'; b.className='gchip on'; b.textContent='🎄 캐롤'; b.onclick=function(e){ e.stopPropagation(); panel(); }; row.appendChild(b);
-    { const P1=document.getElementById('carPanel'); if(!P1) panel(); else P1.style.display=''; } }
+    { const P1=document.getElementById('carPanel'); if(!P1) panel(); else window.__chipToggle(P1,'carChip',true); } }
   const boot=function(){ const row=document.getElementById('gchipRow'); if(!row){ setTimeout(boot,500); return; } chip(); try{ new MutationObserver(function(){ chip(); }).observe(row,{childList:true}); }catch(e){} };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else setTimeout(boot,0);
 })();
@@ -43601,6 +43753,21 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
    록 드럼 위에 장단 층(장단 변주 모음 __jangdanBar, 꽹과리 가락, 북 큰 박, 징), 노래는 가요식(화음 음, 반복 구조, 프리 반복 진행), 국악은 토리 다섯 음 모티브(태평소 후크, 대답), 스타일 둘(판소리 록, 애니송 록).
    Play 장르 칩 줄 '국악' 묶음에 '🎤 퓨전국악 노래' 칩. 받기: 연주 MIDI(가사 메타), 제작 가이드, 셋업 시트(가사 전문), 악보 MIDI, 악보 MusicXML(보컬 보표에 가사) */
 (function(){
+  /* ★ 2026-11-13 형: 세부 장르 칩(전시곡 퓨전국악 국악관현악 노래 캐롤 로비 요가)을 눌러도 판이 칩 줄 옆에 끼어 칩이 세로로 찌그러지고, 선택 불도 안 옮겨짐
+     → 판은 칩 줄 아래 전폭 자리(#gchipPanels) 하나에 모으고, 한 번에 하나만 열고, 누른 칩에 불. 보통 장르 칩을 누르면 판을 닫음. 일곱 모듈이 같은 도우미를 씀(먼저 읽힌 쪽이 정의) */
+  if(!window.__chipToggle){
+    try{ const st=document.createElement('style'); st.textContent='#gchipRow:has(.chipmod-sel) .gchip.on[data-g]{background:var(--card);color:var(--ink);border-color:var(--line)}.gchip.chipmod-sel{background:var(--celadon-deep,#2f8f7f)!important;color:#fff!important;border-color:var(--celadon-deep,#2f8f7f)!important}#gchipPanels{width:100%;box-sizing:border-box}#gchipPanels>div{max-width:none;box-sizing:border-box}'; (document.head||document.documentElement).appendChild(st); }catch(e){}
+    window.__chipHost=function(P){ const row=document.getElementById('gchipRow'); let host=document.getElementById('gchipPanels'); const line=row?((row.closest && row.closest('.genre-line'))||row.parentNode):null;
+      if(!host){ host=document.createElement('div'); host.id='gchipPanels'; }
+      if(line && line.parentNode){ if(host.previousSibling!==line || host.parentNode!==line.parentNode) line.parentNode.insertBefore(host, line.nextSibling); } else if(!host.parentNode) document.body.appendChild(host);
+      if(P && P.parentNode!==host) host.appendChild(P); return host; };
+    window.__chipToggle=function(P, chipId, force){ const host=window.__chipHost(P); const show=force?true:(P.style.display==='none');
+      Array.prototype.forEach.call(host.children,function(x){ if(x!==P) x.style.display='none'; }); P.style.display=show?'':'none';
+      document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); });
+      const c=chipId?document.getElementById(chipId):null; if(show && c) c.classList.add('chipmod-sel');
+      if(show){ try{ P.scrollIntoView({block:'nearest'}); }catch(e){} } };
+    document.addEventListener('click', function(e){ const b=e.target && e.target.closest && e.target.closest('#gchipRow .gchip[data-g]'); if(!b) return; const host=document.getElementById('gchipPanels'); if(host) Array.prototype.forEach.call(host.children,function(x){ x.style.display='none'; }); document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); }); }, true);
+  }
   const PPQ=480, SX=PPQ/4;
   const rngOf=function(seed){ let a=seed>>>0; return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
   const enc=new TextEncoder(); const txt=function(s){ return Array.from(enc.encode(String(s))); };
@@ -44088,9 +44255,9 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     setTimeout(function(){ save(L.B.score, nmF+'_악보.mid', 'audio/midi'); }, 1400); }
   window.__SONG={make:make, download:download, last:function(){ return LAST.cur; }, subjects:function(){ return SUBK.map(function(k){ return {key:k, ko:SUBJ[k].ko}; }); }, forms:function(){ return FORMS.map(function(f,i){ return {key:i, ko:f.ko}; }); }, choose:function(o){ Object.assign(CH,o||{}); }};
 
-  function panel(){ let Pn=document.getElementById('songPanel'); if(Pn){ Pn.style.display=(Pn.style.display==='none')?'':'none'; return; }
+  function panel(){ let Pn=document.getElementById('songPanel'); if(Pn){ window.__chipToggle(Pn,'songChip'); return; }
     Pn=document.createElement('div'); Pn.id='songPanel'; Pn.style.cssText='margin:10px 0;padding:14px 16px;border:1px solid var(--celadon,#9bb);border-radius:12px;background:var(--card,#fff);font-size:14px;line-height:1.6';
-    const row=document.getElementById('gchipRow'); (row&&row.parentNode?row.parentNode:document.body).insertBefore(Pn, row?row.nextSibling:null);
+    window.__chipToggle(Pn,'songChip',true);
     const r2=function(){ const L=LAST.cur; Pn.innerHTML='<b>퓨전국악 노래곡</b> <span style="opacity:.7">록밴드와 국악기, 노래 선율과 가사, 악보</span>'
       +'<div style="margin:8px 0">소재: <select data-ss="1"><option value="rnd">랜덤</option>'+SUBK.map(function(k){ return '<option value="'+k+'"'+(CH.subj===k?' selected':'')+'>'+SUBJ[k].ko+'</option>'; }).join('')+'</select>'
       +' &nbsp;보컬: <select data-sv="1"><option value="m"'+(CH.voice==='m'?' selected':'')+'>남성</option><option value="f"'+(CH.voice==='f'?' selected':'')+'>여성</option></select>'
@@ -44310,7 +44477,8 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
 globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
 globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
 globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
-/*WAMB-BEGIN*/
+/*WAMB-BEGIN*/globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x>m) m=x; } return m; }; globalThis.__amin=globalThis.__amin||function(a){ let m=Infinity; for(let x of a){ x=+x; if(x!==x) return NaN; if(x<m) m=x; } return m; };   /* ★ 2026-11-13 단독 Play 에서 이 모듈이 먼저 읽혀 __amax 없음 오류(웰니스 앰비언트가 멈춤) 막기. 2026-10-29 긴 곡(60분 롱믹스) Math.max(...배열) 스택 넘침 막기 */
+
 /* ★ 2026-10-21 형: 플레이 웰니스 앰비언트 새 엔진 (우주, 핸드팬, 드론 x 감상, 전시 루프, 동경요가 70분).
    명상 앱 호흡 앰비언트에서 다듬은 것을 그대로 옮김: 패치 책(SO 음색 02 ... SO 공통 17), 바닥 드론과 숨 쉬는 드론, 숨 패드 스웰, 양금 자리 선율 넷(양금 생황 칼림바 첼레스타),
    피아노 캐논과 피아노 선율, 띵샤, 자연음, 팬 움직임, 가운데 흐름, 우주로 열리는 효과(Cosmos), 뒤집힌 세계(Flip), 제작 가이드 html.
@@ -50386,14 +50554,19 @@ window.__kbookOf=function(patch){ const p=String(patch||'').replace(/^\[[^\]]*\]
   let i=window.__KBOOK.findIndex(function(r){ return r[0]===p; }); if(i<0) i=window.__KBOOK.findIndex(function(r){ return p.indexOf(r[0])===0; }); if(i<0) return null;
   const r=window.__KBOOK[i], lib=r[0];
   const set=[];
-  if(/^(Orchestral Essentials|Swing|True Strike|Pan Drums)/.test(lib)) set.push('악기 창 '+'<b>REVERB</b> 0 (울림은 Space 버스로)');
-  if(/Epic French Horns/.test(lib)) set.push('<b>OCTAVER</b> 끔 (옥타브 층은 앱이 따로 적음)');
+  /* ★ 2026-11-13 형 캡처(True Strike Celesta 의 Main Options Delay 탭, OE2 Epic French Horns 의 MAIN EFFECTS 탭, OE Strings Arco 의 MAIN SETTINGS EQ EFFECTS SEATING 탭): "콘탁 내부 악기창에 그림과 니 설명이 달라. 꼭해야해?"
+     → 실제 있는 손잡이 이름으로만 적고, 모두 선택(안 해도 MIDI 는 그대로 울림). True Strike 에는 REVERB 가 없음(Attack Decay Sustain Release, Velocity EQ, Delay 뿐) */
+  if(/^Orchestral Essentials 2\//.test(lib)) set.push('MAIN 탭 <b>REVERB</b> 손잡이 왼쪽 끝(울림은 로직 Space 버스로). EFFECTS 탭 COMPRESSOR, DELAY, PRO FILTER, STEREO MOD 가 켜져 있으면 끔');
+  else if(/^Orchestral Essentials\//.test(lib)) set.push('MAIN 탭 <b>REVERB</b> 손잡이 왼쪽 끝(울림은 로직 Space 버스로). SETTINGS 탭 <b>OCTAVER</b> 끔. EFFECTS 탭 COMPRESSOR, DELAY, PRO FILTER, STEREO MOD 가 켜져 있으면 끔. EQ, SEATING 탭은 그대로');
+  else if(/^True Strike/.test(lib)) set.push('손잡이는 처음 값 그대로(이 악기 창에는 REVERB 가 없음). Delay 탭 <b>Delay On/Off</b> 가 켜져 있으면 끔');
+  else if(/^(Swing|Pan Drums)/.test(lib)) set.push('악기 창에 REVERB 손잡이가 있으면 왼쪽 끝(울림은 로직 Space 버스로)');
+  if(/Epic French Horns/.test(lib)) set.push('MAIN 탭 <b>OCTAVER</b> 끔 (옥타브 층은 앱이 따로 적음)');
   if(/\(Melody\)/.test(lib)) set.push('아래 단추 <b>Poly</b>, <b>Plectrum</b>, Sound Preset '+(/Mint/.test(lib)?'Amps 의 <b>CLEAN</b> 하나':'<b>Natural</b>')+', <b>Link to Song</b> 켬. 주법 건반(C1 Open, C#1 Muted)은 MIDI 맨 앞에 있음');
   /* ★ 2026-11-11 형 캡처(악기 창 손잡이): 한 번 정해 두면 되는 값 */
-  if(window.__PSAR_RE && window.__PSAR_RE.test(lib)) set.push('왼쪽 <b>Automation</b> 탭 → <b>MIDI Automation</b> → <b>CC 73</b> 을 ATTACK 손잡이에, <b>CC 72</b> 를 RELEASE 손잡이에 끌어다 놓고 저장 (앱이 구절마다 들어옴 부드럽게, 끝 음만 길게 사라지게 움직임). Host Automation 칸은 아님');
-  if(/Epic French Horns/.test(lib)) set.push('<b>ROUND ROBIN</b> 켬 (같은 음을 거듭 쳐도 녹음이 바뀌어 기계 티가 덜함)');
+  if(window.__PSAR_RE && window.__PSAR_RE.test(lib)) set.push('(하고 싶을 때만) 왼쪽 <b>Automation</b> 탭 → <b>MIDI Automation</b> → <b>CC 73</b> 을 ATTACK 손잡이에, <b>CC 72</b> 를 RELEASE 손잡이에 끌어다 놓고 저장 (앱이 구절마다 들어옴 부드럽게, 끝 음만 길게 사라지게 움직임). Host Automation 칸은 아님');
+  if(/Epic French Horns/.test(lib)) set.push('MAIN 탭 <b>ROUND ROBIN</b> 켬 (같은 음을 거듭 쳐도 녹음이 바뀌어 기계 티가 덜함)');
   if(/^Orchestral Essentials 2\/.*Legato/.test(lib)) set.push('<b>RELEASE TRAILS</b> 켬 (음 끝에 홀 꼬리)');
-  if(/^(Orchestral Essentials|Swing)/.test(lib)) set.push('<b>LIMITER</b> 끔 (크기는 로직 패치에서)');
+  if(/^Swing/.test(lib)) set.push('<b>LIMITER</b> 가 있으면 끔 (크기는 로직 패치에서)');   /* OE OE2 의 LIMITER(INPUT) 손잡이는 처음 값 그대로(형 캡처, 끄는 단추 아님) */
   if(/^Orchestral Essentials\/.*Solo/.test(lib)) set.push('SEATING 은 손대지 않음 (자리는 앱이 Pan 으로)');
   if(/^Swing/.test(lib)) set.push('CLOSE STAGE 밀대와 D A W 마이크 밀대는 처음 값 그대로, '+(/Saxes/.test(lib)?'STEREO 끔, ':'')+'MODWHEEL 은 '+(/Saxes/.test(lib)?'밝기(FILTER OPEN, CLOSED)':/Harmonica/.test(lib)?'비브라토(LONG VIBRATO, LONG NORMAL)':'크기(LOUD, SOFT)')+' 로 MIDI 가 움직임');
   if(/Swing More!\/Saxes & Clarinet\/(Alto|Baritone) Sax - Legato/.test(lib)) set.push('VARIATION 주법 건반(빨간 건반, '+(/Alto/.test(lib)?'C1 NON VIB, D1 SLOW, E1 FAST, F1 GRAD VIB':'C4 NON VIB, D4 SLOW, E4 FAST VIB')+')은 MIDI 가 구절마다 바꿈');
@@ -50401,7 +50574,7 @@ window.__kbookOf=function(patch){ const p=String(patch||'').replace(/^\[[^\]]*\]
   if(/Tam Tam and Wind Gong/.test(lib)) set.push('손잡이는 처음 값 그대로(Tam tam hits Release 3.3k ms 라 끈 뒤에도 울림이 이어짐). 건반은 MIDI 가 고름: C1 한 번 치기, C2 C#2 굴림(커지기)');
   if(/Stradivari|Amati/.test(lib)) set.push('주법 건반은 MIDI 가 알아서 바꿈');
   if(/Buk \(Sori\)/.test(lib)) set.push('건반은 MIDI 가 고름(콘탁 표기 C3=60): C3 궁 왼손, C#3 오른손, B3 악센트, F4 테(딱). 악기 창 손잡이는 처음 값 그대로');
-  set.push('크기 맞추기: 그 악기 가운데 음을 세기 100, 모듈레이션 휠 100 으로 눌러 트랙 미터가 <b>-12 dBFS</b> 둘레가 되게 악기 이름 줄 오른쪽 <b>Volume</b> 을 맞춤 (그래야 표의 Gain 값끼리 균형이 맞음)');
+  set.push('(하고 싶을 때만) 크기 맞추기: 그 악기 가운데 음을 세기 100, 모듈레이션 휠 100 으로 눌러 트랙 미터가 <b>-12 dBFS</b> 둘레가 되게 악기 이름 줄 오른쪽 <b>Volume</b> 을 맞춤 (그래야 표의 Gain 값끼리 균형이 맞음)');
   return {no:i+1, name:'SO 콘탁 '+String(i+1).padStart(2,'0')+' '+r[1], lib:lib, set:set}; };
 
 window.__scDb=function(kind, key, tail){ try{ const band=kind==='band'; const lv=band?((window.__BAND_SC||{})[key]?SC_LV[window.__BAND_SC[key]]:null):(SC_G[key]?SC_LV[SC_G[key]]:null); if(!lv) return 0;
@@ -50745,7 +50918,7 @@ window.__guideHTML=function(opt){
       h.push('<div class="wrap"><table><tr><th></th><th>저장 이름</th><th>1 Gain <small>저장 값</small></th><th>2 Channel EQ</th><th>3 Compressor</th><th>4 Tape Delay</th><th>5 Direction Mixer</th><th>센드</th></tr>'+PD.map(function(d){ const r=d.row;
         return '<tr id="'+esc(pid(r.name))+'"><td class="c">'+pk(r.name)+'</td><td class="t">'+B(esc(r.name))+'<br>'+tn(d)+'<br>'+Gr('오디오 트랙')+'</td><td>'+B('0 dB')+'</td><td>'+r.eq.map(eqTxt).join('<br>')+'</td><td>'+(r.comp?(r.compOn?R('켜 둠'):Gr('값 넣고 꺼 둠'))+'<br>'+compTxt(r.comp):Gr('기본 값, AUTO GAIN OFF, 꺼 둠'))+'</td><td>'+Gr('기본 값, 꺼 둠')+'</td><td>Spread '+B(r.spread.toFixed(2))+'</td><td>Bus 1 Space '+(r.space==null?Gr('비움'):B(r.space+' dB'))+'<br>'+(r.air!=null?'Bus 2 Air '+B(r.air+' dB'):Gr('Bus 2 Air 비움'))+'</td></tr>'; }).join('')+'</table></div>'); } }
   { const KU=[]; tracks.forEach(function(t){ if(t.kb && !KU.some(function(x){ return x.name===t.kb.name; })) KU.push(Object.assign({ns:[]},t.kb)); const u=t.kb && KU.find(function(x){ return x.name===t.kb.name; }); if(u) u.ns.push(t.n); });
-    if(KU.length) h.push('<div class="box"><div>'+B('콘탁 기본 소리')+' '+Gr('(처음 한 번: 새 악기 트랙에 Kontakt 8 → 악기 열기 → 아래 설정 → 크기 맞추기 → 라이브러리 아래 '+B('저장')+' 으로 이 이름. 곡마다는 이 패치를 누르기만)')+'</div><div class="wrap"><table><tr><th></th><th>저장 이름</th><th>콘탁 악기</th><th>저장 전에</th></tr>'+KU.map(function(k){ return '<tr><td class="c">'+pk(k.name)+'</td><td class="t">'+B(esc(k.name))+'<br>'+Gr('트랙 '+k.ns.map(function(n){ return '#'+n; }).join(' '))+'</td><td>'+esc(k.lib)+'</td><td>'+k.set.join('<br>')+'</td></tr>'; }).join('')+'</table></div></div>'); }
+    if(KU.length) h.push('<div class="box"><div>'+B('콘탁 기본 소리')+' '+Gr('(처음 한 번: 새 악기 트랙에 Kontakt 8 → 악기 열기 → 라이브러리 아래 '+B('저장')+' 으로 이 이름. 곡마다는 이 패치를 누르기만. 꼭 맞출 것은 악기 이름 하나, 저장 전에 칸은 해 두면 조금 나은 것이라 안 해도 MIDI 는 그대로 울림)')+'</div><div class="wrap"><table><tr><th></th><th>저장 이름</th><th>콘탁 악기</th><th>저장 전에 (선택)</th></tr>'+KU.map(function(k){ return '<tr><td class="c">'+pk(k.name)+'</td><td class="t">'+B(esc(k.name))+'<br>'+Gr('트랙 '+k.ns.map(function(n){ return '#'+n; }).join(' '))+'</td><td>'+esc(k.lib)+'</td><td>'+k.set.join('<br>')+'</td></tr>'; }).join('')+'</table></div></div>'); }
   /* 트랙마다: 악기와 설정, 패치, 플러그인 값을 트랙 순서대로 한 줄에 */
   h.push('<h2>'+N0(hasP?2:1)+'트랙마다 <small>위에서 아래로 트랙 순서, 한 줄은 왼쪽부터</small></h2>');
   { const nt=[];
@@ -51796,6 +51969,26 @@ window.__variSheetAdd=function(s){ try{ s=String(s==null?'':s); if(s.split('\n')
   if(I.dyn) L.push('   셈여림: 후렴 앞 두 마디 스네어 햇 크레센도, 후렴 첫 박 강세, 여린 벌스 햇 낮춤');
   if(L.length<2) return s; return s.replace(/\s*$/,'')+'\n\n'+L.join('\n')+'\n'; }catch(e){ return s; } };
 }
+/* ★ 2026-11-13 형: "국악 성악곡 에이올리안 이런것도 예전에 만들다보니 지금 우리가 만들어 놓은 구조나 세련됨이 떨어지는데? 형식도 좀 너무 급박하고 애매해."
+   국악 묶음 기본 장르(국악 성악곡, 국악풍 모달, 찬불가)는 팝 형식(4마디 프리코러스, 4마디 브릿지, 하이라이트 두 번 사이 간주 등 12~13 구간, 3분 반)에 팝 형식 조립(__formMutate)까지 얹혀 급하고 흐렸음.
+   → 장르마다 설계한 형식 셋 중 하나(구간 7~10개, 구간마다 마디 수를 정함: 절과 후렴 16, 간주 브릿지 8, 서주 후주 8~12). Play 본문이 songStructure 에서 __gukForm 을 부르고,
+     구조 표 다섯째 값(마디)을 standardizeLengths 가 그대로 쓰며, 사용자가 길이를 비워 두면 fitDuration 이 구간을 끼워 넣지 않음. 사용자가 구조를 따로 고르면(랜덤, 다른 장르 구조, 편성 구조) 손대지 않음 */
+window.__GUKFORM={
+  gukvocal:[
+    {name:'두 절과 절정', rows:[['인트로','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['브릿지','C',1,null,8],['하이라이트','A',1,null,16],['코러스변주','A',1,null,8],['아웃트로','A',1,null,8]]},
+    {name:'느린 서주와 세 도막(A B A\')', rows:[['인트로','A',1,null,12],['벌스','B',1,null,16],['간주','C',1,null,8],['코러스','A',1,null,16],['브릿지','C',1,null,8],['벌스','B',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,12]]},
+    {name:'후렴 먼저(합창 후렴형)', rows:[['인트로','A',1,null,8],['코러스','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,8]]}],
+  gugak:[
+    {name:'제시 비움 쌓음 회귀', rows:[['인트로','A',1,null,8],['벌스','A',1,null,16],['간주','C',1,null,8],['코러스','B',1,null,16],['하이라이트','B',1,null,16],['벌스','A',1,null,8],['아웃트로','A',1,null,8]]},
+    {name:'두 절', rows:[['인트로','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['아웃트로','A',1,null,8]]},
+    {name:'느린 서주와 아치', rows:[['인트로','A',1,null,12],['벌스','A',1,null,16],['브릿지','C',1,null,8],['코러스','B',1,null,16],['간주','C',1,null,8],['하이라이트','B',1,null,16],['아웃트로','A',1,null,12]]}],
+  chanbul:[
+    {name:'세 절(층을 더함)', rows:[['인트로','A',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,4],['하이라이트','A',1,null,16],['아웃트로','A',1,null,8]]},
+    {name:'메기고 받는 두 절과 합창', rows:[['인트로','A',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,12]]},
+    {name:'긴 서주와 후렴 변주', rows:[['인트로','A',1,null,12],['코러스','A',1,null,16],['코러스변주','A',1,null,8],['간주','C',1,null,8],['하이라이트','A',1,null,16],['코러스','A',1,null,8],['아웃트로','A',1,null,12]]}]};
+window.__gukForm=function(g, st, key){ try{ const F=window.__GUKFORM[g]; if(!F) return null; if(window.NARR && NARR.on) return null;
+    if(key && !(new RegExp('^'+g+'(_[bc])?$')).test(key)) return null;   /* 사용자가 고른 구조는 그대로 */
+    const f=F[Math.floor(Math.random()*F.length)]; window.__FORM_OPS=['국악 형식: '+f.name]; window.__GUKFORM_LAST=f.name; return f.rows.map(function(r){ return r.slice(); }); }catch(e){ return null; } };
 /*VARI-END*/
 if(!window.__midiSafety){ window.__midiSafety=function(u8){ try{ if(window.__midiSanity) u8=window.__midiSanity(u8); if(window.__ccRelease) u8=window.__ccRelease(u8); if(window.__variApply) u8=window.__variApply(u8); if(window.__harpGay) u8=window.__harpGay(u8); if(window.__swellApply) u8=window.__swellApply(u8); if(window.__stageApply) u8=window.__stageApply(u8); if(window.__ccTidy) u8=window.__ccTidy(u8); if(window.__midiSanity) u8=window.__midiSanity(u8,{tailOnly:true}); if(window.__midiDS) u8=window.__midiDS(u8); if(window.__noteTidy) u8=window.__noteTidy(u8); if(window.__ccSlew) u8=window.__ccSlew(u8); if(window.__midiNoDash) u8=window.__midiNoDash(u8); if(window.__midiTrackSort) u8=window.__midiTrackSort(u8); if(window.__orchBoost) u8=window.__orchBoost(u8); if(window.__clashFix) u8=window.__clashFix(u8); if(window.__midiDS) u8=window.__midiDS(u8,{again:true}); if(window.__noteTidy) u8=window.__noteTidy(u8); if(window.__ccSlew) u8=window.__ccSlew(u8); if(window.__presApply) u8=window.__presApply(u8); if(window.__ccClean) u8=window.__ccClean(u8); if(window.__hgBow) u8=window.__hgBow(u8); if(window.__loungeGlide) u8=window.__loungeGlide(u8); if(window.__vol7) u8=window.__vol7(u8); if(window.__midiNoDash) u8=window.__midiNoDash(u8); if(window.__midiTrackSort) u8=window.__midiTrackSort(u8); if(window.__ccAlign) u8=window.__ccAlign(u8);   /* ★ 2026-11-10 모든 앱: 익스프레션 점을 음 자리에 맞춤 */
   const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54||b[2]!==0x68||b[3]!==0x64) return u8;
@@ -58340,8 +58533,9 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
       struct=_pk?STRUCT[_pk]:(STRUCT[gsel]||STRUCT_DEFAULT);
       try{ window.__FORM_OPS=null; if(window.__formMutate && !(window.NARR&&NARR.on)) struct=window.__formMutate(struct, gsel); }catch(e){}   /* ★ 2026-10-28 형: 곡마다 형식 조립(vari_module) */
     }
+    try{ if(window.__gukForm){ const _gf=window.__gukForm(gsel, struct, structKey); if(_gf) struct=_gf; } }catch(e){}   /* ★ 2026-11-13 형 "국악 성악곡 형식이 급박하고 애매": 국악 묶음 기본 장르는 설계한 형식(구조 표 다섯째 값 = 마디) */
     const progs={A:A,B:B,C:C};
-    const introBars = introBarsSet>0 ? introBarsSet : 4; // 전주 마디: 사용자 설정 또는 자동(4)
+    const introBars = introBarsSet>0 ? introBarsSet : ((struct&&struct[0]&&struct[0][0]==='인트로'&&struct[0][4])?+struct[0][4]:4);   /* ★ 2026-11-13 설계 형식의 서주 마디 */ // 전주 마디: 사용자 설정 또는 자동(4)
     const introSteps = buildIntroArc(A, introBars); // 기승전결 아치(마디 수와 무관하게 기→승→전→결)
     const intro={steps:introSteps, name:(introBars>=6?'전주 (기·승·전·결)':(LYRIC_G.has(gsel)?'도입 (으뜸 확립 → 유도)':A.name)), scale:A.scale};
     let outroSteps=A.steps.slice(); while(outroSteps.length<4) outroSteps=outroSteps.concat(A.steps); outroSteps=outroSteps.slice(0,4);
@@ -58381,7 +58575,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
              :(label==='아웃트로')?(_hasHi?modShift:0):0;
       const cadKind=(label==='아웃트로')?'final':((label==='인트로'||label==='브릿지'||label==='간주')?'link':null);
       let stp=enrichSteps(prog.steps, GENCFG[gsel]); if(cadKind) stp=cadencify(stp, cadKind);
-      const so={label:label,prog:Object.assign({},prog,{steps:withVoiceLedBass(stp)}),reps:reps,drums:!noDrum(label),density:a.density,intensity:a.intensity,keyShift:ks}; so.stage=presetStage(label); applyStageFields(so);
+      const so={label:label,prog:Object.assign({},prog,{steps:withVoiceLedBass(stp)}),reps:reps,drums:!noDrum(label),density:a.density,intensity:a.intensity,keyShift:ks}; if(row[4]!=null && isFinite(row[4])) so.fixBars=+row[4]; so.stage=presetStage(label); applyStageFields(so);
       return so; });
     /* ── 헤드-솔로-헤드 형식: 되풀이될수록 뜨거워진다 ──
        stageOf 는 이름만 보므로 같은 이름의 구간이 여러 번 나오면 세기가 전부 같다
@@ -58748,6 +58942,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
                  gukvocal:220,gugak:200,chanbul:200,epicaeol:220,cineJoy:200,cineTension:200,cineSoar:210,cineSorrow:210,cineWar:200,cineDrive:220,
                  wellorch:220,ambdrone:240,lydian:200,mixolydian:200,dorian:200,phrygian:200,phrygdom:200,doubleharm:200 };
     const _defT=(!tgt0 && !chamberMode && !loungeMode && !(window.NARR&&NARR.on) && gsel!=='kids' && gsel!=='cineSuite')?(_DEF[gsel]||200):0;
+    if(!tgt0 && song && song.some(function(x){ return x.fixBars; })) return;   /* ★ 2026-11-13 설계한 형식은 길이를 비워 두면 구간을 끼워 넣지 않음 */
     const tgt=(!tgt0 && chamberMode)?330:(tgt0||_defT); if(!tgt||tgt<15||!song) return;
     const bpm=+($('userBpmNum')&&$('userBpmNum').value)||(function(){ try{ return rhythmBpm(); }catch(e){ return 0; } })()||((GROOVE[gsel]&&GROOVE[gsel].bpm)||90);   /* ★ 2026-09-30 실제 곡 빠르기(리듬 목록, 곡별 흔들림, 웰니스 장면)로 계산. 장르 기본값으로 계산해 '이미 길다' 고 잘못 봐서 목표 길이가 안 먹었다 */
     const pr=(currentSig||'4/4').split('/'); const num=+pr[0]||4, den=+pr[1]||4;
@@ -58783,6 +58978,7 @@ function cleanMelody(mel, steps, opts){ if(!mel||!mel.length) return mel; opts=o
     song.forEach(sec=>{ if(sec.userMel) return; const perRep=(sec.prog&&sec.prog.steps)?sec.prog.steps.length:0; if(!perRep) return;
       if(sec.label==='인트로' && introBarsSet>0){ sec.reps=1; return; } // 전주 설정: 아치 마디 수 그대로(4마디 정렬 강제 안 함)
       let target; const lb=sec.label;
+      if(sec.fixBars) target=sec.fixBars; else   /* ★ 2026-11-13 설계한 형식의 마디 수 */
       if(lb==='인트로') target=(introBarsSet>0)?introBarsSet:((gsel==='edm')?8:4); // 전주: 사용자 설정 우선(기승전결 아치 마디 수 유지)
       else if(lb==='아웃트로') target=(gsel==='edm')?8:4;
       else if(lb==='벌스'||lb==='A파트') target=fast?16:8;
@@ -77419,6 +77615,21 @@ function applyPreset(solo){
    빠르기: 느린 곡 58~100, 빠른 곡 100~140(형). 퓨전국악은 설 추석에만. 네오소울 할로윈 없음.
    Play 스크립트 안(IIFE)에 넣는다(inject_lobby.py): gsel G LOUNGE_OK makeSongUnified buildSongMIDI buildSetupSheet playGuideHTML 를 그대로 쓴다. */
 (function(){
+  /* ★ 2026-11-13 형: 세부 장르 칩(전시곡 퓨전국악 국악관현악 노래 캐롤 로비 요가)을 눌러도 판이 칩 줄 옆에 끼어 칩이 세로로 찌그러지고, 선택 불도 안 옮겨짐
+     → 판은 칩 줄 아래 전폭 자리(#gchipPanels) 하나에 모으고, 한 번에 하나만 열고, 누른 칩에 불. 보통 장르 칩을 누르면 판을 닫음. 일곱 모듈이 같은 도우미를 씀(먼저 읽힌 쪽이 정의) */
+  if(!window.__chipToggle){
+    try{ const st=document.createElement('style'); st.textContent='#gchipRow:has(.chipmod-sel) .gchip.on[data-g]{background:var(--card);color:var(--ink);border-color:var(--line)}.gchip.chipmod-sel{background:var(--celadon-deep,#2f8f7f)!important;color:#fff!important;border-color:var(--celadon-deep,#2f8f7f)!important}#gchipPanels{width:100%;box-sizing:border-box}#gchipPanels>div{max-width:none;box-sizing:border-box}'; (document.head||document.documentElement).appendChild(st); }catch(e){}
+    window.__chipHost=function(P){ const row=document.getElementById('gchipRow'); let host=document.getElementById('gchipPanels'); const line=row?((row.closest && row.closest('.genre-line'))||row.parentNode):null;
+      if(!host){ host=document.createElement('div'); host.id='gchipPanels'; }
+      if(line && line.parentNode){ if(host.previousSibling!==line || host.parentNode!==line.parentNode) line.parentNode.insertBefore(host, line.nextSibling); } else if(!host.parentNode) document.body.appendChild(host);
+      if(P && P.parentNode!==host) host.appendChild(P); return host; };
+    window.__chipToggle=function(P, chipId, force){ const host=window.__chipHost(P); const show=force?true:(P.style.display==='none');
+      Array.prototype.forEach.call(host.children,function(x){ if(x!==P) x.style.display='none'; }); P.style.display=show?'':'none';
+      document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); });
+      const c=chipId?document.getElementById(chipId):null; if(show && c) c.classList.add('chipmod-sel');
+      if(show){ try{ P.scrollIntoView({block:'nearest'}); }catch(e){} } };
+    document.addEventListener('click', function(e){ const b=e.target && e.target.closest && e.target.closest('#gchipRow .gchip[data-g]'); if(!b) return; const host=document.getElementById('gchipPanels'); if(host) Array.prototype.forEach.call(host.children,function(x){ x.style.display='none'; }); document.querySelectorAll('.gchip.chipmod-sel').forEach(function(c){ c.classList.remove('chipmod-sel'); }); }, true);
+  }
   const SLOW=[58,100], FAST=[100,140];
   /* 시간대 묶음: [시작, 분, 시간대] */
   const WD=[['09:00',60,'wake'],['10:00',60,'focus'],['11:00',30,'focus'],['11:30',60,'lunch'],['12:30',60,'lunch'],['13:30',60,'dip'],['14:30',30,'dip'],['15:00',60,'pm'],['16:00',60,'pm'],['17:00',60,'home']];
@@ -77894,9 +78105,9 @@ function applyPreset(solo){
   window.__LOBBY={plan:plan, build:build, zip:makeZip, _t:{hash:hash, genOne:genOne, fitTempo:fitTempo, loungeUnit:loungeUnit, midiSec:midiSec, extMake:extMake, extUnit:extUnit, segUnit:segUnit, namesOf:namesOf}, themes:function(){ const o=[]; for(let m=1;m<=12;m++) o.push('m'+m); return o.concat(Object.keys(SEA), Object.keys(EV)); }};
   /* 화면: 시즌 묶음 줄에 '로비 하루' 칩 */
   const CH={theme:'m12', ab:'A', kind:'wd'};
-  function panel(){ let Pn=document.getElementById('lobPanel'); if(Pn){ Pn.style.display=(Pn.style.display==='none')?'':'none'; return; }
+  function panel(){ let Pn=document.getElementById('lobPanel'); if(Pn){ window.__chipToggle(Pn,'lobChip'); return; }
     Pn=document.createElement('div'); Pn.id='lobPanel'; Pn.style.cssText='margin:10px 0;padding:14px 16px;border:1px solid var(--celadon,#9bb);border-radius:12px;background:var(--card,#fff);font-size:14px;line-height:1.6';
-    const row=document.getElementById('gchipRow'); (row&&row.parentNode?row.parentNode:document.body).insertBefore(Pn, row?row.nextSibling:null);
+    window.__chipToggle(Pn,'lobChip',true);
     const opt=function(v,t,cur){ return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+t+'</option>'; };
     const draw=function(msg){ const isSea=!!SEA[CH.theme]; const P=plan(CH.theme, CH.ab, isSea?'we':'wd');
       let h='<b>로비 하루 9시간</b> <span style="opacity:.7">09:00~18:00, A B 를 이틀에 한 번씩 번갈아</span><div style="margin:8px 0">테마: <select data-lth="1">';
@@ -81564,14 +81775,19 @@ window.__kbookOf=function(patch){ const p=String(patch||'').replace(/^\[[^\]]*\]
   let i=window.__KBOOK.findIndex(function(r){ return r[0]===p; }); if(i<0) i=window.__KBOOK.findIndex(function(r){ return p.indexOf(r[0])===0; }); if(i<0) return null;
   const r=window.__KBOOK[i], lib=r[0];
   const set=[];
-  if(/^(Orchestral Essentials|Swing|True Strike|Pan Drums)/.test(lib)) set.push('악기 창 '+'<b>REVERB</b> 0 (울림은 Space 버스로)');
-  if(/Epic French Horns/.test(lib)) set.push('<b>OCTAVER</b> 끔 (옥타브 층은 앱이 따로 적음)');
+  /* ★ 2026-11-13 형 캡처(True Strike Celesta 의 Main Options Delay 탭, OE2 Epic French Horns 의 MAIN EFFECTS 탭, OE Strings Arco 의 MAIN SETTINGS EQ EFFECTS SEATING 탭): "콘탁 내부 악기창에 그림과 니 설명이 달라. 꼭해야해?"
+     → 실제 있는 손잡이 이름으로만 적고, 모두 선택(안 해도 MIDI 는 그대로 울림). True Strike 에는 REVERB 가 없음(Attack Decay Sustain Release, Velocity EQ, Delay 뿐) */
+  if(/^Orchestral Essentials 2\//.test(lib)) set.push('MAIN 탭 <b>REVERB</b> 손잡이 왼쪽 끝(울림은 로직 Space 버스로). EFFECTS 탭 COMPRESSOR, DELAY, PRO FILTER, STEREO MOD 가 켜져 있으면 끔');
+  else if(/^Orchestral Essentials\//.test(lib)) set.push('MAIN 탭 <b>REVERB</b> 손잡이 왼쪽 끝(울림은 로직 Space 버스로). SETTINGS 탭 <b>OCTAVER</b> 끔. EFFECTS 탭 COMPRESSOR, DELAY, PRO FILTER, STEREO MOD 가 켜져 있으면 끔. EQ, SEATING 탭은 그대로');
+  else if(/^True Strike/.test(lib)) set.push('손잡이는 처음 값 그대로(이 악기 창에는 REVERB 가 없음). Delay 탭 <b>Delay On/Off</b> 가 켜져 있으면 끔');
+  else if(/^(Swing|Pan Drums)/.test(lib)) set.push('악기 창에 REVERB 손잡이가 있으면 왼쪽 끝(울림은 로직 Space 버스로)');
+  if(/Epic French Horns/.test(lib)) set.push('MAIN 탭 <b>OCTAVER</b> 끔 (옥타브 층은 앱이 따로 적음)');
   if(/\(Melody\)/.test(lib)) set.push('아래 단추 <b>Poly</b>, <b>Plectrum</b>, Sound Preset '+(/Mint/.test(lib)?'Amps 의 <b>CLEAN</b> 하나':'<b>Natural</b>')+', <b>Link to Song</b> 켬. 주법 건반(C1 Open, C#1 Muted)은 MIDI 맨 앞에 있음');
   /* ★ 2026-11-11 형 캡처(악기 창 손잡이): 한 번 정해 두면 되는 값 */
-  if(window.__PSAR_RE && window.__PSAR_RE.test(lib)) set.push('왼쪽 <b>Automation</b> 탭 → <b>MIDI Automation</b> → <b>CC 73</b> 을 ATTACK 손잡이에, <b>CC 72</b> 를 RELEASE 손잡이에 끌어다 놓고 저장 (앱이 구절마다 들어옴 부드럽게, 끝 음만 길게 사라지게 움직임). Host Automation 칸은 아님');
-  if(/Epic French Horns/.test(lib)) set.push('<b>ROUND ROBIN</b> 켬 (같은 음을 거듭 쳐도 녹음이 바뀌어 기계 티가 덜함)');
+  if(window.__PSAR_RE && window.__PSAR_RE.test(lib)) set.push('(하고 싶을 때만) 왼쪽 <b>Automation</b> 탭 → <b>MIDI Automation</b> → <b>CC 73</b> 을 ATTACK 손잡이에, <b>CC 72</b> 를 RELEASE 손잡이에 끌어다 놓고 저장 (앱이 구절마다 들어옴 부드럽게, 끝 음만 길게 사라지게 움직임). Host Automation 칸은 아님');
+  if(/Epic French Horns/.test(lib)) set.push('MAIN 탭 <b>ROUND ROBIN</b> 켬 (같은 음을 거듭 쳐도 녹음이 바뀌어 기계 티가 덜함)');
   if(/^Orchestral Essentials 2\/.*Legato/.test(lib)) set.push('<b>RELEASE TRAILS</b> 켬 (음 끝에 홀 꼬리)');
-  if(/^(Orchestral Essentials|Swing)/.test(lib)) set.push('<b>LIMITER</b> 끔 (크기는 로직 패치에서)');
+  if(/^Swing/.test(lib)) set.push('<b>LIMITER</b> 가 있으면 끔 (크기는 로직 패치에서)');   /* OE OE2 의 LIMITER(INPUT) 손잡이는 처음 값 그대로(형 캡처, 끄는 단추 아님) */
   if(/^Orchestral Essentials\/.*Solo/.test(lib)) set.push('SEATING 은 손대지 않음 (자리는 앱이 Pan 으로)');
   if(/^Swing/.test(lib)) set.push('CLOSE STAGE 밀대와 D A W 마이크 밀대는 처음 값 그대로, '+(/Saxes/.test(lib)?'STEREO 끔, ':'')+'MODWHEEL 은 '+(/Saxes/.test(lib)?'밝기(FILTER OPEN, CLOSED)':/Harmonica/.test(lib)?'비브라토(LONG VIBRATO, LONG NORMAL)':'크기(LOUD, SOFT)')+' 로 MIDI 가 움직임');
   if(/Swing More!\/Saxes & Clarinet\/(Alto|Baritone) Sax - Legato/.test(lib)) set.push('VARIATION 주법 건반(빨간 건반, '+(/Alto/.test(lib)?'C1 NON VIB, D1 SLOW, E1 FAST, F1 GRAD VIB':'C4 NON VIB, D4 SLOW, E4 FAST VIB')+')은 MIDI 가 구절마다 바꿈');
@@ -81579,7 +81795,7 @@ window.__kbookOf=function(patch){ const p=String(patch||'').replace(/^\[[^\]]*\]
   if(/Tam Tam and Wind Gong/.test(lib)) set.push('손잡이는 처음 값 그대로(Tam tam hits Release 3.3k ms 라 끈 뒤에도 울림이 이어짐). 건반은 MIDI 가 고름: C1 한 번 치기, C2 C#2 굴림(커지기)');
   if(/Stradivari|Amati/.test(lib)) set.push('주법 건반은 MIDI 가 알아서 바꿈');
   if(/Buk \(Sori\)/.test(lib)) set.push('건반은 MIDI 가 고름(콘탁 표기 C3=60): C3 궁 왼손, C#3 오른손, B3 악센트, F4 테(딱). 악기 창 손잡이는 처음 값 그대로');
-  set.push('크기 맞추기: 그 악기 가운데 음을 세기 100, 모듈레이션 휠 100 으로 눌러 트랙 미터가 <b>-12 dBFS</b> 둘레가 되게 악기 이름 줄 오른쪽 <b>Volume</b> 을 맞춤 (그래야 표의 Gain 값끼리 균형이 맞음)');
+  set.push('(하고 싶을 때만) 크기 맞추기: 그 악기 가운데 음을 세기 100, 모듈레이션 휠 100 으로 눌러 트랙 미터가 <b>-12 dBFS</b> 둘레가 되게 악기 이름 줄 오른쪽 <b>Volume</b> 을 맞춤 (그래야 표의 Gain 값끼리 균형이 맞음)');
   return {no:i+1, name:'SO 콘탁 '+String(i+1).padStart(2,'0')+' '+r[1], lib:lib, set:set}; };
 
 window.__scDb=function(kind, key, tail){ try{ const band=kind==='band'; const lv=band?((window.__BAND_SC||{})[key]?SC_LV[window.__BAND_SC[key]]:null):(SC_G[key]?SC_LV[SC_G[key]]:null); if(!lv) return 0;
@@ -81923,7 +82139,7 @@ window.__guideHTML=function(opt){
       h.push('<div class="wrap"><table><tr><th></th><th>저장 이름</th><th>1 Gain <small>저장 값</small></th><th>2 Channel EQ</th><th>3 Compressor</th><th>4 Tape Delay</th><th>5 Direction Mixer</th><th>센드</th></tr>'+PD.map(function(d){ const r=d.row;
         return '<tr id="'+esc(pid(r.name))+'"><td class="c">'+pk(r.name)+'</td><td class="t">'+B(esc(r.name))+'<br>'+tn(d)+'<br>'+Gr('오디오 트랙')+'</td><td>'+B('0 dB')+'</td><td>'+r.eq.map(eqTxt).join('<br>')+'</td><td>'+(r.comp?(r.compOn?R('켜 둠'):Gr('값 넣고 꺼 둠'))+'<br>'+compTxt(r.comp):Gr('기본 값, AUTO GAIN OFF, 꺼 둠'))+'</td><td>'+Gr('기본 값, 꺼 둠')+'</td><td>Spread '+B(r.spread.toFixed(2))+'</td><td>Bus 1 Space '+(r.space==null?Gr('비움'):B(r.space+' dB'))+'<br>'+(r.air!=null?'Bus 2 Air '+B(r.air+' dB'):Gr('Bus 2 Air 비움'))+'</td></tr>'; }).join('')+'</table></div>'); } }
   { const KU=[]; tracks.forEach(function(t){ if(t.kb && !KU.some(function(x){ return x.name===t.kb.name; })) KU.push(Object.assign({ns:[]},t.kb)); const u=t.kb && KU.find(function(x){ return x.name===t.kb.name; }); if(u) u.ns.push(t.n); });
-    if(KU.length) h.push('<div class="box"><div>'+B('콘탁 기본 소리')+' '+Gr('(처음 한 번: 새 악기 트랙에 Kontakt 8 → 악기 열기 → 아래 설정 → 크기 맞추기 → 라이브러리 아래 '+B('저장')+' 으로 이 이름. 곡마다는 이 패치를 누르기만)')+'</div><div class="wrap"><table><tr><th></th><th>저장 이름</th><th>콘탁 악기</th><th>저장 전에</th></tr>'+KU.map(function(k){ return '<tr><td class="c">'+pk(k.name)+'</td><td class="t">'+B(esc(k.name))+'<br>'+Gr('트랙 '+k.ns.map(function(n){ return '#'+n; }).join(' '))+'</td><td>'+esc(k.lib)+'</td><td>'+k.set.join('<br>')+'</td></tr>'; }).join('')+'</table></div></div>'); }
+    if(KU.length) h.push('<div class="box"><div>'+B('콘탁 기본 소리')+' '+Gr('(처음 한 번: 새 악기 트랙에 Kontakt 8 → 악기 열기 → 라이브러리 아래 '+B('저장')+' 으로 이 이름. 곡마다는 이 패치를 누르기만. 꼭 맞출 것은 악기 이름 하나, 저장 전에 칸은 해 두면 조금 나은 것이라 안 해도 MIDI 는 그대로 울림)')+'</div><div class="wrap"><table><tr><th></th><th>저장 이름</th><th>콘탁 악기</th><th>저장 전에 (선택)</th></tr>'+KU.map(function(k){ return '<tr><td class="c">'+pk(k.name)+'</td><td class="t">'+B(esc(k.name))+'<br>'+Gr('트랙 '+k.ns.map(function(n){ return '#'+n; }).join(' '))+'</td><td>'+esc(k.lib)+'</td><td>'+k.set.join('<br>')+'</td></tr>'; }).join('')+'</table></div></div>'); }
   /* 트랙마다: 악기와 설정, 패치, 플러그인 값을 트랙 순서대로 한 줄에 */
   h.push('<h2>'+N0(hasP?2:1)+'트랙마다 <small>위에서 아래로 트랙 순서, 한 줄은 왼쪽부터</small></h2>');
   { const nt=[];
@@ -82974,6 +83190,26 @@ window.__variSheetAdd=function(s){ try{ s=String(s==null?'':s); if(s.split('\n')
   if(I.dyn) L.push('   셈여림: 후렴 앞 두 마디 스네어 햇 크레센도, 후렴 첫 박 강세, 여린 벌스 햇 낮춤');
   if(L.length<2) return s; return s.replace(/\s*$/,'')+'\n\n'+L.join('\n')+'\n'; }catch(e){ return s; } };
 }
+/* ★ 2026-11-13 형: "국악 성악곡 에이올리안 이런것도 예전에 만들다보니 지금 우리가 만들어 놓은 구조나 세련됨이 떨어지는데? 형식도 좀 너무 급박하고 애매해."
+   국악 묶음 기본 장르(국악 성악곡, 국악풍 모달, 찬불가)는 팝 형식(4마디 프리코러스, 4마디 브릿지, 하이라이트 두 번 사이 간주 등 12~13 구간, 3분 반)에 팝 형식 조립(__formMutate)까지 얹혀 급하고 흐렸음.
+   → 장르마다 설계한 형식 셋 중 하나(구간 7~10개, 구간마다 마디 수를 정함: 절과 후렴 16, 간주 브릿지 8, 서주 후주 8~12). Play 본문이 songStructure 에서 __gukForm 을 부르고,
+     구조 표 다섯째 값(마디)을 standardizeLengths 가 그대로 쓰며, 사용자가 길이를 비워 두면 fitDuration 이 구간을 끼워 넣지 않음. 사용자가 구조를 따로 고르면(랜덤, 다른 장르 구조, 편성 구조) 손대지 않음 */
+window.__GUKFORM={
+  gukvocal:[
+    {name:'두 절과 절정', rows:[['인트로','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['브릿지','C',1,null,8],['하이라이트','A',1,null,16],['코러스변주','A',1,null,8],['아웃트로','A',1,null,8]]},
+    {name:'느린 서주와 세 도막(A B A\')', rows:[['인트로','A',1,null,12],['벌스','B',1,null,16],['간주','C',1,null,8],['코러스','A',1,null,16],['브릿지','C',1,null,8],['벌스','B',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,12]]},
+    {name:'후렴 먼저(합창 후렴형)', rows:[['인트로','A',1,null,8],['코러스','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,8]]}],
+  gugak:[
+    {name:'제시 비움 쌓음 회귀', rows:[['인트로','A',1,null,8],['벌스','A',1,null,16],['간주','C',1,null,8],['코러스','B',1,null,16],['하이라이트','B',1,null,16],['벌스','A',1,null,8],['아웃트로','A',1,null,8]]},
+    {name:'두 절', rows:[['인트로','A',1,null,8],['벌스','B',1,null,16],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['아웃트로','A',1,null,8]]},
+    {name:'느린 서주와 아치', rows:[['인트로','A',1,null,12],['벌스','A',1,null,16],['브릿지','C',1,null,8],['코러스','B',1,null,16],['간주','C',1,null,8],['하이라이트','B',1,null,16],['아웃트로','A',1,null,12]]}],
+  chanbul:[
+    {name:'세 절(층을 더함)', rows:[['인트로','A',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,4],['하이라이트','A',1,null,16],['아웃트로','A',1,null,8]]},
+    {name:'메기고 받는 두 절과 합창', rows:[['인트로','A',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['간주','C',1,null,8],['벌스','B',1,null,8],['코러스','A',1,null,16],['하이라이트','A',1,null,16],['아웃트로','A',1,null,12]]},
+    {name:'긴 서주와 후렴 변주', rows:[['인트로','A',1,null,12],['코러스','A',1,null,16],['코러스변주','A',1,null,8],['간주','C',1,null,8],['하이라이트','A',1,null,16],['코러스','A',1,null,8],['아웃트로','A',1,null,12]]}]};
+window.__gukForm=function(g, st, key){ try{ const F=window.__GUKFORM[g]; if(!F) return null; if(window.NARR && NARR.on) return null;
+    if(key && !(new RegExp('^'+g+'(_[bc])?$')).test(key)) return null;   /* 사용자가 고른 구조는 그대로 */
+    const f=F[Math.floor(Math.random()*F.length)]; window.__FORM_OPS=['국악 형식: '+f.name]; window.__GUKFORM_LAST=f.name; return f.rows.map(function(r){ return r.slice(); }); }catch(e){ return null; } };
 /*VARI-END*/
 if(!window.__midiSafety){ window.__midiSafety=function(u8){ try{ if(window.__midiSanity) u8=window.__midiSanity(u8); if(window.__ccRelease) u8=window.__ccRelease(u8); if(window.__variApply) u8=window.__variApply(u8); if(window.__harpGay) u8=window.__harpGay(u8); if(window.__swellApply) u8=window.__swellApply(u8); if(window.__stageApply) u8=window.__stageApply(u8); if(window.__ccTidy) u8=window.__ccTidy(u8); if(window.__midiSanity) u8=window.__midiSanity(u8,{tailOnly:true}); if(window.__midiDS) u8=window.__midiDS(u8); if(window.__noteTidy) u8=window.__noteTidy(u8); if(window.__ccSlew) u8=window.__ccSlew(u8); if(window.__midiNoDash) u8=window.__midiNoDash(u8); if(window.__midiTrackSort) u8=window.__midiTrackSort(u8); if(window.__orchBoost) u8=window.__orchBoost(u8); if(window.__clashFix) u8=window.__clashFix(u8); if(window.__midiDS) u8=window.__midiDS(u8,{again:true}); if(window.__noteTidy) u8=window.__noteTidy(u8); if(window.__ccSlew) u8=window.__ccSlew(u8); if(window.__presApply) u8=window.__presApply(u8); if(window.__ccClean) u8=window.__ccClean(u8); if(window.__hgBow) u8=window.__hgBow(u8); if(window.__loungeGlide) u8=window.__loungeGlide(u8); if(window.__vol7) u8=window.__vol7(u8); if(window.__midiNoDash) u8=window.__midiNoDash(u8); if(window.__midiTrackSort) u8=window.__midiTrackSort(u8); if(window.__ccAlign) u8=window.__ccAlign(u8);   /* ★ 2026-11-10 모든 앱: 익스프레션 점을 음 자리에 맞춤 */
   const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54||b[2]!==0x68||b[3]!==0x64) return u8;
@@ -92234,14 +92470,19 @@ window.__kbookOf=function(patch){ const p=String(patch||'').replace(/^\[[^\]]*\]
   let i=window.__KBOOK.findIndex(function(r){ return r[0]===p; }); if(i<0) i=window.__KBOOK.findIndex(function(r){ return p.indexOf(r[0])===0; }); if(i<0) return null;
   const r=window.__KBOOK[i], lib=r[0];
   const set=[];
-  if(/^(Orchestral Essentials|Swing|True Strike|Pan Drums)/.test(lib)) set.push('악기 창 '+'<b>REVERB</b> 0 (울림은 Space 버스로)');
-  if(/Epic French Horns/.test(lib)) set.push('<b>OCTAVER</b> 끔 (옥타브 층은 앱이 따로 적음)');
+  /* ★ 2026-11-13 형 캡처(True Strike Celesta 의 Main Options Delay 탭, OE2 Epic French Horns 의 MAIN EFFECTS 탭, OE Strings Arco 의 MAIN SETTINGS EQ EFFECTS SEATING 탭): "콘탁 내부 악기창에 그림과 니 설명이 달라. 꼭해야해?"
+     → 실제 있는 손잡이 이름으로만 적고, 모두 선택(안 해도 MIDI 는 그대로 울림). True Strike 에는 REVERB 가 없음(Attack Decay Sustain Release, Velocity EQ, Delay 뿐) */
+  if(/^Orchestral Essentials 2\//.test(lib)) set.push('MAIN 탭 <b>REVERB</b> 손잡이 왼쪽 끝(울림은 로직 Space 버스로). EFFECTS 탭 COMPRESSOR, DELAY, PRO FILTER, STEREO MOD 가 켜져 있으면 끔');
+  else if(/^Orchestral Essentials\//.test(lib)) set.push('MAIN 탭 <b>REVERB</b> 손잡이 왼쪽 끝(울림은 로직 Space 버스로). SETTINGS 탭 <b>OCTAVER</b> 끔. EFFECTS 탭 COMPRESSOR, DELAY, PRO FILTER, STEREO MOD 가 켜져 있으면 끔. EQ, SEATING 탭은 그대로');
+  else if(/^True Strike/.test(lib)) set.push('손잡이는 처음 값 그대로(이 악기 창에는 REVERB 가 없음). Delay 탭 <b>Delay On/Off</b> 가 켜져 있으면 끔');
+  else if(/^(Swing|Pan Drums)/.test(lib)) set.push('악기 창에 REVERB 손잡이가 있으면 왼쪽 끝(울림은 로직 Space 버스로)');
+  if(/Epic French Horns/.test(lib)) set.push('MAIN 탭 <b>OCTAVER</b> 끔 (옥타브 층은 앱이 따로 적음)');
   if(/\(Melody\)/.test(lib)) set.push('아래 단추 <b>Poly</b>, <b>Plectrum</b>, Sound Preset '+(/Mint/.test(lib)?'Amps 의 <b>CLEAN</b> 하나':'<b>Natural</b>')+', <b>Link to Song</b> 켬. 주법 건반(C1 Open, C#1 Muted)은 MIDI 맨 앞에 있음');
   /* ★ 2026-11-11 형 캡처(악기 창 손잡이): 한 번 정해 두면 되는 값 */
-  if(window.__PSAR_RE && window.__PSAR_RE.test(lib)) set.push('왼쪽 <b>Automation</b> 탭 → <b>MIDI Automation</b> → <b>CC 73</b> 을 ATTACK 손잡이에, <b>CC 72</b> 를 RELEASE 손잡이에 끌어다 놓고 저장 (앱이 구절마다 들어옴 부드럽게, 끝 음만 길게 사라지게 움직임). Host Automation 칸은 아님');
-  if(/Epic French Horns/.test(lib)) set.push('<b>ROUND ROBIN</b> 켬 (같은 음을 거듭 쳐도 녹음이 바뀌어 기계 티가 덜함)');
+  if(window.__PSAR_RE && window.__PSAR_RE.test(lib)) set.push('(하고 싶을 때만) 왼쪽 <b>Automation</b> 탭 → <b>MIDI Automation</b> → <b>CC 73</b> 을 ATTACK 손잡이에, <b>CC 72</b> 를 RELEASE 손잡이에 끌어다 놓고 저장 (앱이 구절마다 들어옴 부드럽게, 끝 음만 길게 사라지게 움직임). Host Automation 칸은 아님');
+  if(/Epic French Horns/.test(lib)) set.push('MAIN 탭 <b>ROUND ROBIN</b> 켬 (같은 음을 거듭 쳐도 녹음이 바뀌어 기계 티가 덜함)');
   if(/^Orchestral Essentials 2\/.*Legato/.test(lib)) set.push('<b>RELEASE TRAILS</b> 켬 (음 끝에 홀 꼬리)');
-  if(/^(Orchestral Essentials|Swing)/.test(lib)) set.push('<b>LIMITER</b> 끔 (크기는 로직 패치에서)');
+  if(/^Swing/.test(lib)) set.push('<b>LIMITER</b> 가 있으면 끔 (크기는 로직 패치에서)');   /* OE OE2 의 LIMITER(INPUT) 손잡이는 처음 값 그대로(형 캡처, 끄는 단추 아님) */
   if(/^Orchestral Essentials\/.*Solo/.test(lib)) set.push('SEATING 은 손대지 않음 (자리는 앱이 Pan 으로)');
   if(/^Swing/.test(lib)) set.push('CLOSE STAGE 밀대와 D A W 마이크 밀대는 처음 값 그대로, '+(/Saxes/.test(lib)?'STEREO 끔, ':'')+'MODWHEEL 은 '+(/Saxes/.test(lib)?'밝기(FILTER OPEN, CLOSED)':/Harmonica/.test(lib)?'비브라토(LONG VIBRATO, LONG NORMAL)':'크기(LOUD, SOFT)')+' 로 MIDI 가 움직임');
   if(/Swing More!\/Saxes & Clarinet\/(Alto|Baritone) Sax - Legato/.test(lib)) set.push('VARIATION 주법 건반(빨간 건반, '+(/Alto/.test(lib)?'C1 NON VIB, D1 SLOW, E1 FAST, F1 GRAD VIB':'C4 NON VIB, D4 SLOW, E4 FAST VIB')+')은 MIDI 가 구절마다 바꿈');
@@ -92249,7 +92490,7 @@ window.__kbookOf=function(patch){ const p=String(patch||'').replace(/^\[[^\]]*\]
   if(/Tam Tam and Wind Gong/.test(lib)) set.push('손잡이는 처음 값 그대로(Tam tam hits Release 3.3k ms 라 끈 뒤에도 울림이 이어짐). 건반은 MIDI 가 고름: C1 한 번 치기, C2 C#2 굴림(커지기)');
   if(/Stradivari|Amati/.test(lib)) set.push('주법 건반은 MIDI 가 알아서 바꿈');
   if(/Buk \(Sori\)/.test(lib)) set.push('건반은 MIDI 가 고름(콘탁 표기 C3=60): C3 궁 왼손, C#3 오른손, B3 악센트, F4 테(딱). 악기 창 손잡이는 처음 값 그대로');
-  set.push('크기 맞추기: 그 악기 가운데 음을 세기 100, 모듈레이션 휠 100 으로 눌러 트랙 미터가 <b>-12 dBFS</b> 둘레가 되게 악기 이름 줄 오른쪽 <b>Volume</b> 을 맞춤 (그래야 표의 Gain 값끼리 균형이 맞음)');
+  set.push('(하고 싶을 때만) 크기 맞추기: 그 악기 가운데 음을 세기 100, 모듈레이션 휠 100 으로 눌러 트랙 미터가 <b>-12 dBFS</b> 둘레가 되게 악기 이름 줄 오른쪽 <b>Volume</b> 을 맞춤 (그래야 표의 Gain 값끼리 균형이 맞음)');
   return {no:i+1, name:'SO 콘탁 '+String(i+1).padStart(2,'0')+' '+r[1], lib:lib, set:set}; };
 
 window.__scDb=function(kind, key, tail){ try{ const band=kind==='band'; const lv=band?((window.__BAND_SC||{})[key]?SC_LV[window.__BAND_SC[key]]:null):(SC_G[key]?SC_LV[SC_G[key]]:null); if(!lv) return 0;
@@ -92593,7 +92834,7 @@ window.__guideHTML=function(opt){
       h.push('<div class="wrap"><table><tr><th></th><th>저장 이름</th><th>1 Gain <small>저장 값</small></th><th>2 Channel EQ</th><th>3 Compressor</th><th>4 Tape Delay</th><th>5 Direction Mixer</th><th>센드</th></tr>'+PD.map(function(d){ const r=d.row;
         return '<tr id="'+esc(pid(r.name))+'"><td class="c">'+pk(r.name)+'</td><td class="t">'+B(esc(r.name))+'<br>'+tn(d)+'<br>'+Gr('오디오 트랙')+'</td><td>'+B('0 dB')+'</td><td>'+r.eq.map(eqTxt).join('<br>')+'</td><td>'+(r.comp?(r.compOn?R('켜 둠'):Gr('값 넣고 꺼 둠'))+'<br>'+compTxt(r.comp):Gr('기본 값, AUTO GAIN OFF, 꺼 둠'))+'</td><td>'+Gr('기본 값, 꺼 둠')+'</td><td>Spread '+B(r.spread.toFixed(2))+'</td><td>Bus 1 Space '+(r.space==null?Gr('비움'):B(r.space+' dB'))+'<br>'+(r.air!=null?'Bus 2 Air '+B(r.air+' dB'):Gr('Bus 2 Air 비움'))+'</td></tr>'; }).join('')+'</table></div>'); } }
   { const KU=[]; tracks.forEach(function(t){ if(t.kb && !KU.some(function(x){ return x.name===t.kb.name; })) KU.push(Object.assign({ns:[]},t.kb)); const u=t.kb && KU.find(function(x){ return x.name===t.kb.name; }); if(u) u.ns.push(t.n); });
-    if(KU.length) h.push('<div class="box"><div>'+B('콘탁 기본 소리')+' '+Gr('(처음 한 번: 새 악기 트랙에 Kontakt 8 → 악기 열기 → 아래 설정 → 크기 맞추기 → 라이브러리 아래 '+B('저장')+' 으로 이 이름. 곡마다는 이 패치를 누르기만)')+'</div><div class="wrap"><table><tr><th></th><th>저장 이름</th><th>콘탁 악기</th><th>저장 전에</th></tr>'+KU.map(function(k){ return '<tr><td class="c">'+pk(k.name)+'</td><td class="t">'+B(esc(k.name))+'<br>'+Gr('트랙 '+k.ns.map(function(n){ return '#'+n; }).join(' '))+'</td><td>'+esc(k.lib)+'</td><td>'+k.set.join('<br>')+'</td></tr>'; }).join('')+'</table></div></div>'); }
+    if(KU.length) h.push('<div class="box"><div>'+B('콘탁 기본 소리')+' '+Gr('(처음 한 번: 새 악기 트랙에 Kontakt 8 → 악기 열기 → 라이브러리 아래 '+B('저장')+' 으로 이 이름. 곡마다는 이 패치를 누르기만. 꼭 맞출 것은 악기 이름 하나, 저장 전에 칸은 해 두면 조금 나은 것이라 안 해도 MIDI 는 그대로 울림)')+'</div><div class="wrap"><table><tr><th></th><th>저장 이름</th><th>콘탁 악기</th><th>저장 전에 (선택)</th></tr>'+KU.map(function(k){ return '<tr><td class="c">'+pk(k.name)+'</td><td class="t">'+B(esc(k.name))+'<br>'+Gr('트랙 '+k.ns.map(function(n){ return '#'+n; }).join(' '))+'</td><td>'+esc(k.lib)+'</td><td>'+k.set.join('<br>')+'</td></tr>'; }).join('')+'</table></div></div>'); }
   /* 트랙마다: 악기와 설정, 패치, 플러그인 값을 트랙 순서대로 한 줄에 */
   h.push('<h2>'+N0(hasP?2:1)+'트랙마다 <small>위에서 아래로 트랙 순서, 한 줄은 왼쪽부터</small></h2>');
   { const nt=[];
