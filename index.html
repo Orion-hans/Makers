@@ -47979,7 +47979,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       /* 터짐: 81 절정 (네 현 세게, 피아노 낮은 옥타브) */
       hit(PC,T(81,0),['v1','v2','va','vc'],{n:2,v:118,len:PPQ*1.5}); hit(PC,T(81,0),['pno'],{n:4,v:100,len:PPQ*3}); hit(PC,T(85,0),['v1','v2','va','vc'],{n:2,v:108,len:PPQ});
       /* 여운: 88 셋째 박부터 피아노 페달만 */
-      fadeCC(PC,['v1','v2','va','vc'],86,90,1); ring(PC,'pno',T(88,0),39,74,8,true); ring(PC,'pno',T(88,0),51,62,8,false);
+      fadeCC(PC,['v1','v2','va','vc'],87,90,1); ring(PC,'pno',T(88,0),39,74,8,true); ring(PC,'pno',T(88,0),51,62,8,false);
       /* 끝 여운 */
       brk(PC,T(111,0),T(113,0),['pno']); ring(PC,'pno',T(109,0),44,50,12,true); },
     5:function(PC){ const T=PC.T; const STR=['v1','v2','va','vc'];
@@ -48012,6 +48012,35 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       brk(PC,T(24,3),T(25,0),['jing','sh']); brk(PC,T(40,3),T(41,0),['jing']);
       /* 끝 여운 */
       brk(PC,T(91,0),T(93,0),['jing','sh','gy']); harpSweep(PC,'gy',91,{beats:2,v:50,lo:51,hi:79}); }
+  };
+  /* ── 절정 지키기: 터진 뒤 마디들에서 세기 유지, 저음 박 몰기, 줄이는 건 끝 두 마디에서만 ── */
+  function ccShape(PC,ks,n,pts){ const a=PC.T(pts[0][0],0), z=PC.T(pts[pts.length-1][0],0); ks.forEach(function(k){ if(!PC.CC[k]) return; PC.CC[k]=PC.CC[k].filter(function(c){ return !(c[1]===n && c[0]>=a && c[0]<z); }); curve(PC,k,pts,n); }); }
+  /* ks 트랙: 박(step)마다 화음 뿌리음 (oct 면 옥타브 겹침), 첫 박 세게 */
+  function drive(PC,ks,b0,be0,b1,o){ o=o||{}; const a=PC.T(b0,be0), z=PC.T(b1+1,0), st=o.step||PPQ; ks.forEach(function(k){ if(!PC.P[k]) return; if(o.clear!==false) clear(PC,[k],a,z); const lo=(o.lo&&o.lo[k])||(RG[k]||[36])[0];
+      for(let t=a;t<z-10;t+=st){ const h=PC.chAt(t); const m=rootIn(h.ch,lo); const one=((t-PC.T(h.b,0))%(PPQ*(PC.BARS[h.b].q))===0); const v=(o.v||96)+(one?10:0); padd(PC,k,t,m,v,st*0.8); if(o.oct && o.oct.indexOf(k)>=0) padd(PC,k,t,m+12,v-6,st*0.8); } }); }
+  /* 팀파니/북: 마디 안 박 자리 목록에 */
+  function beats(PC,k,b0,b1,pos,o){ if(!PC.P[k]) return; for(let b=b0;b<=b1;b++){ pos.forEach(function(p){ const t=PC.T(b,p[0]); const m=o.m!=null?o.m:rootIn(PC.chAt(t).ch,o.lo||36); PC.note(k,t,m,p[1],Math.round(PPQ*(o.len||0.5))); }); } }
+  /* ── 대금 쉼 자리 받기: 프레이즈 끝 쉼(1~2.5박)에 반주가 대금 끝 세 음을 한 옥타브 아래로 되받거나 화음을 펼쳐 올림 ── */
+  const ANS={1:['pno',[36,60,61]],2:['pno',[60,61]],4:['pno',[64,80,81]],5:['hp',[49,61,84,85]],6:['gy',[52,53,60,61]],7:['pno',[44,52,53,60,61,64,65]]};
+  function answer(PC,id){ const A=ANS[id]; if(!A) return; const k=A[0], skip=A[1]; if(!PC.P[k]) return; const S=PC.S, b0=S.secs[1][0], b1=S.secs[S.secs.length-1][0];
+    const D=(PC.P.dg||[]).filter(function(x){ return !x.orn; }).sort(function(a,z){ return a.t-z.t; }); let n=0;
+    for(let i=2;i+1<D.length;i++){ const e=D[i].t+D[i].d, g=D[i+1].t-e; if(g<PPQ*0.9 || g>PPQ*2.6) continue; const b=PC.chAt(e).b; if(b<b0 || b>=b1) continue; if(skip.indexOf(b)>=0 || skip.indexOf(b+1)>=0) continue;
+      const a=e+40, z=D[i+1].t-30, w=z-a; if(w<PPQ*0.6) continue; n++;
+      if(n%2){ const L=[D[i-2],D[i-1],D[i]]; const st=Math.min(PPQ,Math.floor(w/3)); L.forEach(function(x,j){ let m=x.m-12; if(k==='gy'){ while(m>79) m-=12; } padd(PC,k,a+j*st,m,60+j*3,st*(j===2?1.6:0.9)); }); }
+      else { const h=PC.chAt(a); const r=RG[k]||[48,79]; const Lc=chordL(h.ch,Math.max(r[0],48),Math.min(r[1],76),dgAvoid(PC,a,z)); const pick=Lc.slice(0,4); const st=Math.min(PPQ/2,Math.floor(w/Math.max(1,pick.length))); pick.forEach(function(m,j){ padd(PC,k,a+j*st,m,56+j*3,w-j*st); }); } } }
+  /* 마지막 거름: 대금과 반음(단2도, 단9도)으로 겹치는 반주 음 빼기 (타악, 키스위치 빼고) */
+  function declash(PC){ const D=(PC.P.dg||[]).filter(function(x){ return !x.orn; }); Object.keys(PC.P).forEach(function(k){ if(k==='dg' || /^(bowl|drums|tp|tam|jing|buk)$/.test(k)) return;
+      PC.P[k]=PC.P[k].filter(function(y){ if(y.m<24) return true; return !D.some(function(x){ const ov=Math.min(x.t+x.d,y.t+y.d)-Math.max(x.t,y.t); if(ov<PPQ/4) return false; const df=Math.abs(x.m-y.m)%12; return df===1||df===11; }); }); }); }
+  const CLX={
+    1:function(PC){ ccShape(PC,['vc'],1,[[61,100],[67,98],[72,30]]); ccShape(PC,['cb'],1,[[61,90],[67,88],[69,40]]); ccShape(PC,['pad'],11,[[61,110],[67,108],[69,70]]); ccShape(PC,['swell'],11,[[61,90],[67,88],[69,60]]);
+      drive(PC,['pz'],61,0,66,{step:PPQ*2,v:70,clear:false}); drive(PC,['pno'],61,2,66,{step:PPQ*2,v:74,lo:{pno:31},oct:['pno'],clear:false}); },
+    2:function(PC){ ccShape(PC,['cb'],1,[[61,108],[70,104],[73,56]]); drive(PC,['vc','cb'],61,2,70,{v:94,oct:['vc']}); beats(PC,'tp',62,70,[[0,92]],{len:1}); },
+    4:function(PC){ ccShape(PC,['v1','v2','va','vc'],1,[[81,114],[87,112]]); drive(PC,['vc'],81,2,86,{step:PPQ/2,v:96,lo:{vc:36}}); },
+    5:function(PC){ ccShape(PC,['v1','v2','va','vc'],1,[[85,120],[89,118],[93,36]]); ccShape(PC,['cb'],1,[[85,118],[89,116],[93,40]]); ccShape(PC,['hn'],1,[[85,120],[89,118],[92,70]]);
+      drive(PC,['vc','cb'],85,2,88,{v:98,oct:['vc']}); beats(PC,'tp',85,88,[[2,96]],{len:1}); beats(PC,'tp',86,88,[[0,104]],{len:1}); drive(PC,['pno'],85,2,88,{step:PPQ*2,v:96,lo:{pno:29},oct:['pno'],clear:false}); },
+    6:function(PC){ ccShape(PC,['cb'],1,[[53,116],[58,112],[61,50]]); ccShape(PC,['sh'],11,[[53,110],[58,108],[61,60]]); ccShape(PC,['aj'],11,[[53,110],[58,108],[61,80]]); ccShape(PC,['hn'],1,[[53,118],[58,114],[60,80]]);
+      ['v1','v2','va','vc'].forEach(function(k){ ccShape(PC,[k],1,[[53,118],[58,116],[60,96],[61,40]]); });
+      drive(PC,['vc','cb'],53,2,58,{v:98,oct:['vc']}); beats(PC,'buk',54,58,[[0,112],[1.5,78],[2,100],[3,84],[3.5,92]],{m:36,len:0.4}); beats(PC,'tp',54,58,[[0,100]],{len:1}); }
   };
   /* ── MIDI 만들기 ── */
   function build(PC){ const S=PC.S; const ks=PC.ORD.filter(function(k){ return PC.P[k].length; });
@@ -48065,14 +48094,14 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       secs:[[1,'새벽 전','Before Dawn','pp'],[5,'첫 숨 (주제)','Theme','pp'],[13,'번짐 (꾸민 주제)','Theme varied','mp'],[21,'빛 (후렴, A♭)','Chorus','mf'],[29,'가장 높은 숨 (전개)','Development','f'],[37,'그늘 (C 단조 주제)','Shade','mp'],[45,'다시 빛 (후렴, E♭)','Chorus again','mf'],[53,'내려옴 (주제)','Return','mp'],[61,'높은 숨 (후렴 높게)','High chorus','f'],[69,'고요','Stillness','pp']]};
     const PC=new Piece(S);
     daegeum(PC,'dg',[
-      [5,'@pp Bb4:1 Bb4:0.5 Bb4:0.5 Eb5:1.5 F5:0.5 | D5:1 C5:0.5 D5:0.5 Eb5:2 | F5:1.5 Eb5:0.5 C5:1 Eb5:1 | D5:2 D5:1 C5:1 | Bb4:1 Bb4:0.5 Bb4:0.5 Eb5:1.5 F5:0.5 | G5:1.5 F5:0.5 D5:2 | C5:1 Eb5:1 Ab5:1 F5:1 | D5:1.5 C5:0.5 Eb5:2'],
-      [13,'@mp< Bb4:0.5 C5:0.5 Eb5:0.5 F5:0.5 G5:2 | (Bb5)Ab5:1.5 G5:0.5 Eb5:1 C5:1 | Bb4:1/3 C5:1/3 Eb5:1/3 G5:1 Bb5:2 | Ab5:2.5 G5:0.5 F5:1 | @mp Bb4:1.5 C5:0.5 Eb5:1 G5:1 | C6:2.5 Bb5:0.5 G5:1 | Ab5:1 G5:1 F5:1 Eb5:1 | F5:3 r:1'],
-      [21,'@mf C6:1 C6:0.5 C6:0.5 Bb5:1 Ab5:1 | Bb5:1.5 Ab5:0.5 F5:2 | Ab5:1 Ab5:0.5 Bb5:0.5 C6:1 Eb6:1 | Db6:2 Eb6:1 Db6:1 | C6:1 C6:0.5 C6:0.5 Bb5:1 Ab5:1 | G5:1 Bb5:0.5 G5:0.5 Eb5:2 | F5:1 Ab5:1 C6:1 Bb5:1 | Ab5:3 r:1'],
-      [29,'@mf< F5:1.5 G5:0.5 Ab5:1 C6:1 | Ab5:1.5 Bb5:0.5 Db6:1 Eb6:1 | @f Db6:2.5 C6:0.5 Bb5:1 | Bb5:1 Ab5:1 F5:1 Db5:1 | Eb5:1.5 F5:0.5 Ab5:1 C6:1 | Db6:2 C6:1 Bb5:1 | @mf> Eb5:1 F5:1 Ab5:1 Bb5:1 | D5:3 r:1'],
-      [37,'@mp "어둡게" G4:1.5 Bb4:0.5 C5:1 D5:1 | Eb5:2.5 D5:0.5 C5:1 | (G5)F5:1.5 Eb5:0.5 D5:1 C5:1 | D5:2 B4:1 A4:1 | G4:1.5 Ab4:0.5 C5:1 Eb5:1 | G5:2.5 D5:0.5 Eb5:1 | F5:1 Eb5:1 D5:1 C5:1 | C5:1.5 Bb4:0.5 D5:2'],
-      [45,'@mf< G5:1 G5:0.5 G5:0.5 F5:1 Eb5:1 | F5:1.5 Eb5:0.5 C5:2 | Eb5:1 Eb5:0.5 F5:0.5 G5:1 Bb5:1 | Ab5:2 Bb5:1 Ab5:1 | G5:1 G5:0.5 G5:0.5 F5:1 Eb5:1 | D5:1 F5:0.5 D5:0.5 Bb4:2 | C5:1 Eb5:1 G5:1 F5:1 | Eb5:3 r:1'],
-      [53,'@mp Bb4:1 Bb4:0.5 Bb4:0.5 Eb5:1.5 F5:0.5 | D5:1 C5:0.5 D5:0.5 Eb5:2 | F5:1.5 Eb5:0.5 C5:1 Eb5:1 | D5:2 D5:1 C5:1 | Bb4:1 Bb4:0.5 Bb4:0.5 Eb5:1.5 F5:0.5 | G5:1.5 F5:0.5 D5:2 | @mp< C5:1 Eb5:1 Ab5:1 F5:1 | D5:1.5 C5:0.5 F5:2'],
-      [61,'@mf< Bb5:1.5 C6:0.5 Eb6:2 | D6:1 C6:1 Bb5:2 | @f (Bb5)Ab5:1.5 G5:0.5 F5:1 Eb5:1 | F5:2 D5:1 C5:1 | Bb4:1.5 C5:0.5 Eb5:1 G5:1 | C6:2 Bb5:1 G5:1 | @mf> Ab5:1 F5:1 D5:1 F5:1 | Eb5:3 r:1'],
+      [5,'@pp Bb4:1 Bb4:0.5 Bb4:0.5 Eb5:1.5 F5:0.5 | D5:1 C5:0.5 D5:0.5 Eb5:2 | F5:1.5 Eb5:0.5 C5:1 Eb5:1 | D5:2 D5:1 r:1 | Bb4:1 Bb4:0.5 Bb4:0.5 Eb5:1.5 F5:0.5 | G5:1.5 F5:0.5 D5:2 | C5:1 Eb5:1 Ab5:1 F5:1 | D5:1.5 C5:0.5 Eb5:1 r:1'],
+      [13,'@mp< Bb4:0.5 C5:0.5 Eb5:0.5 F5:0.5 G5:2 | (Bb5)Ab5:1.5 G5:0.5 Eb5:1 C5:1 | Bb4:1/3 C5:1/3 Eb5:1/3 G5:1 Bb5:2 | Ab5:2.5 G5:0.5 r:1 | @mp Bb4:1.5 C5:0.5 Eb5:1 G5:1 | C6:2.5 Bb5:0.5 G5:1 | Ab5:1 G5:1 F5:1 Eb5:1 | F5:3 r:1'],
+      [21,'@mf C6:1 C6:0.5 C6:0.5 Bb5:1 Ab5:1 | Bb5:1.5 Ab5:0.5 F5:2 | Ab5:1 Ab5:0.5 Bb5:0.5 C6:1 Db6:1 | Db6:2 C6:1 r:1 | C6:1 C6:0.5 C6:0.5 Bb5:1 Ab5:1 | G5:1 Bb5:0.5 G5:0.5 Eb5:2 | F5:1 Ab5:1 C6:1 Bb5:1 | Ab5:3 r:1'],
+      [29,'@mf< F5:1.5 G5:0.5 Ab5:1 C6:1 | Ab5:1.5 Bb5:0.5 Ab5:1 C6:1 | @f Db6:2.5 C6:0.5 Bb5:1 | Bb5:1 Ab5:1 F5:1 r:1 | Eb5:1.5 F5:0.5 Ab5:1 C6:1 | Db6:2 C6:1 Bb5:1 | @mf> Eb5:1 F5:1 Ab5:1 Bb5:1 | D5:3 r:1'],
+      [37,'@mp "어둡게" G4:1.5 Bb4:0.5 C5:1 D5:1 | Eb5:2.5 D5:0.5 C5:1 | (G5)F5:1.5 Eb5:0.5 D5:1 C5:1 | D5:2 B4:1 r:1 | G4:1.5 Ab4:0.5 C5:1 Eb5:1 | G5:2.5 D5:0.5 Eb5:1 | F5:1 Eb5:1 D5:1 C5:1 | C5:1.5 Bb4:0.5 D5:1 r:1'],
+      [45,'@mf< G5:1 G5:0.5 G5:0.5 F5:1 Eb5:1 | F5:1.5 Eb5:0.5 C5:2 | Eb5:1 Eb5:0.5 F5:0.5 G5:1 Bb5:1 | Ab5:2 Bb5:1 r:1 | G5:1 G5:0.5 G5:0.5 F5:1 Eb5:1 | D5:1 F5:0.5 D5:0.5 Bb4:2 | C5:1 Eb5:1 G5:1 F5:1 | Eb5:3 r:1'],
+      [53,'@mp Bb4:1 Bb4:0.5 Bb4:0.5 Eb5:1.5 F5:0.5 | D5:1 C5:0.5 D5:0.5 Eb5:2 | F5:1.5 Eb5:0.5 C5:1 Eb5:1 | D5:2 D5:1 r:1 | Bb4:1 Bb4:0.5 Bb4:0.5 Eb5:1.5 F5:0.5 | G5:1.5 F5:0.5 D5:2 | @mp< C5:1 Eb5:1 Ab5:1 F5:1 | D5:1.5 C5:0.5 F5:2'],
+      [61,'@mf< Bb5:1.5 C6:0.5 Eb6:2 | D6:1 C6:1 Bb5:2 | @f (Bb5)Ab5:1.5 G5:0.5 F5:1 Eb5:1 | F5:2 D5:1 r:1 | Bb4:1.5 C5:0.5 Eb5:1 G5:1 | C6:2 Bb5:1 G5:1 | @mf> Ab5:1 F5:1 D5:1 F5:1 | Eb5:3 r:1'],
       [69,'@pp Bb4:1 Bb4:0.5 Bb4:0.5 Eb5:2 | Eb5:4 | r:4 | r:4 | Bb4:1 Bb4:0.5 Bb4:0.5 Eb5:1.5 F5:0.5 | Eb5:4 | r:4 | r:4 | r:2 G5:1 F5:1 | Eb5:4 | Eb5:4 | r:4']]);
     /* 반주 */
     pad(PC,'pad',1,84,{n:5,lo:51,hi:79,v:58}); pad(PC,'drone',1,84,{n:2,lo:39,hi:55,v:60});
@@ -48112,16 +48141,16 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       secs:[[1,'머묾','Prelude','p'],[5,'주제 (E♭)','Theme','mp'],[13,'주제 둘','Theme II','mf'],[21,'둘째 주제 (C 단조)','Second theme','mp'],[29,'첼로와 대금','Duet','mp'],[37,'건너감 (A♭ 주제)','Crossing','mf'],[45,'흔들림','Development','mf'],[53,'차오름 (F 단조)','Rising','mf'],[61,'빛 (후렴, B♭)','Chorus','f'],[73,'잔광 (둘째 주제)','Afterlight','p'],[81,'남은 빛 (E♭)','Afterglow','mp'],[89,'맺음','Coda','pp']]};
     const PC=new Piece(S);
     daegeum(PC,'dg',[
-      [5,'@mp G5:1 G5:0.5 F5:0.5 G5:1 Bb5:1 | F5:1 F5:0.5 G5:0.5 F5:1 D5:1 | Eb5:1 Eb5:0.5 D5:0.5 Eb5:1 G5:1 | F5:2 Ab5:1 Bb5:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 G5:1 | Bb5:1.5 G5:0.5 Eb5:2 | Ab5:1 G5:0.5 F5:0.5 Eb5:1 C5:1 | Eb5:2 D5:2'],
-      [13,'@mf< G5:1.5 F5:0.5 Eb5:1 Bb5:1 | Bb5:1 C6:0.5 Bb5:0.5 F5:2 | Eb5:1 G5:1 C6:2 | Bb5:2.5 r:0.5 G5:0.5 F5:0.5 | Bb5:1 C6:1 Bb5:1 G5:1 | Ab5:1.5 G5:0.25 F5:0.25 Eb5:1 D5:1 | G5:1 F5:1 E5:1 G5:1 | Ab5:2 G5:1 F5:1'],
+      [5,'@mp G5:1 G5:0.5 F5:0.5 G5:1 Bb5:1 | F5:1 F5:0.5 G5:0.5 F5:1 D5:1 | Eb5:1 Eb5:0.5 D5:0.5 Eb5:1 G5:1 | F5:2 Ab5:1 Bb5:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 G5:1 | Bb5:1.5 G5:0.5 Eb5:2 | Ab5:1 G5:0.5 F5:0.5 Eb5:1 C5:1 | Eb5:2 D5:1 r:1'],
+      [13,'@mf< G5:1.5 F5:0.5 Eb5:1 Bb5:1 | Bb5:1 C6:0.5 Bb5:0.5 F5:2 | Eb5:1 G5:1 C6:2 | Bb5:2.5 r:0.5 G5:0.5 F5:0.5 | Bb5:1 C6:1 Bb5:1 G5:1 | Ab5:1.5 G5:0.25 F5:0.25 Eb5:1 D5:1 | G5:1 F5:1 E5:1 G5:1 | Ab5:2 G5:1 r:1'],
       [21,'@mp "cantabile" Eb5:3 D5:0.5 C5:0.5 | Eb5:1.5 G5:0.5 C6:2 | Ab5:2 G5:1 F5:1 | D5:2 C5:1 D5:1 | Eb5:3 F5:0.5 G5:0.5 | Bb5:2 G5:1 F5:1 | C6:1.5 Bb5:0.5 Ab5:1 Eb5:1 | D5:3 r:1'],
-      [29,'@mp r:4 | r:4 | r:4 | r:2 Bb4:1 C5:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 G5:1 | Bb5:1.5 G5:0.5 Eb5:2 | Ab5:1 G5:0.5 F5:0.5 Eb5:1 C5:1 | Bb4:1 Db5:1 G5:2'],
-      [37,'@mf C6:1 C6:0.5 Bb5:0.5 C6:1 Eb6:1 | Bb5:1 Bb5:0.5 C6:0.5 Bb5:1 G5:1 | Ab5:1 Ab5:0.5 G5:0.5 Ab5:1 C6:1 | Bb5:2 Ab5:1 G5:1 | F5:1 F5:0.5 Eb5:0.5 Db5:1 C5:1 | Eb5:1.5 C5:0.5 Ab4:2 | Db5:1 C5:0.5 Bb4:0.5 Ab4:1 F4:1 | Ab4:2 G4:2'],
-      [45,'@mf< Ab5:1.5 G5:0.5 F5:1 C5:1 | Db5:1 F5:1 Ab5:1 C6:1 | C6:1.5 Bb5:0.5 Ab5:1 Eb5:1 | Db5:1 Gb5:1 Bb5:1 Db6:1 | Db6:1.5 C6:0.5 Ab5:1 F5:1 | Eb5:0.5 F5:0.5 Ab5:1 G5:2 | Ab5:1 C6:1 Eb6:1 C6:1 | C6:1.5 Bb5:0.5 G5:1 E5:1'],
+      [29,'@mp r:4 | r:4 | r:4 | r:2 Bb4:1 C5:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 G5:1 | Bb5:1.5 G5:0.5 Eb5:2 | Ab5:1 G5:0.5 F5:0.5 Eb5:1 C5:1 | Bb4:1 Db5:1 G5:1 r:1'],
+      [37,'@mf C6:1 C6:0.5 Bb5:0.5 C6:1 Eb6:1 | Bb5:1 Bb5:0.5 C6:0.5 Bb5:1 G5:1 | Ab5:1 Ab5:0.5 G5:0.5 Ab5:1 C6:1 | Bb5:2 Ab5:1 r:1 | F5:1 F5:0.5 Eb5:0.5 Db5:1 C5:1 | Eb5:1.5 C5:0.5 Ab4:2 | Db5:1 C5:0.5 Bb4:0.5 Ab4:1 F4:1 | Ab4:2 G4:1 r:1'],
+      [45,'@mf< Ab5:1.5 G5:0.5 F5:1 C5:1 | Db5:1 F5:1 Ab5:1 C6:1 | C6:1.5 Bb5:0.5 Ab5:1 Eb5:1 | Db5:1 Gb5:1 Bb5:1 Db6:1 | Db6:1.5 C6:0.5 Ab5:1 F5:1 | Eb5:0.5 F5:0.5 Ab5:1 G5:2 | Ab5:1 C6:1 Eb6:1 C6:1 | C6:1.5 Bb5:0.5 G5:1 r:1'],
       [53,'@mp< Ab5:3 G5:0.5 F5:0.5 | Ab5:1.5 C6:0.5 Eb6:2 | Db6:2 C6:1 Bb5:1 | G5:2 F5:1 G5:1 | Ab5:2 Bb5:1 C6:1 | Eb6:2 Db6:1 C6:1 | Bb5:1.5 Ab5:0.5 F5:1 Db5:1 | @f C6:2 A5:1 C6:1'],
-      [61,'@f D6:1 D6:0.5 D6:0.5 C6:1 Bb5:1 | C6:1 C6:0.5 A5:0.5 F5:2 | Bb5:1 Bb5:0.5 A5:0.5 Bb5:1 D6:1 | C6:2 A5:2 | Eb6:1 Eb6:0.5 D6:0.5 C6:1 Bb5:1 | D6:1.5 C6:0.5 Bb5:2 | C6:1 C6:0.5 D6:0.5 Eb6:1 C6:1 | C6:2 A5:2 | @ff D6:1 D6:0.5 C6:0.5 Bb5:1 G5:1 | Bb5:1.5 C6:0.5 Eb6:2 | Eb6:1 C6:1 C6:1 A5:1 | Bb5:4'],
+      [61,'@f D6:1 D6:0.5 D6:0.5 C6:1 Bb5:1 | C6:1 C6:0.5 A5:0.5 F5:2 | Bb5:1 Bb5:0.5 A5:0.5 Bb5:1 D6:1 | C6:2 A5:1 r:1 | Eb6:1 Eb6:0.5 D6:0.5 C6:1 Bb5:1 | D6:1.5 C6:0.5 Bb5:2 | C6:1 C6:0.5 D6:0.5 Eb6:1 C6:1 | C6:2 A5:1 r:1 | @ff D6:1 D6:0.5 C6:0.5 Bb5:1 G5:1 | Bb5:1.5 C6:0.5 Eb6:2 | Eb6:1 C6:1 C6:1 A5:1 | Bb5:2.5 r:1.5'],
       [73,'@p "dolce" Bb4:3 A4:0.5 G4:0.5 | Bb4:1.5 D5:0.5 G5:2 | Eb5:2 D5:1 C5:1 | A4:2 G4:1 A4:1 | Bb4:3 C5:0.5 D5:0.5 | F5:2 D5:1 C5:1 | G5:1.5 F5:0.5 Eb5:1 Bb4:1 | F5:3 r:1'],
-      [81,'@mp G5:1 G5:0.5 F5:0.5 G5:1 Bb5:1 | F5:1 F5:0.5 G5:0.5 F5:1 D5:1 | Eb5:1 Eb5:0.5 D5:0.5 Eb5:1 G5:1 | F5:2 Ab5:1 Bb5:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 G5:1 | Ab5:1 F5:1 C5:2 | @p> Eb5:2 F5:2 | Eb5:4'],
+      [81,'@mp G5:1 G5:0.5 F5:0.5 G5:1 Bb5:1 | F5:1 F5:0.5 G5:0.5 F5:1 D5:1 | Eb5:1 Eb5:0.5 D5:0.5 Eb5:1 G5:1 | F5:2 Ab5:1 Bb5:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 G5:1 | Ab5:1 F5:1 C5:2 | @p> Eb5:2 F5:2 | Eb5:2.5 r:1.5'],
       [89,'@pp G5:1 G5:0.5 F5:0.5 G5:2 | r:4 | Bb4:1 Bb4:0.5 C5:0.5 Eb5:2 | Eb5:3 r:1 | r:4 | r:2 G5:1 F5:1 | Eb5:4 | r:4']]);
     /* 반주 */
     piano(PC,'pno',1,4,{pat:'ballad',v:62}); piano(PC,'pno',5,20,{pat:'ballad',v:58}); piano(PC,'pno',21,28,{pat:'ballad',v:52,lo:52,hi:76}); piano(PC,'pno',29,36,{pat:'ballad',v:56});
@@ -48149,7 +48178,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
       trk:{dg:['DecentSampler > Deageum(Sanjo) | Daegeum',8,92,73,44,'mono'], drums:['Drum Machine/Minimalist | Drums',9,80,0,64], bass:['Synthesizer/Bass/Deep Synth Bass | Synth Bass',1,80,38,64,null,0], sub:['Synthesizer/Bass/Deep Sub Bass | Sub',2,74,38,64,null,0],
         pluck:['Synthesizer/Plucked/Tight Synth Pluck | Synth Pluck',3,62,84,40,null,0], arp:['Synthesizer/Plucked/Water Droplet Plucks | Arp Drop',4,54,81,90,null,0], pad:['Synthesizer/Classics/Lush Electro Pad | Wide Pad',0,70,89,64,null,0],
         pno:['Kontakt > Cinematic Studio Piano/CSP Piano | Piano',5,72,0,58,null,10], riser:['Synthesizer/Sound Effects/Forever Riser | Riser',6,72,99,64,null,0], imp:['Synthesizer/Sound Effects/Cosmic Impacts | Impact',7,80,99,64,null,0]},
-      harm:[[1,'Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb'],
+      harm:[[1,'Cm | Cm | Ab | Ab | Eb | Eb | Bb | Bb | Cm | Cm | Ab | Ab | Fm7 | Fm7 | Gsus4 | G'],
         [17,'Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb'],
         [33,'Ab | Bb | Ab | Bb | Fm7 | Ab | Bbsus4 | Bb'],
         [41,'Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb | Fm7 | Ab | Cm | Bb/D | Fm7 | Ab | Cm | Bb/D'],
@@ -48159,8 +48188,8 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
         [97,'Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb | Fm7 | Ab | Cm | Bb/D | Fm7 | Ab | Cm | Bb/D | Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb'],
         [121,'Cm | Cm | Ab | Ab | Fm7 | Fm7 | Gsus4 | G | Cm | Cm | Ab | Ab | Fm7 | Fm7 | Gsus4 | G'],
         [137,'Ab | Bb | Cm | Bb | Ab | Bb | Bbsus4 | Bb'],
-        [145,'Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb'],
-        [161,'Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb | Cm | Ab | Eb | Cm']],
+        [145,'Cm | Ab | Eb | Bb | Cm | Ab | Eb | Bb | Abmaj7 | Fm7 | Cm | Bb | Eb/G | Fm7 | Cm | G'],
+        [161,'Cm | Cm | Ab | Ab | Cm | Ab | Fm7 | G | Cm | Cm | Ab | Ab | Cm | Fm7 | Cm | Cm']],
       secs:[[1,'밀려옴','Intro','p'],[17,'부름 (훅)','Call','mp'],[33,'차오름','Build','mf'],[41,'밀물','Drop','f'],[57,'물결 (피아노 훅)','Groove','mf'],[73,'물 아래 (E♭, 늘인 훅)','Breakdown','mp'],[89,'다시 차오름','Build II','mf'],[97,'큰 물','Drop II','ff'],[121,'깊은 물 (산조처럼)','Break II','mp'],[137,'세 번째 차오름','Build III','mf'],[145,'가장 큰 물','Drop III','ff'],[161,'썰물','Outro','mp']]};
     const PC=new Piece(S);
     const H1='G5:0.5 G5:0.5 G5:1 Bb5:0.5 G5:1.5 | Ab5:0.5 Ab5:0.5 Ab5:1 G5:0.5 F5:1.5 | G5:0.5 G5:0.5 Eb5:1 F5:0.5 G5:1.5 | F5:2 D5:1 r:1';
@@ -48219,14 +48248,14 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     const PC=new Piece(S);
     daegeum(PC,'dg',[
       [5,'@pp Ab4:1 Ab4:0.5 Ab4:0.5 F5:2 | Eb5:1 C5:0.5 Db5:0.5 C5:2 | Bb4:1 Bb4:0.5 C5:0.5 Eb5:2 | C5:2 C5:1 Bb4:1 | @mp< Ab4:1 Ab4:0.5 Ab4:0.5 F5:1 G5:1 | Ab5:1.5 F5:0.5 Eb5:2 | Eb5:1 C5:0.5 Bb4:0.5 C5:1 Ab4:1 | C5:1.5 Bb4:1.5 r:1 | F5:1 F5:0.5 Eb5:0.5 Db5:1 F5:1 | Eb5:2 Db5:1 Bb4:1 | C5:4 | r:4'],
-      [17,'@mf "angular,_non_legato" >Bb5:0.5 G5:0.5 F5:0.5 G5:0.5 r:0.5 Eb5:0.5 >D6:1 C6:1 | Bb5:0.5 G5:0.5 Ab5:1 r:1 | >C6:0.5 Ab5:0.5 Bb5:0.5 Ab5:0.5 r:0.5 F5:0.5 >Eb6:1 C6:1 | Bb5:1.5 F5:0.5 Ab5:1 | !Eb5:0.5 !Bb5:0.5 !Eb6:0.5 Db6:1 Bb5:1 | r:1 D6:0.5 Bb5:0.5 C6:0.5 Bb5:0.5 G5:1 F5:1 | >C6:1.5 Eb6:0.5 Bb5:1 | Ab5:1 F5:0.5 Eb5:0.5 F5:2 Eb5:1 | r:0.5 Eb5:0.5 G5:0.5 Bb5:1 D6:1 | C6:1.5 Ab5:0.5 Bb5:1.5'],
-      [27,'@f >G5:1 Bb5:1 Eb6:1 D6:0.5 Bb5:0.5 G5:1 | F5:1 Ab5:1 C6:1 | >Db6:1 Bb5:0.5 C6:0.5 Bb5:1 Ab5:1 F5:1 | C5:1 F5:1 Ab5:1 | G5:0.5 Bb5:0.5 Eb6:2 r:0.5 | D6:2 Bb5:1 G5:1 Eb5:1'],
-      [33,'@f< Eb6:1 C6:1 D6:1 C6:1 | Bb5:1.5 C6:0.5 Ab5:1 Eb5:1 | Ab5:1/3 Bb5:1/3 C6:1/3 Eb6:1 C6:1 Ab5:1 | F5:1 Ab5:1 Bb5:2 | @ff D6:2 Bb5:1 C6:0.5 Bb5:0.5 | Eb6:2 C6:1 D6:0.5 C6:0.5 | C6:2 Bb5:1 G5:1 | F5:3 r:1'],
-      [41,'@mp "dolce" F5:3 | (G5)F5:1.5 D5:0.5 Eb5:1 | D5:2 r:1 | Bb4:1 D5:1 F5:1 | Bb5:2 r:1 | A5:1.5 G5:0.5 C6:1 | Bb5:3 | F5:1 G5:1 Eb5:1 | D5:1 F5:1 Bb5:1 | A5:2 F5:1 | G5:1 Bb5:1 D6:1 | C6:2 Bb5:0.5 G5:0.5 | Bb5:1.5 A5:0.5 G5:1 | F5:1 A5:1 D6:1 | Bb5:3 | C6:2 r:1'],
-      [57,'@mp r:3 | r:1 D6:1 D6:1 | D6:2 Bb5:1 | G5:2 F5:1 | @mf< Eb6:1 Eb6:1 D6:1 | C6:2 G5:1 | Ab5:1 Ab5:1 C6:1 | B5:2 D6:1'],
-      [65,'@f "angular" >G5:0.5 Eb5:0.5 F5:0.5 Eb5:0.5 r:1 C6:1 Bb5:1 | Ab5:1.5 G5:0.5 Eb5:1 | r:1.5 !C6:0.5 !Ab5:0.5 !Bb5:0.5 !Ab5:0.5 | G5:1 F5:0.5 D5:0.5 C5:2 r:1 | >Eb6:0.5 C6:0.5 D6:0.5 C6:0.5 G5:1 | Bb5:1.5 G5:0.5 Eb5:1 r:0.5 | r:1 D6:0.5 Bb5:0.5 C6:0.5 Bb5:0.5 G5:1 Eb5:1 | F5:1 G5:1 C6:1 | >D6:1.5 C6:0.5 G5:1 Eb5:1 r:1 | !F5:0.5 !Ab5:0.5 !C6:0.5 Eb6:2 | Db6:1.5 C6:0.5 Ab5:1 | Bb5:1 Ab5:0.5 F5:0.5 Eb5:2 r:1 | r:0.5 G5:0.5 Bb5:0.5 D6:2 | Eb6:1.5 D6:0.5 C6:1.5 | C6:1 Bb5:1 G5:1 Eb5:1 C5:1 | B4:1 D5:1 F5:1'],
-      [81,'@ff Eb6:2 C6:1 D6:1 | C6:2 Bb5:1 G5:1 | Ab5:1 C6:1 Eb6:1 C6:1 | Db6:2 C6:1 Ab5:1 | G5:1/3 Bb5:1/3 C6:1/3 Eb6:2 D6:0.5 C6:0.5 | Db6:2 Bb5:1 F5:1 | @f> Eb5:1 F5:1 Ab5:1 Bb5:1 | Bb5:3 r:1'],
-      [89,'@pp Ab4:1 Ab4:0.5 Ab4:0.5 F5:2 | Eb5:1 C5:0.5 Db5:0.5 C5:2 | Bb4:1 Bb4:0.5 C5:0.5 Eb5:2 | C5:2 C5:1 Bb4:1 | Ab4:1 Ab4:0.5 Ab4:0.5 F5:1 G5:1 | Ab5:1.5 F5:0.5 Eb5:2 | Eb5:1 C5:0.5 Bb4:0.5 C5:1 Ab4:1 | C5:1.5 Bb4:1.5 r:1 | F5:1 F5:0.5 Eb5:0.5 Db5:1 F5:1 | Eb5:2 Db5:1 Bb4:1 | C5:4 | r:4 | Ab4:1 Ab4:0.5 Ab4:0.5 F5:1 G5:1 | Ab5:1.5 F5:0.5 Eb5:2 | Eb5:2 Db5:1 Bb4:1 | Ab4:4'],
+      [17,'@mf "angular,_non_legato" >Bb5:0.5 G5:0.5 F5:0.5 G5:0.5 r:0.5 Eb5:0.5 >D6:1 C6:1 | Bb5:0.5 G5:0.5 Ab5:1 r:1 | >C6:0.5 Ab5:0.5 Bb5:0.5 Ab5:0.5 r:0.5 F5:0.5 >C6:1 Ab5:1 | Bb5:1.5 F5:0.5 Ab5:1 | !Eb5:0.5 !Ab5:0.5 !Bb5:0.5 Db6:1 Bb5:1 | r:1 D6:0.5 Bb5:0.5 C6:0.5 Bb5:0.5 G5:1 F5:1 | >C6:1.5 Db6:0.5 Bb5:1 | Ab5:1 F5:0.5 Eb5:0.5 F5:2 Eb5:1 | r:0.5 Eb5:0.5 G5:0.5 Bb5:1 D6:1 | C6:1.5 Ab5:0.5 Bb5:1.5'],
+      [27,'@f >G5:1 Bb5:1 D6:1 C6:0.5 Bb5:0.5 G5:1 | F5:1 Ab5:1 C6:1 | >Db6:1 Bb5:0.5 C6:0.5 Bb5:1 Ab5:1 F5:1 | C5:1 F5:1 Ab5:1 | G5:0.5 Bb5:0.5 D6:2 r:0.5 | D6:2 Bb5:1 G5:1 r:1'],
+      [33,'@f< G5:1 C6:1 D6:1 C6:1 | Bb5:1.5 C6:0.5 Ab5:1 Eb5:1 | Ab5:1/3 Bb5:1/3 C6:1/3 Db6:1 C6:1 Ab5:1 | F5:1 Ab5:1 Bb5:1 r:1 | @ff D6:2 Bb5:1 C6:0.5 Bb5:0.5 | Eb6:2 C6:1 D6:0.5 C6:0.5 | C6:2 Bb5:1 G5:1 | F5:3 r:1'],
+      [41,'@mp "dolce" F5:3 | (G5)F5:1.5 D5:0.5 Eb5:1 | D5:2 r:1 | Bb4:1 D5:1 F5:1 | Bb5:2 r:1 | A5:1.5 G5:0.5 C6:1 | Bb5:3 | F5:1 G5:1 r:1 | D5:1 F5:1 Bb5:1 | A5:2 F5:1 | G5:1 Bb5:1 D6:1 | C6:2 Bb5:0.5 G5:0.5 | Bb5:1.5 A5:0.5 G5:1 | F5:1 A5:1 D6:1 | Bb5:3 | C6:2 r:1'],
+      [57,'@mp r:3 | r:1 D6:1 D6:1 | D6:2 Bb5:1 | G5:2 r:1 | @mf< G5:1 C6:1 D6:1 | C6:2 G5:1 | Ab5:1 Ab5:1 C6:1 | B5:2 D6:1'],
+      [65,'@f "angular" >G5:0.5 Eb5:0.5 F5:0.5 Eb5:0.5 r:1 C6:1 Bb5:1 | Ab5:1.5 G5:0.5 Eb5:1 | r:1.5 !C6:0.5 !Ab5:0.5 !Bb5:0.5 !Ab5:0.5 | G5:1 F5:0.5 D5:0.5 C5:2 r:1 | >D6:0.5 C6:0.5 Bb5:0.5 C6:0.5 G5:1 | Bb5:1.5 G5:0.5 Eb5:1 r:0.5 | r:1 D6:0.5 Bb5:0.5 C6:0.5 Bb5:0.5 G5:1 Eb5:1 | F5:1 G5:1 C6:1 | >D6:1.5 C6:0.5 G5:1 Eb5:1 r:1 | !F5:0.5 !Ab5:0.5 !Bb5:0.5 C6:2 | Db6:1.5 C6:0.5 Ab5:1 | Bb5:1 Ab5:0.5 F5:0.5 Eb5:2 r:1 | r:0.5 G5:0.5 Bb5:0.5 D6:2 | C6:1.5 D6:0.5 C6:1.5 | C6:1 Bb5:1 G5:1 Eb5:1 C5:1 | B4:1 D5:1 F5:1'],
+      [81,'@ff Eb6:2 C6:1 D6:1 | C6:2 Bb5:1 G5:1 | Ab5:1 C6:1 Eb6:1 C6:1 | Db6:2 C6:1 r:1 | G5:1/3 Bb5:1/3 C6:1/3 Eb6:2 D6:0.5 C6:0.5 | Db6:2 Bb5:1 F5:1 | @f> Eb5:1 F5:1 Ab5:1 Bb5:1 | Bb5:3 r:1'],
+      [89,'@pp Ab4:1 Ab4:0.5 Ab4:0.5 F5:2 | Eb5:1 C5:0.5 Db5:0.5 C5:2 | Bb4:1 Bb4:0.5 C5:0.5 Eb5:2 | C5:2 C5:1 r:1 | Ab4:1 Ab4:0.5 Ab4:0.5 F5:1 G5:1 | Ab5:1.5 F5:0.5 Eb5:2 | Eb5:1 C5:0.5 Bb4:0.5 C5:1 Ab4:1 | C5:1.5 Bb4:1.5 r:1 | F5:1 F5:0.5 Eb5:0.5 Db5:1 F5:1 | Eb5:2 Db5:1 Bb4:1 | C5:4 | r:4 | Ab4:1 Ab4:0.5 Ab4:0.5 F5:1 G5:1 | Ab5:1.5 F5:0.5 Eb5:2 | Eb5:2 Db5:1 Bb4:1 | Ab4:4'],
       [105,'r:4 | r:2 Eb5:1 C5:1 | Db5:1 C5:3 | r:4']]);
     /* 짜임 */
     const pulseAcc=function(b0,b1){ for(let b=b0;b<=b1;b++){ const q=PC.BARS[b].q; const h=PC.chAt(PC.T(b,0)); const V=voice(h.ch,3,55,76,null,dgAvoid(PC,PC.T(b,0),PC.T(b+1,0)));
@@ -48274,13 +48303,13 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     const PC=new Piece(S);
     daegeum(PC,'dg',[
       [3,'@pp< G4:3 Bb4:1 | F5:4 | @mp r:1 G5:1.5 F5:0.5 D5:1 | Eb5:2 Bb4:1 Ab4:1 | G4:1.5 Bb4:0.5 F5:2 | Eb5:1 F5:1 Bb4:2 | Bb4:1.5 D5:0.5 Bb5:2 | Ab5:1 G5:1 Eb5:1 C5:1 | F5:1/3 G5:1/3 Ab5:1/3 C6:2 Bb5:1 | @mp> C6:3 r:1'],
-      [13,'@mp D5:1 D5:0.5 F5:0.5 C6:2 | Bb5:1 Bb5:0.5 A5:0.5 G5:2 | G5:1 G5:0.5 A5:0.5 Bb5:1 D6:1 | C6:2 r:1 F5:0.5 G5:0.5 | Bb5:1 Bb5:0.5 C6:0.5 D6:2 | C6:1 A5:0.5 F5:0.5 A5:2 | G5:1 G5:0.5 F5:0.5 Eb5:1 Bb5:1 | D6:1.5 C6:1.5 r:1 | @mf< D6:1 D6:0.5 C6:0.5 Bb5:1 G5:1 | A5:1.5 G5:0.5 F5:2 | F5:1 F5:0.5 G5:0.5 F5:1 D5:1 | G5:2 F5:1 Eb5:1 | @f D5:1 D5:0.5 F5:0.5 C6:1 D6:1 | Bb5:1 Bb5:0.5 A5:0.5 G5:2 | A5:1 A5:0.5 Bb5:0.5 D6:2 | D6:1.5 C6:1.5 r:1 | D6:1 D6:0.5 C6:0.5 Bb5:1 F5:1 | A5:1.5 G5:0.5 F5:2 | G5:1 G5:0.5 F5:0.5 Eb5:1 C5:1 | @mf> A5:3 r:1'],
+      [13,'@mp D5:1 D5:0.5 F5:0.5 C6:2 | Bb5:1 Bb5:0.5 A5:0.5 G5:2 | G5:1 G5:0.5 A5:0.5 Bb5:1 D6:1 | C6:2 r:1 F5:0.5 G5:0.5 | Bb5:1 Bb5:0.5 C6:0.5 D6:2 | C6:1 A5:0.5 F5:0.5 A5:2 | G5:1 G5:0.5 F5:0.5 Eb5:1 Bb5:1 | D6:1.5 C6:1.5 r:1 | @mf< D6:1 D6:0.5 C6:0.5 Bb5:1 G5:1 | A5:1.5 G5:0.5 F5:2 | F5:1 F5:0.5 G5:0.5 F5:1 D5:1 | G5:2 F5:1 r:1 | @f D5:1 D5:0.5 F5:0.5 C6:1 D6:1 | Bb5:1 Bb5:0.5 A5:0.5 G5:2 | A5:1 A5:0.5 Bb5:0.5 D6:2 | D6:1.5 C6:1.5 r:1 | D6:1 D6:0.5 C6:0.5 Bb5:1 F5:1 | A5:1.5 G5:0.5 F5:2 | G5:1 G5:0.5 F5:0.5 Eb5:1 C5:1 | @mf> A5:3 r:1'],
       [33,'@mp "cantabile" D6:3 C6:0.5 Bb5:0.5 | Bb5:2 G5:1 F5:1 | Eb5:1.5 F5:0.5 G5:1 Bb5:1 | A5:2 A5:1 C6:1 | D6:2 C6:1 Bb5:1 | G5:1.5 Bb5:0.5 Eb6:2 | D6:1 C6:1 Bb5:1 F5:1 | Ab5:3 r:1'],
-      [41,'@f "agitato" !Ab4:0.25 !C5:0.25 G5:0.5 !Ab4:0.25 !C5:0.25 G5:0.5 Ab5:1 G5:0.5 F5:0.5 | !C5:0.25 !Eb5:0.25 Bb5:0.5 !C5:0.25 !Eb5:0.25 Bb5:0.5 C6:1.5 r:0.5 | !F5:0.25 !Ab5:0.25 Eb6:0.5 C6:1 r:0.5 G5:0.5 Ab5:1 | Ab5:1/3 Bb5:1/3 C6:1/3 Db6:1 C6:1.5 r:0.5 | !Db5:0.25 !F5:0.25 C6:0.5 !Db5:0.25 !F5:0.25 C6:0.5 Db6:1 Bb5:1 | Ab5:0.5 F5:0.5 Eb5:0.5 Db5:0.5 F5:1.5 r:0.5 | !Bb4:0.25 !Eb5:0.25 F5:0.5 !Bb4:0.25 !Eb5:0.25 F5:0.5 Ab5:1 Bb5:1 | Ab5:1/3 Bb5:1/3 C6:1/3 Bb5:1/3 Ab5:1/3 F5:1/3 Eb5:2 | r:4 | @ff F5:1.5 Ab5:0.5 Eb6:2 | Db6:1 C6:0.5 Bb5:0.5 F5:2 | Eb5:1.5 G5:0.5 D6:2 | C6:1 Bb5:0.5 Ab5:0.5 F5:1.5 r:0.5 | Ab5:0.5 C6:0.5 Eb6:2 Db6:0.5 C6:0.5 | Bb5:1 Db6:1 F5:1 Ab5:1 | Eb5:0.5 F5:0.5 Ab5:0.5 Bb5:0.5 Db6:2 | C6:1.5 Ab5:0.5 F5:1 C5:1 | Db6:2 C6:1.5 r:0.5 | @f> Bb5:3 Ab5:0.5 F5:0.5 | Eb5:3 r:1'],
+      [41,'@f "agitato" !Ab4:0.25 !C5:0.25 G5:0.5 !Ab4:0.25 !C5:0.25 G5:0.5 Ab5:1 G5:0.5 F5:0.5 | !C5:0.25 !Eb5:0.25 Bb5:0.5 !C5:0.25 !Eb5:0.25 Bb5:0.5 C6:1.5 r:0.5 | !F5:0.25 !Ab5:0.25 Eb6:0.5 C6:1 r:0.5 G5:0.5 Ab5:1 | Ab5:1/3 Bb5:1/3 C6:1/3 Db6:1 C6:1.5 r:0.5 | !Db5:0.25 !F5:0.25 C6:0.5 !Db5:0.25 !F5:0.25 C6:0.5 Db6:1 Bb5:1 | Ab5:0.5 F5:0.5 Eb5:0.5 Db5:0.5 F5:1.5 r:0.5 | !Bb4:0.25 !Eb5:0.25 F5:0.5 !Bb4:0.25 !Eb5:0.25 F5:0.5 Ab5:1 Bb5:1 | Ab5:1/3 Bb5:1/3 C6:1/3 Bb5:1/3 Ab5:1/3 F5:1/3 Eb5:2 | r:4 | @ff F5:1.5 Ab5:0.5 Eb6:2 | Db6:1 C6:0.5 Bb5:0.5 F5:2 | Eb5:1.5 G5:0.5 D6:1 r:1 | C6:1 Bb5:0.5 Ab5:0.5 F5:1.5 r:0.5 | Ab5:0.5 C6:0.5 Eb6:2 Db6:0.5 C6:0.5 | Bb5:1 Db6:1 F5:1 Ab5:1 | Eb5:0.5 F5:0.5 Ab5:0.5 Bb5:0.5 Db6:1 r:1 | C6:1.5 Ab5:0.5 F5:1 C5:1 | Db6:2 C6:1.5 r:0.5 | @f> Bb5:3 Ab5:0.5 F5:0.5 | Eb5:3 r:1'],
       [61,'@mp "Cadenza_ad_lib.,_MR_은_지속음만_8마디(약_34초)" G4:1.5 Bb4:0.5 F5:2 | (G5)F5:1 Eb5:0.5 F5:0.5 G5:0.5 Bb5:0.5 Eb6:1 | D6:1 C6:0.5 Bb5:0.5 G5:0.5 F5:0.5 Eb5:1 | @mf< Eb5:1/3 F5:1/3 G5:1/3 Bb5:1/3 C6:1/3 D6:1/3 Eb6:2 | D6:0.25 C6:0.25 Bb5:0.25 G5:0.25 F5:0.25 Eb5:0.25 D5:0.25 C5:0.25 Bb4:2 | G4:1.5 Bb4:0.5 F5:1 Bb5:1 | @f "다음_큐:_팀파니_굴림" Eb5:0.5 F5:0.5 Ab5:0.5 Bb5:0.5 Eb6:2 | D6:2 r:2'],
       [69,'@f G4:1 G4:0.5 Bb4:0.5 F5:2 | Eb5:1 Eb5:0.5 D5:0.5 C5:2 | C5:1 C5:0.5 D5:0.5 Eb5:1 G5:1 | F5:2 r:1 Bb4:0.5 C5:0.5 | Eb5:1 Eb5:0.5 F5:0.5 G5:2 | F5:1 D5:0.5 Bb4:0.5 D5:2 | C5:1 C5:0.5 Bb4:0.5 Ab4:1 Eb5:1 | F5:3 r:1'],
       [77,'@mf< "둘째_주제_E♭" G5:3 F5:0.5 Eb5:0.5 | Eb5:2 C5:1 Bb4:1 | Ab4:1.5 Bb4:0.5 C5:1 Eb5:1 | D5:2 Eb5:1 F5:1 | G5:2 F5:1 Eb5:1 | C5:1.5 Eb5:0.5 Ab5:2 | G5:1 F5:1 Eb5:1 Bb4:1 | F5:3 r:1'],
-      [85,'@ff G5:1.5 Bb5:0.5 D6:2 | Eb6:1 D6:0.5 C6:0.5 Bb5:2 | C6:1.5 D6:0.5 Eb6:2 | C6:1 Ab5:1 F5:2 | @mf> Eb5:1 G5:1 Bb5:2 | C6:2 Bb5:1 G5:1 | G5:4 | Eb5:4'],
+      [85,'@ff G5:1.5 Bb5:0.5 D6:2 | Eb6:1 D6:0.5 C6:0.5 Bb5:2 | C6:1.5 D6:0.5 Eb6:2 | C6:1 Ab5:1 F5:1 r:1 | @mf> Eb5:1 G5:1 Bb5:2 | C6:2 Bb5:1 G5:1 | G5:4 | Eb5:4'],
       [93,'@pp r:2 G4:1.5 Bb4:0.5 | F5:4 | Eb5:4 | r:4 | r:2 G5:1.5 Bb5:0.5 | F5:4 | Eb5:4 | r:4']]);
     /* 짜임 */
     quartet(PC,['vc','va','v2','v1'],1,12,{lo:46,hi:91,v:46,shift:[-12,0,0,0]});
@@ -48333,13 +48362,13 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     const PC=new Piece(S);
     daegeum(PC,'dg',[
       [5,'@pp "멀리서,_시김새_깊게" r:2 G4:2 | (Ab4)G4:3 r:1 | C5:2 (D5)C5:1 Eb5:1 | D5:3 r:1'],
-      [9,'@mp G5:1 G5:0.5 G5:0.5 (Ab5)G5:1 Eb5:1 | F5:1.5 Eb5:0.5 C5:2 | Eb5:1 Eb5:0.5 G5:0.5 C6:2 | C6:1 (D6)C6:1 G5:2 | Bb5:1 Bb5:0.5 C6:0.5 Bb5:1 G5:1 | Ab5:1.5 G5:0.5 F5:2 | F5:1 F5:0.5 Ab5:0.5 C6:1 Ab5:1 | G5:3 r:1'],
-      [17,'@mp G5:2 (Ab5)G5:1 Eb5:1 | Ab5:1.5 G5:0.5 Eb5:2 | F5:1 Ab5:1 C6:1 Eb6:1 | @mf> D6:2 C6:1 D6:1 | Eb6:1.5 D6:0.5 Bb5:1 G5:1 | C6:2 Ab5:1 Eb5:1 | F5:1 Ab5:1 G5:1 D5:1 | C5:3 r:1'],
-      [25,'@mp r:4 | r:2 Ab5:1 Ab5:1 | C6:2 Bb5:1 Ab5:1 | G5:2 Ab5:1 Bb5:1 | C6:1 C6:0.5 C6:0.5 Ab5:1 F5:1 | G5:1.5 Ab5:0.5 C6:2 | Db6:1 Db6:0.5 C6:0.5 Ab5:2 | G5:3 r:1 | @mf F5:1 Ab5:1 C6:1.5 Bb5:0.5 | Bb5:2 G5:1 Eb5:1 | Ab5:1.5 Bb5:0.5 C6:1 Eb6:1 | Db6:2 C6:1 Bb5:1 | Bb5:1.5 Ab5:0.5 F5:1 Db5:1 | C5:1 F5:1 Ab5:2 | Ab5:2 F5:1 Eb5:1 | F5:2 D5:1 G5:1'],
-      [41,'@mf< G5:1 (Ab5)G5:0.5 Eb5:0.5 C5:1 r:0.5 G5:0.5 Bb5:1 C6:1 | Eb6:1 C6:0.5 Ab5:0.5 Eb5:1 r:0.5 C6:0.5 Bb5:1 G5:1 | Ab5:1 (Bb5)Ab5:0.5 F5:0.5 C5:1 r:0.5 Ab5:0.5 C6:1 Eb6:1 | D6:2 C6:1 G5:1 F5:1 D5:1 | !Eb5:0.5 !G5:0.5 !Bb5:0.5 !D6:0.5 Eb6:1 D6:0.5 C6:0.5 Bb5:1 G5:1 | Ab5:1 (Bb5)Ab5:0.5 F5:0.5 Db5:1 r:0.5 G5:0.5 C6:1 Db6:1 | !F5:0.5 !Ab5:0.5 !C6:0.5 !Db6:0.5 C6:1 Bb5:1 Ab5:1 F5:1 | G5:3 F5:1 G5:1 Bb5:1 | @f< C6:1 (Db6)C6:0.5 Ab5:0.5 F5:1 r:0.5 C6:0.5 Eb6:2 | Eb6:1 C6:0.5 Bb5:0.5 G5:1 Ab5:1 C6:2 | Db6:1.5 C6:0.5 Ab5:1 F5:1 Ab5:1 C6:1 | B5:2 D6:2 F5:1 G5:1'],
-      [53,'@ff G5:2 (Ab5)G5:1 C6:1 | Eb6:3 D6:0.5 C6:0.5 | C6:1.5 Ab5:0.5 F5:1 Ab5:1 | D6:3 B5:1 | Eb6:2 D6:1 C6:1 | Db6:2 C6:1 Ab5:1 | C6:1 Ab5:1 G5:1 F5:1 | @f> G5:2 F5:1 D5:1'],
-      [61,'@p "자유롭게,_시김새는_형_뜻대로" G4:3 (Ab4)G4:1 | C5:2 (D5)C5:1 Eb5:1 | D5:1.5 Eb5:0.5 G5:2 | (Ab5)G5:2 F5:1/3 G5:1/3 Eb5:1/3 C5:1 | @mp< C6:2 (D6)C6:1 G5:1 | Eb6:1.5 D6:0.5 C6:0.25 Bb5:0.25 G5:0.5 Eb5:1 | Eb5:1 G5:1 C6:2 | D6:3 r:1'],
-      [69,'@mp G5:1 G5:0.5 G5:0.5 (Ab5)G5:1 Eb5:1 | F5:1.5 Eb5:0.5 C5:2 | Eb5:1 Eb5:0.5 G5:0.5 C6:2 | C6:1 (D6)C6:1 G5:2 | Bb5:1 Bb5:0.5 C6:0.5 Bb5:1 G5:1 | Ab5:1.5 G5:0.5 F5:2 | F5:1 F5:0.5 Ab5:0.5 C6:1 Ab5:1 | G5:3 r:1'],
+      [9,'@mp G5:1 G5:0.5 G5:0.5 (Ab5)G5:1 Eb5:1 | F5:1.5 Eb5:0.5 C5:2 | Eb5:1 Eb5:0.5 G5:0.5 C6:2 | C6:1 (D6)C6:1 G5:1 r:1 | Bb5:1 Bb5:0.5 C6:0.5 Bb5:1 G5:1 | Ab5:1.5 G5:0.5 F5:2 | F5:1 F5:0.5 Ab5:0.5 C6:1 Ab5:1 | G5:3 r:1'],
+      [17,'@mp G5:2 (Ab5)G5:1 Eb5:1 | Ab5:1.5 G5:0.5 Eb5:2 | F5:1 Ab5:1 Bb5:1 C6:1 | @mf> D6:2 C6:1 D6:1 | D6:1.5 C6:0.5 Bb5:1 G5:1 | C6:2 Ab5:1 Eb5:1 | F5:1 Ab5:1 G5:1 D5:1 | C5:3 r:1'],
+      [25,'@mp r:4 | r:2 Ab5:1 Ab5:1 | C6:2 Bb5:1 Ab5:1 | G5:2 Ab5:1 Bb5:1 | C6:1 C6:0.5 C6:0.5 Ab5:1 F5:1 | G5:1.5 Ab5:0.5 C6:2 | Db6:1 Db6:0.5 C6:0.5 Ab5:2 | G5:3 r:1 | @mf F5:1 Ab5:1 C6:1.5 Bb5:0.5 | Bb5:2 G5:1 Eb5:1 | Ab5:1.5 Bb5:0.5 Ab5:1 C6:1 | Db6:2 C6:1 r:1 | Bb5:1.5 Ab5:0.5 F5:1 Db5:1 | C5:1 F5:1 Ab5:2 | Ab5:2 F5:1 Eb5:1 | F5:2 D5:1 G5:1'],
+      [41,'@mf< G5:1 (Ab5)G5:0.5 Eb5:0.5 C5:1 r:0.5 G5:0.5 Bb5:1 C6:1 | Db6:1 C6:0.5 Ab5:0.5 Eb5:1 r:0.5 C6:0.5 Bb5:1 G5:1 | Ab5:1 (Bb5)Ab5:0.5 F5:0.5 C5:1 r:0.5 Ab5:0.5 Bb5:1 C6:1 | D6:2 C6:1 G5:1 F5:1 r:1 | !Eb5:0.5 !G5:0.5 !Bb5:0.5 !D6:0.5 C6:1 D6:0.5 C6:0.5 Bb5:1 G5:1 | Ab5:1 (Bb5)Ab5:0.5 F5:0.5 Db5:1 r:0.5 G5:0.5 C6:1 Db6:1 | !F5:0.5 !Ab5:0.5 !C6:0.5 !Db6:0.5 C6:1 Bb5:1 Ab5:1 F5:1 | G5:3 F5:1 G5:1 Bb5:1 | @f< C6:1 (Db6)C6:0.5 Ab5:0.5 F5:1 r:0.5 Ab5:0.5 C6:2 | Db6:1 C6:0.5 Bb5:0.5 G5:1 Ab5:1 C6:2 | Db6:1.5 C6:0.5 Ab5:1 F5:1 Ab5:1 C6:1 | B5:2 D6:2 F5:1 G5:1'],
+      [53,'@ff G5:2 (Ab5)G5:1 C6:1 | Eb6:3 D6:0.5 C6:0.5 | C6:1.5 Ab5:0.5 F5:1 Ab5:1 | D6:3 r:1 | Eb6:2 D6:1 C6:1 | Db6:2 C6:1 Ab5:1 | C6:1 Ab5:1 G5:1 F5:1 | @f> G5:2 F5:1 r:1'],
+      [61,'@p "자유롭게,_시김새는_형_뜻대로" G4:3 (Ab4)G4:1 | C5:2 (D5)C5:1 Eb5:1 | D5:1.5 Eb5:0.5 G5:2 | (Ab5)G5:2 F5:1/3 G5:1/3 Eb5:1/3 r:1 | @mp< C6:2 (D6)C6:1 G5:1 | Eb6:1.5 D6:0.5 C6:0.25 Bb5:0.25 G5:0.5 Eb5:1 | Eb5:1 G5:1 C6:2 | D6:3 r:1'],
+      [69,'@mp G5:1 G5:0.5 G5:0.5 (Ab5)G5:1 Eb5:1 | F5:1.5 Eb5:0.5 C5:2 | Eb5:1 Eb5:0.5 G5:0.5 C6:2 | C6:1 (D6)C6:1 G5:1 r:1 | Bb5:1 Bb5:0.5 C6:0.5 Bb5:1 G5:1 | Ab5:1.5 G5:0.5 F5:2 | F5:1 F5:0.5 Ab5:0.5 C6:1 Ab5:1 | G5:3 r:1'],
       [77,'@mf G5:1 G5:0.5 G5:0.5 (Ab5)G5:1 C6:1 | C6:1.5 Bb5:0.5 Ab5:2 | Ab5:1 Ab5:0.5 G5:0.5 F5:1 C6:1 | Eb6:3 r:1 | D6:1 D6:0.5 C6:0.5 Bb5:2 | C6:1.5 Bb5:0.5 Eb5:2 | @p> F5:1 Ab5:1 Bb5:1 F5:1 | G5:4'],
       [85,'r:4 | @pp r:2 G5:1 (Ab5)G5:1 | Eb5:4 | r:4 | r:2 Bb4:1 C5:1 | Eb5:4']]);
     /* 피리: F 단조로 주제(25~28), 낮은 맞음(29~32), 대금 한 옥타브 아래 한 줄(33~40) */
@@ -48434,11 +48463,11 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     const PC=new Piece(S);
     daegeum(PC,'dg',[
       [5,'@mp G5:1 G5:0.5 G5:0.5 Eb5:1 C5:1 | C5:1.5 Eb5:0.5 Ab5:2 | Ab5:1 Ab5:0.5 G5:0.5 F5:1 Eb5:1 | D5:2 Eb5:1 F5:1 | G5:1 G5:0.5 G5:0.5 Bb5:1 G5:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 G5:1 | F5:1 Ab5:1 F5:1 Eb5:1 | C5:3 r:1'],
-      [13,'@mf (Ab5)G5:1 G5:0.5 G5:0.5 Eb5:1 C5:1 | C5:1.5 Eb5:0.5 Ab5:1 C6:1 | Ab5:1 Ab5:0.5 G5:0.5 F5:0.5 Eb5:0.5 F5:1 | D5:2 Eb5:1 F5:1 | G5:1 G5:0.5 G5:0.5 Bb5:1 D6:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 Eb6:1 | F5:1 Ab5:1 F5:1 Eb5:1 | C5:3 r:1'],
-      [21,'@mp "피아노가_주제,_대금은_위에서_길게" G5:4 | Eb6:3.5 r:0.5 | C6:4 | D6:2 Bb5:1.5 r:0.5 | G5:4 | C6:4 | Ab5:2 F5:2 | G5:4'],
+      [13,'@mf (Ab5)G5:1 G5:0.5 G5:0.5 Eb5:1 C5:1 | C5:1.5 Eb5:0.5 Ab5:1 C6:1 | Ab5:1 Ab5:0.5 G5:0.5 F5:0.5 Eb5:0.5 F5:1 | D5:2 Eb5:1 F5:1 | G5:1 G5:0.5 G5:0.5 Bb5:1 D6:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 C6:1 | F5:1 Ab5:1 F5:1 Eb5:1 | C5:3 r:1'],
+      [21,'@mp "피아노가_주제,_대금은_위에서_길게" G5:4 | Ab5:3.5 r:0.5 | C6:4 | D6:2 Bb5:1.5 r:0.5 | G5:4 | C6:4 | Ab5:2 F5:2 | G5:2.5 r:1.5'],
       [29,'@mf< "어둡게" C5:1 C5:0.5 C5:0.5 Ab4:1 F4:1 | F4:1.5 Ab4:0.5 Db5:2 | Db5:1 Db5:0.5 C5:0.5 Bb4:1 Ab4:1 | G4:2 Ab4:1 Bb4:1 | C5:1 C5:0.5 C5:0.5 Eb5:1 C5:1 | F5:1 F5:0.5 Eb5:0.5 Db5:1 C5:1 | Bb4:1 Db5:1 Bb4:1 Ab4:1 | F4:3 r:1'],
-      [37,'@f C5:0.5 D5:0.5 Eb5:0.5 G5:0.5 r:0.5 G5:0.5 Bb5:1 | C6:1.5 Bb5:0.5 Ab5:0.5 G5:0.5 Eb5:1 | D5:0.5 F5:0.5 Bb5:0.5 D6:0.5 r:0.5 D6:0.5 C6:1 | Eb6:1.5 D6:0.5 C6:0.5 Bb5:0.5 G5:1 | F5:1/3 G5:1/3 Ab5:1/3 C6:1.5 Bb5:0.5 Ab5:1 | Eb5:0.5 Ab5:1 C6:0.5 r:0.5 Eb6:1 C6:0.5 | D6:1.5 C6:0.5 Bb5:1 F5:1 | G5:3 r:1 | @f< C5:0.25 Eb5:0.25 F5:0.25 Ab5:0.25 C6:1 Ab5:0.5 C6:0.5 Eb6:1 | D6:1.5 Bb5:0.5 G5:1 D5:1 | Eb5:0.5 Ab5:0.5 C6:0.5 Eb6:1.5 C6:1 | D6:1 F5:0.5 Bb5:0.5 D6:1 C6:1 | Eb6:1.5 D6:0.5 C6:0.5 Bb5:0.5 G5:1 | Ab5:1 C6:1 Eb6:1 C6:1 | Eb6:2 C6:1 Ab5:1 | Bb5:1 F5:1 Bb5:0.5 C6:0.5 D6:1'],
-      [53,'@ff G5:1 G5:0.5 G5:0.5 Eb5:1 C5:1 | C5:1.5 Eb5:0.5 Ab5:2 | Ab5:1 Ab5:0.5 G5:0.5 F5:1 Eb5:1 | D5:2 Eb5:1 F5:1 | G5:1 G5:0.5 G5:0.5 Bb5:1 G5:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 G5:1 | F5:1 Ab5:1 F5:1 Eb5:1 | G5:1 C6:3 | Eb6:1 Eb6:0.5 Eb6:0.5 D6:1 C6:1 | C6:1.5 Bb5:0.5 Ab5:2 | Ab5:1 Ab5:0.5 G5:0.5 F5:1 Eb5:1 | @f> D5:3 r:1'],
+      [37,'@f C5:0.5 D5:0.5 Eb5:0.5 G5:0.5 r:0.5 G5:0.5 Bb5:1 | C6:1.5 Bb5:0.5 Ab5:0.5 G5:0.5 Eb5:1 | D5:0.5 F5:0.5 Bb5:0.5 D6:0.5 r:0.5 D6:0.5 C6:1 | D6:1.5 Bb5:0.5 C6:0.5 Bb5:0.5 r:1 | F5:1/3 G5:1/3 Ab5:1/3 C6:1.5 Bb5:0.5 Ab5:1 | Eb5:0.5 Ab5:1 C6:0.5 r:0.5 Db6:1 C6:0.5 | D6:1.5 C6:0.5 Bb5:1 F5:1 | G5:3 r:1 | @f< C5:0.25 Eb5:0.25 F5:0.25 Ab5:0.25 C6:1 Ab5:0.5 Bb5:0.5 C6:1 | D6:1.5 Bb5:0.5 G5:1 D5:1 | Eb5:0.5 Ab5:0.5 C6:0.5 Db6:1.5 C6:1 | D6:1 F5:0.5 Bb5:0.5 D6:1 r:1 | D6:1.5 C6:0.5 Bb5:0.5 C6:0.5 G5:1 | Ab5:1 C6:1 Db6:1 C6:1 | C6:2 Bb5:1 Ab5:1 | Bb5:1 F5:1 Bb5:0.5 C6:0.5 D6:1'],
+      [53,'@ff G5:1 G5:0.5 G5:0.5 Eb5:1 C5:1 | C5:1.5 Eb5:0.5 Ab5:2 | Ab5:1 Ab5:0.5 G5:0.5 F5:1 Eb5:1 | D5:2 Eb5:1 F5:1 | G5:1 G5:0.5 G5:0.5 Bb5:1 G5:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 G5:1 | F5:1 Ab5:1 F5:1 Eb5:1 | G5:1 C6:1.5 r:1.5 | Eb6:1 Eb6:0.5 Eb6:0.5 D6:1 C6:1 | C6:1.5 Bb5:0.5 Ab5:2 | Ab5:1 Ab5:0.5 G5:0.5 F5:1 Eb5:1 | @f> D5:3 r:1'],
       [65,'@p r:2 G5:1 G5:1 | Eb5:4 | r:1 C5:1 Eb5:1 G5:1 | F5:3 r:1'],
       [69,'@mp "풀리며" Bb5:1 Bb5:0.5 Bb5:0.5 G5:1 Eb5:1 | Eb5:1.5 G5:0.5 C6:2 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 G5:1 | F5:2 G5:1 Ab5:1 | Bb5:1 Bb5:0.5 Bb5:0.5 D6:1 Bb5:1 | Eb6:1 Eb6:0.5 D6:0.5 C6:1 Bb5:1 | Ab5:1 C6:1 Bb5:1 F5:1 | Eb5:3 r:1'],
       [77,'@p G5:4 | Eb6:3.5 r:0.5 | C6:4 | F5:2 Bb5:1.5 r:0.5 | G5:4 | Eb6:3.5 r:0.5 | F5:2 Bb5:2 | G5:4'],
@@ -48460,7 +48489,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
     pHemi(PC,K,37,44,{n:5,lo:55,hi:79,v:88,blo:29}); pOct8(PC,K,37,44,{lo:29,v:72});
     pTrem(PC,K,45,52,{lo:58,hi:84,v0:74,v1:124}); pOct8(PC,K,45,52,{lo:29,v:94}); pToll(PC,K,45,52,{every:2,v:104});
     /* 53~60 터짐: 셋잇단 네 음 화음 + 주제를 세 옥타브 아래로 함께, 61~64 박마다 큰 화음과 내려가는 옥타브 */
-    pTrip(PC,K,53,60,{n:4,lo:60,hi:86,v:98}); pTheme(PC,K,53,'G5:1 G5:0.5 G5:0.5 Eb5:1 C5:1 | C5:1.5 Eb5:0.5 Ab5:2 | Ab5:1 Ab5:0.5 G5:0.5 F5:1 Eb5:1 | D5:3 r:1 | G5:1 G5:0.5 G5:0.5 Bb5:1 G5:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 G5:1 | F5:1 Ab5:1 F5:1 Eb5:1 | C5:3 r:1',{oct:[-12,-24,-36],v:110}); pBlockDesc(PC,K,61,64,{lo:55,hi:86,v:120,blo:33,scale:SC}); pedalOn(PC,K,53,64);
+    pTrip(PC,K,53,60,{n:4,lo:60,hi:86,v:106}); for(let b=53;b<=60;b++){ for(let be=0;be<4;be+=1){ const t=PC.T(b,be); const m=rootIn(PC.chAt(t).ch,24); padd(PC,K,t,m,be===0?122:(be===2?114:104),PPQ*(be%2?0.8:1.6)); padd(PC,K,t,m+12,be===0?118:(be===2?110:100),PPQ*(be%2?0.8:1.6)); } } pTheme(PC,K,53,'G5:1 G5:0.5 G5:0.5 Eb5:1 C5:1 | C5:1.5 Eb5:0.5 Ab5:2 | Ab5:1 Ab5:0.5 G5:0.5 F5:1 Eb5:1 | D5:3 r:1 | G5:1 G5:0.5 G5:0.5 Bb5:1 G5:1 | C6:1 C6:0.5 Bb5:0.5 Ab5:1 G5:1 | F5:1 Ab5:1 F5:1 Eb5:1 | C5:3 r:1',{oct:[-12,-24],v:114}); pBlockDesc(PC,K,61,64,{lo:55,hi:86,v:120,blo:33,scale:SC}); pedalOn(PC,K,53,64);
     /* 65~68 여운: 높은 종과 낮은 종 */
     pBell(PC,K,66,68,{lo:63,hi:88,v:52}); pToll(PC,K,67,68,{every:1,v:70});
     /* 69~76 넓은 셋잇단 펼침과 두 마디 종, 77~84 풀린 주제 두 옥타브 + 낮은 펼침, 85~92 종 화음 */
@@ -48475,7 +48504,7 @@ globalThis.__amax=globalThis.__amax||function(a){ let m=-Infinity; for(let x of 
 
   const PIECES={1:piece1, 2:piece2, 3:piece3, 4:piece4, 5:piece5, 6:piece6, 7:piece7};
   const LAST={};
-  function make(id){ const PC=PIECES[id](); const S=PC.S; if(RHY[id]) RHY[id](PC); if(BLD[id]) BLD[id](PC); if(ARR[id]) ARR[id](PC); const B=build(PC);
+  function make(id){ const PC=PIECES[id](); const S=PC.S; if(RHY[id]) RHY[id](PC); if(BLD[id]) BLD[id](PC); if(ARR[id]) ARR[id](PC); if(CLX[id]) CLX[id](PC); answer(PC,id); declash(PC); const B=build(PC);
     let xml=null; try{ if(window.__toMusicXML) xml=window.__toMusicXML(B.score,{title:S.ko+' ('+S.en+')', noCombine:true, noArp:true, chordPart:/^Daegeum$/}); }catch(e){ window.__dgrXmlErr=String(e&&e.stack||e); }
     const notes={head:[S.ko+'. '+S.en+'.', S.note||''], rows:S.secs.map(function(x,i){ const nb=(S.secs[i+1]?S.secs[i+1][0]:S.bars+1)-x[0]; return [x[1], mm(PC.BARS[x[0]].sec-PC.BARS[1].sec), nb, x[2]]; }), tail:['조: '+S.keyName+'. '+S.meterName+'.', '대금: 형 실연, MIDI 는 가이드(뮤트하고 MR 로). 악보는 오선보 실음.']};
     let html=null; try{ if(window.__guideHTML) html=window.__guideHTML({midi:B.u8, notes:notes, app:'play-daegeum', title:S.ko+' (대금 연주곡 '+S.id+') 제작 가이드', sub:'Play Composer, 대금 연주곡, '+S.keyName, genre:S.genre,
