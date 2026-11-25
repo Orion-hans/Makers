@@ -4710,17 +4710,17 @@ window.__noteTidy=function(u8){ try{ const b=u8; if(!b||b.length<14||b[0]!==0x4D
    opt.bnd(이어 붙인 자리 틱들, 첫 자리 0 은 건너뜀)를 주면 앱 칸 조건과 길이 조건 없이 그 자리마다 이음 패드. 곡 안에서 이미 만든 Seam Pad 트랙이 있으면 그 트랙(채널)에 더함 */
 window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && opt.bnd.length>1);
   const CX=window.__STAGE_CTX||{}; if(!FB && (!(CX.app==='play'||CX.app==='band'||CX.app==='beat') || CX.score || CX.wamb || CX.amb5 || CX.well || /carol|yoga|medi|rch/i.test(String(CX.genre||'')))) return u8;
-  const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54) return u8;
+  const b=(u8 instanceof Uint8Array)?u8:new Uint8Array(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54) return u8;
   const vlq=function(v){ v=Math.max(0,v|0); const o=[v&0x7F]; v>>=7; while(v>0){ o.unshift((v&0x7F)|0x80); v>>=7; } return o; };
-  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0, ppq=((b[12]<<8)|b[13]); let p=8+hl; const head=b.slice(0,p); const chunks=[];
+  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0, ppq=((b[12]<<8)|b[13]); let p=8+hl; const head=Array.from(b.subarray(0,p)); const chunks=[];
   const dec=function(a){ try{ return new TextDecoder().decode(new Uint8Array(a)); }catch(e){ return ''; } }, enc=function(s){ return Array.from(new TextEncoder().encode(s)); };
   while(p+8<=b.length){ const isTrk=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0;
-    const body=b.slice(p+8,p+8+len), whole=b.slice(p,p+8+len); p+=8+len; if(!isTrk){ chunks.push({raw:whole}); continue; }
+    const body=b.subarray(p+8,p+8+len), whole=b.subarray(p,p+8+len); p+=8+len; if(!isTrk){ chunks.push({raw:whole}); continue; }
     let i=0,t=0,rs=0,ord=0,eot=null; const ev=[]; const rdv=function(){ let v=0,c; do{ c=body[i++]; v=(v<<7)|(c&127); }while((c&128)&&i<body.length); return v; };
     while(i<body.length){ t+=rdv(); let s=body[i]; if(s<0x80){ s=rs; } else { i++; if(s<0xF0) rs=s; }
-      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
-      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
-      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
+      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=Array.from(body.subarray(i,i+l)); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
+      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=Array.from(body.subarray(i,i+l)); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
+      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=(n===1)?[body[i]]:[body[i],body[i+1]]; i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
     const nmE=ev.find(function(e){ return e.meta===0x03; }); chunks.push({ev:ev, eot:(eot==null?t:eot), whole:whole, nm:nmE?dec(nmE.dat):''}); }
   const TR=chunks.filter(function(c){ return c.ev; }); if(TR.length<3) return u8;
   if(!FB && TR.some(function(c){ return /Seam Pad|Strings \(bridge\)|Winter Pad/.test(c.nm); })) return u8;
@@ -4745,8 +4745,9 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
   if(FB){ BND.length=0; opt.bnd.slice(1).forEach(function(t){ if(t>0 && t<songEnd) BND.push({t:t, L:barLen(t), K:keyAt(t)}); }); }
   if(!BND.length) return u8;
   const pairs=function(c){ const op={}, P=[]; c.ev.slice().sort(function(x,y){ return (x.t-y.t)||(x.o-y.o); }).forEach(function(e){ if(e.s==null) return; const hi=e.s&0xF0; if(hi===0x90&&e.d[1]>0){ (op[e.d[0]]=op[e.d[0]]||[]).push(e); } else if(hi===0x80||(hi===0x90&&e.d[1]===0)){ const q=op[e.d[0]]; if(q&&q.length) P.push({on:q.shift(), off:e}); } }); return P; };
+  const PCACHE=new Map(); const pairsC=function(c){ let r=PCACHE.get(c); if(!r){ r=pairs(c); PCACHE.set(c,r); } return r; };   /* ★ 2026-11-25 로비 하루가 앱을 멈춤: 트랙마다 음 짝을 한 번만 셈(예전엔 이음 자리마다 트랙 수 x 트랙 수 번 다시 정렬) */
   const PERC=/Drum|Kit\b|Perc|Kick|Snare|Hat|Cymbal|Riser|Impact|FX|Sweep|Downlifter|Timpani|Gran Cassa|Tam-tam/i;
-  const hist=function(a,z){ const W=new Array(12).fill(0); TR.forEach(function(c,ci){ if(ci===0 || PERC.test(c.nm) || /Seam Pad/.test(c.nm)) return; pairs(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<24) return; const aa=Math.max(a,x.on.t), zz=Math.min(z,x.off.t); if(zz>aa) W[x.on.d[0]%12]+=(zz-aa)*(x.on.d[0]<52?1.5:1); }); }); return W; };
+  const hist=function(a,z){ const W=new Array(12).fill(0); TR.forEach(function(c,ci){ if(ci===0 || PERC.test(c.nm) || /Seam Pad/.test(c.nm)) return; pairsC(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<24) return; const aa=Math.max(a,x.on.t), zz=Math.min(z,x.off.t); if(zz>aa) W[x.on.d[0]%12]+=(zz-aa)*(x.on.d[0]<52?1.5:1); }); }); return W; };
   const triOf=function(r,min){ return [r,(r+(min?3:4))%12,(r+7)%12]; };
   const chordFromW=function(W){ let best=null, bw=-1; for(let r=0;r<12;r++) [false,true].forEach(function(mi){ const w=triOf(r,mi).reduce(function(a,x){ return a+W[x]; },0); if(w>bw){ bw=w; best={r:r,min:mi}; } }); return best; };
   const chordAt=function(t,dir,L){ if(CH.length){ if(dir<0){ let r=null; CH.forEach(function(x){ if(x.t<t && x.t>=t-2*L) r=x; }); if(r) return r; } else { const r=CH.find(function(x){ return x.t>=t-4 && x.t<t+L; }); if(r) return r; } } return chordFromW(dir<0?hist(t-L,t):hist(t,t+L)); };
@@ -4766,11 +4767,11 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
       if(!V.length) V=prev.slice(); V.forEach(function(m,q){ note(g[0]+q*8,m,[42,46,46,40][gi]-q*2,g[1]-g[0]-q*8-6); }); prev=V; prevC=C; });
     cc(t-L,0); cc(t-L+Math.round(L/4),48); cc(t-h,66); cc(t,70); cc(t+h,48); cc(t+L-20,14);
     /* 툭 끝나는 지속음 트랙은 반 마디 더 */
-    TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm) || !SUS.test(c.nm)) return; const P=pairs(c); if(P.some(function(x){ return x.on.t>=t && x.on.t<t+h; })) return;
-      const W2=hist(t,t+h), m2=Math.max.apply(null,W2); const clash=function(pc){ return m2>0 && (W2[(pc+1)%12]>0.15*m2 || W2[(pc+11)%12]>0.15*m2) && !(W2[pc]>0.15*m2); };   /* 다음 편 소리와 반음이면 끌지 않음 */
+    const W2=hist(t,t+h), m2=Math.max.apply(null,W2);
+    TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm) || !SUS.test(c.nm)) return; const P=pairsC(c); if(P.some(function(x){ return x.on.t>=t && x.on.t<t+h; })) return; const clash=function(pc){ return m2>0 && (W2[(pc+1)%12]>0.15*m2 || W2[(pc+11)%12]>0.15*m2) && !(W2[pc]>0.15*m2); };   /* 다음 편 소리와 반음이면 끌지 않음 */
       let hit=false; P.forEach(function(x){ if(x.off.t>=t-Math.round(ppq/2) && x.off.t<=t+Math.round(ppq/4) && x.on.t<t && !clash(x.on.d[0]%12)){ x.off.t=t+h; hit=true; } }); if(hit){ c.dirty=true; ext++; } }); });
   /* ★ 2026-11-25 이음 패드 음이 다른 트랙 음과 반음으로 반 박 넘게 겹치면 그 음은 뺌(로비 이음 검사: 패드 칸의 3.8% 가 지나가는 베이스, 7도 선율과 부딪힘) */
-  { const OT=[]; TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm)) return; pairs(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<28) return; OT.push([x.on.t,x.off.t,x.on.d[0]%12]); }); });
+  { const OT=[]; TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm)) return; pairsC(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<28) return; if(!BND.some(function(B){ return x.off.t>B.t-B.L-ppq && x.on.t<B.t+B.L+ppq; })) return; OT.push([x.on.t,x.off.t,x.on.d[0]%12]); }); });
     const mine=PAD.ev.filter(function(e){ return e.o>=O9S && e.s!=null && (e.s&0xF0)===0x90 && e.d[1]>0; }); let dropN=0;
     mine.forEach(function(on){ const off=PAD.ev.find(function(e){ return e.o>on.o && e.o>=O9S && e.s!=null && (e.s&0xF0)===0x80 && e.d[0]===on.d[0] && e.t>=on.t; }); if(!off) return; const pc=on.d[0]%12; let ov=0;
       OT.forEach(function(x){ if(x[2]!==(pc+1)%12 && x[2]!==(pc+11)%12) return; const a=Math.max(on.t,x[0]), z=Math.min(off.t,x[1]); if(z>a) ov+=z-a; });
@@ -4778,15 +4779,16 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
     if(dropN) PAD.ev=PAD.ev.filter(function(e){ return !e.kill; }); ext+=0; window.__SEAM_DROP=dropN; }
   if(!PAD0) chunks.push(PAD);
   window.__SEAM_REPORT={seams:BND.length, ext:ext, lobby:FB};
-  const res=head.slice(); let nTr=0;
-  chunks.forEach(function(c){ if(c.raw){ for(let q=0;q<c.raw.length;q++) res.push(c.raw[q]); return; } nTr++;
-    if(!c.dirty){ for(let q=0;q<c.whole.length;q++) res.push(c.whole[q]); return; }
+  const parts=[new Uint8Array(head)]; let nTr=0, tot=head.length;   /* ★ 2026-11-25 로비 한 시간 묶음에서 메모리를 덜 쓰게: 바뀌지 않은 트랙은 바이트 그대로 붙임 */
+  chunks.forEach(function(c){ if(c.raw){ const r=(c.raw instanceof Uint8Array)?c.raw:new Uint8Array(c.raw); parts.push(r); tot+=r.length; return; } nTr++;
+    if(!c.dirty){ parts.push(c.whole); tot+=c.whole.length; return; }
     const E=c.ev.slice().sort(function(a,z){ return (a.t-z.t)||(a.o-z.o); }); const T=[]; let last=0;
     E.forEach(function(e){ const dv=vlq(e.t-last); for(let q=0;q<dv.length;q++) T.push(dv[q]); last=e.t; if(e.raw){ for(let q=0;q<e.raw.length;q++) T.push(e.raw[q]); } else { T.push(e.s); for(let q=0;q<e.d.length;q++) T.push(e.d[q]); } });
     const eot=Math.max(c.eot,last); const dv=vlq(Math.max(0,eot-last)); for(let q=0;q<dv.length;q++) T.push(dv[q]); T.push(0xFF,0x2F,0x00);
-    const l=T.length; res.push(0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255); for(let q=0;q<T.length;q++) res.push(T[q]); });
-  res[10]=(nTr>>8)&255; res[11]=nTr&255;
-  return new Uint8Array(res); }catch(e){ window.__seamErr=String(e&&e.stack||e); return u8; } };
+    const l=T.length; parts.push(new Uint8Array([0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255])); parts.push(new Uint8Array(T)); tot+=8+l; });
+  parts[0][10]=(nTr>>8)&255; parts[0][11]=nTr&255;
+  const out=new Uint8Array(tot); let w=0; parts.forEach(function(x){ out.set(x,w); w+=x.length; });
+  return out; }catch(e){ window.__seamErr=String(e&&e.stack||e); return u8; } };
 /*SANITY-END*/
 /*CCCLEAN-BEGIN*/
 /* ★ 2026-11-02 형: "서스테인이든 익스프레션이든 제대로 된 구간에 안 먹히고 이상하게 찍히는 게 있네. 전체 전수 검증. 스트링이 툭 끊기면 안 됨"
@@ -14433,17 +14435,17 @@ window.__noteTidy=function(u8){ try{ const b=u8; if(!b||b.length<14||b[0]!==0x4D
    opt.bnd(이어 붙인 자리 틱들, 첫 자리 0 은 건너뜀)를 주면 앱 칸 조건과 길이 조건 없이 그 자리마다 이음 패드. 곡 안에서 이미 만든 Seam Pad 트랙이 있으면 그 트랙(채널)에 더함 */
 window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && opt.bnd.length>1);
   const CX=window.__STAGE_CTX||{}; if(!FB && (!(CX.app==='play'||CX.app==='band'||CX.app==='beat') || CX.score || CX.wamb || CX.amb5 || CX.well || /carol|yoga|medi|rch/i.test(String(CX.genre||'')))) return u8;
-  const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54) return u8;
+  const b=(u8 instanceof Uint8Array)?u8:new Uint8Array(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54) return u8;
   const vlq=function(v){ v=Math.max(0,v|0); const o=[v&0x7F]; v>>=7; while(v>0){ o.unshift((v&0x7F)|0x80); v>>=7; } return o; };
-  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0, ppq=((b[12]<<8)|b[13]); let p=8+hl; const head=b.slice(0,p); const chunks=[];
+  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0, ppq=((b[12]<<8)|b[13]); let p=8+hl; const head=Array.from(b.subarray(0,p)); const chunks=[];
   const dec=function(a){ try{ return new TextDecoder().decode(new Uint8Array(a)); }catch(e){ return ''; } }, enc=function(s){ return Array.from(new TextEncoder().encode(s)); };
   while(p+8<=b.length){ const isTrk=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0;
-    const body=b.slice(p+8,p+8+len), whole=b.slice(p,p+8+len); p+=8+len; if(!isTrk){ chunks.push({raw:whole}); continue; }
+    const body=b.subarray(p+8,p+8+len), whole=b.subarray(p,p+8+len); p+=8+len; if(!isTrk){ chunks.push({raw:whole}); continue; }
     let i=0,t=0,rs=0,ord=0,eot=null; const ev=[]; const rdv=function(){ let v=0,c; do{ c=body[i++]; v=(v<<7)|(c&127); }while((c&128)&&i<body.length); return v; };
     while(i<body.length){ t+=rdv(); let s=body[i]; if(s<0x80){ s=rs; } else { i++; if(s<0xF0) rs=s; }
-      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
-      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
-      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
+      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=Array.from(body.subarray(i,i+l)); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
+      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=Array.from(body.subarray(i,i+l)); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
+      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=(n===1)?[body[i]]:[body[i],body[i+1]]; i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
     const nmE=ev.find(function(e){ return e.meta===0x03; }); chunks.push({ev:ev, eot:(eot==null?t:eot), whole:whole, nm:nmE?dec(nmE.dat):''}); }
   const TR=chunks.filter(function(c){ return c.ev; }); if(TR.length<3) return u8;
   if(!FB && TR.some(function(c){ return /Seam Pad|Strings \(bridge\)|Winter Pad/.test(c.nm); })) return u8;
@@ -14468,8 +14470,9 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
   if(FB){ BND.length=0; opt.bnd.slice(1).forEach(function(t){ if(t>0 && t<songEnd) BND.push({t:t, L:barLen(t), K:keyAt(t)}); }); }
   if(!BND.length) return u8;
   const pairs=function(c){ const op={}, P=[]; c.ev.slice().sort(function(x,y){ return (x.t-y.t)||(x.o-y.o); }).forEach(function(e){ if(e.s==null) return; const hi=e.s&0xF0; if(hi===0x90&&e.d[1]>0){ (op[e.d[0]]=op[e.d[0]]||[]).push(e); } else if(hi===0x80||(hi===0x90&&e.d[1]===0)){ const q=op[e.d[0]]; if(q&&q.length) P.push({on:q.shift(), off:e}); } }); return P; };
+  const PCACHE=new Map(); const pairsC=function(c){ let r=PCACHE.get(c); if(!r){ r=pairs(c); PCACHE.set(c,r); } return r; };   /* ★ 2026-11-25 로비 하루가 앱을 멈춤: 트랙마다 음 짝을 한 번만 셈(예전엔 이음 자리마다 트랙 수 x 트랙 수 번 다시 정렬) */
   const PERC=/Drum|Kit\b|Perc|Kick|Snare|Hat|Cymbal|Riser|Impact|FX|Sweep|Downlifter|Timpani|Gran Cassa|Tam-tam/i;
-  const hist=function(a,z){ const W=new Array(12).fill(0); TR.forEach(function(c,ci){ if(ci===0 || PERC.test(c.nm) || /Seam Pad/.test(c.nm)) return; pairs(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<24) return; const aa=Math.max(a,x.on.t), zz=Math.min(z,x.off.t); if(zz>aa) W[x.on.d[0]%12]+=(zz-aa)*(x.on.d[0]<52?1.5:1); }); }); return W; };
+  const hist=function(a,z){ const W=new Array(12).fill(0); TR.forEach(function(c,ci){ if(ci===0 || PERC.test(c.nm) || /Seam Pad/.test(c.nm)) return; pairsC(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<24) return; const aa=Math.max(a,x.on.t), zz=Math.min(z,x.off.t); if(zz>aa) W[x.on.d[0]%12]+=(zz-aa)*(x.on.d[0]<52?1.5:1); }); }); return W; };
   const triOf=function(r,min){ return [r,(r+(min?3:4))%12,(r+7)%12]; };
   const chordFromW=function(W){ let best=null, bw=-1; for(let r=0;r<12;r++) [false,true].forEach(function(mi){ const w=triOf(r,mi).reduce(function(a,x){ return a+W[x]; },0); if(w>bw){ bw=w; best={r:r,min:mi}; } }); return best; };
   const chordAt=function(t,dir,L){ if(CH.length){ if(dir<0){ let r=null; CH.forEach(function(x){ if(x.t<t && x.t>=t-2*L) r=x; }); if(r) return r; } else { const r=CH.find(function(x){ return x.t>=t-4 && x.t<t+L; }); if(r) return r; } } return chordFromW(dir<0?hist(t-L,t):hist(t,t+L)); };
@@ -14489,11 +14492,11 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
       if(!V.length) V=prev.slice(); V.forEach(function(m,q){ note(g[0]+q*8,m,[42,46,46,40][gi]-q*2,g[1]-g[0]-q*8-6); }); prev=V; prevC=C; });
     cc(t-L,0); cc(t-L+Math.round(L/4),48); cc(t-h,66); cc(t,70); cc(t+h,48); cc(t+L-20,14);
     /* 툭 끝나는 지속음 트랙은 반 마디 더 */
-    TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm) || !SUS.test(c.nm)) return; const P=pairs(c); if(P.some(function(x){ return x.on.t>=t && x.on.t<t+h; })) return;
-      const W2=hist(t,t+h), m2=Math.max.apply(null,W2); const clash=function(pc){ return m2>0 && (W2[(pc+1)%12]>0.15*m2 || W2[(pc+11)%12]>0.15*m2) && !(W2[pc]>0.15*m2); };   /* 다음 편 소리와 반음이면 끌지 않음 */
+    const W2=hist(t,t+h), m2=Math.max.apply(null,W2);
+    TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm) || !SUS.test(c.nm)) return; const P=pairsC(c); if(P.some(function(x){ return x.on.t>=t && x.on.t<t+h; })) return; const clash=function(pc){ return m2>0 && (W2[(pc+1)%12]>0.15*m2 || W2[(pc+11)%12]>0.15*m2) && !(W2[pc]>0.15*m2); };   /* 다음 편 소리와 반음이면 끌지 않음 */
       let hit=false; P.forEach(function(x){ if(x.off.t>=t-Math.round(ppq/2) && x.off.t<=t+Math.round(ppq/4) && x.on.t<t && !clash(x.on.d[0]%12)){ x.off.t=t+h; hit=true; } }); if(hit){ c.dirty=true; ext++; } }); });
   /* ★ 2026-11-25 이음 패드 음이 다른 트랙 음과 반음으로 반 박 넘게 겹치면 그 음은 뺌(로비 이음 검사: 패드 칸의 3.8% 가 지나가는 베이스, 7도 선율과 부딪힘) */
-  { const OT=[]; TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm)) return; pairs(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<28) return; OT.push([x.on.t,x.off.t,x.on.d[0]%12]); }); });
+  { const OT=[]; TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm)) return; pairsC(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<28) return; if(!BND.some(function(B){ return x.off.t>B.t-B.L-ppq && x.on.t<B.t+B.L+ppq; })) return; OT.push([x.on.t,x.off.t,x.on.d[0]%12]); }); });
     const mine=PAD.ev.filter(function(e){ return e.o>=O9S && e.s!=null && (e.s&0xF0)===0x90 && e.d[1]>0; }); let dropN=0;
     mine.forEach(function(on){ const off=PAD.ev.find(function(e){ return e.o>on.o && e.o>=O9S && e.s!=null && (e.s&0xF0)===0x80 && e.d[0]===on.d[0] && e.t>=on.t; }); if(!off) return; const pc=on.d[0]%12; let ov=0;
       OT.forEach(function(x){ if(x[2]!==(pc+1)%12 && x[2]!==(pc+11)%12) return; const a=Math.max(on.t,x[0]), z=Math.min(off.t,x[1]); if(z>a) ov+=z-a; });
@@ -14501,15 +14504,16 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
     if(dropN) PAD.ev=PAD.ev.filter(function(e){ return !e.kill; }); ext+=0; window.__SEAM_DROP=dropN; }
   if(!PAD0) chunks.push(PAD);
   window.__SEAM_REPORT={seams:BND.length, ext:ext, lobby:FB};
-  const res=head.slice(); let nTr=0;
-  chunks.forEach(function(c){ if(c.raw){ for(let q=0;q<c.raw.length;q++) res.push(c.raw[q]); return; } nTr++;
-    if(!c.dirty){ for(let q=0;q<c.whole.length;q++) res.push(c.whole[q]); return; }
+  const parts=[new Uint8Array(head)]; let nTr=0, tot=head.length;   /* ★ 2026-11-25 로비 한 시간 묶음에서 메모리를 덜 쓰게: 바뀌지 않은 트랙은 바이트 그대로 붙임 */
+  chunks.forEach(function(c){ if(c.raw){ const r=(c.raw instanceof Uint8Array)?c.raw:new Uint8Array(c.raw); parts.push(r); tot+=r.length; return; } nTr++;
+    if(!c.dirty){ parts.push(c.whole); tot+=c.whole.length; return; }
     const E=c.ev.slice().sort(function(a,z){ return (a.t-z.t)||(a.o-z.o); }); const T=[]; let last=0;
     E.forEach(function(e){ const dv=vlq(e.t-last); for(let q=0;q<dv.length;q++) T.push(dv[q]); last=e.t; if(e.raw){ for(let q=0;q<e.raw.length;q++) T.push(e.raw[q]); } else { T.push(e.s); for(let q=0;q<e.d.length;q++) T.push(e.d[q]); } });
     const eot=Math.max(c.eot,last); const dv=vlq(Math.max(0,eot-last)); for(let q=0;q<dv.length;q++) T.push(dv[q]); T.push(0xFF,0x2F,0x00);
-    const l=T.length; res.push(0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255); for(let q=0;q<T.length;q++) res.push(T[q]); });
-  res[10]=(nTr>>8)&255; res[11]=nTr&255;
-  return new Uint8Array(res); }catch(e){ window.__seamErr=String(e&&e.stack||e); return u8; } };
+    const l=T.length; parts.push(new Uint8Array([0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255])); parts.push(new Uint8Array(T)); tot+=8+l; });
+  parts[0][10]=(nTr>>8)&255; parts[0][11]=nTr&255;
+  const out=new Uint8Array(tot); let w=0; parts.forEach(function(x){ out.set(x,w); w+=x.length; });
+  return out; }catch(e){ window.__seamErr=String(e&&e.stack||e); return u8; } };
 /*SANITY-END*/
 /*CCCLEAN-BEGIN*/
 /* ★ 2026-11-02 형: "서스테인이든 익스프레션이든 제대로 된 구간에 안 먹히고 이상하게 찍히는 게 있네. 전체 전수 검증. 스트링이 툭 끊기면 안 됨"
@@ -28776,17 +28780,17 @@ window.__noteTidy=function(u8){ try{ const b=u8; if(!b||b.length<14||b[0]!==0x4D
    opt.bnd(이어 붙인 자리 틱들, 첫 자리 0 은 건너뜀)를 주면 앱 칸 조건과 길이 조건 없이 그 자리마다 이음 패드. 곡 안에서 이미 만든 Seam Pad 트랙이 있으면 그 트랙(채널)에 더함 */
 window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && opt.bnd.length>1);
   const CX=window.__STAGE_CTX||{}; if(!FB && (!(CX.app==='play'||CX.app==='band'||CX.app==='beat') || CX.score || CX.wamb || CX.amb5 || CX.well || /carol|yoga|medi|rch/i.test(String(CX.genre||'')))) return u8;
-  const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54) return u8;
+  const b=(u8 instanceof Uint8Array)?u8:new Uint8Array(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54) return u8;
   const vlq=function(v){ v=Math.max(0,v|0); const o=[v&0x7F]; v>>=7; while(v>0){ o.unshift((v&0x7F)|0x80); v>>=7; } return o; };
-  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0, ppq=((b[12]<<8)|b[13]); let p=8+hl; const head=b.slice(0,p); const chunks=[];
+  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0, ppq=((b[12]<<8)|b[13]); let p=8+hl; const head=Array.from(b.subarray(0,p)); const chunks=[];
   const dec=function(a){ try{ return new TextDecoder().decode(new Uint8Array(a)); }catch(e){ return ''; } }, enc=function(s){ return Array.from(new TextEncoder().encode(s)); };
   while(p+8<=b.length){ const isTrk=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0;
-    const body=b.slice(p+8,p+8+len), whole=b.slice(p,p+8+len); p+=8+len; if(!isTrk){ chunks.push({raw:whole}); continue; }
+    const body=b.subarray(p+8,p+8+len), whole=b.subarray(p,p+8+len); p+=8+len; if(!isTrk){ chunks.push({raw:whole}); continue; }
     let i=0,t=0,rs=0,ord=0,eot=null; const ev=[]; const rdv=function(){ let v=0,c; do{ c=body[i++]; v=(v<<7)|(c&127); }while((c&128)&&i<body.length); return v; };
     while(i<body.length){ t+=rdv(); let s=body[i]; if(s<0x80){ s=rs; } else { i++; if(s<0xF0) rs=s; }
-      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
-      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
-      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
+      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=Array.from(body.subarray(i,i+l)); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
+      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=Array.from(body.subarray(i,i+l)); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
+      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=(n===1)?[body[i]]:[body[i],body[i+1]]; i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
     const nmE=ev.find(function(e){ return e.meta===0x03; }); chunks.push({ev:ev, eot:(eot==null?t:eot), whole:whole, nm:nmE?dec(nmE.dat):''}); }
   const TR=chunks.filter(function(c){ return c.ev; }); if(TR.length<3) return u8;
   if(!FB && TR.some(function(c){ return /Seam Pad|Strings \(bridge\)|Winter Pad/.test(c.nm); })) return u8;
@@ -28811,8 +28815,9 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
   if(FB){ BND.length=0; opt.bnd.slice(1).forEach(function(t){ if(t>0 && t<songEnd) BND.push({t:t, L:barLen(t), K:keyAt(t)}); }); }
   if(!BND.length) return u8;
   const pairs=function(c){ const op={}, P=[]; c.ev.slice().sort(function(x,y){ return (x.t-y.t)||(x.o-y.o); }).forEach(function(e){ if(e.s==null) return; const hi=e.s&0xF0; if(hi===0x90&&e.d[1]>0){ (op[e.d[0]]=op[e.d[0]]||[]).push(e); } else if(hi===0x80||(hi===0x90&&e.d[1]===0)){ const q=op[e.d[0]]; if(q&&q.length) P.push({on:q.shift(), off:e}); } }); return P; };
+  const PCACHE=new Map(); const pairsC=function(c){ let r=PCACHE.get(c); if(!r){ r=pairs(c); PCACHE.set(c,r); } return r; };   /* ★ 2026-11-25 로비 하루가 앱을 멈춤: 트랙마다 음 짝을 한 번만 셈(예전엔 이음 자리마다 트랙 수 x 트랙 수 번 다시 정렬) */
   const PERC=/Drum|Kit\b|Perc|Kick|Snare|Hat|Cymbal|Riser|Impact|FX|Sweep|Downlifter|Timpani|Gran Cassa|Tam-tam/i;
-  const hist=function(a,z){ const W=new Array(12).fill(0); TR.forEach(function(c,ci){ if(ci===0 || PERC.test(c.nm) || /Seam Pad/.test(c.nm)) return; pairs(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<24) return; const aa=Math.max(a,x.on.t), zz=Math.min(z,x.off.t); if(zz>aa) W[x.on.d[0]%12]+=(zz-aa)*(x.on.d[0]<52?1.5:1); }); }); return W; };
+  const hist=function(a,z){ const W=new Array(12).fill(0); TR.forEach(function(c,ci){ if(ci===0 || PERC.test(c.nm) || /Seam Pad/.test(c.nm)) return; pairsC(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<24) return; const aa=Math.max(a,x.on.t), zz=Math.min(z,x.off.t); if(zz>aa) W[x.on.d[0]%12]+=(zz-aa)*(x.on.d[0]<52?1.5:1); }); }); return W; };
   const triOf=function(r,min){ return [r,(r+(min?3:4))%12,(r+7)%12]; };
   const chordFromW=function(W){ let best=null, bw=-1; for(let r=0;r<12;r++) [false,true].forEach(function(mi){ const w=triOf(r,mi).reduce(function(a,x){ return a+W[x]; },0); if(w>bw){ bw=w; best={r:r,min:mi}; } }); return best; };
   const chordAt=function(t,dir,L){ if(CH.length){ if(dir<0){ let r=null; CH.forEach(function(x){ if(x.t<t && x.t>=t-2*L) r=x; }); if(r) return r; } else { const r=CH.find(function(x){ return x.t>=t-4 && x.t<t+L; }); if(r) return r; } } return chordFromW(dir<0?hist(t-L,t):hist(t,t+L)); };
@@ -28832,11 +28837,11 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
       if(!V.length) V=prev.slice(); V.forEach(function(m,q){ note(g[0]+q*8,m,[42,46,46,40][gi]-q*2,g[1]-g[0]-q*8-6); }); prev=V; prevC=C; });
     cc(t-L,0); cc(t-L+Math.round(L/4),48); cc(t-h,66); cc(t,70); cc(t+h,48); cc(t+L-20,14);
     /* 툭 끝나는 지속음 트랙은 반 마디 더 */
-    TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm) || !SUS.test(c.nm)) return; const P=pairs(c); if(P.some(function(x){ return x.on.t>=t && x.on.t<t+h; })) return;
-      const W2=hist(t,t+h), m2=Math.max.apply(null,W2); const clash=function(pc){ return m2>0 && (W2[(pc+1)%12]>0.15*m2 || W2[(pc+11)%12]>0.15*m2) && !(W2[pc]>0.15*m2); };   /* 다음 편 소리와 반음이면 끌지 않음 */
+    const W2=hist(t,t+h), m2=Math.max.apply(null,W2);
+    TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm) || !SUS.test(c.nm)) return; const P=pairsC(c); if(P.some(function(x){ return x.on.t>=t && x.on.t<t+h; })) return; const clash=function(pc){ return m2>0 && (W2[(pc+1)%12]>0.15*m2 || W2[(pc+11)%12]>0.15*m2) && !(W2[pc]>0.15*m2); };   /* 다음 편 소리와 반음이면 끌지 않음 */
       let hit=false; P.forEach(function(x){ if(x.off.t>=t-Math.round(ppq/2) && x.off.t<=t+Math.round(ppq/4) && x.on.t<t && !clash(x.on.d[0]%12)){ x.off.t=t+h; hit=true; } }); if(hit){ c.dirty=true; ext++; } }); });
   /* ★ 2026-11-25 이음 패드 음이 다른 트랙 음과 반음으로 반 박 넘게 겹치면 그 음은 뺌(로비 이음 검사: 패드 칸의 3.8% 가 지나가는 베이스, 7도 선율과 부딪힘) */
-  { const OT=[]; TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm)) return; pairs(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<28) return; OT.push([x.on.t,x.off.t,x.on.d[0]%12]); }); });
+  { const OT=[]; TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm)) return; pairsC(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<28) return; if(!BND.some(function(B){ return x.off.t>B.t-B.L-ppq && x.on.t<B.t+B.L+ppq; })) return; OT.push([x.on.t,x.off.t,x.on.d[0]%12]); }); });
     const mine=PAD.ev.filter(function(e){ return e.o>=O9S && e.s!=null && (e.s&0xF0)===0x90 && e.d[1]>0; }); let dropN=0;
     mine.forEach(function(on){ const off=PAD.ev.find(function(e){ return e.o>on.o && e.o>=O9S && e.s!=null && (e.s&0xF0)===0x80 && e.d[0]===on.d[0] && e.t>=on.t; }); if(!off) return; const pc=on.d[0]%12; let ov=0;
       OT.forEach(function(x){ if(x[2]!==(pc+1)%12 && x[2]!==(pc+11)%12) return; const a=Math.max(on.t,x[0]), z=Math.min(off.t,x[1]); if(z>a) ov+=z-a; });
@@ -28844,15 +28849,16 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
     if(dropN) PAD.ev=PAD.ev.filter(function(e){ return !e.kill; }); ext+=0; window.__SEAM_DROP=dropN; }
   if(!PAD0) chunks.push(PAD);
   window.__SEAM_REPORT={seams:BND.length, ext:ext, lobby:FB};
-  const res=head.slice(); let nTr=0;
-  chunks.forEach(function(c){ if(c.raw){ for(let q=0;q<c.raw.length;q++) res.push(c.raw[q]); return; } nTr++;
-    if(!c.dirty){ for(let q=0;q<c.whole.length;q++) res.push(c.whole[q]); return; }
+  const parts=[new Uint8Array(head)]; let nTr=0, tot=head.length;   /* ★ 2026-11-25 로비 한 시간 묶음에서 메모리를 덜 쓰게: 바뀌지 않은 트랙은 바이트 그대로 붙임 */
+  chunks.forEach(function(c){ if(c.raw){ const r=(c.raw instanceof Uint8Array)?c.raw:new Uint8Array(c.raw); parts.push(r); tot+=r.length; return; } nTr++;
+    if(!c.dirty){ parts.push(c.whole); tot+=c.whole.length; return; }
     const E=c.ev.slice().sort(function(a,z){ return (a.t-z.t)||(a.o-z.o); }); const T=[]; let last=0;
     E.forEach(function(e){ const dv=vlq(e.t-last); for(let q=0;q<dv.length;q++) T.push(dv[q]); last=e.t; if(e.raw){ for(let q=0;q<e.raw.length;q++) T.push(e.raw[q]); } else { T.push(e.s); for(let q=0;q<e.d.length;q++) T.push(e.d[q]); } });
     const eot=Math.max(c.eot,last); const dv=vlq(Math.max(0,eot-last)); for(let q=0;q<dv.length;q++) T.push(dv[q]); T.push(0xFF,0x2F,0x00);
-    const l=T.length; res.push(0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255); for(let q=0;q<T.length;q++) res.push(T[q]); });
-  res[10]=(nTr>>8)&255; res[11]=nTr&255;
-  return new Uint8Array(res); }catch(e){ window.__seamErr=String(e&&e.stack||e); return u8; } };
+    const l=T.length; parts.push(new Uint8Array([0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255])); parts.push(new Uint8Array(T)); tot+=8+l; });
+  parts[0][10]=(nTr>>8)&255; parts[0][11]=nTr&255;
+  const out=new Uint8Array(tot); let w=0; parts.forEach(function(x){ out.set(x,w); w+=x.length; });
+  return out; }catch(e){ window.__seamErr=String(e&&e.stack||e); return u8; } };
 /*SANITY-END*/
 /*CCCLEAN-BEGIN*/
 /* ★ 2026-11-02 형: "서스테인이든 익스프레션이든 제대로 된 구간에 안 먹히고 이상하게 찍히는 게 있네. 전체 전수 검증. 스트링이 툭 끊기면 안 됨"
@@ -55728,17 +55734,17 @@ window.__noteTidy=function(u8){ try{ const b=u8; if(!b||b.length<14||b[0]!==0x4D
    opt.bnd(이어 붙인 자리 틱들, 첫 자리 0 은 건너뜀)를 주면 앱 칸 조건과 길이 조건 없이 그 자리마다 이음 패드. 곡 안에서 이미 만든 Seam Pad 트랙이 있으면 그 트랙(채널)에 더함 */
 window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && opt.bnd.length>1);
   const CX=window.__STAGE_CTX||{}; if(!FB && (!(CX.app==='play'||CX.app==='band'||CX.app==='beat') || CX.score || CX.wamb || CX.amb5 || CX.well || /carol|yoga|medi|rch/i.test(String(CX.genre||'')))) return u8;
-  const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54) return u8;
+  const b=(u8 instanceof Uint8Array)?u8:new Uint8Array(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54) return u8;
   const vlq=function(v){ v=Math.max(0,v|0); const o=[v&0x7F]; v>>=7; while(v>0){ o.unshift((v&0x7F)|0x80); v>>=7; } return o; };
-  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0, ppq=((b[12]<<8)|b[13]); let p=8+hl; const head=b.slice(0,p); const chunks=[];
+  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0, ppq=((b[12]<<8)|b[13]); let p=8+hl; const head=Array.from(b.subarray(0,p)); const chunks=[];
   const dec=function(a){ try{ return new TextDecoder().decode(new Uint8Array(a)); }catch(e){ return ''; } }, enc=function(s){ return Array.from(new TextEncoder().encode(s)); };
   while(p+8<=b.length){ const isTrk=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0;
-    const body=b.slice(p+8,p+8+len), whole=b.slice(p,p+8+len); p+=8+len; if(!isTrk){ chunks.push({raw:whole}); continue; }
+    const body=b.subarray(p+8,p+8+len), whole=b.subarray(p,p+8+len); p+=8+len; if(!isTrk){ chunks.push({raw:whole}); continue; }
     let i=0,t=0,rs=0,ord=0,eot=null; const ev=[]; const rdv=function(){ let v=0,c; do{ c=body[i++]; v=(v<<7)|(c&127); }while((c&128)&&i<body.length); return v; };
     while(i<body.length){ t+=rdv(); let s=body[i]; if(s<0x80){ s=rs; } else { i++; if(s<0xF0) rs=s; }
-      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
-      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
-      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
+      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=Array.from(body.subarray(i,i+l)); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
+      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=Array.from(body.subarray(i,i+l)); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
+      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=(n===1)?[body[i]]:[body[i],body[i+1]]; i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
     const nmE=ev.find(function(e){ return e.meta===0x03; }); chunks.push({ev:ev, eot:(eot==null?t:eot), whole:whole, nm:nmE?dec(nmE.dat):''}); }
   const TR=chunks.filter(function(c){ return c.ev; }); if(TR.length<3) return u8;
   if(!FB && TR.some(function(c){ return /Seam Pad|Strings \(bridge\)|Winter Pad/.test(c.nm); })) return u8;
@@ -55763,8 +55769,9 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
   if(FB){ BND.length=0; opt.bnd.slice(1).forEach(function(t){ if(t>0 && t<songEnd) BND.push({t:t, L:barLen(t), K:keyAt(t)}); }); }
   if(!BND.length) return u8;
   const pairs=function(c){ const op={}, P=[]; c.ev.slice().sort(function(x,y){ return (x.t-y.t)||(x.o-y.o); }).forEach(function(e){ if(e.s==null) return; const hi=e.s&0xF0; if(hi===0x90&&e.d[1]>0){ (op[e.d[0]]=op[e.d[0]]||[]).push(e); } else if(hi===0x80||(hi===0x90&&e.d[1]===0)){ const q=op[e.d[0]]; if(q&&q.length) P.push({on:q.shift(), off:e}); } }); return P; };
+  const PCACHE=new Map(); const pairsC=function(c){ let r=PCACHE.get(c); if(!r){ r=pairs(c); PCACHE.set(c,r); } return r; };   /* ★ 2026-11-25 로비 하루가 앱을 멈춤: 트랙마다 음 짝을 한 번만 셈(예전엔 이음 자리마다 트랙 수 x 트랙 수 번 다시 정렬) */
   const PERC=/Drum|Kit\b|Perc|Kick|Snare|Hat|Cymbal|Riser|Impact|FX|Sweep|Downlifter|Timpani|Gran Cassa|Tam-tam/i;
-  const hist=function(a,z){ const W=new Array(12).fill(0); TR.forEach(function(c,ci){ if(ci===0 || PERC.test(c.nm) || /Seam Pad/.test(c.nm)) return; pairs(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<24) return; const aa=Math.max(a,x.on.t), zz=Math.min(z,x.off.t); if(zz>aa) W[x.on.d[0]%12]+=(zz-aa)*(x.on.d[0]<52?1.5:1); }); }); return W; };
+  const hist=function(a,z){ const W=new Array(12).fill(0); TR.forEach(function(c,ci){ if(ci===0 || PERC.test(c.nm) || /Seam Pad/.test(c.nm)) return; pairsC(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<24) return; const aa=Math.max(a,x.on.t), zz=Math.min(z,x.off.t); if(zz>aa) W[x.on.d[0]%12]+=(zz-aa)*(x.on.d[0]<52?1.5:1); }); }); return W; };
   const triOf=function(r,min){ return [r,(r+(min?3:4))%12,(r+7)%12]; };
   const chordFromW=function(W){ let best=null, bw=-1; for(let r=0;r<12;r++) [false,true].forEach(function(mi){ const w=triOf(r,mi).reduce(function(a,x){ return a+W[x]; },0); if(w>bw){ bw=w; best={r:r,min:mi}; } }); return best; };
   const chordAt=function(t,dir,L){ if(CH.length){ if(dir<0){ let r=null; CH.forEach(function(x){ if(x.t<t && x.t>=t-2*L) r=x; }); if(r) return r; } else { const r=CH.find(function(x){ return x.t>=t-4 && x.t<t+L; }); if(r) return r; } } return chordFromW(dir<0?hist(t-L,t):hist(t,t+L)); };
@@ -55784,11 +55791,11 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
       if(!V.length) V=prev.slice(); V.forEach(function(m,q){ note(g[0]+q*8,m,[42,46,46,40][gi]-q*2,g[1]-g[0]-q*8-6); }); prev=V; prevC=C; });
     cc(t-L,0); cc(t-L+Math.round(L/4),48); cc(t-h,66); cc(t,70); cc(t+h,48); cc(t+L-20,14);
     /* 툭 끝나는 지속음 트랙은 반 마디 더 */
-    TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm) || !SUS.test(c.nm)) return; const P=pairs(c); if(P.some(function(x){ return x.on.t>=t && x.on.t<t+h; })) return;
-      const W2=hist(t,t+h), m2=Math.max.apply(null,W2); const clash=function(pc){ return m2>0 && (W2[(pc+1)%12]>0.15*m2 || W2[(pc+11)%12]>0.15*m2) && !(W2[pc]>0.15*m2); };   /* 다음 편 소리와 반음이면 끌지 않음 */
+    const W2=hist(t,t+h), m2=Math.max.apply(null,W2);
+    TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm) || !SUS.test(c.nm)) return; const P=pairsC(c); if(P.some(function(x){ return x.on.t>=t && x.on.t<t+h; })) return; const clash=function(pc){ return m2>0 && (W2[(pc+1)%12]>0.15*m2 || W2[(pc+11)%12]>0.15*m2) && !(W2[pc]>0.15*m2); };   /* 다음 편 소리와 반음이면 끌지 않음 */
       let hit=false; P.forEach(function(x){ if(x.off.t>=t-Math.round(ppq/2) && x.off.t<=t+Math.round(ppq/4) && x.on.t<t && !clash(x.on.d[0]%12)){ x.off.t=t+h; hit=true; } }); if(hit){ c.dirty=true; ext++; } }); });
   /* ★ 2026-11-25 이음 패드 음이 다른 트랙 음과 반음으로 반 박 넘게 겹치면 그 음은 뺌(로비 이음 검사: 패드 칸의 3.8% 가 지나가는 베이스, 7도 선율과 부딪힘) */
-  { const OT=[]; TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm)) return; pairs(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<28) return; OT.push([x.on.t,x.off.t,x.on.d[0]%12]); }); });
+  { const OT=[]; TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm)) return; pairsC(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<28) return; if(!BND.some(function(B){ return x.off.t>B.t-B.L-ppq && x.on.t<B.t+B.L+ppq; })) return; OT.push([x.on.t,x.off.t,x.on.d[0]%12]); }); });
     const mine=PAD.ev.filter(function(e){ return e.o>=O9S && e.s!=null && (e.s&0xF0)===0x90 && e.d[1]>0; }); let dropN=0;
     mine.forEach(function(on){ const off=PAD.ev.find(function(e){ return e.o>on.o && e.o>=O9S && e.s!=null && (e.s&0xF0)===0x80 && e.d[0]===on.d[0] && e.t>=on.t; }); if(!off) return; const pc=on.d[0]%12; let ov=0;
       OT.forEach(function(x){ if(x[2]!==(pc+1)%12 && x[2]!==(pc+11)%12) return; const a=Math.max(on.t,x[0]), z=Math.min(off.t,x[1]); if(z>a) ov+=z-a; });
@@ -55796,15 +55803,16 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
     if(dropN) PAD.ev=PAD.ev.filter(function(e){ return !e.kill; }); ext+=0; window.__SEAM_DROP=dropN; }
   if(!PAD0) chunks.push(PAD);
   window.__SEAM_REPORT={seams:BND.length, ext:ext, lobby:FB};
-  const res=head.slice(); let nTr=0;
-  chunks.forEach(function(c){ if(c.raw){ for(let q=0;q<c.raw.length;q++) res.push(c.raw[q]); return; } nTr++;
-    if(!c.dirty){ for(let q=0;q<c.whole.length;q++) res.push(c.whole[q]); return; }
+  const parts=[new Uint8Array(head)]; let nTr=0, tot=head.length;   /* ★ 2026-11-25 로비 한 시간 묶음에서 메모리를 덜 쓰게: 바뀌지 않은 트랙은 바이트 그대로 붙임 */
+  chunks.forEach(function(c){ if(c.raw){ const r=(c.raw instanceof Uint8Array)?c.raw:new Uint8Array(c.raw); parts.push(r); tot+=r.length; return; } nTr++;
+    if(!c.dirty){ parts.push(c.whole); tot+=c.whole.length; return; }
     const E=c.ev.slice().sort(function(a,z){ return (a.t-z.t)||(a.o-z.o); }); const T=[]; let last=0;
     E.forEach(function(e){ const dv=vlq(e.t-last); for(let q=0;q<dv.length;q++) T.push(dv[q]); last=e.t; if(e.raw){ for(let q=0;q<e.raw.length;q++) T.push(e.raw[q]); } else { T.push(e.s); for(let q=0;q<e.d.length;q++) T.push(e.d[q]); } });
     const eot=Math.max(c.eot,last); const dv=vlq(Math.max(0,eot-last)); for(let q=0;q<dv.length;q++) T.push(dv[q]); T.push(0xFF,0x2F,0x00);
-    const l=T.length; res.push(0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255); for(let q=0;q<T.length;q++) res.push(T[q]); });
-  res[10]=(nTr>>8)&255; res[11]=nTr&255;
-  return new Uint8Array(res); }catch(e){ window.__seamErr=String(e&&e.stack||e); return u8; } };
+    const l=T.length; parts.push(new Uint8Array([0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255])); parts.push(new Uint8Array(T)); tot+=8+l; });
+  parts[0][10]=(nTr>>8)&255; parts[0][11]=nTr&255;
+  const out=new Uint8Array(tot); let w=0; parts.forEach(function(x){ out.set(x,w); w+=x.length; });
+  return out; }catch(e){ window.__seamErr=String(e&&e.stack||e); return u8; } };
 /*SANITY-END*/
 /*CCCLEAN-BEGIN*/
 /* ★ 2026-11-02 형: "서스테인이든 익스프레션이든 제대로 된 구간에 안 먹히고 이상하게 찍히는 게 있네. 전체 전수 검증. 스트링이 툭 끊기면 안 됨"
@@ -86442,10 +86450,12 @@ function applyPreset(solo){
   const hm2s=function(t){ return (parseInt(t.slice(0,2),10)*60+parseInt(t.slice(3,5),10))*60; };
   const clk=function(sec){ sec=Math.round(sec); return pad(Math.floor(sec/3600))+':'+pad(Math.floor((sec%3600)/60))+':'+pad(sec%60); };
   /* 라운지 묶음: 목표 길이 tgt(초)에 빠르기로 맞춤. 시간대 범위 안에서 못 맞추면 라운지 길이(15 30 45 60 90)를 바꿔 다시(넷까지), 가장 가까운 것 */
-  function loungeUnit(u, seed, tgt){ let best=null;
+  /* ★ 2026-11-25 형 "로비 하루짜리는 앱이 팅긴다": 한 묶음을 만드는 동안 시도(라운지 한 벌)마다 화면에 숨 돌릴 틈을 줌(예전엔 16:00 시네마 묶음 하나가 6분 동안 페이지를 붙잡음) */
+  const breathe=function(){ return new Promise(function(r){ setTimeout(r,0); }); };
+  async function loungeUnit(u, seed, tgt){ let best=null;
     /* 시간대 빠르기 범위 안에서 길이를 못 맞추면 같은 씨앗으로 라운지 분만 고쳐 다시(같은 씨앗이면 길이가 분에 거의 비례, 씨앗을 바꾸면 곡 짜임이 달라 길이가 크게 흔들림), 같은 씨앗 넷까지, 그래도 안 되면 다음 씨앗, 씨앗 셋까지 */
     for(let sd=0;sd<6 && !(best && best.ok);sd++){ let opt=u.min; const seen={};   /* ★ 2026-11-04 크리스마스 B 11:00 뉴에이지 30분이 28.6분(씨앗 셋으로 못 맞춤): 씨앗 여섯, 같은 씨앗 여섯까지 */
-      for(let tr=0;tr<6;tr++){ if(seen[opt]) break; seen[opt]=1; const r=genOne(u.g,true,opt,u.bpm,(seed+sd*7)>>>0,function(x){ return fitTempo(x,u.bpm,tgt,false); }); if(!r) break;
+      for(let tr=0;tr<6;tr++){ if(seen[opt]) break; seen[opt]=1; if(best) await breathe(); const r=genOne(u.g,true,opt,u.bpm,(seed+sd*7)>>>0,function(x){ return fitTempo(x,u.bpm,tgt,false); }); if(!r) break;
         if(!best || (r.ok && !best.ok) || (r.ok===best.ok && Math.abs(r.sec-tgt)<Math.abs(best.sec-tgt))) best=r; if(r.ok) break;
         let want=Math.round(opt*tgt/Math.max(1,r.nat)); want=Math.max(10,Math.min(120,want)); if(want===opt) want=opt+(r.sec<tgt?2:-2); opt=want; } }
     if(!best) return null; return {u8:best.u8, sec:best.sec, ok:best.ok, docs:[{sfx:'', html:best.html, sheet:best.sheet}], n:1}; }
@@ -86558,7 +86568,7 @@ function applyPreset(solo){
       const VS=EXT[s.g]?[]:voxPick(u, s, k, seed).map(voxSong).filter(function(p){ return p && p.bpm>=u.bpm[0]-5 && p.bpm<=u.bpm[1]+5; });   /* 노래곡 먼저 만들고 남은 시간을 라운지가. 노래곡 빠르기가 그 시간대 범위(±5) 밖이면 안 씀 */
       let vsec=0; VS.forEach(function(p){ vsec+=p.sec+SEG_GAP; }); while(VS.length && tg-vsec<600){ const x=VS.pop(); vsec-=x.sec+SEG_GAP; }   /* 라운지는 10분 아래로 못 줄임(라운지 짜임) */
       const tgL=Math.max(90, tg-vsec), mnL=Math.max(2, Math.round(s.min*tgL/Math.max(1,tg)));
-      let r=EXT[s.g]?(await extUnit({g:s.g, min:Math.round(s.min), bpm:s.bpm}, sd, tg)):loungeUnit({g:s.g, min:mnL, bpm:s.bpm}, sd, tgL); if(!r) return null;
+      let r=EXT[s.g]?(await extUnit({g:s.g, min:Math.round(s.min), bpm:s.bpm}, sd, tg)):(await loungeUnit({g:s.g, min:mnL, bpm:s.bpm}, sd, tgL)); if(!r) return null;
       if(VS.length){ const order=(VS.length>=2)?[VS[0], r].concat(VS.slice(1)):[r, VS[0]]; let cu=concatMidi(order.map(function(p){ return p.u8; })); const st=concatMidi.starts.slice(); try{ if(window.__seamGlue) cu=window.__seamGlue(cu, {bnd:st}); }catch(e){} const Mi=tempoMapOf(cu);
         const ln=concatMidi.lens.slice(); const vl=[]; order.forEach(function(p,q){ if(p.vox) vl.push({id:p.e.id, title:p.e.title, v:p.e.v, lang:p.e.lang, g:p.e.g, at:secOfTick(Mi, st[q]), sec:p.sec, notes:p.vox.notes, tk:st[q], tl:ln[q]||0}); }); anyVox=true;
         const note='\n■ 노래곡 '+vl.length+'곡 (Vocal Guide 트랙에 노래 선율과 가사, 노래 구간에서는 선율 악기가 쉼)\n'+vl.map(function(x){ return '   '+x.title+' ('+(x.v==='m'?'남성':'여성')+', '+(x.lang==='ko'?'한국어':'영어')+') 이 구간 '+msS(x.at)+'부터 '+msS(x.sec)+' 동안'; }).join('\n');
@@ -86655,7 +86665,7 @@ function applyPreset(solo){
       const tag='Lobby_'+themeTag(theme)+'_'+ab+((only&&only.length)?'_'+only.map(function(k){ return P[k]?P[k].t.replace(':',''):String(k); }).join('_'):''); let clock=0; const enc=new TextEncoder(); const seen={}; const seenK={};
       const step=function(){ if(i>=P.length){ finish(); return; } if(only && only.length && only.indexOf(i)<0){ i++; step(); return; } const u=P[i]; const hhmm=u.t.replace(':',''); const seed=(base+i*7919)>>>0; if(only && only.length) clock=hm2s(u.t)-9*3600;
         const tgt=Math.max(u.min*60*0.85, hm2s(u.t)-9*3600+u.min*60-clock); let pr=null;
-        try{ if(u.carol && window.__CAROL) pr=Promise.resolve(carolUnit(u,seed,tgt,carolVox(base, P.slice(0,i).filter(function(x){ return x.carol; }).length, u.min))); else if(u.songs && window.__FUSION) pr=Promise.resolve(songsUnit(u,seed,tgt,i)); else if(u.segs) pr=segUnit(u,seed,tgt); else pr=Promise.resolve(loungeUnit(u,seed,tgt)); }
+        try{ if(u.carol && window.__CAROL) pr=Promise.resolve(carolUnit(u,seed,tgt,carolVox(base, P.slice(0,i).filter(function(x){ return x.carol; }).length, u.min))); else if(u.songs && window.__FUSION) pr=Promise.resolve(songsUnit(u,seed,tgt,i)); else if(u.segs) pr=segUnit(u,seed,tgt); else pr=loungeUnit(u,seed,tgt); }
         catch(e){ window.__lobbyErr=String(e&&e.stack||e); pr=Promise.resolve(null); }
         pr.catch(function(e){ window.__lobbyErr=String(e&&e.stack||e); return null; }).then(function(got){
         let fx=null; if(got && EV[theme] && !u.carol){ fx=fxPlan(got.starts||markSecs(got.u8), got.sec, i, u.min<45); if(!got.segInfo && got.docs[0] && got.docs[0].sheet) got.docs[0].sheet=FXHEAD+fxLines(fx,null).join('\n')+'\n\n'+got.docs[0].sheet; }
@@ -88813,17 +88823,17 @@ window.__noteTidy=function(u8){ try{ const b=u8; if(!b||b.length<14||b[0]!==0x4D
    opt.bnd(이어 붙인 자리 틱들, 첫 자리 0 은 건너뜀)를 주면 앱 칸 조건과 길이 조건 없이 그 자리마다 이음 패드. 곡 안에서 이미 만든 Seam Pad 트랙이 있으면 그 트랙(채널)에 더함 */
 window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && opt.bnd.length>1);
   const CX=window.__STAGE_CTX||{}; if(!FB && (!(CX.app==='play'||CX.app==='band'||CX.app==='beat') || CX.score || CX.wamb || CX.amb5 || CX.well || /carol|yoga|medi|rch/i.test(String(CX.genre||'')))) return u8;
-  const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54) return u8;
+  const b=(u8 instanceof Uint8Array)?u8:new Uint8Array(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54) return u8;
   const vlq=function(v){ v=Math.max(0,v|0); const o=[v&0x7F]; v>>=7; while(v>0){ o.unshift((v&0x7F)|0x80); v>>=7; } return o; };
-  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0, ppq=((b[12]<<8)|b[13]); let p=8+hl; const head=b.slice(0,p); const chunks=[];
+  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0, ppq=((b[12]<<8)|b[13]); let p=8+hl; const head=Array.from(b.subarray(0,p)); const chunks=[];
   const dec=function(a){ try{ return new TextDecoder().decode(new Uint8Array(a)); }catch(e){ return ''; } }, enc=function(s){ return Array.from(new TextEncoder().encode(s)); };
   while(p+8<=b.length){ const isTrk=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0;
-    const body=b.slice(p+8,p+8+len), whole=b.slice(p,p+8+len); p+=8+len; if(!isTrk){ chunks.push({raw:whole}); continue; }
+    const body=b.subarray(p+8,p+8+len), whole=b.subarray(p,p+8+len); p+=8+len; if(!isTrk){ chunks.push({raw:whole}); continue; }
     let i=0,t=0,rs=0,ord=0,eot=null; const ev=[]; const rdv=function(){ let v=0,c; do{ c=body[i++]; v=(v<<7)|(c&127); }while((c&128)&&i<body.length); return v; };
     while(i<body.length){ t+=rdv(); let s=body[i]; if(s<0x80){ s=rs; } else { i++; if(s<0xF0) rs=s; }
-      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
-      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
-      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
+      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=Array.from(body.subarray(i,i+l)); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
+      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=Array.from(body.subarray(i,i+l)); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
+      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=(n===1)?[body[i]]:[body[i],body[i+1]]; i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
     const nmE=ev.find(function(e){ return e.meta===0x03; }); chunks.push({ev:ev, eot:(eot==null?t:eot), whole:whole, nm:nmE?dec(nmE.dat):''}); }
   const TR=chunks.filter(function(c){ return c.ev; }); if(TR.length<3) return u8;
   if(!FB && TR.some(function(c){ return /Seam Pad|Strings \(bridge\)|Winter Pad/.test(c.nm); })) return u8;
@@ -88848,8 +88858,9 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
   if(FB){ BND.length=0; opt.bnd.slice(1).forEach(function(t){ if(t>0 && t<songEnd) BND.push({t:t, L:barLen(t), K:keyAt(t)}); }); }
   if(!BND.length) return u8;
   const pairs=function(c){ const op={}, P=[]; c.ev.slice().sort(function(x,y){ return (x.t-y.t)||(x.o-y.o); }).forEach(function(e){ if(e.s==null) return; const hi=e.s&0xF0; if(hi===0x90&&e.d[1]>0){ (op[e.d[0]]=op[e.d[0]]||[]).push(e); } else if(hi===0x80||(hi===0x90&&e.d[1]===0)){ const q=op[e.d[0]]; if(q&&q.length) P.push({on:q.shift(), off:e}); } }); return P; };
+  const PCACHE=new Map(); const pairsC=function(c){ let r=PCACHE.get(c); if(!r){ r=pairs(c); PCACHE.set(c,r); } return r; };   /* ★ 2026-11-25 로비 하루가 앱을 멈춤: 트랙마다 음 짝을 한 번만 셈(예전엔 이음 자리마다 트랙 수 x 트랙 수 번 다시 정렬) */
   const PERC=/Drum|Kit\b|Perc|Kick|Snare|Hat|Cymbal|Riser|Impact|FX|Sweep|Downlifter|Timpani|Gran Cassa|Tam-tam/i;
-  const hist=function(a,z){ const W=new Array(12).fill(0); TR.forEach(function(c,ci){ if(ci===0 || PERC.test(c.nm) || /Seam Pad/.test(c.nm)) return; pairs(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<24) return; const aa=Math.max(a,x.on.t), zz=Math.min(z,x.off.t); if(zz>aa) W[x.on.d[0]%12]+=(zz-aa)*(x.on.d[0]<52?1.5:1); }); }); return W; };
+  const hist=function(a,z){ const W=new Array(12).fill(0); TR.forEach(function(c,ci){ if(ci===0 || PERC.test(c.nm) || /Seam Pad/.test(c.nm)) return; pairsC(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<24) return; const aa=Math.max(a,x.on.t), zz=Math.min(z,x.off.t); if(zz>aa) W[x.on.d[0]%12]+=(zz-aa)*(x.on.d[0]<52?1.5:1); }); }); return W; };
   const triOf=function(r,min){ return [r,(r+(min?3:4))%12,(r+7)%12]; };
   const chordFromW=function(W){ let best=null, bw=-1; for(let r=0;r<12;r++) [false,true].forEach(function(mi){ const w=triOf(r,mi).reduce(function(a,x){ return a+W[x]; },0); if(w>bw){ bw=w; best={r:r,min:mi}; } }); return best; };
   const chordAt=function(t,dir,L){ if(CH.length){ if(dir<0){ let r=null; CH.forEach(function(x){ if(x.t<t && x.t>=t-2*L) r=x; }); if(r) return r; } else { const r=CH.find(function(x){ return x.t>=t-4 && x.t<t+L; }); if(r) return r; } } return chordFromW(dir<0?hist(t-L,t):hist(t,t+L)); };
@@ -88869,11 +88880,11 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
       if(!V.length) V=prev.slice(); V.forEach(function(m,q){ note(g[0]+q*8,m,[42,46,46,40][gi]-q*2,g[1]-g[0]-q*8-6); }); prev=V; prevC=C; });
     cc(t-L,0); cc(t-L+Math.round(L/4),48); cc(t-h,66); cc(t,70); cc(t+h,48); cc(t+L-20,14);
     /* 툭 끝나는 지속음 트랙은 반 마디 더 */
-    TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm) || !SUS.test(c.nm)) return; const P=pairs(c); if(P.some(function(x){ return x.on.t>=t && x.on.t<t+h; })) return;
-      const W2=hist(t,t+h), m2=Math.max.apply(null,W2); const clash=function(pc){ return m2>0 && (W2[(pc+1)%12]>0.15*m2 || W2[(pc+11)%12]>0.15*m2) && !(W2[pc]>0.15*m2); };   /* 다음 편 소리와 반음이면 끌지 않음 */
+    const W2=hist(t,t+h), m2=Math.max.apply(null,W2);
+    TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm) || !SUS.test(c.nm)) return; const P=pairsC(c); if(P.some(function(x){ return x.on.t>=t && x.on.t<t+h; })) return; const clash=function(pc){ return m2>0 && (W2[(pc+1)%12]>0.15*m2 || W2[(pc+11)%12]>0.15*m2) && !(W2[pc]>0.15*m2); };   /* 다음 편 소리와 반음이면 끌지 않음 */
       let hit=false; P.forEach(function(x){ if(x.off.t>=t-Math.round(ppq/2) && x.off.t<=t+Math.round(ppq/4) && x.on.t<t && !clash(x.on.d[0]%12)){ x.off.t=t+h; hit=true; } }); if(hit){ c.dirty=true; ext++; } }); });
   /* ★ 2026-11-25 이음 패드 음이 다른 트랙 음과 반음으로 반 박 넘게 겹치면 그 음은 뺌(로비 이음 검사: 패드 칸의 3.8% 가 지나가는 베이스, 7도 선율과 부딪힘) */
-  { const OT=[]; TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm)) return; pairs(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<28) return; OT.push([x.on.t,x.off.t,x.on.d[0]%12]); }); });
+  { const OT=[]; TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm)) return; pairsC(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<28) return; if(!BND.some(function(B){ return x.off.t>B.t-B.L-ppq && x.on.t<B.t+B.L+ppq; })) return; OT.push([x.on.t,x.off.t,x.on.d[0]%12]); }); });
     const mine=PAD.ev.filter(function(e){ return e.o>=O9S && e.s!=null && (e.s&0xF0)===0x90 && e.d[1]>0; }); let dropN=0;
     mine.forEach(function(on){ const off=PAD.ev.find(function(e){ return e.o>on.o && e.o>=O9S && e.s!=null && (e.s&0xF0)===0x80 && e.d[0]===on.d[0] && e.t>=on.t; }); if(!off) return; const pc=on.d[0]%12; let ov=0;
       OT.forEach(function(x){ if(x[2]!==(pc+1)%12 && x[2]!==(pc+11)%12) return; const a=Math.max(on.t,x[0]), z=Math.min(off.t,x[1]); if(z>a) ov+=z-a; });
@@ -88881,15 +88892,16 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
     if(dropN) PAD.ev=PAD.ev.filter(function(e){ return !e.kill; }); ext+=0; window.__SEAM_DROP=dropN; }
   if(!PAD0) chunks.push(PAD);
   window.__SEAM_REPORT={seams:BND.length, ext:ext, lobby:FB};
-  const res=head.slice(); let nTr=0;
-  chunks.forEach(function(c){ if(c.raw){ for(let q=0;q<c.raw.length;q++) res.push(c.raw[q]); return; } nTr++;
-    if(!c.dirty){ for(let q=0;q<c.whole.length;q++) res.push(c.whole[q]); return; }
+  const parts=[new Uint8Array(head)]; let nTr=0, tot=head.length;   /* ★ 2026-11-25 로비 한 시간 묶음에서 메모리를 덜 쓰게: 바뀌지 않은 트랙은 바이트 그대로 붙임 */
+  chunks.forEach(function(c){ if(c.raw){ const r=(c.raw instanceof Uint8Array)?c.raw:new Uint8Array(c.raw); parts.push(r); tot+=r.length; return; } nTr++;
+    if(!c.dirty){ parts.push(c.whole); tot+=c.whole.length; return; }
     const E=c.ev.slice().sort(function(a,z){ return (a.t-z.t)||(a.o-z.o); }); const T=[]; let last=0;
     E.forEach(function(e){ const dv=vlq(e.t-last); for(let q=0;q<dv.length;q++) T.push(dv[q]); last=e.t; if(e.raw){ for(let q=0;q<e.raw.length;q++) T.push(e.raw[q]); } else { T.push(e.s); for(let q=0;q<e.d.length;q++) T.push(e.d[q]); } });
     const eot=Math.max(c.eot,last); const dv=vlq(Math.max(0,eot-last)); for(let q=0;q<dv.length;q++) T.push(dv[q]); T.push(0xFF,0x2F,0x00);
-    const l=T.length; res.push(0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255); for(let q=0;q<T.length;q++) res.push(T[q]); });
-  res[10]=(nTr>>8)&255; res[11]=nTr&255;
-  return new Uint8Array(res); }catch(e){ window.__seamErr=String(e&&e.stack||e); return u8; } };
+    const l=T.length; parts.push(new Uint8Array([0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255])); parts.push(new Uint8Array(T)); tot+=8+l; });
+  parts[0][10]=(nTr>>8)&255; parts[0][11]=nTr&255;
+  const out=new Uint8Array(tot); let w=0; parts.forEach(function(x){ out.set(x,w); w+=x.length; });
+  return out; }catch(e){ window.__seamErr=String(e&&e.stack||e); return u8; } };
 /*SANITY-END*/
 /*CCCLEAN-BEGIN*/
 /* ★ 2026-11-02 형: "서스테인이든 익스프레션이든 제대로 된 구간에 안 먹히고 이상하게 찍히는 게 있네. 전체 전수 검증. 스트링이 툭 끊기면 안 됨"
@@ -101677,17 +101689,17 @@ window.__noteTidy=function(u8){ try{ const b=u8; if(!b||b.length<14||b[0]!==0x4D
    opt.bnd(이어 붙인 자리 틱들, 첫 자리 0 은 건너뜀)를 주면 앱 칸 조건과 길이 조건 없이 그 자리마다 이음 패드. 곡 안에서 이미 만든 Seam Pad 트랙이 있으면 그 트랙(채널)에 더함 */
 window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && opt.bnd.length>1);
   const CX=window.__STAGE_CTX||{}; if(!FB && (!(CX.app==='play'||CX.app==='band'||CX.app==='beat') || CX.score || CX.wamb || CX.amb5 || CX.well || /carol|yoga|medi|rch/i.test(String(CX.genre||'')))) return u8;
-  const b=Array.prototype.slice.call(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54) return u8;
+  const b=(u8 instanceof Uint8Array)?u8:new Uint8Array(u8); if(b.length<14||b[0]!==0x4D||b[1]!==0x54) return u8;
   const vlq=function(v){ v=Math.max(0,v|0); const o=[v&0x7F]; v>>=7; while(v>0){ o.unshift((v&0x7F)|0x80); v>>=7; } return o; };
-  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0, ppq=((b[12]<<8)|b[13]); let p=8+hl; const head=b.slice(0,p); const chunks=[];
+  const hl=((b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7])>>>0, ppq=((b[12]<<8)|b[13]); let p=8+hl; const head=Array.from(b.subarray(0,p)); const chunks=[];
   const dec=function(a){ try{ return new TextDecoder().decode(new Uint8Array(a)); }catch(e){ return ''; } }, enc=function(s){ return Array.from(new TextEncoder().encode(s)); };
   while(p+8<=b.length){ const isTrk=(b[p]===0x4D&&b[p+1]===0x54&&b[p+2]===0x72&&b[p+3]===0x6B); const len=((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7])>>>0;
-    const body=b.slice(p+8,p+8+len), whole=b.slice(p,p+8+len); p+=8+len; if(!isTrk){ chunks.push({raw:whole}); continue; }
+    const body=b.subarray(p+8,p+8+len), whole=b.subarray(p,p+8+len); p+=8+len; if(!isTrk){ chunks.push({raw:whole}); continue; }
     let i=0,t=0,rs=0,ord=0,eot=null; const ev=[]; const rdv=function(){ let v=0,c; do{ c=body[i++]; v=(v<<7)|(c&127); }while((c&128)&&i<body.length); return v; };
     while(i<body.length){ t+=rdv(); let s=body[i]; if(s<0x80){ s=rs; } else { i++; if(s<0xF0) rs=s; }
-      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=body.slice(i,i+l); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
-      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=body.slice(i,i+l); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
-      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=body.slice(i,i+n); i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
+      if(s===0xFF){ const ty=body[i++]; const l=rdv(); const dat=Array.from(body.subarray(i,i+l)); i+=l; if(ty===0x2F){ eot=t; break; } ev.push({t:t,o:ord++,raw:[0xFF,ty].concat(vlq(l)).concat(dat),meta:ty,dat:dat}); }
+      else if(s===0xF0||s===0xF7){ const l=rdv(); const dat=Array.from(body.subarray(i,i+l)); i+=l; ev.push({t:t,o:ord++,raw:[s].concat(vlq(l)).concat(dat)}); }
+      else { const hi=s&0xF0; const n=(hi===0xC0||hi===0xD0)?1:2; const d=(n===1)?[body[i]]:[body[i],body[i+1]]; i+=n; ev.push({t:t,o:ord++,s:s,d:d}); } }
     const nmE=ev.find(function(e){ return e.meta===0x03; }); chunks.push({ev:ev, eot:(eot==null?t:eot), whole:whole, nm:nmE?dec(nmE.dat):''}); }
   const TR=chunks.filter(function(c){ return c.ev; }); if(TR.length<3) return u8;
   if(!FB && TR.some(function(c){ return /Seam Pad|Strings \(bridge\)|Winter Pad/.test(c.nm); })) return u8;
@@ -101712,8 +101724,9 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
   if(FB){ BND.length=0; opt.bnd.slice(1).forEach(function(t){ if(t>0 && t<songEnd) BND.push({t:t, L:barLen(t), K:keyAt(t)}); }); }
   if(!BND.length) return u8;
   const pairs=function(c){ const op={}, P=[]; c.ev.slice().sort(function(x,y){ return (x.t-y.t)||(x.o-y.o); }).forEach(function(e){ if(e.s==null) return; const hi=e.s&0xF0; if(hi===0x90&&e.d[1]>0){ (op[e.d[0]]=op[e.d[0]]||[]).push(e); } else if(hi===0x80||(hi===0x90&&e.d[1]===0)){ const q=op[e.d[0]]; if(q&&q.length) P.push({on:q.shift(), off:e}); } }); return P; };
+  const PCACHE=new Map(); const pairsC=function(c){ let r=PCACHE.get(c); if(!r){ r=pairs(c); PCACHE.set(c,r); } return r; };   /* ★ 2026-11-25 로비 하루가 앱을 멈춤: 트랙마다 음 짝을 한 번만 셈(예전엔 이음 자리마다 트랙 수 x 트랙 수 번 다시 정렬) */
   const PERC=/Drum|Kit\b|Perc|Kick|Snare|Hat|Cymbal|Riser|Impact|FX|Sweep|Downlifter|Timpani|Gran Cassa|Tam-tam/i;
-  const hist=function(a,z){ const W=new Array(12).fill(0); TR.forEach(function(c,ci){ if(ci===0 || PERC.test(c.nm) || /Seam Pad/.test(c.nm)) return; pairs(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<24) return; const aa=Math.max(a,x.on.t), zz=Math.min(z,x.off.t); if(zz>aa) W[x.on.d[0]%12]+=(zz-aa)*(x.on.d[0]<52?1.5:1); }); }); return W; };
+  const hist=function(a,z){ const W=new Array(12).fill(0); TR.forEach(function(c,ci){ if(ci===0 || PERC.test(c.nm) || /Seam Pad/.test(c.nm)) return; pairsC(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<24) return; const aa=Math.max(a,x.on.t), zz=Math.min(z,x.off.t); if(zz>aa) W[x.on.d[0]%12]+=(zz-aa)*(x.on.d[0]<52?1.5:1); }); }); return W; };
   const triOf=function(r,min){ return [r,(r+(min?3:4))%12,(r+7)%12]; };
   const chordFromW=function(W){ let best=null, bw=-1; for(let r=0;r<12;r++) [false,true].forEach(function(mi){ const w=triOf(r,mi).reduce(function(a,x){ return a+W[x]; },0); if(w>bw){ bw=w; best={r:r,min:mi}; } }); return best; };
   const chordAt=function(t,dir,L){ if(CH.length){ if(dir<0){ let r=null; CH.forEach(function(x){ if(x.t<t && x.t>=t-2*L) r=x; }); if(r) return r; } else { const r=CH.find(function(x){ return x.t>=t-4 && x.t<t+L; }); if(r) return r; } } return chordFromW(dir<0?hist(t-L,t):hist(t,t+L)); };
@@ -101733,11 +101746,11 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
       if(!V.length) V=prev.slice(); V.forEach(function(m,q){ note(g[0]+q*8,m,[42,46,46,40][gi]-q*2,g[1]-g[0]-q*8-6); }); prev=V; prevC=C; });
     cc(t-L,0); cc(t-L+Math.round(L/4),48); cc(t-h,66); cc(t,70); cc(t+h,48); cc(t+L-20,14);
     /* 툭 끝나는 지속음 트랙은 반 마디 더 */
-    TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm) || !SUS.test(c.nm)) return; const P=pairs(c); if(P.some(function(x){ return x.on.t>=t && x.on.t<t+h; })) return;
-      const W2=hist(t,t+h), m2=Math.max.apply(null,W2); const clash=function(pc){ return m2>0 && (W2[(pc+1)%12]>0.15*m2 || W2[(pc+11)%12]>0.15*m2) && !(W2[pc]>0.15*m2); };   /* 다음 편 소리와 반음이면 끌지 않음 */
+    const W2=hist(t,t+h), m2=Math.max.apply(null,W2);
+    TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm) || !SUS.test(c.nm)) return; const P=pairsC(c); if(P.some(function(x){ return x.on.t>=t && x.on.t<t+h; })) return; const clash=function(pc){ return m2>0 && (W2[(pc+1)%12]>0.15*m2 || W2[(pc+11)%12]>0.15*m2) && !(W2[pc]>0.15*m2); };   /* 다음 편 소리와 반음이면 끌지 않음 */
       let hit=false; P.forEach(function(x){ if(x.off.t>=t-Math.round(ppq/2) && x.off.t<=t+Math.round(ppq/4) && x.on.t<t && !clash(x.on.d[0]%12)){ x.off.t=t+h; hit=true; } }); if(hit){ c.dirty=true; ext++; } }); });
   /* ★ 2026-11-25 이음 패드 음이 다른 트랙 음과 반음으로 반 박 넘게 겹치면 그 음은 뺌(로비 이음 검사: 패드 칸의 3.8% 가 지나가는 베이스, 7도 선율과 부딪힘) */
-  { const OT=[]; TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm)) return; pairs(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<28) return; OT.push([x.on.t,x.off.t,x.on.d[0]%12]); }); });
+  { const OT=[]; TR.forEach(function(c,ci){ if(ci===0 || c===PAD || PERC.test(c.nm)) return; pairsC(c).forEach(function(x){ if((x.on.s&15)===9 || x.on.d[0]<28) return; if(!BND.some(function(B){ return x.off.t>B.t-B.L-ppq && x.on.t<B.t+B.L+ppq; })) return; OT.push([x.on.t,x.off.t,x.on.d[0]%12]); }); });
     const mine=PAD.ev.filter(function(e){ return e.o>=O9S && e.s!=null && (e.s&0xF0)===0x90 && e.d[1]>0; }); let dropN=0;
     mine.forEach(function(on){ const off=PAD.ev.find(function(e){ return e.o>on.o && e.o>=O9S && e.s!=null && (e.s&0xF0)===0x80 && e.d[0]===on.d[0] && e.t>=on.t; }); if(!off) return; const pc=on.d[0]%12; let ov=0;
       OT.forEach(function(x){ if(x[2]!==(pc+1)%12 && x[2]!==(pc+11)%12) return; const a=Math.max(on.t,x[0]), z=Math.min(off.t,x[1]); if(z>a) ov+=z-a; });
@@ -101745,15 +101758,16 @@ window.__seamGlue=function(u8, opt){ try{ opt=opt||{}; const FB=!!(opt.bnd && op
     if(dropN) PAD.ev=PAD.ev.filter(function(e){ return !e.kill; }); ext+=0; window.__SEAM_DROP=dropN; }
   if(!PAD0) chunks.push(PAD);
   window.__SEAM_REPORT={seams:BND.length, ext:ext, lobby:FB};
-  const res=head.slice(); let nTr=0;
-  chunks.forEach(function(c){ if(c.raw){ for(let q=0;q<c.raw.length;q++) res.push(c.raw[q]); return; } nTr++;
-    if(!c.dirty){ for(let q=0;q<c.whole.length;q++) res.push(c.whole[q]); return; }
+  const parts=[new Uint8Array(head)]; let nTr=0, tot=head.length;   /* ★ 2026-11-25 로비 한 시간 묶음에서 메모리를 덜 쓰게: 바뀌지 않은 트랙은 바이트 그대로 붙임 */
+  chunks.forEach(function(c){ if(c.raw){ const r=(c.raw instanceof Uint8Array)?c.raw:new Uint8Array(c.raw); parts.push(r); tot+=r.length; return; } nTr++;
+    if(!c.dirty){ parts.push(c.whole); tot+=c.whole.length; return; }
     const E=c.ev.slice().sort(function(a,z){ return (a.t-z.t)||(a.o-z.o); }); const T=[]; let last=0;
     E.forEach(function(e){ const dv=vlq(e.t-last); for(let q=0;q<dv.length;q++) T.push(dv[q]); last=e.t; if(e.raw){ for(let q=0;q<e.raw.length;q++) T.push(e.raw[q]); } else { T.push(e.s); for(let q=0;q<e.d.length;q++) T.push(e.d[q]); } });
     const eot=Math.max(c.eot,last); const dv=vlq(Math.max(0,eot-last)); for(let q=0;q<dv.length;q++) T.push(dv[q]); T.push(0xFF,0x2F,0x00);
-    const l=T.length; res.push(0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255); for(let q=0;q<T.length;q++) res.push(T[q]); });
-  res[10]=(nTr>>8)&255; res[11]=nTr&255;
-  return new Uint8Array(res); }catch(e){ window.__seamErr=String(e&&e.stack||e); return u8; } };
+    const l=T.length; parts.push(new Uint8Array([0x4D,0x54,0x72,0x6B,(l>>>24)&255,(l>>>16)&255,(l>>>8)&255,l&255])); parts.push(new Uint8Array(T)); tot+=8+l; });
+  parts[0][10]=(nTr>>8)&255; parts[0][11]=nTr&255;
+  const out=new Uint8Array(tot); let w=0; parts.forEach(function(x){ out.set(x,w); w+=x.length; });
+  return out; }catch(e){ window.__seamErr=String(e&&e.stack||e); return u8; } };
 /*SANITY-END*/
 /*MP3-BEGIN*/
 /* ★ 2026-10-30 형: "MP3 도 정보 주면 거기서부터 더하기. 빠르기는 베이스나 킥으로". 다시 만지기 4단계 소리 파일 읽기.
